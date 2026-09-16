@@ -454,8 +454,10 @@ async function api(action) {
     method: "POST",
 
     headers: {
-      "Content-Type": "application/json"
-    },
+  "Authorization": "Bearer " + SUPABASE_KEY,
+  "apikey": SUPABASE_KEY,
+  "Content-Type": "application/json"
+},
 
     body: JSON.stringify({
       action: action,
