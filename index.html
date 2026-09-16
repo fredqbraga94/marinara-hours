@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1f6b45">
+
+  <title>Marinara Hours</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      --green: #1f6b45;
+      --green-dark: #155236;
+      --green-light: #eaf4ee;
+      --cream: #f6f3ed;
+      --white: #ffffff;
+      --text: #17211b;
+      --muted: #758078;
+      --border: #e5e8e5;
+      --danger: #b43b3b;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--cream);
+      color: var(--text);
+    }
+
+    button, input {
+      font: inherit;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 480px;
+      min-height: 100vh;
+      margin: auto;
+      background: var(--cream);
+      padding-bottom: 100px;
+    }
+
+    .header {
+      background: var(--green);
+      color: white;
+      padding: calc(18px + env(safe-area-inset-top)) 22px 28px;
+      border-radius: 0 0 30px 30px;
+    }
+
+    .brand {
+      font-size: 13px;
+      letter-spacing: 2px;
+      font-weight: 800;
+      opacity: .85;
+    }
+
+    .header h1 {
+      margin: 8px 0 4px;
+      font-size: 30px;
+    }
+
+    .header p {
+      margin: 0;
+      opacity: .8;
+      font-size: 14px;
+    }
+
+    .content {
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 24px;
+      padding: 22px;
+      margin-bottom: 16px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.06);
+      border: 1px solid rgba(0,0,0,.03);
+    }
+
+    .login-title {
+      font-size: 23px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .pin {
+      width: 100%;
+      margin-top: 20px;
+      height: 62px;
+      border-radius: 18px;
+      border: 1.5px solid var(--border);
+      background: #fafbfa;
+      text-align: center;
+      font-size: 26px;
+      letter-spacing: 10px;
+      outline: none;
+    }
+
+    .pin:focus {
+      border-color: var(--green);
+      background: white;
+    }
+
+    .btn {
+      width: 100%;
+      border: 0;
+      border-radius: 18px;
+      min-height: 58px;
+      padding: 15px;
+      font-weight: 800;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .primary {
+      background: var(--green);
+      color: white;
+      margin-top: 14px;
+    }
+
+    .primary:active {
+      background: var(--green-dark);
+      transform: scale(.99);
+    }
+
+    .secondary {
+      background: var(--green-light);
+      color: var(--green);
+      margin-top: 12px;
+    }
+
+    .danger {
+      background: #fff0f0;
+      color: var(--danger);
+      margin-top: 12px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .profile {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .avatar {
+      width: 54px;
+      height: 54px;
+      border-radius: 17px;
+      background: var(--green-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--green);
+      font-weight: 900;
+      font-size: 21px;
+    }
+
+    .profile h2 {
+      margin: 0 0 3px;
+      font-size: 20px;
+    }
+
+    .profile p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status {
+      margin-top: 22px;
+      padding: 18px;
+      background: #fafbfa;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+    }
+
+    .status-label {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .status-value {
+      font-size: 25px;
+      font-weight: 850;
+      margin-top: 6px;
+    }
+
+    .working {
+      color: var(--green);
+    }
+
+    .break {
+      color: #b16d16;
+    }
+
+    .clock {
+      text-align: center;
+      padding: 22px 0 8px;
+    }
+
+    .time {
+      font-size: 44px;
+      font-weight: 800;
+      letter-spacing: -2px;
+    }
+
+    .date {
+      color: var(--muted);
+      margin-top: 5px;
+      font-size: 14px;
+    }
+
+    .message {
+      margin-top: 14px;
+      padding: 13px;
+      border-radius: 14px;
+      text-align: center;
+      font-size: 14px;
+      display: none;
+    }
+
+    .message.show {
+      display: block;
+    }
+
+    .message.ok {
+      color: var(--green);
+      background: var(--green-light);
+    }
+
+    .message.error {
+      color: var(--danger);
+      background: #fff0f0;
+    }
+
+    .loader {
+      opacity: .6;
+      pointer-events: none;
+    }
+
+    .manager-badge {
+      display: inline-block;
+      background: var(--green-light);
+      color: var(--green);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      margin-top: 7px;
+    }
+
+    .footer {
+      text-align: center;
+      color: #929a94;
+      font-size: 11px;
+      padding: 5px 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="app">
+
+  <header class="header">
+    <div class="brand">MARINARA</div>
+    <h1>Hours</h1>
+    <p>Hawthorne · Staff Time Clock</p>
+  </header>
+
+  <main class="content">
+
+    <section id="loginScreen" class="card">
+
+      <div class="login-title">Welcome</div>
+
+      <div class="sub">
+        Enter your staff PIN to access Marinara Hours.
+      </div>
+
+      <input
+        id="pinInput"
+        class="pin"
+        type="password"
+        inputmode="numeric"
+        autocomplete="off"
+        maxlength="6"
+        placeholder="••••"
+      >
+
+      <button id="loginBtn" class="btn primary">
+        Continue
+      </button>
+
+      <div id="loginMessage" class="message"></div>
+
+    </section>
+
+
+    <section id="homeScreen" class="hidden">
+
+      <div class="card">
+
+        <div class="profile">
+
+          <div id="avatar" class="avatar">M</div>
+
+          <div>
+            <h2 id="staffName">Staff</h2>
+            <p id="staffInfo">Hawthorne</p>
+            <span id="managerBadge" class="manager-badge hidden">
+              MANAGER
+            </span>
+          </div>
+
+        </div>
+
+        <div class="status">
+
+          <div class="status-label">
+            Current status
+          </div>
+
+          <div id="statusValue" class="status-value">
+            Off shift
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="card clock">
+
+        <div id="currentTime" class="time">
+          --:--
+        </div>
+
+        <div id="currentDate" class="date"></div>
+
+      </div>
+
+
+      <div class="card">
+
+        <button id="clockInBtn" class="btn primary hidden">
+          Clock In
+        </button>
+
+        <button id="startBreakBtn" class="btn secondary hidden">
+          Start Break
+        </button>
+
+        <button id="endBreakBtn" class="btn primary hidden">
+          End Break
+        </button>
+
+        <button id="clockOutBtn" class="btn danger hidden">
+          Clock Out
+        </button>
+
+        <div id="actionMessage" class="message"></div>
+
+      </div>
+
+
+      <button id="logoutBtn" class="btn secondary">
+        Sign Out
+      </button>
+
+    </section>
+
+  </main>
+
+  <div class="footer">
+    Marinara Hawthorne · Australia
+  </div>
+
+</div>
+
+
+<script>
+
+const API =
+"https://nnchgomdnnqsaovfivob.supabase.co/functions/v1/marinara-api-v2";
+
+let currentPin = "";
+let currentData = null;
+
+const loginScreen = document.getElementById("loginScreen");
+const homeScreen = document.getElementById("homeScreen");
+
+const pinInput = document.getElementById("pinInput");
+const loginBtn = document.getElementById("loginBtn");
+
+const loginMessage = document.getElementById("loginMessage");
+const actionMessage = document.getElementById("actionMessage");
+
+const staffName = document.getElementById("staffName");
+const staffInfo = document.getElementById("staffInfo");
+const avatar = document.getElementById("avatar");
+const managerBadge = document.getElementById("managerBadge");
+
+const statusValue = document.getElementById("statusValue");
+
+const clockInBtn = document.getElementById("clockInBtn");
+const startBreakBtn = document.getElementById("startBreakBtn");
+const endBreakBtn = document.getElementById("endBreakBtn");
+const clockOutBtn = document.getElementById("clockOutBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+
+
+function showMessage(element, text, type = "ok") {
+
+  element.textContent = text;
+  element.className = "message show " + type;
+
+}
+
+
+function clearMessage(element) {
+
+  element.textContent = "";
+  element.className = "message";
+
+}
+
+
+async function api(action) {
+
+  const response = await fetch(API, {
+
+    method: "POST",
+
+    headers: {
+      "Content-Type": "application/json"
+    },
+
+    body: JSON.stringify({
+      action: action,
+      pin: currentPin
+    })
+
+  });
+
+  const result = await response.json();
+
+  if (!response.ok || result.success !== true) {
+
+    throw new Error(
+      result.error || "Unable to complete action"
+    );
+
+  }
+
+  return result.data;
+
+}
+
+
+function updateClock() {
+
+  const now = new Date();
+
+  document.getElementById("currentTime").textContent =
+    new Intl.DateTimeFormat("en-AU", {
+      timeZone: "Australia/Brisbane",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    }).format(now);
+
+  document.getElementById("currentDate").textContent =
+    new Intl.DateTimeFormat("en-AU", {
+      timeZone: "Australia/Brisbane",
+      weekday: "long",
+      day: "numeric",
+      month: "long"
+    }).format(now);
+
+}
+
+setInterval(updateClock, 1000);
+updateClock();
+
+
+function hideActions() {
+
+  clockInBtn.classList.add("hidden");
+  startBreakBtn.classList.add("hidden");
+  endBreakBtn.classList.add("hidden");
+  clockOutBtn.classList.add("hidden");
+
+}
+
+
+function render(data) {
+
+  currentData = data;
+
+  staffName.textContent = data.name || "Staff";
+
+  staffInfo.textContent =
+    (data.department || "Staff") +
+    " · " +
+    (data.location || "Hawthorne");
+
+  avatar.textContent =
+    (data.name || "M").charAt(0).toUpperCase();
+
+  if (data.role === "manager") {
+    managerBadge.classList.remove("hidden");
+  } else {
+    managerBadge.classList.add("hidden");
+  }
+
+  hideActions();
+
+  statusValue.className = "status-value";
+
+  if (data.status === "off_shift") {
+
+    statusValue.textContent = "Off shift";
+
+    clockInBtn.classList.remove("hidden");
+
+  }
+
+  else if (data.status === "working") {
+
+    statusValue.textContent = "Working";
+    statusValue.classList.add("working");
+
+    startBreakBtn.classList.remove("hidden");
+    clockOutBtn.classList.remove("hidden");
+
+  }
+
+  else if (data.status === "break") {
+
+    statusValue.textContent = "On break";
+    statusValue.classList.add("break");
+
+    endBreakBtn.classList.remove("hidden");
+    clockOutBtn.classList.remove("hidden");
+
+  }
+
+}
+
+
+async function refreshStatus() {
+
+  const data = await api("status");
+
+  render(data);
+
+}
+
+
+loginBtn.addEventListener("click", async () => {
+
+  clearMessage(loginMessage);
+
+  const pin = pinInput.value.trim();
+
+  if (!/^[0-9]{4,6}$/.test(pin)) {
+
+    showMessage(
+      loginMessage,
+      "Enter your 4–6 digit PIN.",
+      "error"
+    );
+
+    return;
+
+  }
+
+  currentPin = pin;
+
+  loginBtn.classList.add("loader");
+  loginBtn.textContent = "Checking...";
+
+  try {
+
+    const data = await api("status");
+
+    render(data);
+
+    loginScreen.classList.add("hidden");
+    homeScreen.classList.remove("hidden");
+
+    pinInput.value = "";
+
+  }
+
+  catch (error) {
+
+    currentPin = "";
+
+    showMessage(
+      loginMessage,
+      "PIN not recognised.",
+      "error"
+    );
+
+  }
+
+  finally {
+
+    loginBtn.classList.remove("loader");
+    loginBtn.textContent = "Continue";
+
+  }
+
+});
+
+
+async function performAction(action, successText) {
+
+  clearMessage(actionMessage);
+
+  try {
+
+    const data = await api(action);
+
+    showMessage(
+      actionMessage,
+      successText,
+      "ok"
+    );
+
+    await refreshStatus();
+
+  }
+
+  catch (error) {
+
+    showMessage(
+      actionMessage,
+      error.message,
+      "error"
+    );
+
+  }
+
+}
+
+
+clockInBtn.addEventListener("click", () => {
+
+  performAction(
+    "clock_in",
+    "Clock in recorded."
+  );
+
+});
+
+
+startBreakBtn.addEventListener("click", () => {
+
+  performAction(
+    "start_break",
+    "Break started."
+  );
+
+});
+
+
+endBreakBtn.addEventListener("click", () => {
+
+  performAction(
+    "end_break",
+    "Break finished."
+  );
+
+});
+
+
+clockOutBtn.addEventListener("click", () => {
+
+  performAction(
+    "clock_out",
+    "Clock out recorded."
+  );
+
+});
+
+
+logoutBtn.addEventListener("click", () => {
+
+  currentPin = "";
+  currentData = null;
+
+  homeScreen.classList.add("hidden");
+  loginScreen.classList.remove("hidden");
+
+  clearMessage(loginMessage);
+  clearMessage(actionMessage);
+
+});
+
+</script>
+
+</body>
+</html>
