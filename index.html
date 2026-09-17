@@ -582,11 +582,26 @@ button{cursor:pointer}
       margin:10mm;
     }
 
-    body.printing-timesheets{
+    html,
+    body{
       background:#fff !important;
+      width:auto !important;
+      min-width:0 !important;
+      margin:0 !important;
+      padding:0 !important;
     }
 
-    body.printing-timesheets > *{
+    body.printing-timesheets header,
+    body.printing-timesheets footer,
+    body.printing-timesheets #homeScreen,
+    body.printing-timesheets #managerScreen,
+    body.printing-timesheets #staffHoursScreen,
+    body.printing-timesheets #approvalsScreen,
+    body.printing-timesheets #teamScreen,
+    body.printing-timesheets #backTimesheetsBtn,
+    body.printing-timesheets .week-nav,
+    body.printing-timesheets #exportTimesheetsPdfBtn,
+    body.printing-timesheets #timesheetsMessage{
       display:none !important;
     }
 
@@ -598,21 +613,23 @@ button{cursor:pointer}
       padding:0 !important;
     }
 
-    body.printing-timesheets main > *{
-      display:none !important;
-    }
-
     body.printing-timesheets #timesheetsScreen{
       display:block !important;
+      position:static !important;
+      visibility:visible !important;
       width:100% !important;
       max-width:none !important;
       margin:0 !important;
       padding:0 !important;
     }
 
+    body.printing-timesheets #timesheetsScreen *{
+      visibility:visible !important;
+    }
+
     body.printing-timesheets #timesheetsScreen .manager-top{
       display:block !important;
-      margin-bottom:8px !important;
+      margin:0 0 8px !important;
     }
 
     body.printing-timesheets #timesheetsScreen .manager-top h2{
@@ -626,14 +643,8 @@ button{cursor:pointer}
       font-size:9pt !important;
     }
 
-    body.printing-timesheets #backTimesheetsBtn,
-    body.printing-timesheets .week-nav,
-    body.printing-timesheets #exportTimesheetsPdfBtn,
-    body.printing-timesheets #timesheetsMessage{
-      display:none !important;
-    }
-
     body.printing-timesheets #timesheetsScreen > .card{
+      display:block !important;
       box-shadow:none !important;
       border:none !important;
       padding:0 !important;
@@ -643,7 +654,7 @@ button{cursor:pointer}
 
     body.printing-timesheets #timesheetsScreen .section-title{
       font-size:12pt !important;
-      margin-bottom:2px !important;
+      margin:0 0 2px !important;
     }
 
     body.printing-timesheets #timesheetsWeek{
@@ -659,12 +670,14 @@ button{cursor:pointer}
     }
 
     body.printing-timesheets .timesheet-person{
+      display:block !important;
       break-inside:avoid !important;
       page-break-inside:avoid !important;
       margin:0 !important;
       border:1px solid #cfd8d2 !important;
       border-radius:8px !important;
       overflow:hidden !important;
+      background:#fff !important;
     }
 
     body.printing-timesheets .timesheet-person-head{
@@ -697,6 +710,7 @@ button{cursor:pointer}
     }
 
     body.printing-timesheets .timesheet-grid{
+      display:grid !important;
       grid-template-columns:repeat(4,1fr) !important;
       gap:5px !important;
     }
@@ -710,6 +724,7 @@ button{cursor:pointer}
     }
 
     body.printing-timesheets .timesheet-status{
+      display:inline-block !important;
       margin-top:4px !important;
       padding:2px 5px !important;
       font-size:6.5pt !important;
@@ -718,6 +733,7 @@ button{cursor:pointer}
     }
 
     body.printing-timesheets .timesheet-total{
+      display:flex !important;
       padding:6px 9px !important;
       font-size:8pt !important;
     }
@@ -3431,13 +3447,12 @@ exportTimesheetsPdfBtn.addEventListener("click", () => {
   };
 
   window.addEventListener("afterprint", cleanup);
-  window.print();
 
-  setTimeout(() => {
-    if (document.body.classList.contains("printing-timesheets")) {
-      cleanup();
-    }
-  }, 1500);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      window.print();
+    });
+  });
 });
 
 
