@@ -2848,50 +2848,51 @@ async function loadTeamScreen() {
   teamList.className = "empty-state";
   teamList.innerHTML = "Loading team...";
 
-  const result = await api("manager_team");
+  try {
+    const data = await api("manager_team");
 
-  if (!result || !result.success) {
+    const team = data?.team || [];
+    teamLocation.textContent =
+      data?.manager?.location || "Hawthorne";
+
+    if (!team.length) {
+      teamList.innerHTML = "No staff added yet.";
+      return;
+    }
+
+    teamList.className = "";
+    teamList.innerHTML = team.map(renderTeamMember).join("");
+
+    teamList.querySelectorAll(".team-toggle-btn").forEach(button => {
+      button.addEventListener("click", async () => {
+        const staffId = button.dataset.staffId;
+        button.disabled = true;
+        teamMessage.textContent = "";
+
+        try {
+          await api(
+            "manager_toggle_staff",
+            { staff_id: staffId }
+          );
+
+          teamMessage.textContent = "Staff updated successfully.";
+          await loadTeamScreen();
+          await loadManagerDashboard();
+        } catch (error) {
+          teamMessage.textContent =
+            error.message || "Unable to update staff.";
+          button.disabled = false;
+        }
+      });
+    });
+
+  } catch (error) {
+    teamList.className = "empty-state";
     teamList.innerHTML = "Unable to load team.";
     teamMessage.textContent =
-      result?.error || "Unable to load team.";
-    return;
+      error.message || "Unable to load team.";
   }
 
-  const team = result.data?.team || [];
-  teamLocation.textContent =
-    result.data?.manager?.location || "Hawthorne";
-
-  if (!team.length) {
-    teamList.innerHTML = "No staff added yet.";
-    return;
-  }
-
-  teamList.className = "";
-  teamList.innerHTML = team.map(renderTeamMember).join("");
-
-  teamList.querySelectorAll(".team-toggle-btn").forEach(button => {
-    button.addEventListener("click", async () => {
-      const staffId = button.dataset.staffId;
-      button.disabled = true;
-      teamMessage.textContent = "";
-
-      const toggleResult = await api(
-        "manager_toggle_staff",
-        { staff_id: staffId }
-      );
-
-      if (!toggleResult || !toggleResult.success) {
-        teamMessage.textContent =
-          toggleResult?.error || "Unable to update staff.";
-        button.disabled = false;
-        return;
-      }
-
-      teamMessage.textContent = "Staff updated successfully.";
-      await loadTeamScreen();
-      await loadManagerDashboard();
-    });
-  });
 }
 
 teamCard.addEventListener("click", async () => {
@@ -2930,28 +2931,28 @@ addStaffBtn.addEventListener("click", async () => {
   addStaffBtn.disabled = true;
   addStaffBtn.textContent = "Adding...";
 
-  const result = await api("manager_create_staff", {
-    name,
-    staff_pin: staffPin,
-    department
-  });
+  try {
+    await api("manager_create_staff", {
+      name,
+      staff_pin: staffPin,
+      department
+    });
 
-  addStaffBtn.disabled = false;
-  addStaffBtn.textContent = "Add Staff";
+    newStaffName.value = "";
+    newStaffPin.value = "";
+    newStaffDepartment.value = "Kitchen";
 
-  if (!result || !result.success) {
+    teamMessage.textContent = "Staff added successfully.";
+    await loadTeamScreen();
+    await loadManagerDashboard();
+
+  } catch (error) {
     teamMessage.textContent =
-      result?.error || "Unable to add staff.";
-    return;
+      error.message || "Unable to add staff.";
+  } finally {
+    addStaffBtn.disabled = false;
+    addStaffBtn.textContent = "Add Staff";
   }
-
-  newStaffName.value = "";
-  newStaffPin.value = "";
-  newStaffDepartment.value = "Kitchen";
-
-  teamMessage.textContent = "Staff added successfully.";
-  await loadTeamScreen();
-  await loadManagerDashboard();
 });
 
 
