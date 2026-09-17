@@ -213,6 +213,20 @@ button{cursor:pointer}
   line-height:1.35;
 }
 
+
+/* STAFF HOURS DETAIL */
+.staff-hours-person{width:100%;border:1px solid var(--border);background:white;border-radius:18px;padding:16px;margin-bottom:10px;text-align:left;color:var(--text)}
+.staff-hours-person-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.staff-hours-person-name{font-size:16px;font-weight:850}
+.staff-hours-person-meta{color:var(--muted);font-size:12px;margin-top:4px}
+.staff-hours-detail{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.staff-hours-shift{padding:13px 0;border-bottom:1px solid var(--border)}
+.staff-hours-shift:last-child{border-bottom:0;padding-bottom:0}
+.staff-hours-shift-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.staff-hours-shift-date{font-size:13px;font-weight:850}
+.approved-badge{background:var(--green-light);color:var(--green);padding:6px 9px;border-radius:999px;font-size:11px;font-weight:800}
+.staff-hours-week{color:var(--muted);font-size:13px;margin-bottom:16px}
+
 /* APPROVALS */
 
 .back-btn{
@@ -659,7 +673,7 @@ button{cursor:pointer}
 
     <div class="menu-grid">
 
-      <button class="menu-card">
+      <button id="staffHoursCard" class="menu-card">
         <strong>Staff Hours</strong>
         <span>Weekly hours and shifts</span>
       </button>
@@ -773,6 +787,24 @@ button{cursor:pointer}
 </section>
 
 
+
+<!-- STAFF HOURS SCREEN -->
+<section id="staffHoursScreen" class="hidden">
+  <div class="manager-top">
+    <div>
+      <h2>Staff Hours</h2>
+      <p id="staffHoursLocation">Hawthorne</p>
+    </div>
+    <button id="backStaffHoursBtn" class="back-btn">Back</button>
+  </div>
+  <div id="staffHoursMessage" class="message"></div>
+  <div class="card">
+    <div class="section-title">This Week</div>
+    <div id="staffHoursWeek" class="staff-hours-week">Loading...</div>
+    <div id="staffHoursList"><div class="empty-state">Loading staff hours...</div></div>
+  </div>
+</section>
+
 <!-- APPROVALS SCREEN -->
 
 <section id="approvalsScreen" class="hidden">
@@ -841,6 +873,9 @@ document.getElementById("homeScreen");
 
 const managerScreen =
 document.getElementById("managerScreen");
+
+const staffHoursScreen =
+document.getElementById("staffHoursScreen");
 
 const approvalsScreen =
 document.getElementById("approvalsScreen");
@@ -920,6 +955,9 @@ document.getElementById("approvalsCard");
 const myClockCard =
 document.getElementById("myClockCard");
 
+const staffHoursCard =
+document.getElementById("staffHoursCard");
+
 const managerClockSection =
 document.getElementById("managerClockSection");
 
@@ -941,6 +979,14 @@ document.getElementById("managerClockOutBtn");
 const managerActionMessage =
 document.getElementById("managerActionMessage");
 
+
+/* STAFF HOURS */
+
+const backStaffHoursBtn = document.getElementById("backStaffHoursBtn");
+const staffHoursLocation = document.getElementById("staffHoursLocation");
+const staffHoursWeek = document.getElementById("staffHoursWeek");
+const staffHoursList = document.getElementById("staffHoursList");
+const staffHoursMessage = document.getElementById("staffHoursMessage");
 
 /* APPROVALS */
 
@@ -1587,6 +1633,82 @@ async function loadManagerDashboard() {
 
   }
 
+}
+
+
+
+/* STAFF HOURS */
+
+function formatStaffHoursWeek(weekStart) {
+  const start = new Date(weekStart);
+  const end = new Date(start.getTime() + 6 * 86400000);
+  const startText = new Intl.DateTimeFormat("en-AU",{timeZone:"Australia/Brisbane",day:"numeric",month:"short"}).format(start);
+  const endText = new Intl.DateTimeFormat("en-AU",{timeZone:"Australia/Brisbane",day:"numeric",month:"short",year:"numeric"}).format(end);
+  return startText + " – " + endText;
+}
+
+async function loadStaffHours() {
+  clearMessage(staffHoursMessage);
+  staffHoursList.innerHTML = '<div class="empty-state">Loading staff hours...</div>';
+
+  try {
+    const data = await api("manager_hours");
+    staffHoursLocation.textContent = data.manager?.location || "Hawthorne";
+    staffHoursWeek.textContent = data.week_start ? formatStaffHoursWeek(data.week_start) : "This week";
+
+    const summary = data.summary || [];
+    const shifts = data.shifts || [];
+
+    if (!summary.length) {
+      staffHoursList.innerHTML = '<div class="empty-state">No shifts recorded this week.</div>';
+      return;
+    }
+
+    staffHoursList.innerHTML = summary.map(person => {
+      const personShifts = shifts.filter(shift => shift.staff_id === person.staff_id);
+
+      return `
+        <button class="staff-hours-person" data-staff-id="${person.staff_id}">
+          <div class="staff-hours-person-top">
+            <div>
+              <div class="staff-hours-person-name">${escapeHtml(person.name)}</div>
+              <div class="staff-hours-person-meta">
+                ${escapeHtml(person.department)} · ${person.shifts} shift${person.shifts === 1 ? "" : "s"}${person.unapproved ? " · " + person.unapproved + " pending" : ""}
+              </div>
+            </div>
+            <div class="hours-pill">${formatHours(person.total_hours)}</div>
+          </div>
+
+          <div class="staff-hours-detail hidden" id="staff-detail-${person.staff_id}">
+            ${personShifts.map(shift => `
+              <div class="staff-hours-shift">
+                <div class="staff-hours-shift-head">
+                  <div class="staff-hours-shift-date">${formatShiftDate(shift.clock_in)}</div>
+                  ${shift.approved ? '<div class="approved-badge">APPROVED</div>' : '<div class="pending-badge">PENDING</div>'}
+                </div>
+                <div class="shift-grid">
+                  <div class="shift-detail"><div class="shift-detail-label">Clock In</div><div class="shift-detail-value">${formatShiftTime(shift.clock_in)}</div></div>
+                  <div class="shift-detail"><div class="shift-detail-label">Clock Out</div><div class="shift-detail-value">${formatShiftTime(shift.clock_out)}</div></div>
+                  <div class="shift-detail"><div class="shift-detail-label">Break</div><div class="shift-detail-value">${Number(shift.break_minutes || 0)} min</div></div>
+                  <div class="shift-detail"><div class="shift-detail-label">Total</div><div class="shift-detail-value">${formatHours(shift.hours)}</div></div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </button>`;
+    }).join("");
+
+    document.querySelectorAll(".staff-hours-person").forEach(button => {
+      button.addEventListener("click", () => {
+        const detail = document.getElementById("staff-detail-" + button.dataset.staffId);
+        if (detail) detail.classList.toggle("hidden");
+      });
+    });
+
+  } catch(error) {
+    staffHoursList.innerHTML = "";
+    showMessage(staffHoursMessage, error.message || "Unable to load staff hours.", "error");
+  }
 }
 
 
@@ -2299,6 +2421,10 @@ loginBtn.addEventListener(
         .classList
         .add("hidden");
 
+        staffHoursScreen
+        .classList
+        .add("hidden");
+
         managerScreen
         .classList
         .remove("hidden");
@@ -2314,6 +2440,10 @@ loginBtn.addEventListener(
         .add("hidden");
 
         approvalsScreen
+        .classList
+        .add("hidden");
+
+        staffHoursScreen
         .classList
         .add("hidden");
 
@@ -2540,6 +2670,27 @@ myClockCard.addEventListener(
 );
 
 
+
+/* OPEN STAFF HOURS */
+
+staffHoursCard.addEventListener("click", async () => {
+  managerScreen.classList.add("hidden");
+  approvalsScreen.classList.add("hidden");
+  staffHoursScreen.classList.remove("hidden");
+  window.scrollTo({top:0,behavior:"smooth"});
+  await loadStaffHours();
+});
+
+/* BACK FROM STAFF HOURS */
+
+backStaffHoursBtn.addEventListener("click", async () => {
+  staffHoursScreen.classList.add("hidden");
+  managerScreen.classList.remove("hidden");
+  await loadManagerDashboard();
+  window.scrollTo({top:0,behavior:"smooth"});
+});
+
+
 /* OPEN APPROVALS */
 
 approvalsCard.addEventListener(
@@ -2609,6 +2760,10 @@ function signOutAll() {
   .classList
   .add("hidden");
 
+  staffHoursScreen
+  .classList
+  .add("hidden");
+
   managerClockSection
   .classList
   .add("hidden");
@@ -2624,6 +2779,7 @@ function signOutAll() {
   clearMessage(managerMessage);
   clearMessage(managerActionMessage);
   clearMessage(approvalMessage);
+  clearMessage(staffHoursMessage);
 
 }
 
