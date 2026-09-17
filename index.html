@@ -490,6 +490,87 @@ button{cursor:pointer}
     min-width:92px;
   }
 
+
+  .timesheet-person{
+    border:1px solid rgba(31,107,69,.14);
+    border-radius:16px;
+    overflow:hidden;
+    margin-top:16px;
+    background:#fff;
+  }
+
+  .timesheet-person-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:16px;
+    background:rgba(31,107,69,.05);
+  }
+
+  .timesheet-row{
+    padding:15px 16px;
+    border-top:1px solid rgba(31,107,69,.10);
+  }
+
+  .timesheet-date{
+    font-weight:800;
+    margin-bottom:10px;
+  }
+
+  .timesheet-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:10px;
+  }
+
+  .timesheet-grid div{
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+  }
+
+  .timesheet-grid span{
+    font-size:11px;
+    opacity:.65;
+  }
+
+  .timesheet-grid strong{
+    font-size:13px;
+  }
+
+  .timesheet-status{
+    display:inline-block;
+    margin-top:11px;
+    padding:5px 8px;
+    border-radius:999px;
+    font-size:10px;
+    font-weight:800;
+  }
+
+  .timesheet-status.approved{
+    background:rgba(31,107,69,.10);
+  }
+
+  .timesheet-status.pending{
+    background:rgba(180,120,20,.12);
+  }
+
+  .timesheet-total{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:14px 16px;
+    border-top:1px solid rgba(31,107,69,.12);
+    font-weight:800;
+  }
+
+  @media(max-width:600px){
+    .timesheet-grid{
+      grid-template-columns:repeat(2,1fr);
+    }
+  }
+
 </style>
 </head>
 
@@ -731,9 +812,9 @@ button{cursor:pointer}
         </span>
       </button>
 
-      <button class="menu-card">
+      <button id="timesheetsCard" class="menu-card">
         <strong>Timesheets</strong>
-        <span>PDF & CSV coming next</span>
+        <span>Weekly timesheets</span>
       </button>
 
       <button
@@ -836,6 +917,40 @@ button{cursor:pointer}
     <div id="staffHoursWeek" class="staff-hours-week">Loading...</div>
     <div id="staffHoursList"><div class="empty-state">Loading staff hours...</div></div>
   </div>
+</section>
+
+
+
+<!-- TIMESHEETS SCREEN -->
+
+<section id="timesheetsScreen" class="hidden">
+
+  <div class="manager-top">
+    <div>
+      <h2>Timesheets</h2>
+      <p id="timesheetsLocation">Hawthorne</p>
+    </div>
+    <button id="backTimesheetsBtn" class="back-btn">Back</button>
+  </div>
+
+  <div id="timesheetsMessage" class="message"></div>
+
+  <div class="card">
+    <div class="section-title">Weekly Timesheets</div>
+
+    <div class="week-nav">
+      <button id="timesheetsPreviousBtn" class="week-nav-btn">‹ Previous</button>
+      <button id="timesheetsThisWeekBtn" class="week-nav-btn">This Week</button>
+      <button id="timesheetsNextBtn" class="week-nav-btn">Next ›</button>
+    </div>
+
+    <div id="timesheetsWeek" class="staff-hours-week">Loading...</div>
+
+    <div id="timesheetsList">
+      <div class="empty-state">Loading timesheets...</div>
+    </div>
+  </div>
+
 </section>
 
 
@@ -1096,6 +1211,42 @@ const thisWeekBtn = document.getElementById("thisWeekBtn");
 const nextWeekBtn = document.getElementById("nextWeekBtn");
 
 let selectedStaffWeek = null;
+
+
+/* TIMESHEETS */
+
+const timesheetsCard =
+document.getElementById("timesheetsCard");
+
+const timesheetsScreen =
+document.getElementById("timesheetsScreen");
+
+const backTimesheetsBtn =
+document.getElementById("backTimesheetsBtn");
+
+const timesheetsLocation =
+document.getElementById("timesheetsLocation");
+
+const timesheetsMessage =
+document.getElementById("timesheetsMessage");
+
+const timesheetsWeek =
+document.getElementById("timesheetsWeek");
+
+const timesheetsList =
+document.getElementById("timesheetsList");
+
+const timesheetsPreviousBtn =
+document.getElementById("timesheetsPreviousBtn");
+
+const timesheetsThisWeekBtn =
+document.getElementById("timesheetsThisWeekBtn");
+
+const timesheetsNextBtn =
+document.getElementById("timesheetsNextBtn");
+
+let selectedTimesheetsWeek = null;
+
 
 /* APPROVALS */
 
@@ -2814,6 +2965,273 @@ nextWeekBtn.addEventListener("click", async () => {
 
 
 
+
+/* TIMESHEETS */
+
+function timesheetDateLabel(value) {
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat(
+    "en-AU",
+    {
+      timeZone: "Australia/Brisbane",
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    }
+  ).format(new Date(value));
+}
+
+function timesheetTimeLabel(value) {
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat(
+    "en-AU",
+    {
+      timeZone: "Australia/Brisbane",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    }
+  ).format(new Date(value));
+}
+
+function timesheetBreakMinutes(shift) {
+  const breaks = shift.breaks || [];
+
+  return Math.round(
+    breaks.reduce((total, item) => {
+      if (!item.break_start || !item.break_end) return total;
+
+      const start = new Date(item.break_start);
+      const end = new Date(item.break_end);
+
+      if (
+        Number.isNaN(start.getTime()) ||
+        Number.isNaN(end.getTime()) ||
+        end <= start
+      ) {
+        return total;
+      }
+
+      return total + ((end - start) / 60000);
+    }, 0)
+  );
+}
+
+function timesheetBreakLabel(minutes) {
+  if (!minutes) return "0 min";
+
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+
+  if (!hours) return `${mins} min`;
+  if (!mins) return `${hours} hr${hours === 1 ? "" : "s"}`;
+
+  return `${hours}h ${mins}m`;
+}
+
+function timesheetHours(shift) {
+  if (!shift.clock_in || !shift.clock_out) return 0;
+
+  const start = new Date(shift.clock_in);
+  const end = new Date(shift.clock_out);
+
+  if (
+    Number.isNaN(start.getTime()) ||
+    Number.isNaN(end.getTime()) ||
+    end <= start
+  ) {
+    return 0;
+  }
+
+  const workedMinutes =
+    ((end - start) / 60000) -
+    timesheetBreakMinutes(shift);
+
+  return Math.max(0, workedMinutes / 60);
+}
+
+function renderTimesheetEmployee(person, shifts) {
+  const personShifts = shifts
+    .filter(shift => shift.staff_id === person.staff_id)
+    .sort((a,b) => new Date(a.clock_in) - new Date(b.clock_in));
+
+  const total = personShifts.reduce(
+    (sum, shift) => sum + timesheetHours(shift),
+    0
+  );
+
+  const rows = personShifts.length
+    ? personShifts.map(shift => {
+        const breakMinutes = timesheetBreakMinutes(shift);
+        const hours = timesheetHours(shift);
+        const approval = shift.approved ? "APPROVED" : "PENDING";
+
+        return `
+          <div class="timesheet-row">
+            <div class="timesheet-date">
+              ${escapeHtml(timesheetDateLabel(shift.clock_in))}
+            </div>
+
+            <div class="timesheet-grid">
+              <div>
+                <span>Clock In</span>
+                <strong>${escapeHtml(timesheetTimeLabel(shift.clock_in))}</strong>
+              </div>
+
+              <div>
+                <span>Clock Out</span>
+                <strong>${escapeHtml(timesheetTimeLabel(shift.clock_out))}</strong>
+              </div>
+
+              <div>
+                <span>Break</span>
+                <strong>${escapeHtml(timesheetBreakLabel(breakMinutes))}</strong>
+              </div>
+
+              <div>
+                <span>Total</span>
+                <strong>${hours.toFixed(2)} hrs</strong>
+              </div>
+            </div>
+
+            <div class="timesheet-status ${shift.approved ? "approved" : "pending"}">
+              ${approval}
+            </div>
+          </div>
+        `;
+      }).join("")
+    : `<div class="empty-state">No shifts this week.</div>`;
+
+  return `
+    <div class="timesheet-person">
+      <div class="timesheet-person-head">
+        <div>
+          <div class="person-name">${escapeHtml(person.name || "Staff")}</div>
+          <div class="person-meta">${escapeHtml(person.department || "")}</div>
+        </div>
+
+        <div class="hours-pill">
+          ${total.toFixed(2)} hrs
+        </div>
+      </div>
+
+      ${rows}
+
+      <div class="timesheet-total">
+        <span>Weekly Total</span>
+        <strong>${total.toFixed(2)} hrs</strong>
+      </div>
+    </div>
+  `;
+}
+
+async function loadTimesheets(weekDate) {
+  timesheetsMessage.textContent = "";
+  timesheetsList.innerHTML =
+    `<div class="empty-state">Loading timesheets...</div>`;
+
+  try {
+    const extra = weekDate
+      ? { week_start: weekDate }
+      : {};
+
+    const data = await api("manager_hours", extra);
+
+    selectedTimesheetsWeek =
+      data?.week_start_date || null;
+
+    timesheetsLocation.textContent =
+      data?.manager?.location || "Hawthorne";
+
+    if (data?.week_start && data?.week_end) {
+      const start = new Date(data.week_start);
+      const end = new Date(
+        new Date(data.week_end).getTime() - 1
+      );
+
+      const fmt = new Intl.DateTimeFormat(
+        "en-AU",
+        {
+          timeZone: "Australia/Brisbane",
+          day: "numeric",
+          month: "short",
+          year: "numeric"
+        }
+      );
+
+      timesheetsWeek.textContent =
+        `${fmt.format(start)} – ${fmt.format(end)}`;
+    } else {
+      timesheetsWeek.textContent = "";
+    }
+
+    const summary = data?.summary || [];
+    const shifts = data?.shifts || [];
+
+    if (!summary.length) {
+      timesheetsList.innerHTML =
+        `<div class="empty-state">No timesheets for this week.</div>`;
+      return;
+    }
+
+    timesheetsList.innerHTML =
+      summary.map(person =>
+        renderTimesheetEmployee(person, shifts)
+      ).join("");
+
+  } catch (error) {
+    timesheetsList.innerHTML =
+      `<div class="empty-state">Unable to load timesheets.</div>`;
+    timesheetsMessage.textContent =
+      error.message || "Unable to load timesheets.";
+  }
+}
+
+timesheetsCard.addEventListener("click", async () => {
+  managerScreen.classList.add("hidden");
+  approvalsScreen.classList.add("hidden");
+  staffHoursScreen.classList.add("hidden");
+  teamScreen.classList.add("hidden");
+  timesheetsScreen.classList.remove("hidden");
+
+  selectedTimesheetsWeek = null;
+
+  window.scrollTo({top:0,behavior:"smooth"});
+  await loadTimesheets();
+});
+
+backTimesheetsBtn.addEventListener("click", async () => {
+  timesheetsScreen.classList.add("hidden");
+  managerScreen.classList.remove("hidden");
+
+  await loadManagerDashboard();
+
+  window.scrollTo({top:0,behavior:"smooth"});
+});
+
+timesheetsPreviousBtn.addEventListener("click", async () => {
+  if (!selectedTimesheetsWeek) return;
+  await loadTimesheets(
+    shiftWeekDate(selectedTimesheetsWeek, -7)
+  );
+});
+
+timesheetsThisWeekBtn.addEventListener("click", async () => {
+  selectedTimesheetsWeek = null;
+  await loadTimesheets();
+});
+
+timesheetsNextBtn.addEventListener("click", async () => {
+  if (!selectedTimesheetsWeek) return;
+  await loadTimesheets(
+    shiftWeekDate(selectedTimesheetsWeek, 7)
+  );
+});
+
+
 /* TEAM */
 
 function renderTeamMember(person) {
@@ -3051,6 +3469,10 @@ function signOutAll() {
   .add("hidden");
 
   teamScreen
+  .classList
+  .add("hidden");
+
+  timesheetsScreen
   .classList
   .add("hidden");
 
