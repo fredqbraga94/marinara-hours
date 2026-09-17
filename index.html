@@ -3758,7 +3758,7 @@ function renderTeamMember(person) {
   const actionText = person.active ? "Deactivate" : "Activate";
 
   return `
-    <div class="person-row">
+    <div class="person-row team-person-row" data-team-row="${escapeHtml(person.id)}">
       <div>
         <div class="person-name">${escapeHtml(person.name || "Staff")}</div>
         <div class="person-meta">
@@ -3767,15 +3767,85 @@ function renderTeamMember(person) {
           · ${statusText}
         </div>
       </div>
-      ${
-        isManager
-          ? `<div class="hours-pill">Manager</div>`
-          : `<button class="back-btn team-toggle-btn"
-               data-staff-id="${escapeHtml(person.id)}">
-               ${actionText}
-             </button>`
-      }
+
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+        ${
+          isManager
+            ? `<div class="hours-pill">Manager</div>`
+            : `
+              <button class="back-btn team-edit-btn"
+                data-staff-id="${escapeHtml(person.id)}">
+                Edit
+              </button>
+              <button class="back-btn team-toggle-btn"
+                data-staff-id="${escapeHtml(person.id)}">
+                ${actionText}
+              </button>
+            `
+        }
+      </div>
     </div>
+
+    ${
+      isManager
+        ? ""
+        : `
+          <div class="team-edit-panel hidden"
+            data-edit-panel="${escapeHtml(person.id)}"
+            style="margin:-2px 0 14px;padding:16px;border:1px solid #e5e1d8;border-radius:14px;background:#fffdf8;">
+
+            <div style="font-weight:700;margin-bottom:12px;">Edit Staff</div>
+
+            <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:600;">Name</label>
+            <input
+              class="team-edit-name"
+              type="text"
+              value="${escapeHtml(person.name || "")}"
+              style="width:100%;box-sizing:border-box;margin-bottom:12px;"
+            >
+
+            <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:600;">Department</label>
+            <select
+              class="team-edit-department"
+              style="width:100%;box-sizing:border-box;margin-bottom:12px;"
+            >
+              <option value="Kitchen" ${person.department === "Kitchen" ? "selected" : ""}>Kitchen</option>
+              <option value="Floor" ${person.department === "Floor" ? "selected" : ""}>Floor</option>
+            </select>
+
+            <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:600;">New PIN</label>
+            <input
+              class="team-edit-pin"
+              type="password"
+              inputmode="numeric"
+              maxlength="6"
+              placeholder="Leave blank to keep current PIN"
+              style="width:100%;box-sizing:border-box;margin-bottom:6px;"
+            >
+            <div style="font-size:12px;color:#777;margin-bottom:14px;">
+              Optional · 4–6 numbers
+            </div>
+
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button
+                class="primary-btn team-save-edit-btn"
+                data-staff-id="${escapeHtml(person.id)}">
+                Save Changes
+              </button>
+              <button
+                class="back-btn team-cancel-edit-btn"
+                data-staff-id="${escapeHtml(person.id)}">
+                Cancel
+              </button>
+            </div>
+
+            <div
+              class="team-edit-message"
+              style="margin-top:10px;font-size:13px;">
+            </div>
+          </div>
+        `
+    }
   `;
 }
 
@@ -3798,6 +3868,91 @@ async function loadTeamScreen() {
 
     teamList.className = "";
     teamList.innerHTML = team.map(renderTeamMember).join("");
+
+    teamList.querySelectorAll(".team-edit-btn").forEach(button => {
+      button.addEventListener("click", () => {
+        const staffId = button.dataset.staffId;
+        const panel = teamList.querySelector(
+          `[data-edit-panel="${staffId}"]`
+        );
+
+        teamList.querySelectorAll(".team-edit-panel").forEach(item => {
+          if (item !== panel) item.classList.add("hidden");
+        });
+
+        if (panel) {
+          panel.classList.toggle("hidden");
+          const nameInput = panel.querySelector(".team-edit-name");
+          if (!panel.classList.contains("hidden") && nameInput) {
+            nameInput.focus();
+          }
+        }
+      });
+    });
+
+    teamList.querySelectorAll(".team-cancel-edit-btn").forEach(button => {
+      button.addEventListener("click", () => {
+        const panel = teamList.querySelector(
+          `[data-edit-panel="${button.dataset.staffId}"]`
+        );
+        if (panel) panel.classList.add("hidden");
+      });
+    });
+
+    teamList.querySelectorAll(".team-save-edit-btn").forEach(button => {
+      button.addEventListener("click", async () => {
+        const staffId = button.dataset.staffId;
+        const panel = teamList.querySelector(
+          `[data-edit-panel="${staffId}"]`
+        );
+
+        if (!panel) return;
+
+        const name = panel.querySelector(".team-edit-name").value.trim();
+        const department =
+          panel.querySelector(".team-edit-department").value;
+        const newPin =
+          panel.querySelector(".team-edit-pin").value.trim();
+        const message =
+          panel.querySelector(".team-edit-message");
+
+        message.textContent = "";
+
+        if (!name) {
+          message.textContent = "Name is required.";
+          return;
+        }
+
+        if (newPin && !/^[0-9]{4,6}$/.test(newPin)) {
+          message.textContent = "PIN must contain 4 to 6 numbers.";
+          return;
+        }
+
+        button.disabled = true;
+        button.textContent = "Saving...";
+
+        try {
+          await api(
+            "manager_update_staff",
+            {
+              staff_id: staffId,
+              name,
+              department,
+              new_pin: newPin
+            }
+          );
+
+          teamMessage.textContent = "Staff updated successfully.";
+          await loadTeamScreen();
+          await loadManagerDashboard();
+        } catch (error) {
+          message.textContent =
+            error.message || "Unable to update staff.";
+          button.disabled = false;
+          button.textContent = "Save Changes";
+        }
+      });
+    });
 
     teamList.querySelectorAll(".team-toggle-btn").forEach(button => {
       button.addEventListener("click", async () => {
