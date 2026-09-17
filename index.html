@@ -3032,6 +3032,19 @@ function timesheetBreakLabel(minutes) {
   return `${hours}h ${mins}m`;
 }
 
+function timesheetDurationLabel(decimalHours) {
+  const totalMinutes = Math.max(
+    0,
+    Math.round((Number(decimalHours) || 0) * 60)
+  );
+
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+}
+
+
 function timesheetHours(shift) {
   if (!shift.clock_in || !shift.clock_out) return 0;
 
@@ -3093,7 +3106,7 @@ function renderTimesheetEmployee(person, shifts) {
 
               <div>
                 <span>Total</span>
-                <strong>${hours.toFixed(2)} hrs</strong>
+                <strong>${timesheetDurationLabel(hours)}</strong>
               </div>
             </div>
 
@@ -3114,7 +3127,7 @@ function renderTimesheetEmployee(person, shifts) {
         </div>
 
         <div class="hours-pill">
-          ${total.toFixed(2)} hrs
+          ${timesheetDurationLabel(total)}
         </div>
       </div>
 
@@ -3122,7 +3135,7 @@ function renderTimesheetEmployee(person, shifts) {
 
       <div class="timesheet-total">
         <span>Weekly Total</span>
-        <strong>${total.toFixed(2)} hrs</strong>
+        <strong>${timesheetDurationLabel(total)}</strong>
       </div>
     </div>
   `;
