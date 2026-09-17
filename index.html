@@ -36,6 +36,10 @@
       font: inherit;
     }
 
+    button {
+      cursor: pointer;
+    }
+
     .app {
       width: 100%;
       max-width: 480px;
@@ -121,18 +125,12 @@
       padding: 15px;
       font-weight: 800;
       font-size: 16px;
-      cursor: pointer;
     }
 
     .primary {
       background: var(--green);
       color: white;
       margin-top: 14px;
-    }
-
-    .primary:active {
-      background: var(--green-dark);
-      transform: scale(.99);
     }
 
     .secondary {
@@ -273,6 +271,142 @@
       font-size: 11px;
       padding: 5px 20px;
     }
+
+    /* MANAGER */
+
+    .manager-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .manager-top h2 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .manager-top p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .small-btn {
+      width: auto;
+      min-height: 42px;
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-size: 13px;
+      margin: 0;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .summary-card {
+      background: white;
+      border-radius: 20px;
+      padding: 18px;
+      box-shadow: 0 8px 28px rgba(0,0,0,.05);
+    }
+
+    .summary-number {
+      font-size: 30px;
+      font-weight: 900;
+      color: var(--green);
+    }
+
+    .summary-label {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 850;
+      margin: 0 0 12px;
+    }
+
+    .empty-state {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+      padding: 8px 0;
+    }
+
+    .person-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .person-row:last-child {
+      border-bottom: 0;
+    }
+
+    .person-name {
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .person-meta {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 3px;
+    }
+
+    .hours-pill {
+      background: var(--green-light);
+      color: var(--green);
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+
+    .menu-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .menu-card {
+      border: 1px solid var(--border);
+      background: #fafbfa;
+      border-radius: 18px;
+      padding: 16px;
+      min-height: 92px;
+      text-align: left;
+    }
+
+    .menu-card strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 5px;
+      color: var(--text);
+    }
+
+    .menu-card span {
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .manager-clock-wrap {
+      margin-top: 16px;
+    }
   </style>
 </head>
 
@@ -287,6 +421,8 @@
   </header>
 
   <main class="content">
+
+    <!-- LOGIN -->
 
     <section id="loginScreen" class="card">
 
@@ -315,6 +451,8 @@
     </section>
 
 
+    <!-- STAFF TIME CLOCK -->
+
     <section id="homeScreen" class="hidden">
 
       <div class="card">
@@ -326,6 +464,7 @@
           <div>
             <h2 id="staffName">Staff</h2>
             <p id="staffInfo">Hawthorne</p>
+
             <span id="managerBadge" class="manager-badge hidden">
               MANAGER
             </span>
@@ -347,7 +486,6 @@
 
       </div>
 
-
       <div class="card clock">
 
         <div id="currentTime" class="time">
@@ -357,7 +495,6 @@
         <div id="currentDate" class="date"></div>
 
       </div>
-
 
       <div class="card">
 
@@ -381,10 +518,172 @@
 
       </div>
 
-
       <button id="logoutBtn" class="btn secondary">
         Sign Out
       </button>
+
+    </section>
+
+
+    <!-- MANAGER DASHBOARD -->
+
+    <section id="managerScreen" class="hidden">
+
+      <div class="manager-top">
+
+        <div>
+          <h2>Manager Dashboard</h2>
+          <p id="managerLocation">Hawthorne</p>
+        </div>
+
+        <button
+          id="managerLogoutBtn"
+          class="btn secondary small-btn"
+        >
+          Sign Out
+        </button>
+
+      </div>
+
+      <div id="managerMessage" class="message"></div>
+
+      <div class="summary-grid">
+
+        <div class="summary-card">
+          <div id="workingNowCount" class="summary-number">
+            0
+          </div>
+          <div class="summary-label">
+            Working now
+          </div>
+        </div>
+
+        <div class="summary-card">
+          <div id="pendingCount" class="summary-number">
+            0
+          </div>
+          <div class="summary-label">
+            Pending approvals
+          </div>
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="section-title">
+          Who's Working
+        </div>
+
+        <div id="workingList" class="empty-state">
+          Loading...
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="section-title">
+          Staff Hours · This Week
+        </div>
+
+        <div id="hoursList" class="empty-state">
+          Loading...
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="section-title">
+          Management
+        </div>
+
+        <div class="menu-grid">
+
+          <button class="menu-card">
+            <strong>Staff Hours</strong>
+            <span>Weekly hours and shifts</span>
+          </button>
+
+          <button class="menu-card">
+            <strong>Approvals</strong>
+            <span id="approvalsText">
+              Review completed shifts
+            </span>
+          </button>
+
+          <button class="menu-card">
+            <strong>Roster</strong>
+            <span>Coming next</span>
+          </button>
+
+          <button class="menu-card">
+            <strong>Team</strong>
+            <span id="teamText">
+              Active Hawthorne staff
+            </span>
+          </button>
+
+          <button class="menu-card">
+            <strong>Timesheets</strong>
+            <span>PDF & CSV coming next</span>
+          </button>
+
+          <button id="myClockCard" class="menu-card">
+            <strong>My Time Clock</strong>
+            <span>Clock in, break and clock out</span>
+          </button>
+
+        </div>
+
+      </div>
+
+
+      <div id="managerClockSection" class="manager-clock-wrap hidden">
+
+        <div class="card">
+
+          <div class="section-title">
+            My Time Clock
+          </div>
+
+          <div class="status">
+
+            <div class="status-label">
+              Current status
+            </div>
+
+            <div id="managerStatusValue" class="status-value">
+              Off shift
+            </div>
+
+          </div>
+
+          <button id="managerClockInBtn" class="btn primary hidden">
+            Clock In
+          </button>
+
+          <button id="managerStartBreakBtn" class="btn secondary hidden">
+            Start Break
+          </button>
+
+          <button id="managerEndBreakBtn" class="btn primary hidden">
+            End Break
+          </button>
+
+          <button id="managerClockOutBtn" class="btn danger hidden">
+            Clock Out
+          </button>
+
+          <div id="managerActionMessage" class="message"></div>
+
+        </div>
+
+      </div>
 
     </section>
 
@@ -405,36 +704,131 @@ const API =
 const SUPABASE_KEY =
 "sb_publishable_l2nVIXyk6NPWqjVBoJwdAg_IQ9_GlUM";
 
+
 let currentPin = "";
 let currentData = null;
 
-const loginScreen = document.getElementById("loginScreen");
-const homeScreen = document.getElementById("homeScreen");
 
-const pinInput = document.getElementById("pinInput");
-const loginBtn = document.getElementById("loginBtn");
+/* ELEMENTS */
 
-const loginMessage = document.getElementById("loginMessage");
-const actionMessage = document.getElementById("actionMessage");
+const loginScreen =
+document.getElementById("loginScreen");
 
-const staffName = document.getElementById("staffName");
-const staffInfo = document.getElementById("staffInfo");
-const avatar = document.getElementById("avatar");
-const managerBadge = document.getElementById("managerBadge");
+const homeScreen =
+document.getElementById("homeScreen");
 
-const statusValue = document.getElementById("statusValue");
+const managerScreen =
+document.getElementById("managerScreen");
 
-const clockInBtn = document.getElementById("clockInBtn");
-const startBreakBtn = document.getElementById("startBreakBtn");
-const endBreakBtn = document.getElementById("endBreakBtn");
-const clockOutBtn = document.getElementById("clockOutBtn");
-const logoutBtn = document.getElementById("logoutBtn");
+const pinInput =
+document.getElementById("pinInput");
+
+const loginBtn =
+document.getElementById("loginBtn");
+
+const loginMessage =
+document.getElementById("loginMessage");
+
+const actionMessage =
+document.getElementById("actionMessage");
+
+const staffName =
+document.getElementById("staffName");
+
+const staffInfo =
+document.getElementById("staffInfo");
+
+const avatar =
+document.getElementById("avatar");
+
+const managerBadge =
+document.getElementById("managerBadge");
+
+const statusValue =
+document.getElementById("statusValue");
+
+const clockInBtn =
+document.getElementById("clockInBtn");
+
+const startBreakBtn =
+document.getElementById("startBreakBtn");
+
+const endBreakBtn =
+document.getElementById("endBreakBtn");
+
+const clockOutBtn =
+document.getElementById("clockOutBtn");
+
+const logoutBtn =
+document.getElementById("logoutBtn");
 
 
-function showMessage(element, text, type = "ok") {
+/* MANAGER ELEMENTS */
+
+const managerLocation =
+document.getElementById("managerLocation");
+
+const managerMessage =
+document.getElementById("managerMessage");
+
+const workingNowCount =
+document.getElementById("workingNowCount");
+
+const pendingCount =
+document.getElementById("pendingCount");
+
+const workingList =
+document.getElementById("workingList");
+
+const hoursList =
+document.getElementById("hoursList");
+
+const approvalsText =
+document.getElementById("approvalsText");
+
+const teamText =
+document.getElementById("teamText");
+
+const managerLogoutBtn =
+document.getElementById("managerLogoutBtn");
+
+const myClockCard =
+document.getElementById("myClockCard");
+
+const managerClockSection =
+document.getElementById("managerClockSection");
+
+const managerStatusValue =
+document.getElementById("managerStatusValue");
+
+const managerClockInBtn =
+document.getElementById("managerClockInBtn");
+
+const managerStartBreakBtn =
+document.getElementById("managerStartBreakBtn");
+
+const managerEndBreakBtn =
+document.getElementById("managerEndBreakBtn");
+
+const managerClockOutBtn =
+document.getElementById("managerClockOutBtn");
+
+const managerActionMessage =
+document.getElementById("managerActionMessage");
+
+
+/* MESSAGES */
+
+function showMessage(
+  element,
+  text,
+  type = "ok"
+) {
 
   element.textContent = text;
-  element.className = "message show " + type;
+
+  element.className =
+  "message show " + type;
 
 }
 
@@ -447,65 +841,129 @@ function clearMessage(element) {
 }
 
 
+/* API */
+
 async function api(action) {
 
-  const response = await fetch(API, {
+  const response =
+  await fetch(API, {
 
     method: "POST",
 
     headers: {
-  "Authorization": "Bearer " + SUPABASE_KEY,
-  "apikey": SUPABASE_KEY,
-  "Content-Type": "application/json"
-},
+
+      "Authorization":
+      "Bearer " + SUPABASE_KEY,
+
+      "apikey":
+      SUPABASE_KEY,
+
+      "Content-Type":
+      "application/json"
+
+    },
 
     body: JSON.stringify({
+
       action: action,
       pin: currentPin
+
     })
 
   });
 
-  const result = await response.json();
 
-  if (!response.ok || result.success !== true) {
+  const result =
+  await response.json();
+
+
+  if (
+    !response.ok ||
+    result.success !== true
+  ) {
 
     throw new Error(
-      result.error || "Unable to complete action"
+      result.error ||
+      "Unable to complete action"
     );
 
   }
+
 
   return result.data;
 
 }
 
 
+/* CLOCK */
+
 function updateClock() {
 
-  const now = new Date();
+  const now =
+  new Date();
 
-  document.getElementById("currentTime").textContent =
-    new Intl.DateTimeFormat("en-AU", {
-      timeZone: "Australia/Brisbane",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit"
-    }).format(now);
 
-  document.getElementById("currentDate").textContent =
-    new Intl.DateTimeFormat("en-AU", {
-      timeZone: "Australia/Brisbane",
-      weekday: "long",
-      day: "numeric",
-      month: "long"
-    }).format(now);
+  document.getElementById(
+    "currentTime"
+  ).textContent =
+
+  new Intl.DateTimeFormat(
+    "en-AU",
+    {
+
+      timeZone:
+      "Australia/Brisbane",
+
+      hour:
+      "2-digit",
+
+      minute:
+      "2-digit",
+
+      second:
+      "2-digit"
+
+    }
+
+  ).format(now);
+
+
+  document.getElementById(
+    "currentDate"
+  ).textContent =
+
+  new Intl.DateTimeFormat(
+    "en-AU",
+    {
+
+      timeZone:
+      "Australia/Brisbane",
+
+      weekday:
+      "long",
+
+      day:
+      "numeric",
+
+      month:
+      "long"
+
+    }
+
+  ).format(now);
 
 }
 
-setInterval(updateClock, 1000);
+
+setInterval(
+  updateClock,
+  1000
+);
+
 updateClock();
 
+
+/* STAFF */
 
 function hideActions() {
 
@@ -521,51 +979,95 @@ function render(data) {
 
   currentData = data;
 
-  staffName.textContent = data.name || "Staff";
+  staffName.textContent =
+  data.name || "Staff";
 
   staffInfo.textContent =
-    (data.department || "Staff") +
-    " · " +
-    (data.location || "Hawthorne");
+  (data.department || "Staff") +
+  " · " +
+  (data.location || "Hawthorne");
 
   avatar.textContent =
-    (data.name || "M").charAt(0).toUpperCase();
+  (data.name || "M")
+  .charAt(0)
+  .toUpperCase();
 
-  if (data.role === "manager") {
-    managerBadge.classList.remove("hidden");
+
+  if (
+    data.role === "manager"
+  ) {
+
+    managerBadge
+    .classList
+    .remove("hidden");
+
   } else {
-    managerBadge.classList.add("hidden");
+
+    managerBadge
+    .classList
+    .add("hidden");
+
   }
+
 
   hideActions();
 
-  statusValue.className = "status-value";
+  statusValue.className =
+  "status-value";
 
-  if (data.status === "off_shift") {
 
-    statusValue.textContent = "Off shift";
+  if (
+    data.status === "off_shift"
+  ) {
 
-    clockInBtn.classList.remove("hidden");
+    statusValue.textContent =
+    "Off shift";
 
-  }
-
-  else if (data.status === "working") {
-
-    statusValue.textContent = "Working";
-    statusValue.classList.add("working");
-
-    startBreakBtn.classList.remove("hidden");
-    clockOutBtn.classList.remove("hidden");
+    clockInBtn
+    .classList
+    .remove("hidden");
 
   }
 
-  else if (data.status === "break") {
+  else if (
+    data.status === "working"
+  ) {
 
-    statusValue.textContent = "On break";
-    statusValue.classList.add("break");
+    statusValue.textContent =
+    "Working";
 
-    endBreakBtn.classList.remove("hidden");
-    clockOutBtn.classList.remove("hidden");
+    statusValue
+    .classList
+    .add("working");
+
+    startBreakBtn
+    .classList
+    .remove("hidden");
+
+    clockOutBtn
+    .classList
+    .remove("hidden");
+
+  }
+
+  else if (
+    data.status === "break"
+  ) {
+
+    statusValue.textContent =
+    "On break";
+
+    statusValue
+    .classList
+    .add("break");
+
+    endBreakBtn
+    .classList
+    .remove("hidden");
+
+    clockOutBtn
+    .classList
+    .remove("hidden");
 
   }
 
@@ -574,78 +1076,472 @@ function render(data) {
 
 async function refreshStatus() {
 
-  const data = await api("status");
+  const data =
+  await api("status");
 
   render(data);
 
 }
 
 
-loginBtn.addEventListener("click", async () => {
+/* MANAGER */
 
-  clearMessage(loginMessage);
+function escapeHtml(value) {
 
-  const pin = pinInput.value.trim();
+  return String(
+    value ?? ""
+  )
 
-  if (!/^[0-9]{4,6}$/.test(pin)) {
+  .replaceAll("&", "&amp;")
+  .replaceAll("<", "&lt;")
+  .replaceAll(">", "&gt;")
+  .replaceAll('"', "&quot;")
+  .replaceAll("'", "&#039;");
 
-    showMessage(
-      loginMessage,
-      "Enter your 4–6 digit PIN.",
-      "error"
-    );
+}
 
-    return;
+
+function formatHours(value) {
+
+  const number =
+  Number(value || 0);
+
+  return (
+    number
+    .toFixed(2)
+    .replace(/\.00$/, "")
+    +
+    " hrs"
+  );
+
+}
+
+
+function renderManagerClock(status) {
+
+  managerClockInBtn
+  .classList
+  .add("hidden");
+
+  managerStartBreakBtn
+  .classList
+  .add("hidden");
+
+  managerEndBreakBtn
+  .classList
+  .add("hidden");
+
+  managerClockOutBtn
+  .classList
+  .add("hidden");
+
+
+  managerStatusValue.className =
+  "status-value";
+
+
+  if (
+    status === "working"
+  ) {
+
+    managerStatusValue.textContent =
+    "Working";
+
+    managerStatusValue
+    .classList
+    .add("working");
+
+    managerStartBreakBtn
+    .classList
+    .remove("hidden");
+
+    managerClockOutBtn
+    .classList
+    .remove("hidden");
 
   }
 
-  currentPin = pin;
+  else if (
+    status === "break"
+  ) {
 
-  loginBtn.classList.add("loader");
-  loginBtn.textContent = "Checking...";
+    managerStatusValue.textContent =
+    "On break";
+
+    managerStatusValue
+    .classList
+    .add("break");
+
+    managerEndBreakBtn
+    .classList
+    .remove("hidden");
+
+    managerClockOutBtn
+    .classList
+    .remove("hidden");
+
+  }
+
+  else {
+
+    managerStatusValue.textContent =
+    "Off shift";
+
+    managerClockInBtn
+    .classList
+    .remove("hidden");
+
+  }
+
+}
+
+
+async function loadManagerDashboard() {
+
+  clearMessage(
+    managerMessage
+  );
+
 
   try {
 
-    const data = await api("status");
+    const dashboard =
+    await api(
+      "manager_dashboard"
+    );
 
-    render(data);
 
-    loginScreen.classList.add("hidden");
-    homeScreen.classList.remove("hidden");
+    managerLocation.textContent =
+    dashboard.location ||
+    "Hawthorne";
 
-    pinInput.value = "";
+
+    const counts =
+    dashboard.counts || {};
+
+
+    workingNowCount.textContent =
+    counts.working_now ?? 0;
+
+
+    pendingCount.textContent =
+    counts.unapproved_shifts ?? 0;
+
+
+    const pending =
+    counts.unapproved_shifts ?? 0;
+
+
+    approvalsText.textContent =
+    pending +
+    " shift" +
+    (pending === 1 ? "" : "s") +
+    " waiting";
+
+
+    const activeStaff =
+    counts.active_staff ?? 0;
+
+
+    teamText.textContent =
+    activeStaff +
+    " active staff";
+
+
+    /* WHO IS WORKING */
+
+    const working =
+    dashboard.working || [];
+
+
+    if (
+      working.length === 0
+    ) {
+
+      workingList.className =
+      "empty-state";
+
+      workingList.innerHTML =
+      "No staff currently working.";
+
+    }
+
+    else {
+
+      workingList.className =
+      "";
+
+
+      workingList.innerHTML =
+      working.map(
+        person => `
+
+          <div class="person-row">
+
+            <div>
+
+              <div class="person-name">
+                ${escapeHtml(person.name)}
+              </div>
+
+              <div class="person-meta">
+                ${escapeHtml(person.department)}
+                ·
+                ${
+                  person.status === "break"
+                  ? "On break"
+                  : "Working"
+                }
+              </div>
+
+            </div>
+
+            <div class="hours-pill">
+              ${formatHours(person.hours_so_far)}
+            </div>
+
+          </div>
+
+        `
+      ).join("");
+
+    }
+
+
+    /* WEEK HOURS */
+
+    const summary =
+    dashboard.hours?.summary || [];
+
+
+    if (
+      summary.length === 0
+    ) {
+
+      hoursList.className =
+      "empty-state";
+
+      hoursList.innerHTML =
+      "No shifts recorded this week.";
+
+    }
+
+    else {
+
+      hoursList.className =
+      "";
+
+
+      hoursList.innerHTML =
+      summary.map(
+        person => `
+
+          <div class="person-row">
+
+            <div>
+
+              <div class="person-name">
+                ${escapeHtml(person.name)}
+              </div>
+
+              <div class="person-meta">
+
+                ${escapeHtml(person.department)}
+                ·
+                ${person.shifts}
+                shift${person.shifts === 1 ? "" : "s"}
+
+                ${
+                  person.unapproved
+                  ? " · " +
+                    person.unapproved +
+                    " pending"
+                  : ""
+                }
+
+              </div>
+
+            </div>
+
+            <div class="hours-pill">
+              ${formatHours(person.total_hours)}
+            </div>
+
+          </div>
+
+        `
+      ).join("");
+
+    }
+
+
+    renderManagerClock(
+      dashboard.manager?.status ||
+      "off_shift"
+    );
 
   }
 
   catch (error) {
 
-    currentPin = "";
-
     showMessage(
-      loginMessage,
-error.message || "Unknown error",
+
+      managerMessage,
+
+      error.message ||
+      "Unable to load Manager Dashboard.",
+
       "error"
+
     );
 
   }
 
-  finally {
+}
 
-    loginBtn.classList.remove("loader");
-    loginBtn.textContent = "Continue";
+
+/* LOGIN */
+
+loginBtn.addEventListener(
+  "click",
+  async () => {
+
+    clearMessage(
+      loginMessage
+    );
+
+
+    const pin =
+    pinInput.value.trim();
+
+
+    if (
+      !/^[0-9]{4,6}$/.test(pin)
+    ) {
+
+      showMessage(
+
+        loginMessage,
+
+        "Enter your 4–6 digit PIN.",
+
+        "error"
+
+      );
+
+      return;
+
+    }
+
+
+    currentPin =
+    pin;
+
+
+    loginBtn
+    .classList
+    .add("loader");
+
+    loginBtn.textContent =
+    "Checking...";
+
+
+    try {
+
+      const data =
+      await api("status");
+
+
+      render(data);
+
+
+      loginScreen
+      .classList
+      .add("hidden");
+
+
+      if (
+        data.role === "manager"
+      ) {
+
+        homeScreen
+        .classList
+        .add("hidden");
+
+        managerScreen
+        .classList
+        .remove("hidden");
+
+        await loadManagerDashboard();
+
+      }
+
+      else {
+
+        managerScreen
+        .classList
+        .add("hidden");
+
+        homeScreen
+        .classList
+        .remove("hidden");
+
+      }
+
+
+      pinInput.value =
+      "";
+
+    }
+
+    catch (error) {
+
+      currentPin =
+      "";
+
+      showMessage(
+
+        loginMessage,
+
+        error.message ||
+        "PIN not recognised.",
+
+        "error"
+
+      );
+
+    }
+
+    finally {
+
+      loginBtn
+      .classList
+      .remove("loader");
+
+      loginBtn.textContent =
+      "Continue";
+
+    }
 
   }
+);
 
-});
 
+/* STAFF ACTIONS */
 
-async function performAction(action, successText) {
+async function performAction(
+  action,
+  successText
+) {
 
-  clearMessage(actionMessage);
+  clearMessage(
+    actionMessage
+  );
+
 
   try {
 
-    const data = await api(action);
+    await api(action);
 
     showMessage(
       actionMessage,
@@ -670,58 +1566,230 @@ async function performAction(action, successText) {
 }
 
 
-clockInBtn.addEventListener("click", () => {
+clockInBtn.addEventListener(
+  "click",
+  () => {
 
-  performAction(
-    "clock_in",
-    "Clock in recorded."
+    performAction(
+      "clock_in",
+      "Clock in recorded."
+    );
+
+  }
+);
+
+
+startBreakBtn.addEventListener(
+  "click",
+  () => {
+
+    performAction(
+      "start_break",
+      "Break started."
+    );
+
+  }
+);
+
+
+endBreakBtn.addEventListener(
+  "click",
+  () => {
+
+    performAction(
+      "end_break",
+      "Break finished."
+    );
+
+  }
+);
+
+
+clockOutBtn.addEventListener(
+  "click",
+  () => {
+
+    performAction(
+      "clock_out",
+      "Clock out recorded."
+    );
+
+  }
+);
+
+
+/* MANAGER TIME CLOCK */
+
+async function performManagerClockAction(
+  action,
+  successText
+) {
+
+  clearMessage(
+    managerActionMessage
   );
 
-});
+
+  try {
+
+    await api(action);
+
+    showMessage(
+      managerActionMessage,
+      successText,
+      "ok"
+    );
+
+    await loadManagerDashboard();
+
+  }
+
+  catch (error) {
+
+    showMessage(
+      managerActionMessage,
+      error.message ||
+      "Unable to complete action.",
+      "error"
+    );
+
+  }
+
+}
 
 
-startBreakBtn.addEventListener("click", () => {
+managerClockInBtn.addEventListener(
+  "click",
+  () => {
 
-  performAction(
-    "start_break",
-    "Break started."
-  );
+    performManagerClockAction(
+      "clock_in",
+      "Clock in recorded."
+    );
 
-});
-
-
-endBreakBtn.addEventListener("click", () => {
-
-  performAction(
-    "end_break",
-    "Break finished."
-  );
-
-});
+  }
+);
 
 
-clockOutBtn.addEventListener("click", () => {
+managerStartBreakBtn.addEventListener(
+  "click",
+  () => {
 
-  performAction(
-    "clock_out",
-    "Clock out recorded."
-  );
+    performManagerClockAction(
+      "start_break",
+      "Break started."
+    );
 
-});
+  }
+);
 
 
-logoutBtn.addEventListener("click", () => {
+managerEndBreakBtn.addEventListener(
+  "click",
+  () => {
+
+    performManagerClockAction(
+      "end_break",
+      "Break finished."
+    );
+
+  }
+);
+
+
+managerClockOutBtn.addEventListener(
+  "click",
+  () => {
+
+    performManagerClockAction(
+      "clock_out",
+      "Clock out recorded."
+    );
+
+  }
+);
+
+
+myClockCard.addEventListener(
+  "click",
+  () => {
+
+    managerClockSection
+    .classList
+    .toggle("hidden");
+
+    if (
+      !managerClockSection
+      .classList
+      .contains("hidden")
+    ) {
+
+      managerClockSection
+      .scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+
+    }
+
+  }
+);
+
+
+/* SIGN OUT */
+
+function signOutAll() {
 
   currentPin = "";
   currentData = null;
 
-  homeScreen.classList.add("hidden");
-  loginScreen.classList.remove("hidden");
+  homeScreen
+  .classList
+  .add("hidden");
 
-  clearMessage(loginMessage);
-  clearMessage(actionMessage);
+  managerScreen
+  .classList
+  .add("hidden");
 
-});
+  loginScreen
+  .classList
+  .remove("hidden");
+
+  managerClockSection
+  .classList
+  .add("hidden");
+
+  pinInput.value = "";
+
+  clearMessage(
+    loginMessage
+  );
+
+  clearMessage(
+    actionMessage
+  );
+
+  clearMessage(
+    managerMessage
+  );
+
+  clearMessage(
+    managerActionMessage
+  );
+
+}
+
+
+logoutBtn.addEventListener(
+  "click",
+  signOutAll
+);
+
+
+managerLogoutBtn.addEventListener(
+  "click",
+  signOutAll
+);
 
 </script>
 
