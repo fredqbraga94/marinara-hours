@@ -310,6 +310,119 @@ button{cursor:pointer}
   cursor:default;
 }
 
+
+.approval-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:15px;
+}
+
+.approval-actions .approve-btn{
+  margin-top:0;
+}
+
+.edit-btn{
+  width:100%;
+  border:1.5px solid var(--green);
+  background:white;
+  color:var(--green);
+  border-radius:16px;
+  min-height:52px;
+  font-weight:850;
+  font-size:15px;
+}
+
+.edit-btn:disabled{
+  opacity:.55;
+  cursor:default;
+}
+
+.edit-panel{
+  margin-top:15px;
+  padding:16px;
+  background:#fafbfa;
+  border:1px solid var(--border);
+  border-radius:18px;
+}
+
+.edit-title{
+  font-size:14px;
+  font-weight:850;
+  margin-bottom:12px;
+}
+
+.edit-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+
+.edit-field{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.edit-field.full{
+  grid-column:1 / -1;
+}
+
+.edit-field label{
+  color:var(--muted);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.7px;
+  font-weight:750;
+}
+
+.edit-input{
+  width:100%;
+  min-height:46px;
+  border:1.5px solid var(--border);
+  border-radius:13px;
+  background:white;
+  color:var(--text);
+  padding:10px 11px;
+  outline:none;
+}
+
+.edit-input:focus{
+  border-color:var(--green);
+}
+
+.edit-panel-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:13px;
+}
+
+.cancel-edit-btn,
+.save-edit-btn{
+  min-height:48px;
+  border-radius:14px;
+  font-weight:850;
+  font-size:14px;
+}
+
+.cancel-edit-btn{
+  border:1px solid var(--border);
+  background:white;
+  color:var(--text);
+}
+
+.save-edit-btn{
+  border:0;
+  background:var(--green);
+  color:white;
+}
+
+.save-edit-btn:disabled{
+  opacity:.55;
+  cursor:default;
+}
+
 .all-approved{
   text-align:center;
   padding:34px 12px;
@@ -831,578 +944,6 @@ document.getElementById("managerActionMessage");
 
 /* APPROVALS */
 
-const backDashboardBtn =
-document.getElementById("backDashboardBtn");
-
-const approvalsList =
-document.getElementById("approvalsList");
-
-const approvalMessage =
-document.getElementById("approvalMessage");
-
-
-/* MESSAGES */
-
-function showMessage(
-  element,
-  text,
-  type = "ok"
-) {
-
-  element.textContent = text;
-
-  element.className =
-  "message show " + type;
-
-}
-
-function clearMessage(element) {
-
-  element.textContent = "";
-  element.className = "message";
-
-}
-
-
-/* API */
-
-async function api(
-  action,
-  extra = {}
-) {
-
-  const response =
-  await fetch(
-    API,
-    {
-      method:"POST",
-
-      headers:{
-        "Authorization":
-          "Bearer " + SUPABASE_KEY,
-
-        "apikey":
-          SUPABASE_KEY,
-
-        "Content-Type":
-          "application/json"
-      },
-
-      body:JSON.stringify({
-        action,
-        pin:currentPin,
-        ...extra
-      })
-    }
-  );
-
-  let result;
-
-  try {
-    result = await response.json();
-  }
-
-  catch {
-    throw new Error(
-      "Invalid response from server"
-    );
-  }
-
-  if (
-    !response.ok ||
-    result.success !== true
-  ) {
-
-    throw new Error(
-      result.error ||
-      "Unable to complete action"
-    );
-
-  }
-
-  return result.data;
-}
-
-
-/* CLOCK */
-
-function updateClock() {
-
-  const now =
-  new Date();
-
-  document
-  .getElementById("currentTime")
-  .textContent =
-
-  new Intl.DateTimeFormat(
-    "en-AU",
-    {
-      timeZone:"Australia/Brisbane",
-      hour:"2-digit",
-      minute:"2-digit",
-      second:"2-digit"
-    }
-  ).format(now);
-
-
-  document
-  .getElementById("currentDate")
-  .textContent =
-
-  new Intl.DateTimeFormat(
-    "en-AU",
-    {
-      timeZone:"Australia/Brisbane",
-      weekday:"long",
-      day:"numeric",
-      month:"long"
-    }
-  ).format(now);
-
-}
-
-setInterval(updateClock,1000);
-updateClock();
-
-
-/* HELPERS */
-
-function escapeHtml(value) {
-
-  return String(value ?? "")
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
-
-}
-
-function formatHours(value) {
-
-  const number =
-  Number(value || 0);
-
-  return (
-    number
-    .toFixed(2)
-    .replace(/\.00$/,"")
-    +
-    " hrs"
-  );
-
-}
-
-function formatShiftDate(value) {
-
-  return new Intl.DateTimeFormat(
-    "en-AU",
-    {
-      timeZone:"Australia/Brisbane",
-      weekday:"short",
-      day:"numeric",
-      month:"short",
-      year:"numeric"
-    }
-  ).format(
-    new Date(value)
-  );
-
-}
-
-function formatShiftTime(value) {
-
-  if (!value) return "—";
-
-  return new Intl.DateTimeFormat(
-    "en-AU",
-    {
-      timeZone:"Australia/Brisbane",
-      hour:"numeric",
-      minute:"2-digit",
-      hour12:true
-    }
-  ).format(
-    new Date(value)
-  );
-
-}
-
-
-/* STAFF RENDER */
-
-function hideActions() {
-
-  clockInBtn.classList.add("hidden");
-  startBreakBtn.classList.add("hidden");
-  endBreakBtn.classList.add("hidden");
-  clockOutBtn.classList.add("hidden");
-
-}
-
-function render(data) {
-
-  currentData = data;
-
-  staffName.textContent =
-    data.name || "Staff";
-
-  staffInfo.textContent =
-    (data.department || "Staff")
-    + " · " +
-    (data.location || "Hawthorne");
-
-  avatar.textContent =
-    (data.name || "S")
-    .charAt(0)
-    .toUpperCase();
-
-  hideActions();
-
-  statusValue.className =
-    "status-value";
-
-  if (data.status === "working") {
-
-    statusValue.textContent =
-      "Working";
-
-    statusValue.classList.add(
-      "working"
-    );
-
-    startBreakBtn
-    .classList
-    .remove("hidden");
-
-    clockOutBtn
-    .classList
-    .remove("hidden");
-
-  }
-
-  else if (data.status === "break") {
-
-    statusValue.textContent =
-      "On break";
-
-    statusValue.classList.add(
-      "break"
-    );
-
-    endBreakBtn
-    .classList
-    .remove("hidden");
-
-    clockOutBtn
-    .classList
-    .remove("hidden");
-
-  }
-
-  else {
-
-    statusValue.textContent =
-      "Off shift";
-
-    clockInBtn
-    .classList
-    .remove("hidden");
-
-  }
-
-}
-
-async function refreshStatus() {
-
-  const data =
-    await api("status");
-
-  render(data);
-
-}
-
-
-/* MANAGER CLOCK */
-
-function renderManagerClock(status) {
-
-  managerClockInBtn
-  .classList.add("hidden");
-
-  managerStartBreakBtn
-  .classList.add("hidden");
-
-  managerEndBreakBtn
-  .classList.add("hidden");
-
-  managerClockOutBtn
-  .classList.add("hidden");
-
-  managerStatusValue.className =
-    "status-value";
-
-
-  if (status === "working") {
-
-    managerStatusValue.textContent =
-      "Working";
-
-    managerStatusValue
-    .classList
-    .add("working");
-
-    managerStartBreakBtn
-    .classList
-    .remove("hidden");
-
-    managerClockOutBtn
-    .classList
-    .remove("hidden");
-
-  }
-
-  else if (status === "break") {
-
-    managerStatusValue.textContent =
-      "On break";
-
-    managerStatusValue
-    .classList
-    .add("break");
-
-    managerEndBreakBtn
-    .classList
-    .remove("hidden");
-
-    managerClockOutBtn
-    .classList
-    .remove("hidden");
-
-  }
-
-  else {
-
-    managerStatusValue.textContent =
-      "Off shift";
-
-    managerClockInBtn
-    .classList
-    .remove("hidden");
-
-  }
-
-}
-
-
-/* DASHBOARD */
-
-async function loadManagerDashboard() {
-
-  clearMessage(
-    managerMessage
-  );
-
-  try {
-
-    const dashboard =
-      await api(
-        "manager_dashboard"
-      );
-
-    managerLocation.textContent =
-      dashboard.location ||
-      "Hawthorne";
-
-    const counts =
-      dashboard.counts || {};
-
-    const workingCount =
-      counts.working_now ?? 0;
-
-    const pending =
-      counts.unapproved_shifts ?? 0;
-
-    const activeStaff =
-      counts.active_staff ?? 0;
-
-    workingNowCount.textContent =
-      workingCount;
-
-    pendingCount.textContent =
-      pending;
-
-    approvalsText.textContent =
-      pending +
-      " shift" +
-      (pending === 1 ? "" : "s") +
-      " waiting";
-
-    teamText.textContent =
-      activeStaff +
-      " active staff";
-
-
-    /* WHO'S WORKING */
-
-    const working =
-      dashboard.working || [];
-
-    if (!working.length) {
-
-      workingList.className =
-        "empty-state";
-
-      workingList.innerHTML =
-        "No staff currently working.";
-
-    }
-
-    else {
-
-      workingList.className = "";
-
-      workingList.innerHTML =
-        working.map(
-          person => `
-
-          <div class="person-row">
-
-            <div>
-
-              <div class="person-name">
-                ${escapeHtml(person.name)}
-              </div>
-
-              <div class="person-meta">
-
-                ${escapeHtml(
-                  person.department
-                )}
-
-                ·
-
-                ${
-                  person.status === "break"
-                    ? "On break"
-                    : "Working"
-                }
-
-              </div>
-
-            </div>
-
-            <div class="hours-pill">
-              ${formatHours(
-                person.hours_so_far
-              )}
-            </div>
-
-          </div>
-
-          `
-        ).join("");
-
-    }
-
-
-    /* STAFF HOURS */
-
-    const summary =
-      dashboard.hours?.summary || [];
-
-    if (!summary.length) {
-
-      hoursList.className =
-        "empty-state";
-
-      hoursList.innerHTML =
-        "No shifts recorded this week.";
-
-    }
-
-    else {
-
-      hoursList.className = "";
-
-      hoursList.innerHTML =
-        summary.map(
-          person => `
-
-          <div class="person-row">
-
-            <div>
-
-              <div class="person-name">
-                ${escapeHtml(person.name)}
-              </div>
-
-              <div class="person-meta">
-
-                ${escapeHtml(
-                  person.department
-                )}
-
-                ·
-
-                ${person.shifts}
-                shift${
-                  person.shifts === 1
-                    ? ""
-                    : "s"
-                }
-
-                ${
-                  person.unapproved
-                    ? " · " +
-                      person.unapproved +
-                      " pending"
-                    : ""
-                }
-
-              </div>
-
-            </div>
-
-            <div class="hours-pill">
-
-              ${formatHours(
-                person.total_hours
-              )}
-
-            </div>
-
-          </div>
-
-          `
-        ).join("");
-
-    }
-
-    renderManagerClock(
-      dashboard.manager?.status ||
-      "off_shift"
-    );
-
-  }
-
-  catch(error) {
-
-    showMessage(
-      managerMessage,
-      error.message ||
-      "Unable to load Manager Dashboard.",
-      "error"
-    );
-
-  }
-
-}
-
-
-/* APPROVALS */
-
 async function loadApprovals() {
 
   clearMessage(
@@ -1453,7 +994,6 @@ async function loadApprovals() {
       `;
 
       return;
-
     }
 
 
@@ -1571,12 +1111,99 @@ async function loadApprovals() {
           </div>
 
 
-          <button
-            class="approve-btn"
-            data-shift-id="${shift.shift_id}"
+          <div
+            class="edit-panel hidden"
+            id="edit-${shift.shift_id}"
           >
-            Approve Shift
-          </button>
+
+            <div class="edit-title">
+              Edit Shift
+            </div>
+
+            <div class="edit-grid">
+
+              <div class="edit-field full">
+                <label>Clock In</label>
+
+                <input
+                  class="edit-input"
+                  id="edit-in-${shift.shift_id}"
+                  type="datetime-local"
+                  value="${toBrisbaneDateTimeLocal(
+                    shift.clock_in
+                  )}"
+                >
+              </div>
+
+              <div class="edit-field full">
+                <label>Clock Out</label>
+
+                <input
+                  class="edit-input"
+                  id="edit-out-${shift.shift_id}"
+                  type="datetime-local"
+                  value="${toBrisbaneDateTimeLocal(
+                    shift.clock_out
+                  )}"
+                >
+              </div>
+
+              <div class="edit-field full">
+                <label>Break · minutes</label>
+
+                <input
+                  class="edit-input"
+                  id="edit-break-${shift.shift_id}"
+                  type="number"
+                  inputmode="numeric"
+                  min="0"
+                  step="1"
+                  value="${Number(
+                    shift.break_minutes || 0
+                  )}"
+                >
+              </div>
+
+            </div>
+
+            <div class="edit-panel-actions">
+
+              <button
+                class="cancel-edit-btn"
+                data-shift-id="${shift.shift_id}"
+              >
+                Cancel
+              </button>
+
+              <button
+                class="save-edit-btn"
+                data-shift-id="${shift.shift_id}"
+              >
+                Save Changes
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <div class="approval-actions">
+
+            <button
+              class="edit-btn"
+              data-shift-id="${shift.shift_id}"
+            >
+              Edit Shift
+            </button>
+
+            <button
+              class="approve-btn"
+              data-shift-id="${shift.shift_id}"
+            >
+              Approve Shift
+            </button>
+
+          </div>
 
         </div>
 
@@ -1609,6 +1236,75 @@ async function loadApprovals() {
       }
     );
 
+
+    document
+    .querySelectorAll(
+      ".edit-btn"
+    )
+    .forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            toggleEditShift(
+              button.dataset.shiftId,
+              true
+            );
+
+          }
+        );
+
+      }
+    );
+
+
+    document
+    .querySelectorAll(
+      ".cancel-edit-btn"
+    )
+    .forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            toggleEditShift(
+              button.dataset.shiftId,
+              false
+            );
+
+          }
+        );
+
+      }
+    );
+
+
+    document
+    .querySelectorAll(
+      ".save-edit-btn"
+    )
+    .forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+          async () => {
+
+            await saveEditedShift(
+              button.dataset.shiftId,
+              button
+            );
+
+          }
+        );
+
+      }
+    );
+
   }
 
   catch(error) {
@@ -1619,6 +1315,207 @@ async function loadApprovals() {
       approvalMessage,
       error.message ||
       "Unable to load approvals.",
+      "error"
+    );
+
+  }
+
+}
+
+
+function toggleEditShift(
+  shiftId,
+  open
+) {
+
+  clearMessage(
+    approvalMessage
+  );
+
+  const panel =
+    document.getElementById(
+      "edit-" + shiftId
+    );
+
+  if (!panel) return;
+
+  if (open) {
+
+    document
+    .querySelectorAll(
+      ".edit-panel"
+    )
+    .forEach(
+      item => {
+        if (item !== panel) {
+          item.classList.add(
+            "hidden"
+          );
+        }
+      }
+    );
+
+    panel.classList.remove(
+      "hidden"
+    );
+
+    panel.scrollIntoView({
+      behavior:"smooth",
+      block:"nearest"
+    });
+
+  }
+
+  else {
+
+    panel.classList.add(
+      "hidden"
+    );
+
+  }
+
+}
+
+
+async function saveEditedShift(
+  shiftId,
+  button
+) {
+
+  clearMessage(
+    approvalMessage
+  );
+
+  const clockInInput =
+    document.getElementById(
+      "edit-in-" + shiftId
+    );
+
+  const clockOutInput =
+    document.getElementById(
+      "edit-out-" + shiftId
+    );
+
+  const breakInput =
+    document.getElementById(
+      "edit-break-" + shiftId
+    );
+
+
+  try {
+
+    const clockIn =
+      brisbaneLocalToIso(
+        clockInInput.value
+      );
+
+    const clockOut =
+      brisbaneLocalToIso(
+        clockOutInput.value
+      );
+
+    const breakMinutes =
+      Number(
+        breakInput.value
+      );
+
+
+    if (
+      !Number.isFinite(
+        breakMinutes
+      ) ||
+      breakMinutes < 0 ||
+      !Number.isInteger(
+        breakMinutes
+      )
+    ) {
+
+      throw new Error(
+        "Break must be a whole number of minutes."
+      );
+    }
+
+
+    if (
+      new Date(clockOut).getTime() <=
+      new Date(clockIn).getTime()
+    ) {
+
+      throw new Error(
+        "Clock Out must be after Clock In."
+      );
+    }
+
+
+    const shiftMinutes =
+      (
+        new Date(clockOut).getTime() -
+        new Date(clockIn).getTime()
+      ) / 60000;
+
+
+    if (
+      breakMinutes >
+      shiftMinutes
+    ) {
+
+      throw new Error(
+        "Break cannot be longer than the shift."
+      );
+    }
+
+
+    const originalText =
+      button.textContent;
+
+    button.disabled = true;
+    button.textContent =
+      "Saving...";
+
+
+    try {
+
+      await api(
+        "manager_edit_shift",
+        {
+          shift_id:shiftId,
+          clock_in:clockIn,
+          clock_out:clockOut,
+          break_minutes:breakMinutes
+        }
+      );
+
+
+      showMessage(
+        approvalMessage,
+        "Shift updated successfully.",
+        "ok"
+      );
+
+
+      await loadManagerDashboard();
+      await loadApprovals();
+
+    }
+
+    catch(error) {
+
+      button.disabled = false;
+
+      button.textContent =
+        originalText;
+
+      throw error;
+    }
+
+  }
+
+  catch(error) {
+
+    showMessage(
+      approvalMessage,
+      error.message ||
+      "Unable to update shift.",
       "error"
     );
 
