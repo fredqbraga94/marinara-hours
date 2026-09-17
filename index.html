@@ -1,697 +1,707 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#1f6b45">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1f6b45">
+<title>Marinara Hours</title>
 
-  <title>Marinara Hours</title>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --green:#1f6b45;
+  --green-dark:#155236;
+  --green-light:#eaf4ee;
+  --cream:#f6f3ed;
+  --white:#fff;
+  --text:#17211b;
+  --muted:#758078;
+  --border:#e5e8e5;
+  --danger:#b43b3b;
+}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:var(--cream);
+  color:var(--text);
+}
+button,input{font:inherit}
+button{cursor:pointer}
+.app{
+  width:100%;
+  max-width:480px;
+  min-height:100vh;
+  margin:auto;
+  padding-bottom:80px;
+}
+.header{
+  background:var(--green);
+  color:white;
+  padding:calc(18px + env(safe-area-inset-top)) 22px 28px;
+  border-radius:0 0 30px 30px;
+}
+.brand{
+  font-size:13px;
+  letter-spacing:2px;
+  font-weight:800;
+  opacity:.85;
+}
+.header h1{margin:8px 0 4px;font-size:30px}
+.header p{margin:0;opacity:.8;font-size:14px}
+.content{padding:20px}
+.card{
+  background:white;
+  border-radius:24px;
+  padding:22px;
+  margin-bottom:16px;
+  box-shadow:0 8px 28px rgba(0,0,0,.06);
+}
+.hidden{display:none!important}
 
-  <style>
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-    }
+.login-title{font-size:23px;font-weight:800;margin-bottom:6px}
+.sub{color:var(--muted);font-size:14px;line-height:1.5}
+.pin{
+  width:100%;
+  margin-top:20px;
+  height:62px;
+  border-radius:18px;
+  border:1.5px solid var(--border);
+  background:#fafbfa;
+  text-align:center;
+  font-size:26px;
+  letter-spacing:10px;
+  outline:none;
+}
+.pin:focus{border-color:var(--green);background:white}
 
-    :root {
-      --green: #1f6b45;
-      --green-dark: #155236;
-      --green-light: #eaf4ee;
-      --cream: #f6f3ed;
-      --white: #ffffff;
-      --text: #17211b;
-      --muted: #758078;
-      --border: #e5e8e5;
-      --danger: #b43b3b;
-    }
+.btn{
+  width:100%;
+  border:0;
+  border-radius:18px;
+  min-height:58px;
+  padding:15px;
+  font-weight:800;
+  font-size:16px;
+}
+.primary{background:var(--green);color:white;margin-top:14px}
+.secondary{background:var(--green-light);color:var(--green);margin-top:12px}
+.danger{background:#fff0f0;color:var(--danger);margin-top:12px}
+.small-btn{
+  width:auto;
+  min-height:42px;
+  padding:10px 14px;
+  border-radius:14px;
+  font-size:13px;
+  margin:0;
+}
 
-    body {
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--cream);
-      color: var(--text);
-    }
+.profile{display:flex;align-items:center;gap:14px}
+.avatar{
+  width:54px;height:54px;border-radius:17px;
+  background:var(--green-light);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--green);font-weight:900;font-size:21px;
+}
+.profile h2{margin:0 0 3px;font-size:20px}
+.profile p{margin:0;color:var(--muted);font-size:13px}
 
-    button, input {
-      font: inherit;
-    }
+.status{
+  margin-top:22px;
+  padding:18px;
+  background:#fafbfa;
+  border:1px solid var(--border);
+  border-radius:18px;
+}
+.status-label{
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:1px;
+}
+.status-value{font-size:25px;font-weight:850;margin-top:6px}
+.working{color:var(--green)}
+.break{color:#b16d16}
 
-    button {
-      cursor: pointer;
-    }
+.clock{text-align:center;padding:22px 0 8px}
+.time{font-size:44px;font-weight:800;letter-spacing:-2px}
+.date{color:var(--muted);margin-top:5px;font-size:14px}
 
-    .app {
-      width: 100%;
-      max-width: 480px;
-      min-height: 100vh;
-      margin: auto;
-      background: var(--cream);
-      padding-bottom: 100px;
-    }
+.message{
+  margin-top:14px;
+  padding:13px;
+  border-radius:14px;
+  text-align:center;
+  font-size:14px;
+  display:none;
+}
+.message.show{display:block}
+.message.ok{color:var(--green);background:var(--green-light)}
+.message.error{color:var(--danger);background:#fff0f0}
 
-    .header {
-      background: var(--green);
-      color: white;
-      padding: calc(18px + env(safe-area-inset-top)) 22px 28px;
-      border-radius: 0 0 30px 30px;
-    }
+.manager-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:16px;
+}
+.manager-top h2{margin:0;font-size:24px}
+.manager-top p{margin:4px 0 0;color:var(--muted);font-size:13px}
 
-    .brand {
-      font-size: 13px;
-      letter-spacing: 2px;
-      font-weight: 800;
-      opacity: .85;
-    }
+.summary-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-bottom:16px;
+}
+.summary-card{
+  background:white;
+  border-radius:20px;
+  padding:18px;
+  box-shadow:0 8px 28px rgba(0,0,0,.05);
+}
+.summary-number{font-size:30px;font-weight:900;color:var(--green)}
+.summary-label{margin-top:4px;color:var(--muted);font-size:12px;font-weight:700}
 
-    .header h1 {
-      margin: 8px 0 4px;
-      font-size: 30px;
-    }
+.section-title{font-size:16px;font-weight:850;margin:0 0 12px}
+.empty-state{color:var(--muted);font-size:14px;line-height:1.5;padding:8px 0}
 
-    .header p {
-      margin: 0;
-      opacity: .8;
-      font-size: 14px;
-    }
+.person-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px 0;
+  border-bottom:1px solid var(--border);
+}
+.person-row:last-child{border-bottom:0}
+.person-name{font-weight:800;font-size:15px}
+.person-meta{color:var(--muted);font-size:12px;margin-top:3px}
+.hours-pill{
+  background:var(--green-light);
+  color:var(--green);
+  border-radius:999px;
+  padding:7px 10px;
+  font-size:12px;
+  font-weight:850;
+  white-space:nowrap;
+}
 
-    .content {
-      padding: 20px;
-    }
+.menu-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+.menu-card{
+  border:1px solid var(--border);
+  background:#fafbfa;
+  border-radius:18px;
+  padding:16px;
+  min-height:92px;
+  text-align:left;
+}
+.menu-card strong{
+  display:block;
+  font-size:14px;
+  margin-bottom:5px;
+  color:var(--text);
+}
+.menu-card span{
+  color:var(--muted);
+  font-size:11px;
+  line-height:1.35;
+}
 
-    .card {
-      background: white;
-      border-radius: 24px;
-      padding: 22px;
-      margin-bottom: 16px;
-      box-shadow: 0 8px 28px rgba(0,0,0,.06);
-      border: 1px solid rgba(0,0,0,.03);
-    }
+/* APPROVALS */
 
-    .login-title {
-      font-size: 23px;
-      font-weight: 800;
-      margin-bottom: 6px;
-    }
+.back-btn{
+  border:0;
+  background:var(--green-light);
+  color:var(--green);
+  font-weight:800;
+  padding:10px 14px;
+  border-radius:14px;
+}
 
-    .sub {
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.5;
-    }
+.approval-card{
+  background:white;
+  border-radius:22px;
+  padding:20px;
+  margin-bottom:14px;
+  box-shadow:0 8px 28px rgba(0,0,0,.05);
+}
 
-    .pin {
-      width: 100%;
-      margin-top: 20px;
-      height: 62px;
-      border-radius: 18px;
-      border: 1.5px solid var(--border);
-      background: #fafbfa;
-      text-align: center;
-      font-size: 26px;
-      letter-spacing: 10px;
-      outline: none;
-    }
+.approval-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:16px;
+}
 
-    .pin:focus {
-      border-color: var(--green);
-      background: white;
-    }
+.approval-name{
+  font-size:18px;
+  font-weight:850;
+}
 
-    .btn {
-      width: 100%;
-      border: 0;
-      border-radius: 18px;
-      min-height: 58px;
-      padding: 15px;
-      font-weight: 800;
-      font-size: 16px;
-    }
+.approval-department{
+  color:var(--muted);
+  font-size:12px;
+  margin-top:3px;
+}
 
-    .primary {
-      background: var(--green);
-      color: white;
-      margin-top: 14px;
-    }
+.pending-badge{
+  background:#fff5df;
+  color:#9a6515;
+  padding:6px 9px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:800;
+}
 
-    .secondary {
-      background: var(--green-light);
-      color: var(--green);
-      margin-top: 12px;
-    }
+.shift-date{
+  font-weight:800;
+  font-size:14px;
+  margin-bottom:12px;
+}
 
-    .danger {
-      background: #fff0f0;
-      color: var(--danger);
-      margin-top: 12px;
-    }
+.shift-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
 
-    .hidden {
-      display: none !important;
-    }
+.shift-detail{
+  background:#fafbfa;
+  border:1px solid var(--border);
+  padding:12px;
+  border-radius:14px;
+}
 
-    .profile {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
+.shift-detail-label{
+  color:var(--muted);
+  font-size:10px;
+  text-transform:uppercase;
+  letter-spacing:.7px;
+  font-weight:750;
+}
 
-    .avatar {
-      width: 54px;
-      height: 54px;
-      border-radius: 17px;
-      background: var(--green-light);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--green);
-      font-weight: 900;
-      font-size: 21px;
-    }
+.shift-detail-value{
+  margin-top:4px;
+  font-weight:800;
+  font-size:14px;
+}
 
-    .profile h2 {
-      margin: 0 0 3px;
-      font-size: 20px;
-    }
+.approve-btn{
+  width:100%;
+  border:0;
+  background:var(--green);
+  color:white;
+  border-radius:16px;
+  min-height:52px;
+  margin-top:15px;
+  font-weight:850;
+  font-size:15px;
+}
 
-    .profile p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 13px;
-    }
+.approve-btn:disabled{
+  opacity:.55;
+  cursor:default;
+}
 
-    .status {
-      margin-top: 22px;
-      padding: 18px;
-      background: #fafbfa;
-      border: 1px solid var(--border);
-      border-radius: 18px;
-    }
+.all-approved{
+  text-align:center;
+  padding:34px 12px;
+}
 
-    .status-label {
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-    }
+.all-approved-icon{
+  width:60px;
+  height:60px;
+  margin:0 auto 14px;
+  border-radius:50%;
+  background:var(--green-light);
+  color:var(--green);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:28px;
+  font-weight:900;
+}
 
-    .status-value {
-      font-size: 25px;
-      font-weight: 850;
-      margin-top: 6px;
-    }
-
-    .working {
-      color: var(--green);
-    }
-
-    .break {
-      color: #b16d16;
-    }
-
-    .clock {
-      text-align: center;
-      padding: 22px 0 8px;
-    }
-
-    .time {
-      font-size: 44px;
-      font-weight: 800;
-      letter-spacing: -2px;
-    }
-
-    .date {
-      color: var(--muted);
-      margin-top: 5px;
-      font-size: 14px;
-    }
-
-    .message {
-      margin-top: 14px;
-      padding: 13px;
-      border-radius: 14px;
-      text-align: center;
-      font-size: 14px;
-      display: none;
-    }
-
-    .message.show {
-      display: block;
-    }
-
-    .message.ok {
-      color: var(--green);
-      background: var(--green-light);
-    }
-
-    .message.error {
-      color: var(--danger);
-      background: #fff0f0;
-    }
-
-    .loader {
-      opacity: .6;
-      pointer-events: none;
-    }
-
-    .manager-badge {
-      display: inline-block;
-      background: var(--green-light);
-      color: var(--green);
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 800;
-      margin-top: 7px;
-    }
-
-    .footer {
-      text-align: center;
-      color: #929a94;
-      font-size: 11px;
-      padding: 5px 20px;
-    }
-
-    /* MANAGER */
-
-    .manager-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .manager-top h2 {
-      margin: 0;
-      font-size: 24px;
-    }
-
-    .manager-top p {
-      margin: 4px 0 0;
-      color: var(--muted);
-      font-size: 13px;
-    }
-
-    .small-btn {
-      width: auto;
-      min-height: 42px;
-      padding: 10px 14px;
-      border-radius: 14px;
-      font-size: 13px;
-      margin: 0;
-    }
-
-    .summary-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .summary-card {
-      background: white;
-      border-radius: 20px;
-      padding: 18px;
-      box-shadow: 0 8px 28px rgba(0,0,0,.05);
-    }
-
-    .summary-number {
-      font-size: 30px;
-      font-weight: 900;
-      color: var(--green);
-    }
-
-    .summary-label {
-      margin-top: 4px;
-      color: var(--muted);
-      font-size: 12px;
-      font-weight: 700;
-    }
-
-    .section-title {
-      font-size: 16px;
-      font-weight: 850;
-      margin: 0 0 12px;
-    }
-
-    .empty-state {
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.5;
-      padding: 8px 0;
-    }
-
-    .person-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 13px 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .person-row:last-child {
-      border-bottom: 0;
-    }
-
-    .person-name {
-      font-weight: 800;
-      font-size: 15px;
-    }
-
-    .person-meta {
-      color: var(--muted);
-      font-size: 12px;
-      margin-top: 3px;
-    }
-
-    .hours-pill {
-      background: var(--green-light);
-      color: var(--green);
-      border-radius: 999px;
-      padding: 7px 10px;
-      font-size: 12px;
-      font-weight: 850;
-      white-space: nowrap;
-    }
-
-    .menu-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .menu-card {
-      border: 1px solid var(--border);
-      background: #fafbfa;
-      border-radius: 18px;
-      padding: 16px;
-      min-height: 92px;
-      text-align: left;
-    }
-
-    .menu-card strong {
-      display: block;
-      font-size: 14px;
-      margin-bottom: 5px;
-      color: var(--text);
-    }
-
-    .menu-card span {
-      color: var(--muted);
-      font-size: 11px;
-      line-height: 1.35;
-    }
-
-    .manager-clock-wrap {
-      margin-top: 16px;
-    }
-  </style>
+.footer{
+  text-align:center;
+  color:#929a94;
+  font-size:11px;
+  padding:5px 20px;
+}
+</style>
 </head>
 
 <body>
 
 <div class="app">
 
-  <header class="header">
-    <div class="brand">MARINARA</div>
-    <h1>Hours</h1>
-    <p>Hawthorne · Staff Time Clock</p>
-  </header>
+<header class="header">
+  <div class="brand">MARINARA</div>
+  <h1>Hours</h1>
+  <p>Hawthorne · Staff Time Clock</p>
+</header>
 
-  <main class="content">
+<main class="content">
 
-    <!-- LOGIN -->
+<!-- LOGIN -->
 
-    <section id="loginScreen" class="card">
+<section id="loginScreen" class="card">
 
-      <div class="login-title">Welcome</div>
+  <div class="login-title">Welcome</div>
 
-      <div class="sub">
-        Enter your staff PIN to access Marinara Hours.
-      </div>
-
-      <input
-        id="pinInput"
-        class="pin"
-        type="password"
-        inputmode="numeric"
-        autocomplete="off"
-        maxlength="6"
-        placeholder="••••"
-      >
-
-      <button id="loginBtn" class="btn primary">
-        Continue
-      </button>
-
-      <div id="loginMessage" class="message"></div>
-
-    </section>
-
-
-    <!-- STAFF TIME CLOCK -->
-
-    <section id="homeScreen" class="hidden">
-
-      <div class="card">
-
-        <div class="profile">
-
-          <div id="avatar" class="avatar">M</div>
-
-          <div>
-            <h2 id="staffName">Staff</h2>
-            <p id="staffInfo">Hawthorne</p>
-
-            <span id="managerBadge" class="manager-badge hidden">
-              MANAGER
-            </span>
-          </div>
-
-        </div>
-
-        <div class="status">
-
-          <div class="status-label">
-            Current status
-          </div>
-
-          <div id="statusValue" class="status-value">
-            Off shift
-          </div>
-
-        </div>
-
-      </div>
-
-      <div class="card clock">
-
-        <div id="currentTime" class="time">
-          --:--
-        </div>
-
-        <div id="currentDate" class="date"></div>
-
-      </div>
-
-      <div class="card">
-
-        <button id="clockInBtn" class="btn primary hidden">
-          Clock In
-        </button>
-
-        <button id="startBreakBtn" class="btn secondary hidden">
-          Start Break
-        </button>
-
-        <button id="endBreakBtn" class="btn primary hidden">
-          End Break
-        </button>
-
-        <button id="clockOutBtn" class="btn danger hidden">
-          Clock Out
-        </button>
-
-        <div id="actionMessage" class="message"></div>
-
-      </div>
-
-      <button id="logoutBtn" class="btn secondary">
-        Sign Out
-      </button>
-
-    </section>
-
-
-    <!-- MANAGER DASHBOARD -->
-
-    <section id="managerScreen" class="hidden">
-
-      <div class="manager-top">
-
-        <div>
-          <h2>Manager Dashboard</h2>
-          <p id="managerLocation">Hawthorne</p>
-        </div>
-
-        <button
-          id="managerLogoutBtn"
-          class="btn secondary small-btn"
-        >
-          Sign Out
-        </button>
-
-      </div>
-
-      <div id="managerMessage" class="message"></div>
-
-      <div class="summary-grid">
-
-        <div class="summary-card">
-          <div id="workingNowCount" class="summary-number">
-            0
-          </div>
-          <div class="summary-label">
-            Working now
-          </div>
-        </div>
-
-        <div class="summary-card">
-          <div id="pendingCount" class="summary-number">
-            0
-          </div>
-          <div class="summary-label">
-            Pending approvals
-          </div>
-        </div>
-
-      </div>
-
-
-      <div class="card">
-
-        <div class="section-title">
-          Who's Working
-        </div>
-
-        <div id="workingList" class="empty-state">
-          Loading...
-        </div>
-
-      </div>
-
-
-      <div class="card">
-
-        <div class="section-title">
-          Staff Hours · This Week
-        </div>
-
-        <div id="hoursList" class="empty-state">
-          Loading...
-        </div>
-
-      </div>
-
-
-      <div class="card">
-
-        <div class="section-title">
-          Management
-        </div>
-
-        <div class="menu-grid">
-
-          <button class="menu-card">
-            <strong>Staff Hours</strong>
-            <span>Weekly hours and shifts</span>
-          </button>
-
-          <button class="menu-card">
-            <strong>Approvals</strong>
-            <span id="approvalsText">
-              Review completed shifts
-            </span>
-          </button>
-
-          <button class="menu-card">
-            <strong>Roster</strong>
-            <span>Coming next</span>
-          </button>
-
-          <button class="menu-card">
-            <strong>Team</strong>
-            <span id="teamText">
-              Active Hawthorne staff
-            </span>
-          </button>
-
-          <button class="menu-card">
-            <strong>Timesheets</strong>
-            <span>PDF & CSV coming next</span>
-          </button>
-
-          <button id="myClockCard" class="menu-card">
-            <strong>My Time Clock</strong>
-            <span>Clock in, break and clock out</span>
-          </button>
-
-        </div>
-
-      </div>
-
-
-      <div id="managerClockSection" class="manager-clock-wrap hidden">
-
-        <div class="card">
-
-          <div class="section-title">
-            My Time Clock
-          </div>
-
-          <div class="status">
-
-            <div class="status-label">
-              Current status
-            </div>
-
-            <div id="managerStatusValue" class="status-value">
-              Off shift
-            </div>
-
-          </div>
-
-          <button id="managerClockInBtn" class="btn primary hidden">
-            Clock In
-          </button>
-
-          <button id="managerStartBreakBtn" class="btn secondary hidden">
-            Start Break
-          </button>
-
-          <button id="managerEndBreakBtn" class="btn primary hidden">
-            End Break
-          </button>
-
-          <button id="managerClockOutBtn" class="btn danger hidden">
-            Clock Out
-          </button>
-
-          <div id="managerActionMessage" class="message"></div>
-
-        </div>
-
-      </div>
-
-    </section>
-
-  </main>
-
-  <div class="footer">
-    Marinara Hawthorne · Australia
+  <div class="sub">
+    Enter your staff PIN to access Marinara Hours.
   </div>
+
+  <input
+    id="pinInput"
+    class="pin"
+    type="password"
+    inputmode="numeric"
+    autocomplete="off"
+    maxlength="6"
+    placeholder="••••"
+  >
+
+  <button id="loginBtn" class="btn primary">
+    Continue
+  </button>
+
+  <div id="loginMessage" class="message"></div>
+
+</section>
+
+
+<!-- STAFF -->
+
+<section id="homeScreen" class="hidden">
+
+  <div class="card">
+
+    <div class="profile">
+
+      <div id="avatar" class="avatar">S</div>
+
+      <div>
+        <h2 id="staffName">Staff</h2>
+        <p id="staffInfo">Hawthorne</p>
+      </div>
+
+    </div>
+
+    <div class="status">
+
+      <div class="status-label">
+        Current status
+      </div>
+
+      <div id="statusValue" class="status-value">
+        Off shift
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="card clock">
+
+    <div id="currentTime" class="time">
+      --:--
+    </div>
+
+    <div id="currentDate" class="date"></div>
+
+  </div>
+
+  <div class="card">
+
+    <button id="clockInBtn" class="btn primary hidden">
+      Clock In
+    </button>
+
+    <button id="startBreakBtn" class="btn secondary hidden">
+      Start Break
+    </button>
+
+    <button id="endBreakBtn" class="btn primary hidden">
+      End Break
+    </button>
+
+    <button id="clockOutBtn" class="btn danger hidden">
+      Clock Out
+    </button>
+
+    <div id="actionMessage" class="message"></div>
+
+  </div>
+
+  <button id="logoutBtn" class="btn secondary">
+    Sign Out
+  </button>
+
+</section>
+
+
+<!-- MANAGER DASHBOARD -->
+
+<section id="managerScreen" class="hidden">
+
+  <div class="manager-top">
+
+    <div>
+      <h2>Manager Dashboard</h2>
+      <p id="managerLocation">Hawthorne</p>
+    </div>
+
+    <button
+      id="managerLogoutBtn"
+      class="btn secondary small-btn"
+    >
+      Sign Out
+    </button>
+
+  </div>
+
+  <div id="managerMessage" class="message"></div>
+
+  <div class="summary-grid">
+
+    <div class="summary-card">
+
+      <div
+        id="workingNowCount"
+        class="summary-number"
+      >
+        0
+      </div>
+
+      <div class="summary-label">
+        Working now
+      </div>
+
+    </div>
+
+    <div class="summary-card">
+
+      <div
+        id="pendingCount"
+        class="summary-number"
+      >
+        0
+      </div>
+
+      <div class="summary-label">
+        Pending approvals
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <div class="card">
+
+    <div class="section-title">
+      Who's Working
+    </div>
+
+    <div
+      id="workingList"
+      class="empty-state"
+    >
+      Loading...
+    </div>
+
+  </div>
+
+
+  <div class="card">
+
+    <div class="section-title">
+      Staff Hours · This Week
+    </div>
+
+    <div
+      id="hoursList"
+      class="empty-state"
+    >
+      Loading...
+    </div>
+
+  </div>
+
+
+  <div class="card">
+
+    <div class="section-title">
+      Management
+    </div>
+
+    <div class="menu-grid">
+
+      <button class="menu-card">
+        <strong>Staff Hours</strong>
+        <span>Weekly hours and shifts</span>
+      </button>
+
+      <button
+        id="approvalsCard"
+        class="menu-card"
+      >
+        <strong>Approvals</strong>
+
+        <span id="approvalsText">
+          Review completed shifts
+        </span>
+
+      </button>
+
+      <button class="menu-card">
+        <strong>Roster</strong>
+        <span>Coming next</span>
+      </button>
+
+      <button class="menu-card">
+        <strong>Team</strong>
+
+        <span id="teamText">
+          Active Hawthorne staff
+        </span>
+      </button>
+
+      <button class="menu-card">
+        <strong>Timesheets</strong>
+        <span>PDF & CSV coming next</span>
+      </button>
+
+      <button
+        id="myClockCard"
+        class="menu-card"
+      >
+        <strong>My Time Clock</strong>
+        <span>Clock in, break and clock out</span>
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <div
+    id="managerClockSection"
+    class="hidden"
+  >
+
+    <div class="card">
+
+      <div class="section-title">
+        My Time Clock
+      </div>
+
+      <div class="status">
+
+        <div class="status-label">
+          Current status
+        </div>
+
+        <div
+          id="managerStatusValue"
+          class="status-value"
+        >
+          Off shift
+        </div>
+
+      </div>
+
+      <button
+        id="managerClockInBtn"
+        class="btn primary hidden"
+      >
+        Clock In
+      </button>
+
+      <button
+        id="managerStartBreakBtn"
+        class="btn secondary hidden"
+      >
+        Start Break
+      </button>
+
+      <button
+        id="managerEndBreakBtn"
+        class="btn primary hidden"
+      >
+        End Break
+      </button>
+
+      <button
+        id="managerClockOutBtn"
+        class="btn danger hidden"
+      >
+        Clock Out
+      </button>
+
+      <div
+        id="managerActionMessage"
+        class="message"
+      ></div>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- APPROVALS SCREEN -->
+
+<section id="approvalsScreen" class="hidden">
+
+  <div class="manager-top">
+
+    <div>
+      <h2>Approvals</h2>
+      <p>Completed shifts waiting for review</p>
+    </div>
+
+    <button
+      id="backDashboardBtn"
+      class="back-btn"
+    >
+      Back
+    </button>
+
+  </div>
+
+  <div
+    id="approvalMessage"
+    class="message"
+  ></div>
+
+  <div id="approvalsList">
+
+    <div class="card">
+      <div class="empty-state">
+        Loading shifts...
+      </div>
+    </div>
+
+  </div>
+
+</section>
+
+</main>
+
+<div class="footer">
+  Marinara Hawthorne · Australia
+</div>
 
 </div>
 
@@ -703,7 +713,6 @@ const API =
 
 const SUPABASE_KEY =
 "sb_publishable_l2nVIXyk6NPWqjVBoJwdAg_IQ9_GlUM";
-
 
 let currentPin = "";
 let currentData = null;
@@ -719,6 +728,9 @@ document.getElementById("homeScreen");
 
 const managerScreen =
 document.getElementById("managerScreen");
+
+const approvalsScreen =
+document.getElementById("approvalsScreen");
 
 const pinInput =
 document.getElementById("pinInput");
@@ -741,9 +753,6 @@ document.getElementById("staffInfo");
 const avatar =
 document.getElementById("avatar");
 
-const managerBadge =
-document.getElementById("managerBadge");
-
 const statusValue =
 document.getElementById("statusValue");
 
@@ -763,7 +772,7 @@ const logoutBtn =
 document.getElementById("logoutBtn");
 
 
-/* MANAGER ELEMENTS */
+/* MANAGER */
 
 const managerLocation =
 document.getElementById("managerLocation");
@@ -792,6 +801,9 @@ document.getElementById("teamText");
 const managerLogoutBtn =
 document.getElementById("managerLogoutBtn");
 
+const approvalsCard =
+document.getElementById("approvalsCard");
+
 const myClockCard =
 document.getElementById("myClockCard");
 
@@ -817,6 +829,18 @@ const managerActionMessage =
 document.getElementById("managerActionMessage");
 
 
+/* APPROVALS */
+
+const backDashboardBtn =
+document.getElementById("backDashboardBtn");
+
+const approvalsList =
+document.getElementById("approvalsList");
+
+const approvalMessage =
+document.getElementById("approvalMessage");
+
+
 /* MESSAGES */
 
 function showMessage(
@@ -832,7 +856,6 @@ function showMessage(
 
 }
 
-
 function clearMessage(element) {
 
   element.textContent = "";
@@ -843,39 +866,47 @@ function clearMessage(element) {
 
 /* API */
 
-async function api(action) {
+async function api(
+  action,
+  extra = {}
+) {
 
   const response =
-  await fetch(API, {
+  await fetch(
+    API,
+    {
+      method:"POST",
 
-    method: "POST",
+      headers:{
+        "Authorization":
+          "Bearer " + SUPABASE_KEY,
 
-    headers: {
+        "apikey":
+          SUPABASE_KEY,
 
-      "Authorization":
-      "Bearer " + SUPABASE_KEY,
+        "Content-Type":
+          "application/json"
+      },
 
-      "apikey":
-      SUPABASE_KEY,
+      body:JSON.stringify({
+        action,
+        pin:currentPin,
+        ...extra
+      })
+    }
+  );
 
-      "Content-Type":
-      "application/json"
+  let result;
 
-    },
+  try {
+    result = await response.json();
+  }
 
-    body: JSON.stringify({
-
-      action: action,
-      pin: currentPin
-
-    })
-
-  });
-
-
-  const result =
-  await response.json();
-
+  catch {
+    throw new Error(
+      "Invalid response from server"
+    );
+  }
 
   if (
     !response.ok ||
@@ -889,9 +920,7 @@ async function api(action) {
 
   }
 
-
   return result.data;
-
 }
 
 
@@ -902,68 +931,106 @@ function updateClock() {
   const now =
   new Date();
 
-
-  document.getElementById(
-    "currentTime"
-  ).textContent =
+  document
+  .getElementById("currentTime")
+  .textContent =
 
   new Intl.DateTimeFormat(
     "en-AU",
     {
-
-      timeZone:
-      "Australia/Brisbane",
-
-      hour:
-      "2-digit",
-
-      minute:
-      "2-digit",
-
-      second:
-      "2-digit"
-
+      timeZone:"Australia/Brisbane",
+      hour:"2-digit",
+      minute:"2-digit",
+      second:"2-digit"
     }
-
   ).format(now);
 
 
-  document.getElementById(
-    "currentDate"
-  ).textContent =
+  document
+  .getElementById("currentDate")
+  .textContent =
 
   new Intl.DateTimeFormat(
     "en-AU",
     {
-
-      timeZone:
-      "Australia/Brisbane",
-
-      weekday:
-      "long",
-
-      day:
-      "numeric",
-
-      month:
-      "long"
-
+      timeZone:"Australia/Brisbane",
+      weekday:"long",
+      day:"numeric",
+      month:"long"
     }
-
   ).format(now);
 
 }
 
-
-setInterval(
-  updateClock,
-  1000
-);
-
+setInterval(updateClock,1000);
 updateClock();
 
 
-/* STAFF */
+/* HELPERS */
+
+function escapeHtml(value) {
+
+  return String(value ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+
+}
+
+function formatHours(value) {
+
+  const number =
+  Number(value || 0);
+
+  return (
+    number
+    .toFixed(2)
+    .replace(/\.00$/,"")
+    +
+    " hrs"
+  );
+
+}
+
+function formatShiftDate(value) {
+
+  return new Intl.DateTimeFormat(
+    "en-AU",
+    {
+      timeZone:"Australia/Brisbane",
+      weekday:"short",
+      day:"numeric",
+      month:"short",
+      year:"numeric"
+    }
+  ).format(
+    new Date(value)
+  );
+
+}
+
+function formatShiftTime(value) {
+
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat(
+    "en-AU",
+    {
+      timeZone:"Australia/Brisbane",
+      hour:"numeric",
+      minute:"2-digit",
+      hour12:true
+    }
+  ).format(
+    new Date(value)
+  );
+
+}
+
+
+/* STAFF RENDER */
 
 function hideActions() {
 
@@ -974,71 +1041,36 @@ function hideActions() {
 
 }
 
-
 function render(data) {
 
   currentData = data;
 
   staffName.textContent =
-  data.name || "Staff";
+    data.name || "Staff";
 
   staffInfo.textContent =
-  (data.department || "Staff") +
-  " · " +
-  (data.location || "Hawthorne");
+    (data.department || "Staff")
+    + " · " +
+    (data.location || "Hawthorne");
 
   avatar.textContent =
-  (data.name || "M")
-  .charAt(0)
-  .toUpperCase();
-
-
-  if (
-    data.role === "manager"
-  ) {
-
-    managerBadge
-    .classList
-    .remove("hidden");
-
-  } else {
-
-    managerBadge
-    .classList
-    .add("hidden");
-
-  }
-
+    (data.name || "S")
+    .charAt(0)
+    .toUpperCase();
 
   hideActions();
 
   statusValue.className =
-  "status-value";
+    "status-value";
 
-
-  if (
-    data.status === "off_shift"
-  ) {
+  if (data.status === "working") {
 
     statusValue.textContent =
-    "Off shift";
+      "Working";
 
-    clockInBtn
-    .classList
-    .remove("hidden");
-
-  }
-
-  else if (
-    data.status === "working"
-  ) {
-
-    statusValue.textContent =
-    "Working";
-
-    statusValue
-    .classList
-    .add("working");
+    statusValue.classList.add(
+      "working"
+    );
 
     startBreakBtn
     .classList
@@ -1050,16 +1082,14 @@ function render(data) {
 
   }
 
-  else if (
-    data.status === "break"
-  ) {
+  else if (data.status === "break") {
 
     statusValue.textContent =
-    "On break";
+      "On break";
 
-    statusValue
-    .classList
-    .add("break");
+    statusValue.classList.add(
+      "break"
+    );
 
     endBreakBtn
     .classList
@@ -1071,81 +1101,53 @@ function render(data) {
 
   }
 
-}
+  else {
 
+    statusValue.textContent =
+      "Off shift";
+
+    clockInBtn
+    .classList
+    .remove("hidden");
+
+  }
+
+}
 
 async function refreshStatus() {
 
   const data =
-  await api("status");
+    await api("status");
 
   render(data);
 
 }
 
 
-/* MANAGER */
-
-function escapeHtml(value) {
-
-  return String(
-    value ?? ""
-  )
-
-  .replaceAll("&", "&amp;")
-  .replaceAll("<", "&lt;")
-  .replaceAll(">", "&gt;")
-  .replaceAll('"', "&quot;")
-  .replaceAll("'", "&#039;");
-
-}
-
-
-function formatHours(value) {
-
-  const number =
-  Number(value || 0);
-
-  return (
-    number
-    .toFixed(2)
-    .replace(/\.00$/, "")
-    +
-    " hrs"
-  );
-
-}
-
+/* MANAGER CLOCK */
 
 function renderManagerClock(status) {
 
   managerClockInBtn
-  .classList
-  .add("hidden");
+  .classList.add("hidden");
 
   managerStartBreakBtn
-  .classList
-  .add("hidden");
+  .classList.add("hidden");
 
   managerEndBreakBtn
-  .classList
-  .add("hidden");
+  .classList.add("hidden");
 
   managerClockOutBtn
-  .classList
-  .add("hidden");
-
+  .classList.add("hidden");
 
   managerStatusValue.className =
-  "status-value";
+    "status-value";
 
 
-  if (
-    status === "working"
-  ) {
+  if (status === "working") {
 
     managerStatusValue.textContent =
-    "Working";
+      "Working";
 
     managerStatusValue
     .classList
@@ -1161,12 +1163,10 @@ function renderManagerClock(status) {
 
   }
 
-  else if (
-    status === "break"
-  ) {
+  else if (status === "break") {
 
     managerStatusValue.textContent =
-    "On break";
+      "On break";
 
     managerStatusValue
     .classList
@@ -1185,7 +1185,7 @@ function renderManagerClock(status) {
   else {
 
     managerStatusValue.textContent =
-    "Off shift";
+      "Off shift";
 
     managerClockInBtn
     .classList
@@ -1196,85 +1196,76 @@ function renderManagerClock(status) {
 }
 
 
+/* DASHBOARD */
+
 async function loadManagerDashboard() {
 
   clearMessage(
     managerMessage
   );
 
-
   try {
 
     const dashboard =
-    await api(
-      "manager_dashboard"
-    );
-
+      await api(
+        "manager_dashboard"
+      );
 
     managerLocation.textContent =
-    dashboard.location ||
-    "Hawthorne";
-
+      dashboard.location ||
+      "Hawthorne";
 
     const counts =
-    dashboard.counts || {};
+      dashboard.counts || {};
 
-
-    workingNowCount.textContent =
-    counts.working_now ?? 0;
-
-
-    pendingCount.textContent =
-    counts.unapproved_shifts ?? 0;
-
+    const workingCount =
+      counts.working_now ?? 0;
 
     const pending =
-    counts.unapproved_shifts ?? 0;
-
-
-    approvalsText.textContent =
-    pending +
-    " shift" +
-    (pending === 1 ? "" : "s") +
-    " waiting";
-
+      counts.unapproved_shifts ?? 0;
 
     const activeStaff =
-    counts.active_staff ?? 0;
+      counts.active_staff ?? 0;
 
+    workingNowCount.textContent =
+      workingCount;
+
+    pendingCount.textContent =
+      pending;
+
+    approvalsText.textContent =
+      pending +
+      " shift" +
+      (pending === 1 ? "" : "s") +
+      " waiting";
 
     teamText.textContent =
-    activeStaff +
-    " active staff";
+      activeStaff +
+      " active staff";
 
 
-    /* WHO IS WORKING */
+    /* WHO'S WORKING */
 
     const working =
-    dashboard.working || [];
+      dashboard.working || [];
 
-
-    if (
-      working.length === 0
-    ) {
+    if (!working.length) {
 
       workingList.className =
-      "empty-state";
+        "empty-state";
 
       workingList.innerHTML =
-      "No staff currently working.";
+        "No staff currently working.";
 
     }
 
     else {
 
-      workingList.className =
-      "";
-
+      workingList.className = "";
 
       workingList.innerHTML =
-      working.map(
-        person => `
+        working.map(
+          person => `
 
           <div class="person-row">
 
@@ -1285,56 +1276,59 @@ async function loadManagerDashboard() {
               </div>
 
               <div class="person-meta">
-                ${escapeHtml(person.department)}
+
+                ${escapeHtml(
+                  person.department
+                )}
+
                 ·
+
                 ${
                   person.status === "break"
-                  ? "On break"
-                  : "Working"
+                    ? "On break"
+                    : "Working"
                 }
+
               </div>
 
             </div>
 
             <div class="hours-pill">
-              ${formatHours(person.hours_so_far)}
+              ${formatHours(
+                person.hours_so_far
+              )}
             </div>
 
           </div>
 
-        `
-      ).join("");
+          `
+        ).join("");
 
     }
 
 
-    /* WEEK HOURS */
+    /* STAFF HOURS */
 
     const summary =
-    dashboard.hours?.summary || [];
+      dashboard.hours?.summary || [];
 
-
-    if (
-      summary.length === 0
-    ) {
+    if (!summary.length) {
 
       hoursList.className =
-      "empty-state";
+        "empty-state";
 
       hoursList.innerHTML =
-      "No shifts recorded this week.";
+        "No shifts recorded this week.";
 
     }
 
     else {
 
-      hoursList.className =
-      "";
-
+      hoursList.className = "";
 
       hoursList.innerHTML =
-      summary.map(
-        person => `
+        summary.map(
+          person => `
 
           <div class="person-row">
 
@@ -1346,17 +1340,25 @@ async function loadManagerDashboard() {
 
               <div class="person-meta">
 
-                ${escapeHtml(person.department)}
+                ${escapeHtml(
+                  person.department
+                )}
+
                 ·
+
                 ${person.shifts}
-                shift${person.shifts === 1 ? "" : "s"}
+                shift${
+                  person.shifts === 1
+                    ? ""
+                    : "s"
+                }
 
                 ${
                   person.unapproved
-                  ? " · " +
-                    person.unapproved +
-                    " pending"
-                  : ""
+                    ? " · " +
+                      person.unapproved +
+                      " pending"
+                    : ""
                 }
 
               </div>
@@ -1364,16 +1366,19 @@ async function loadManagerDashboard() {
             </div>
 
             <div class="hours-pill">
-              ${formatHours(person.total_hours)}
+
+              ${formatHours(
+                person.total_hours
+              )}
+
             </div>
 
           </div>
 
-        `
-      ).join("");
+          `
+        ).join("");
 
     }
-
 
     renderManagerClock(
       dashboard.manager?.status ||
@@ -1382,17 +1387,338 @@ async function loadManagerDashboard() {
 
   }
 
-  catch (error) {
+  catch(error) {
 
     showMessage(
-
       managerMessage,
-
       error.message ||
       "Unable to load Manager Dashboard.",
-
       "error"
+    );
 
+  }
+
+}
+
+
+/* APPROVALS */
+
+async function loadApprovals() {
+
+  clearMessage(
+    approvalMessage
+  );
+
+  approvalsList.innerHTML = `
+
+    <div class="card">
+      <div class="empty-state">
+        Loading shifts...
+      </div>
+    </div>
+
+  `;
+
+  try {
+
+    const data =
+      await api(
+        "manager_approvals"
+      );
+
+    const approvals =
+      data.approvals || [];
+
+
+    if (!approvals.length) {
+
+      approvalsList.innerHTML = `
+
+        <div class="card all-approved">
+
+          <div class="all-approved-icon">
+            ✓
+          </div>
+
+          <div class="section-title">
+            All caught up
+          </div>
+
+          <div class="empty-state">
+            There are no shifts waiting for approval.
+          </div>
+
+        </div>
+
+      `;
+
+      return;
+
+    }
+
+
+    approvalsList.innerHTML =
+      approvals.map(
+        shift => `
+
+        <div
+          class="approval-card"
+          id="approval-${shift.shift_id}"
+        >
+
+          <div class="approval-head">
+
+            <div>
+
+              <div class="approval-name">
+                ${escapeHtml(
+                  shift.name
+                )}
+              </div>
+
+              <div class="approval-department">
+                ${escapeHtml(
+                  shift.department
+                )}
+              </div>
+
+            </div>
+
+            <div class="pending-badge">
+              PENDING
+            </div>
+
+          </div>
+
+
+          <div class="shift-date">
+
+            ${formatShiftDate(
+              shift.clock_in
+            )}
+
+          </div>
+
+
+          <div class="shift-grid">
+
+            <div class="shift-detail">
+
+              <div class="shift-detail-label">
+                Clock In
+              </div>
+
+              <div class="shift-detail-value">
+
+                ${formatShiftTime(
+                  shift.clock_in
+                )}
+
+              </div>
+
+            </div>
+
+
+            <div class="shift-detail">
+
+              <div class="shift-detail-label">
+                Clock Out
+              </div>
+
+              <div class="shift-detail-value">
+
+                ${formatShiftTime(
+                  shift.clock_out
+                )}
+
+              </div>
+
+            </div>
+
+
+            <div class="shift-detail">
+
+              <div class="shift-detail-label">
+                Break
+              </div>
+
+              <div class="shift-detail-value">
+
+                ${shift.break_minutes || 0}
+                min
+
+              </div>
+
+            </div>
+
+
+            <div class="shift-detail">
+
+              <div class="shift-detail-label">
+                Total
+              </div>
+
+              <div class="shift-detail-value">
+
+                ${formatHours(
+                  shift.hours
+                )}
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <button
+            class="approve-btn"
+            data-shift-id="${shift.shift_id}"
+          >
+            Approve Shift
+          </button>
+
+        </div>
+
+        `
+      ).join("");
+
+
+    document
+    .querySelectorAll(
+      ".approve-btn"
+    )
+    .forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+          async () => {
+
+            const shiftId =
+              button.dataset.shiftId;
+
+            await approveShift(
+              shiftId,
+              button
+            );
+
+          }
+        );
+
+      }
+    );
+
+  }
+
+  catch(error) {
+
+    approvalsList.innerHTML = "";
+
+    showMessage(
+      approvalMessage,
+      error.message ||
+      "Unable to load approvals.",
+      "error"
+    );
+
+  }
+
+}
+
+
+async function approveShift(
+  shiftId,
+  button
+) {
+
+  clearMessage(
+    approvalMessage
+  );
+
+  const originalText =
+    button.textContent;
+
+  button.disabled = true;
+
+  button.textContent =
+    "Approving...";
+
+
+  try {
+
+    await api(
+      "manager_approve_shift",
+      {
+        shift_id:shiftId
+      }
+    );
+
+
+    const card =
+      document.getElementById(
+        "approval-" + shiftId
+      );
+
+    if (card) {
+
+      card.style.opacity = "0";
+
+      card.style.transform =
+        "scale(.98)";
+
+      card.style.transition =
+        ".2s";
+
+      setTimeout(
+        () => {
+          card.remove();
+        },
+        200
+      );
+
+    }
+
+
+    showMessage(
+      approvalMessage,
+      "Shift approved successfully.",
+      "ok"
+    );
+
+
+    await loadManagerDashboard();
+
+    setTimeout(
+      async () => {
+
+        const remaining =
+          document.querySelectorAll(
+            ".approval-card"
+          ).length;
+
+        if (remaining === 0) {
+          await loadApprovals();
+        }
+
+      },
+      250
+    );
+
+  }
+
+  catch(error) {
+
+    button.disabled = false;
+
+    button.textContent =
+      originalText;
+
+    showMessage(
+      approvalMessage,
+      error.message ||
+      "Unable to approve shift.",
+      "error"
     );
 
   }
@@ -1410,50 +1736,35 @@ loginBtn.addEventListener(
       loginMessage
     );
 
-
     const pin =
-    pinInput.value.trim();
-
+      pinInput.value.trim();
 
     if (
       !/^[0-9]{4,6}$/.test(pin)
     ) {
 
       showMessage(
-
         loginMessage,
-
         "Enter your 4–6 digit PIN.",
-
         "error"
-
       );
 
       return;
-
     }
 
+    currentPin = pin;
 
-    currentPin =
-    pin;
-
-
-    loginBtn
-    .classList
-    .add("loader");
-
+    loginBtn.disabled = true;
     loginBtn.textContent =
-    "Checking...";
+      "Checking...";
 
 
     try {
 
       const data =
-      await api("status");
-
+        await api("status");
 
       render(data);
-
 
       loginScreen
       .classList
@@ -1465,6 +1776,10 @@ loginBtn.addEventListener(
       ) {
 
         homeScreen
+        .classList
+        .add("hidden");
+
+        approvalsScreen
         .classList
         .add("hidden");
 
@@ -1482,45 +1797,52 @@ loginBtn.addEventListener(
         .classList
         .add("hidden");
 
+        approvalsScreen
+        .classList
+        .add("hidden");
+
         homeScreen
         .classList
         .remove("hidden");
 
       }
 
-
-      pinInput.value =
-      "";
+      pinInput.value = "";
 
     }
 
-    catch (error) {
+    catch(error) {
 
-      currentPin =
-      "";
+      currentPin = "";
 
       showMessage(
-
         loginMessage,
-
         error.message ||
         "PIN not recognised.",
-
         "error"
-
       );
 
     }
 
     finally {
 
-      loginBtn
-      .classList
-      .remove("loader");
+      loginBtn.disabled = false;
 
       loginBtn.textContent =
-      "Continue";
+        "Continue";
 
+    }
+
+  }
+);
+
+
+pinInput.addEventListener(
+  "keydown",
+  event => {
+
+    if (event.key === "Enter") {
+      loginBtn.click();
     }
 
   }
@@ -1538,7 +1860,6 @@ async function performAction(
     actionMessage
   );
 
-
   try {
 
     await api(action);
@@ -1553,7 +1874,7 @@ async function performAction(
 
   }
 
-  catch (error) {
+  catch(error) {
 
     showMessage(
       actionMessage,
@@ -1565,56 +1886,40 @@ async function performAction(
 
 }
 
-
 clockInBtn.addEventListener(
   "click",
-  () => {
-
+  () =>
     performAction(
       "clock_in",
       "Clock in recorded."
-    );
-
-  }
+    )
 );
-
 
 startBreakBtn.addEventListener(
   "click",
-  () => {
-
+  () =>
     performAction(
       "start_break",
       "Break started."
-    );
-
-  }
+    )
 );
-
 
 endBreakBtn.addEventListener(
   "click",
-  () => {
-
+  () =>
     performAction(
       "end_break",
       "Break finished."
-    );
-
-  }
+    )
 );
-
 
 clockOutBtn.addEventListener(
   "click",
-  () => {
-
+  () =>
     performAction(
       "clock_out",
       "Clock out recorded."
-    );
-
-  }
+    )
 );
 
 
@@ -1628,7 +1933,6 @@ async function performManagerClockAction(
   clearMessage(
     managerActionMessage
   );
-
 
   try {
 
@@ -1644,7 +1948,7 @@ async function performManagerClockAction(
 
   }
 
-  catch (error) {
+  catch(error) {
 
     showMessage(
       managerActionMessage,
@@ -1657,56 +1961,40 @@ async function performManagerClockAction(
 
 }
 
-
 managerClockInBtn.addEventListener(
   "click",
-  () => {
-
+  () =>
     performManagerClockAction(
       "clock_in",
       "Clock in recorded."
-    );
-
-  }
+    )
 );
-
 
 managerStartBreakBtn.addEventListener(
   "click",
-  () => {
-
+  () =>
     performManagerClockAction(
       "start_break",
       "Break started."
-    );
-
-  }
+    )
 );
-
 
 managerEndBreakBtn.addEventListener(
   "click",
-  () => {
-
+  () =>
     performManagerClockAction(
       "end_break",
       "Break finished."
-    );
-
-  }
+    )
 );
-
 
 managerClockOutBtn.addEventListener(
   "click",
-  () => {
-
+  () =>
     performManagerClockAction(
       "clock_out",
       "Clock out recorded."
-    );
-
-  }
+    )
 );
 
 
@@ -1726,11 +2014,61 @@ myClockCard.addEventListener(
 
       managerClockSection
       .scrollIntoView({
-        behavior: "smooth",
-        block: "start"
+        behavior:"smooth",
+        block:"start"
       });
 
     }
+
+  }
+);
+
+
+/* OPEN APPROVALS */
+
+approvalsCard.addEventListener(
+  "click",
+  async () => {
+
+    managerScreen
+    .classList
+    .add("hidden");
+
+    approvalsScreen
+    .classList
+    .remove("hidden");
+
+    window.scrollTo({
+      top:0,
+      behavior:"smooth"
+    });
+
+    await loadApprovals();
+
+  }
+);
+
+
+/* BACK TO DASHBOARD */
+
+backDashboardBtn.addEventListener(
+  "click",
+  async () => {
+
+    approvalsScreen
+    .classList
+    .add("hidden");
+
+    managerScreen
+    .classList
+    .remove("hidden");
+
+    await loadManagerDashboard();
+
+    window.scrollTo({
+      top:0,
+      behavior:"smooth"
+    });
 
   }
 );
@@ -1751,40 +2089,32 @@ function signOutAll() {
   .classList
   .add("hidden");
 
-  loginScreen
+  approvalsScreen
   .classList
-  .remove("hidden");
+  .add("hidden");
 
   managerClockSection
   .classList
   .add("hidden");
 
+  loginScreen
+  .classList
+  .remove("hidden");
+
   pinInput.value = "";
 
-  clearMessage(
-    loginMessage
-  );
-
-  clearMessage(
-    actionMessage
-  );
-
-  clearMessage(
-    managerMessage
-  );
-
-  clearMessage(
-    managerActionMessage
-  );
+  clearMessage(loginMessage);
+  clearMessage(actionMessage);
+  clearMessage(managerMessage);
+  clearMessage(managerActionMessage);
+  clearMessage(approvalMessage);
 
 }
-
 
 logoutBtn.addEventListener(
   "click",
   signOutAll
 );
-
 
 managerLogoutBtn.addEventListener(
   "click",
