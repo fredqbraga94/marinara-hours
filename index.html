@@ -571,6 +571,167 @@ button{cursor:pointer}
     }
   }
 
+
+  .timesheets-export-btn{
+    margin:12px 0 16px;
+  }
+
+  @media print{
+    @page{
+      size:A4 landscape;
+      margin:10mm;
+    }
+
+    body.printing-timesheets{
+      background:#fff !important;
+    }
+
+    body.printing-timesheets > *{
+      display:none !important;
+    }
+
+    body.printing-timesheets main{
+      display:block !important;
+      width:100% !important;
+      max-width:none !important;
+      margin:0 !important;
+      padding:0 !important;
+    }
+
+    body.printing-timesheets main > *{
+      display:none !important;
+    }
+
+    body.printing-timesheets #timesheetsScreen{
+      display:block !important;
+      width:100% !important;
+      max-width:none !important;
+      margin:0 !important;
+      padding:0 !important;
+    }
+
+    body.printing-timesheets #timesheetsScreen .manager-top{
+      display:block !important;
+      margin-bottom:8px !important;
+    }
+
+    body.printing-timesheets #timesheetsScreen .manager-top h2{
+      margin:0 !important;
+      font-size:20pt !important;
+      color:#1f6b45 !important;
+    }
+
+    body.printing-timesheets #timesheetsScreen .manager-top p{
+      margin:2px 0 0 !important;
+      font-size:9pt !important;
+    }
+
+    body.printing-timesheets #backTimesheetsBtn,
+    body.printing-timesheets .week-nav,
+    body.printing-timesheets #exportTimesheetsPdfBtn,
+    body.printing-timesheets #timesheetsMessage{
+      display:none !important;
+    }
+
+    body.printing-timesheets #timesheetsScreen > .card{
+      box-shadow:none !important;
+      border:none !important;
+      padding:0 !important;
+      margin:0 !important;
+      background:#fff !important;
+    }
+
+    body.printing-timesheets #timesheetsScreen .section-title{
+      font-size:12pt !important;
+      margin-bottom:2px !important;
+    }
+
+    body.printing-timesheets #timesheetsWeek{
+      margin:0 0 10px !important;
+      font-size:9pt !important;
+    }
+
+    body.printing-timesheets #timesheetsList{
+      display:grid !important;
+      grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+      gap:8px !important;
+      align-items:start !important;
+    }
+
+    body.printing-timesheets .timesheet-person{
+      break-inside:avoid !important;
+      page-break-inside:avoid !important;
+      margin:0 !important;
+      border:1px solid #cfd8d2 !important;
+      border-radius:8px !important;
+      overflow:hidden !important;
+    }
+
+    body.printing-timesheets .timesheet-person-head{
+      padding:7px 9px !important;
+      background:#f2f6f3 !important;
+    }
+
+    body.printing-timesheets .person-name{
+      font-size:10pt !important;
+    }
+
+    body.printing-timesheets .person-meta{
+      font-size:7.5pt !important;
+    }
+
+    body.printing-timesheets .hours-pill{
+      font-size:8pt !important;
+      padding:3px 6px !important;
+    }
+
+    body.printing-timesheets .timesheet-row{
+      padding:6px 9px !important;
+      break-inside:avoid !important;
+      page-break-inside:avoid !important;
+    }
+
+    body.printing-timesheets .timesheet-date{
+      font-size:8.5pt !important;
+      margin-bottom:4px !important;
+    }
+
+    body.printing-timesheets .timesheet-grid{
+      grid-template-columns:repeat(4,1fr) !important;
+      gap:5px !important;
+    }
+
+    body.printing-timesheets .timesheet-grid span{
+      font-size:6.5pt !important;
+    }
+
+    body.printing-timesheets .timesheet-grid strong{
+      font-size:7.5pt !important;
+    }
+
+    body.printing-timesheets .timesheet-status{
+      margin-top:4px !important;
+      padding:2px 5px !important;
+      font-size:6.5pt !important;
+      border:1px solid #d6ddd8 !important;
+      background:#fff !important;
+    }
+
+    body.printing-timesheets .timesheet-total{
+      padding:6px 9px !important;
+      font-size:8pt !important;
+    }
+
+    body.printing-timesheets #timesheetsScreen::after{
+      content:"Marinara Hawthorne - Staff Timesheets";
+      display:block;
+      margin-top:8px;
+      text-align:right;
+      font-size:6.5pt;
+      color:#777;
+    }
+  }
+
 </style>
 </head>
 
@@ -946,6 +1107,10 @@ button{cursor:pointer}
 
     <div id="timesheetsWeek" class="staff-hours-week">Loading...</div>
 
+    <button id="exportTimesheetsPdfBtn" class="btn primary timesheets-export-btn">
+      Export PDF
+    </button>
+
     <div id="timesheetsList">
       <div class="empty-state">Loading timesheets...</div>
     </div>
@@ -1244,6 +1409,9 @@ document.getElementById("timesheetsThisWeekBtn");
 
 const timesheetsNextBtn =
 document.getElementById("timesheetsNextBtn");
+
+const exportTimesheetsPdfBtn =
+document.getElementById("exportTimesheetsPdfBtn");
 
 let selectedTimesheetsWeek = null;
 
@@ -3242,6 +3410,34 @@ timesheetsNextBtn.addEventListener("click", async () => {
   await loadTimesheets(
     shiftWeekDate(selectedTimesheetsWeek, 7)
   );
+});
+
+
+exportTimesheetsPdfBtn.addEventListener("click", () => {
+  document.body.classList.add("printing-timesheets");
+
+  const previousTitle = document.title;
+  const safeWeek = (timesheetsWeek.textContent || "Timesheets")
+    .replace(/[^0-9A-Za-z]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  document.title =
+    `Marinara-Hawthorne-Timesheets-${safeWeek}`;
+
+  const cleanup = () => {
+    document.body.classList.remove("printing-timesheets");
+    document.title = previousTitle;
+    window.removeEventListener("afterprint", cleanup);
+  };
+
+  window.addEventListener("afterprint", cleanup);
+  window.print();
+
+  setTimeout(() => {
+    if (document.body.classList.contains("printing-timesheets")) {
+      cleanup();
+    }
+  }, 1500);
 });
 
 
