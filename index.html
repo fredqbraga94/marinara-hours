@@ -1457,6 +1457,7 @@ const exportTimesheetsPdfBtn =
 document.getElementById("exportTimesheetsPdfBtn");
 
 let selectedTimesheetsWeek = null;
+let currentTimesheetsData = null;
 
 
 /* APPROVALS */
@@ -3364,6 +3365,8 @@ async function loadTimesheets(weekDate) {
 
     const data = await api("manager_hours", extra);
 
+    currentTimesheetsData = data;
+
     selectedTimesheetsWeek =
       data?.week_start_date || null;
 
@@ -3457,29 +3460,293 @@ timesheetsNextBtn.addEventListener("click", async () => {
 
 
 exportTimesheetsPdfBtn.addEventListener("click", () => {
-  document.body.classList.add("printing-timesheets");
+  const data = currentTimesheetsData;
 
-  const previousTitle = document.title;
-  const safeWeek = (timesheetsWeek.textContent || "Timesheets")
-    .replace(/[^0-9A-Za-z]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  if (!data) {
+    timesheetsMessage.textContent =
+      "Timesheets are still loading.";
+    return;
+  }
 
-  document.title =
-    `Marinara-Hawthorne-Timesheets-${safeWeek}`;
+  const summary = data.summary || [];
+  const shifts = data.shifts || [];
 
-  const cleanup = () => {
-    document.body.classList.remove("printing-timesheets");
-    document.title = previousTitle;
-    window.removeEventListener("afterprint", cleanup);
-  };
+  const rows = [];
 
-  window.addEventListener("afterprint", cleanup);
+  summary.forEach(person => {
+    const personShifts = shifts
+      .filter(shift => shift.staff_id === person.staff_id)
+      .sort((a,b) => new Date(a.clock_in) - new Date(b.clock_in));
 
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      window.print();
+    let weeklyTotal = 0;
+
+    personShifts.forEach((shift, index) => {
+      const hours = timesheetHours(shift);
+      weeklyTotal += hours;
+
+      rows.push(`
+        <tr>
+          <td class="employee">
+            ${index === 0 ? escapeHtml(person.name || "Staff") : ""}
+            ${index === 0 ? `<small>${escapeHtml(person.department || "")}</small>` : ""}
+          </td>
+          <td>${escapeHtml(timesheetDateLabel(shift.clock_in))}</td>
+          <td>${escapeHtml(timesheetTimeLabel(shift.clock_in))}</td>
+          <td>${escapeHtml(timesheetTimeLabel(shift.clock_out))}</td>
+          <td>${escapeHtml(timesheetBreakLabel(timesheetBreakMinutes(shift)))}</td>
+          <td class="total">${timesheetDurationLabel(hours)}</td>
+          <td>
+            <span class="status ${shift.approved ? "approved" : "pending"}">
+              ${shift.approved ? "APPROVED" : "PENDING"}
+            </span>
+          </td>
+        </tr>
+      `);
     });
+
+    rows.push(`
+      <tr class="weekly-total">
+        <td colspan="5">
+          ${escapeHtml(person.name || "Staff")} · Weekly Total
+        </td>
+        <td class="total">${timesheetDurationLabel(weeklyTotal)}</td>
+        <td></td>
+      </tr>
+    `);
   });
+
+  const weekLabel =
+    escapeHtml(timesheetsWeek.textContent || "");
+
+  const printWindow = window.open("", "_blank");
+
+  if (!printWindow) {
+    timesheetsMessage.textContent =
+      "Allow pop-ups to export the PDF.";
+    return;
+  }
+
+  printWindow.document.open();
+  printWindow.document.write(`<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Marinara Hawthorne Timesheets</title>
+<style>
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: white;
+    color: #17211b;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  }
+
+  body {
+    padding: 0;
+    font-size: 10px;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 3px solid #1f6b45;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+  }
+
+  .brand {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #1f6b45;
+  }
+
+  h1 {
+    margin: 2px 0 0;
+    font-size: 25px;
+    line-height: 1;
+    color: #1f6b45;
+  }
+
+  .location {
+    margin-top: 4px;
+    font-size: 10px;
+    color: #6b756f;
+  }
+
+  .week {
+    text-align: right;
+  }
+
+  .week strong {
+    display: block;
+    font-size: 12px;
+  }
+
+  .week span {
+    color: #6b756f;
+    font-size: 10px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  col.employee { width: 18%; }
+  col.date { width: 18%; }
+  col.clock { width: 13%; }
+  col.break { width: 11%; }
+  col.total { width: 11%; }
+  col.status { width: 16%; }
+
+  th {
+    background: #1f6b45;
+    color: white;
+    text-align: left;
+    padding: 7px 8px;
+    font-size: 9px;
+    letter-spacing: .2px;
+  }
+
+  td {
+    border-bottom: 1px solid #dbe3de;
+    padding: 7px 8px;
+    vertical-align: middle;
+    font-size: 9.5px;
+  }
+
+  td.employee {
+    font-weight: 800;
+  }
+
+  td.employee small {
+    display: block;
+    margin-top: 2px;
+    font-weight: 500;
+    color: #748078;
+  }
+
+  td.total {
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .status {
+    display: inline-block;
+    border: 1px solid #cdd8d1;
+    border-radius: 999px;
+    padding: 3px 7px;
+    font-size: 7.5px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .approved {
+    color: #1f6b45;
+    background: #eef6f1;
+  }
+
+  .pending {
+    color: #705518;
+    background: #faf5e8;
+  }
+
+  tr.weekly-total td {
+    background: #f3f6f4;
+    border-top: 1px solid #bfcac3;
+    border-bottom: 2px solid #9eb2a5;
+    font-weight: 800;
+    padding-top: 7px;
+    padding-bottom: 7px;
+  }
+
+  .footer {
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    color: #8a938e;
+    font-size: 8px;
+  }
+
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  @media print {
+    body {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <div class="brand">MARINARA</div>
+      <h1>Weekly Timesheets</h1>
+      <div class="location">Hawthorne · Staff Hours</div>
+    </div>
+
+    <div class="week">
+      <strong>${weekLabel}</strong>
+      <span>Australia/Brisbane</span>
+    </div>
+  </div>
+
+  <table>
+    <colgroup>
+      <col class="employee">
+      <col class="date">
+      <col class="clock">
+      <col class="clock">
+      <col class="break">
+      <col class="total">
+      <col class="status">
+    </colgroup>
+    <thead>
+      <tr>
+        <th>Employee</th>
+        <th>Date</th>
+        <th>Clock In</th>
+        <th>Clock Out</th>
+        <th>Break</th>
+        <th>Total</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.join("")}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    <span>Marinara Hawthorne</span>
+    <span>Generated from Marinara Hours</span>
+  </div>
+
+<script>
+  window.addEventListener("load", () => {
+    setTimeout(() => window.print(), 250);
+  });
+<\/script>
+</body>
+</html>`);
+  printWindow.document.close();
 });
 
 
