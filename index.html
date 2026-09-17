@@ -470,6 +470,26 @@ button{cursor:pointer}
   font-size:11px;
   padding:5px 20px;
 }
+
+  .field-label{
+    display:block;
+    margin:14px 0 7px;
+    font-size:13px;
+    font-weight:700;
+  }
+
+  select.input{
+    width:100%;
+  }
+
+  #addStaffBtn{
+    margin-top:16px;
+  }
+
+  .team-toggle-btn{
+    min-width:92px;
+  }
+
 </style>
 </head>
 
@@ -703,7 +723,7 @@ button{cursor:pointer}
         <span>Coming next</span>
       </button>
 
-      <button class="menu-card">
+      <button id="teamCard" class="menu-card">
         <strong>Team</strong>
 
         <span id="teamText">
@@ -817,6 +837,47 @@ button{cursor:pointer}
     <div id="staffHoursList"><div class="empty-state">Loading staff hours...</div></div>
   </div>
 </section>
+
+
+<!-- TEAM SCREEN -->
+
+<section id="teamScreen" class="hidden">
+
+  <div class="manager-top">
+    <div>
+      <h2>Team</h2>
+      <p id="teamLocation">Hawthorne</p>
+    </div>
+    <button id="backTeamBtn" class="back-btn">Back</button>
+  </div>
+
+  <div id="teamMessage" class="message"></div>
+
+  <div class="card">
+    <div class="section-title">Add Staff</div>
+
+    <label class="field-label" for="newStaffName">Name</label>
+    <input id="newStaffName" class="input" type="text" autocomplete="off" placeholder="Staff name">
+
+    <label class="field-label" for="newStaffDepartment">Department</label>
+    <select id="newStaffDepartment" class="input">
+      <option value="Kitchen">Kitchen</option>
+      <option value="Floor">Floor</option>
+    </select>
+
+    <label class="field-label" for="newStaffPin">PIN</label>
+    <input id="newStaffPin" class="input" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="4–6 numbers">
+
+    <button id="addStaffBtn" class="btn primary">Add Staff</button>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Hawthorne Team</div>
+    <div id="teamList" class="empty-state">Loading team...</div>
+  </div>
+
+</section>
+
 
 <!-- APPROVALS SCREEN -->
 
@@ -958,6 +1019,36 @@ document.getElementById("approvalsText");
 
 const teamText =
 document.getElementById("teamText");
+
+const teamCard =
+document.getElementById("teamCard");
+
+const teamScreen =
+document.getElementById("teamScreen");
+
+const backTeamBtn =
+document.getElementById("backTeamBtn");
+
+const teamLocation =
+document.getElementById("teamLocation");
+
+const teamMessage =
+document.getElementById("teamMessage");
+
+const teamList =
+document.getElementById("teamList");
+
+const newStaffName =
+document.getElementById("newStaffName");
+
+const newStaffDepartment =
+document.getElementById("newStaffDepartment");
+
+const newStaffPin =
+document.getElementById("newStaffPin");
+
+const addStaffBtn =
+document.getElementById("addStaffBtn");
 
 const managerLogoutBtn =
 document.getElementById("managerLogoutBtn");
@@ -2722,6 +2813,148 @@ nextWeekBtn.addEventListener("click", async () => {
 });
 
 
+
+/* TEAM */
+
+function renderTeamMember(person) {
+  const isManager = person.role === "manager";
+  const statusText = person.active ? "ACTIVE" : "INACTIVE";
+  const actionText = person.active ? "Deactivate" : "Activate";
+
+  return `
+    <div class="person-row">
+      <div>
+        <div class="person-name">${escapeHtml(person.name || "Staff")}</div>
+        <div class="person-meta">
+          ${escapeHtml(person.department || "")}
+          · ${escapeHtml(person.role || "staff")}
+          · ${statusText}
+        </div>
+      </div>
+      ${
+        isManager
+          ? `<div class="hours-pill">Manager</div>`
+          : `<button class="back-btn team-toggle-btn"
+               data-staff-id="${escapeHtml(person.id)}">
+               ${actionText}
+             </button>`
+      }
+    </div>
+  `;
+}
+
+async function loadTeamScreen() {
+  teamMessage.textContent = "";
+  teamList.className = "empty-state";
+  teamList.innerHTML = "Loading team...";
+
+  const result = await api("manager_team");
+
+  if (!result || !result.success) {
+    teamList.innerHTML = "Unable to load team.";
+    teamMessage.textContent =
+      result?.error || "Unable to load team.";
+    return;
+  }
+
+  const team = result.data?.team || [];
+  teamLocation.textContent =
+    result.data?.manager?.location || "Hawthorne";
+
+  if (!team.length) {
+    teamList.innerHTML = "No staff added yet.";
+    return;
+  }
+
+  teamList.className = "";
+  teamList.innerHTML = team.map(renderTeamMember).join("");
+
+  teamList.querySelectorAll(".team-toggle-btn").forEach(button => {
+    button.addEventListener("click", async () => {
+      const staffId = button.dataset.staffId;
+      button.disabled = true;
+      teamMessage.textContent = "";
+
+      const toggleResult = await api(
+        "manager_toggle_staff",
+        { staff_id: staffId }
+      );
+
+      if (!toggleResult || !toggleResult.success) {
+        teamMessage.textContent =
+          toggleResult?.error || "Unable to update staff.";
+        button.disabled = false;
+        return;
+      }
+
+      teamMessage.textContent = "Staff updated successfully.";
+      await loadTeamScreen();
+      await loadManagerDashboard();
+    });
+  });
+}
+
+teamCard.addEventListener("click", async () => {
+  managerScreen.classList.add("hidden");
+  approvalsScreen.classList.add("hidden");
+  staffHoursScreen.classList.add("hidden");
+  teamScreen.classList.remove("hidden");
+  window.scrollTo({top:0,behavior:"smooth"});
+  await loadTeamScreen();
+});
+
+backTeamBtn.addEventListener("click", async () => {
+  teamScreen.classList.add("hidden");
+  managerScreen.classList.remove("hidden");
+  await loadManagerDashboard();
+  window.scrollTo({top:0,behavior:"smooth"});
+});
+
+addStaffBtn.addEventListener("click", async () => {
+  const name = newStaffName.value.trim();
+  const department = newStaffDepartment.value;
+  const staffPin = newStaffPin.value.trim();
+
+  teamMessage.textContent = "";
+
+  if (!name) {
+    teamMessage.textContent = "Enter the staff name.";
+    return;
+  }
+
+  if (!/^[0-9]{4,6}$/.test(staffPin)) {
+    teamMessage.textContent = "PIN must contain 4 to 6 numbers.";
+    return;
+  }
+
+  addStaffBtn.disabled = true;
+  addStaffBtn.textContent = "Adding...";
+
+  const result = await api("manager_create_staff", {
+    name,
+    staff_pin: staffPin,
+    department
+  });
+
+  addStaffBtn.disabled = false;
+  addStaffBtn.textContent = "Add Staff";
+
+  if (!result || !result.success) {
+    teamMessage.textContent =
+      result?.error || "Unable to add staff.";
+    return;
+  }
+
+  newStaffName.value = "";
+  newStaffPin.value = "";
+  newStaffDepartment.value = "Kitchen";
+
+  teamMessage.textContent = "Staff added successfully.";
+  await loadTeamScreen();
+  await loadManagerDashboard();
+});
+
+
 /* OPEN STAFF HOURS */
 
 staffHoursCard.addEventListener("click", async () => {
@@ -2813,6 +3046,10 @@ function signOutAll() {
   .add("hidden");
 
   staffHoursScreen
+  .classList
+  .add("hidden");
+
+  teamScreen
   .classList
   .add("hidden");
 
