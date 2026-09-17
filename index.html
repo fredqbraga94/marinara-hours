@@ -944,6 +944,654 @@ document.getElementById("managerActionMessage");
 
 /* APPROVALS */
 
+const backDashboardBtn =
+document.getElementById("backDashboardBtn");
+
+const approvalsList =
+document.getElementById("approvalsList");
+
+const approvalMessage =
+document.getElementById("approvalMessage");
+
+
+/* MESSAGES */
+
+function showMessage(
+  element,
+  text,
+  type = "ok"
+) {
+
+  element.textContent = text;
+
+  element.className =
+  "message show " + type;
+
+}
+
+function clearMessage(element) {
+
+  element.textContent = "";
+  element.className = "message";
+
+}
+
+
+/* API */
+
+async function api(
+  action,
+  extra = {}
+) {
+
+  const response =
+  await fetch(
+    API,
+    {
+      method:"POST",
+
+      headers:{
+        "Authorization":
+          "Bearer " + SUPABASE_KEY,
+
+        "apikey":
+          SUPABASE_KEY,
+
+        "Content-Type":
+          "application/json"
+      },
+
+      body:JSON.stringify({
+        action,
+        pin:currentPin,
+        ...extra
+      })
+    }
+  );
+
+  let result;
+
+  try {
+    result = await response.json();
+  }
+
+  catch {
+    throw new Error(
+      "Invalid response from server"
+    );
+  }
+
+  if (
+    !response.ok ||
+    result.success !== true
+  ) {
+
+    throw new Error(
+      result.error ||
+      "Unable to complete action"
+    );
+
+  }
+
+  return result.data;
+}
+
+
+/* CLOCK */
+
+function updateClock() {
+
+  const now =
+  new Date();
+
+  document
+  .getElementById("currentTime")
+  .textContent =
+
+  new Intl.DateTimeFormat(
+    "en-AU",
+    {
+      timeZone:"Australia/Brisbane",
+      hour:"2-digit",
+      minute:"2-digit",
+      second:"2-digit"
+    }
+  ).format(now);
+
+
+  document
+  .getElementById("currentDate")
+  .textContent =
+
+  new Intl.DateTimeFormat(
+    "en-AU",
+    {
+      timeZone:"Australia/Brisbane",
+      weekday:"long",
+      day:"numeric",
+      month:"long"
+    }
+  ).format(now);
+
+}
+
+setInterval(updateClock,1000);
+updateClock();
+
+
+/* HELPERS */
+
+function escapeHtml(value) {
+
+  return String(value ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+
+}
+
+function formatHours(value) {
+
+  const number =
+  Number(value || 0);
+
+  return (
+    number
+    .toFixed(2)
+    .replace(/\.00$/,"")
+    +
+    " hrs"
+  );
+
+}
+
+function formatShiftDate(value) {
+
+  return new Intl.DateTimeFormat(
+    "en-AU",
+    {
+      timeZone:"Australia/Brisbane",
+      weekday:"short",
+      day:"numeric",
+      month:"short",
+      year:"numeric"
+    }
+  ).format(
+    new Date(value)
+  );
+
+}
+
+function formatShiftTime(value) {
+
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat(
+    "en-AU",
+    {
+      timeZone:"Australia/Brisbane",
+      hour:"numeric",
+      minute:"2-digit",
+      hour12:true
+    }
+  ).format(
+    new Date(value)
+  );
+
+}
+
+
+
+function toBrisbaneDateTimeLocal(value) {
+
+  if (!value) return "";
+
+  const parts =
+    new Intl.DateTimeFormat(
+      "en-CA",
+      {
+        timeZone:"Australia/Brisbane",
+        year:"numeric",
+        month:"2-digit",
+        day:"2-digit",
+        hour:"2-digit",
+        minute:"2-digit",
+        hourCycle:"h23"
+      }
+    ).formatToParts(
+      new Date(value)
+    );
+
+  const values = {};
+
+  parts.forEach(
+    part => {
+      if (part.type !== "literal") {
+        values[part.type] = part.value;
+      }
+    }
+  );
+
+  return (
+    values.year +
+    "-" +
+    values.month +
+    "-" +
+    values.day +
+    "T" +
+    values.hour +
+    ":" +
+    values.minute
+  );
+}
+
+
+function brisbaneLocalToIso(value) {
+
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(
+      value || ""
+    )
+  ) {
+    throw new Error(
+      "Enter a valid date and time."
+    );
+  }
+
+  const date =
+    new Date(
+      value + ":00+10:00"
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    throw new Error(
+      "Enter a valid date and time."
+    );
+  }
+
+  return date.toISOString();
+}
+
+
+/* STAFF RENDER */
+
+function hideActions() {
+
+  clockInBtn.classList.add("hidden");
+  startBreakBtn.classList.add("hidden");
+  endBreakBtn.classList.add("hidden");
+  clockOutBtn.classList.add("hidden");
+
+}
+
+function render(data) {
+
+  currentData = data;
+
+  staffName.textContent =
+    data.name || "Staff";
+
+  staffInfo.textContent =
+    (data.department || "Staff")
+    + " · " +
+    (data.location || "Hawthorne");
+
+  avatar.textContent =
+    (data.name || "S")
+    .charAt(0)
+    .toUpperCase();
+
+  hideActions();
+
+  statusValue.className =
+    "status-value";
+
+  if (data.status === "working") {
+
+    statusValue.textContent =
+      "Working";
+
+    statusValue.classList.add(
+      "working"
+    );
+
+    startBreakBtn
+    .classList
+    .remove("hidden");
+
+    clockOutBtn
+    .classList
+    .remove("hidden");
+
+  }
+
+  else if (data.status === "break") {
+
+    statusValue.textContent =
+      "On break";
+
+    statusValue.classList.add(
+      "break"
+    );
+
+    endBreakBtn
+    .classList
+    .remove("hidden");
+
+    clockOutBtn
+    .classList
+    .remove("hidden");
+
+  }
+
+  else {
+
+    statusValue.textContent =
+      "Off shift";
+
+    clockInBtn
+    .classList
+    .remove("hidden");
+
+  }
+
+}
+
+async function refreshStatus() {
+
+  const data =
+    await api("status");
+
+  render(data);
+
+}
+
+
+/* MANAGER CLOCK */
+
+function renderManagerClock(status) {
+
+  managerClockInBtn
+  .classList.add("hidden");
+
+  managerStartBreakBtn
+  .classList.add("hidden");
+
+  managerEndBreakBtn
+  .classList.add("hidden");
+
+  managerClockOutBtn
+  .classList.add("hidden");
+
+  managerStatusValue.className =
+    "status-value";
+
+
+  if (status === "working") {
+
+    managerStatusValue.textContent =
+      "Working";
+
+    managerStatusValue
+    .classList
+    .add("working");
+
+    managerStartBreakBtn
+    .classList
+    .remove("hidden");
+
+    managerClockOutBtn
+    .classList
+    .remove("hidden");
+
+  }
+
+  else if (status === "break") {
+
+    managerStatusValue.textContent =
+      "On break";
+
+    managerStatusValue
+    .classList
+    .add("break");
+
+    managerEndBreakBtn
+    .classList
+    .remove("hidden");
+
+    managerClockOutBtn
+    .classList
+    .remove("hidden");
+
+  }
+
+  else {
+
+    managerStatusValue.textContent =
+      "Off shift";
+
+    managerClockInBtn
+    .classList
+    .remove("hidden");
+
+  }
+
+}
+
+
+/* DASHBOARD */
+
+async function loadManagerDashboard() {
+
+  clearMessage(
+    managerMessage
+  );
+
+  try {
+
+    const dashboard =
+      await api(
+        "manager_dashboard"
+      );
+
+    managerLocation.textContent =
+      dashboard.location ||
+      "Hawthorne";
+
+    const counts =
+      dashboard.counts || {};
+
+    const workingCount =
+      counts.working_now ?? 0;
+
+    const pending =
+      counts.unapproved_shifts ?? 0;
+
+    const activeStaff =
+      counts.active_staff ?? 0;
+
+    workingNowCount.textContent =
+      workingCount;
+
+    pendingCount.textContent =
+      pending;
+
+    approvalsText.textContent =
+      pending +
+      " shift" +
+      (pending === 1 ? "" : "s") +
+      " waiting";
+
+    teamText.textContent =
+      activeStaff +
+      " active staff";
+
+
+    /* WHO'S WORKING */
+
+    const working =
+      dashboard.working || [];
+
+    if (!working.length) {
+
+      workingList.className =
+        "empty-state";
+
+      workingList.innerHTML =
+        "No staff currently working.";
+
+    }
+
+    else {
+
+      workingList.className = "";
+
+      workingList.innerHTML =
+        working.map(
+          person => `
+
+          <div class="person-row">
+
+            <div>
+
+              <div class="person-name">
+                ${escapeHtml(person.name)}
+              </div>
+
+              <div class="person-meta">
+
+                ${escapeHtml(
+                  person.department
+                )}
+
+                ·
+
+                ${
+                  person.status === "break"
+                    ? "On break"
+                    : "Working"
+                }
+
+              </div>
+
+            </div>
+
+            <div class="hours-pill">
+              ${formatHours(
+                person.hours_so_far
+              )}
+            </div>
+
+          </div>
+
+          `
+        ).join("");
+
+    }
+
+
+    /* STAFF HOURS */
+
+    const summary =
+      dashboard.hours?.summary || [];
+
+    if (!summary.length) {
+
+      hoursList.className =
+        "empty-state";
+
+      hoursList.innerHTML =
+        "No shifts recorded this week.";
+
+    }
+
+    else {
+
+      hoursList.className = "";
+
+      hoursList.innerHTML =
+        summary.map(
+          person => `
+
+          <div class="person-row">
+
+            <div>
+
+              <div class="person-name">
+                ${escapeHtml(person.name)}
+              </div>
+
+              <div class="person-meta">
+
+                ${escapeHtml(
+                  person.department
+                )}
+
+                ·
+
+                ${person.shifts}
+                shift${
+                  person.shifts === 1
+                    ? ""
+                    : "s"
+                }
+
+                ${
+                  person.unapproved
+                    ? " · " +
+                      person.unapproved +
+                      " pending"
+                    : ""
+                }
+
+              </div>
+
+            </div>
+
+            <div class="hours-pill">
+
+              ${formatHours(
+                person.total_hours
+              )}
+
+            </div>
+
+          </div>
+
+          `
+        ).join("");
+
+    }
+
+    renderManagerClock(
+      dashboard.manager?.status ||
+      "off_shift"
+    );
+
+  }
+
+  catch(error) {
+
+    showMessage(
+      managerMessage,
+      error.message ||
+      "Unable to load Manager Dashboard.",
+      "error"
+    );
+
+  }
+
+}
+
+
+/* APPROVALS */
+
 async function loadApprovals() {
 
   clearMessage(
@@ -1032,80 +1680,57 @@ async function loadApprovals() {
 
 
           <div class="shift-date">
-
             ${formatShiftDate(
               shift.clock_in
             )}
-
           </div>
 
 
           <div class="shift-grid">
 
             <div class="shift-detail">
-
               <div class="shift-detail-label">
                 Clock In
               </div>
-
               <div class="shift-detail-value">
-
                 ${formatShiftTime(
                   shift.clock_in
                 )}
-
               </div>
-
             </div>
 
 
             <div class="shift-detail">
-
               <div class="shift-detail-label">
                 Clock Out
               </div>
-
               <div class="shift-detail-value">
-
                 ${formatShiftTime(
                   shift.clock_out
                 )}
-
               </div>
-
             </div>
 
 
             <div class="shift-detail">
-
               <div class="shift-detail-label">
                 Break
               </div>
-
               <div class="shift-detail-value">
-
-                ${shift.break_minutes || 0}
-                min
-
+                ${shift.break_minutes || 0} min
               </div>
-
             </div>
 
 
             <div class="shift-detail">
-
               <div class="shift-detail-label">
                 Total
               </div>
-
               <div class="shift-detail-value">
-
                 ${formatHours(
                   shift.hours
                 )}
-
               </div>
-
             </div>
 
           </div>
@@ -1124,7 +1749,6 @@ async function loadApprovals() {
 
               <div class="edit-field full">
                 <label>Clock In</label>
-
                 <input
                   class="edit-input"
                   id="edit-in-${shift.shift_id}"
@@ -1137,7 +1761,6 @@ async function loadApprovals() {
 
               <div class="edit-field full">
                 <label>Clock Out</label>
-
                 <input
                   class="edit-input"
                   id="edit-out-${shift.shift_id}"
@@ -1150,7 +1773,6 @@ async function loadApprovals() {
 
               <div class="edit-field full">
                 <label>Break · minutes</label>
-
                 <input
                   class="edit-input"
                   id="edit-break-${shift.shift_id}"
@@ -1222,11 +1844,8 @@ async function loadApprovals() {
           "click",
           async () => {
 
-            const shiftId =
-              button.dataset.shiftId;
-
             await approveShift(
-              shiftId,
+              button.dataset.shiftId,
               button
             );
 
@@ -1347,11 +1966,13 @@ function toggleEditShift(
     )
     .forEach(
       item => {
+
         if (item !== panel) {
           item.classList.add(
             "hidden"
           );
         }
+
       }
     );
 
@@ -1486,22 +2107,20 @@ async function saveEditedShift(
       );
 
 
+      await loadManagerDashboard();
+      await loadApprovals();
+
       showMessage(
         approvalMessage,
         "Shift updated successfully.",
         "ok"
       );
 
-
-      await loadManagerDashboard();
-      await loadApprovals();
-
     }
 
     catch(error) {
 
       button.disabled = false;
-
       button.textContent =
         originalText;
 
