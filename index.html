@@ -2550,6 +2550,13 @@ async function loadApprovals() {
             </button>
 
             <button
+              class="delete-shift-btn"
+              data-shift-id="${shift.shift_id}"
+            >
+              Delete Shift
+            </button>
+
+            <button
               class="approve-btn"
               data-shift-id="${shift.shift_id}"
             >
@@ -2576,6 +2583,29 @@ async function loadApprovals() {
           async () => {
 
             await approveShift(
+              button.dataset.shiftId,
+              button
+            );
+
+          }
+        );
+
+      }
+    );
+
+
+    document
+    .querySelectorAll(
+      ".delete-shift-btn"
+    )
+    .forEach(
+      button => {
+
+        button.addEventListener(
+          "click",
+          async () => {
+
+            await deleteShift(
               button.dataset.shiftId,
               button
             );
@@ -2865,6 +2895,100 @@ async function saveEditedShift(
       approvalMessage,
       error.message ||
       "Unable to update shift.",
+      "error"
+    );
+
+  }
+
+}
+
+
+async function deleteShift(
+  shiftId,
+  button
+) {
+
+  clearMessage(
+    approvalMessage
+  );
+
+  const confirmed =
+    window.confirm(
+      "Delete this shift? This action cannot be undone."
+    );
+
+  if (!confirmed) {
+    return;
+  }
+
+  const originalText =
+    button.textContent;
+
+  button.disabled = true;
+  button.textContent =
+    "Deleting...";
+
+  try {
+
+    await managerApi(
+      "manager_delete_shift",
+      {
+        shift_id:shiftId
+      }
+    );
+
+    const card =
+      document.getElementById(
+        "approval-" + shiftId
+      );
+
+    if (card) {
+      card.style.opacity = "0";
+      card.style.transform =
+        "scale(.98)";
+      card.style.transition =
+        ".2s";
+
+      setTimeout(
+        () => {
+          card.remove();
+        },
+        200
+      );
+    }
+
+    showMessage(
+      approvalMessage,
+      "Shift deleted successfully.",
+      "ok"
+    );
+
+    await loadManagerDashboard();
+
+    setTimeout(
+      async () => {
+        const remaining =
+          document.querySelectorAll(
+            ".approval-card"
+          ).length;
+
+        if (remaining === 0) {
+          await loadApprovals();
+        }
+      },
+      250
+    );
+
+  } catch(error) {
+
+    button.disabled = false;
+    button.textContent =
+      originalText;
+
+    showMessage(
+      approvalMessage,
+      error.message ||
+      "Unable to delete shift.",
       "error"
     );
 
