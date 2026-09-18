@@ -4289,12 +4289,45 @@ backDashboardBtn.addEventListener(
 
 /* SIGN OUT */
 
-function signOutAll() {
+async function signOutAll() {
 
+  const tokenToRevoke =
+    currentSessionToken;
+
+  // Clear the browser session immediately.
   currentPin = "";
   currentSessionToken = "";
   sessionStorage.removeItem("marinara_session_token");
   currentData = null;
+
+  // Revoke the same session on the server.
+  // Local sign-out still completes even if the network request fails.
+  if (tokenToRevoke) {
+    try {
+      await fetch(
+        API,
+        {
+          method:"POST",
+          headers:{
+            "Authorization":
+              "Bearer " + SUPABASE_KEY,
+            "apikey":SUPABASE_KEY,
+            "Content-Type":
+              "application/json"
+          },
+          body:JSON.stringify({
+            action:"session_logout",
+            token:tokenToRevoke
+          })
+        }
+      );
+    } catch (error) {
+      console.error(
+        "Secure logout request failed:",
+        error
+      );
+    }
+  }
 
   homeScreen
   .classList
