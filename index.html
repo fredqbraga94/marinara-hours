@@ -808,6 +808,16 @@ button{cursor:pointer}
 .staff-profile-row span{color:var(--muted)}.staff-profile-row strong{text-align:right}.staff-hours-empty{color:var(--muted);font-size:14px;line-height:1.5}
 @media(max-width:360px){.staff-home-greeting{font-size:27px}.staff-metrics{grid-template-columns:1fr}.staff-metric-value{font-size:18px}}
 
+
+.staff-hours-day{padding:16px 0;border-top:1px solid var(--border)}
+.staff-hours-day:first-child{border-top:0;padding-top:2px}
+.staff-hours-day-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.staff-hours-day-date,.staff-hours-day-total{font-size:14px;font-weight:900}
+.staff-hours-day-total{color:var(--green)}
+.staff-hours-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.staff-hours-cell{background:#fafbfa;border:1px solid var(--border);border-radius:12px;padding:10px 8px}
+.staff-hours-cell span{display:block;color:var(--muted);font-size:9px;font-weight:800;text-transform:uppercase;margin-bottom:4px}
+.staff-hours-cell strong{font-size:12px}
 </style>
 </head>
 
@@ -882,7 +892,13 @@ button{cursor:pointer}
   </div>
   <div id="staffMyHoursView" class="staff-secondary-view hidden">
     <div class="staff-secondary-head"><div class="staff-home-eyebrow">Marinara Hours</div><h2>My Hours</h2></div>
-    <div class="card"><div class="section-title">This shift</div><div id="staffMyHoursContent" class="staff-hours-empty">Your current shift details will appear here.</div></div>
+    <div class="card">
+<div class="row" style="align-items:center;margin-bottom:14px">
+<div><div class="section-title" style="margin-bottom:3px">My Hours</div><div id="staffHoursWeekRange" class="small">This week</div></div>
+<button id="staffHoursRefreshBtn" type="button" class="btn small-btn" style="width:auto">Refresh</button>
+</div>
+<div id="staffMyHoursContent" class="staff-hours-empty">Loading your hours…</div>
+</div>
   </div>
   <div id="staffProfileView" class="staff-secondary-view hidden">
     <div class="staff-secondary-head"><div class="staff-home-eyebrow">Marinara Hours</div><h2>Profile</h2></div>
@@ -1344,6 +1360,8 @@ const staffBreakSoFar=document.getElementById("staffBreakSoFar");
 const staffMyHoursContent=document.getElementById("staffMyHoursContent");
 const staffProfileDepartment=document.getElementById("staffProfileDepartment");
 const staffProfileLocation=document.getElementById("staffProfileLocation");
+const staffHoursWeekRange=document.getElementById("staffHoursWeekRange");
+const staffHoursRefreshBtn=document.getElementById("staffHoursRefreshBtn");
 
 
 /* MANAGER */
@@ -1984,7 +2002,35 @@ function setStaffView(view){
   staffMyHoursView.classList.toggle("hidden",view!=="hours");
   staffProfileView.classList.toggle("hidden",view!=="profile");
   staffBottomNav?.querySelectorAll(".staff-nav-item").forEach(b=>b.classList.toggle("active",b.dataset.staffView===view));
-  if(view==="hours")updateStaffLiveMetrics();
+  if(view==="hours")loadStaffMyHours();
+}
+
+
+function staffHoursDuration(hours){const m=Math.max(0,Math.round(Number(hours||0)*60));return Math.floor(m/60)+"h "+String(m%60).padStart(2,"0")+"m"}
+function staffBreakDuration(minutes){const m=Math.max(0,Math.round(Number(minutes||0)));return Math.floor(m/60)+"h "+String(m%60).padStart(2,"0")+"m"}
+function staffHoursDate(v){return v?new Intl.DateTimeFormat("en-AU",{timeZone:"Australia/Brisbane",weekday:"long",day:"numeric",month:"short"}).format(new Date(v)):"—"}
+function staffHoursTime(v){return v?new Intl.DateTimeFormat("en-AU",{timeZone:"Australia/Brisbane",hour:"numeric",minute:"2-digit",hour12:true}).format(new Date(v)).toLowerCase():"—"}
+async function loadStaffMyHours(){
+  staffMyHoursContent.innerHTML='<div class="staff-hours-empty">Loading your hours…</div>';
+  try{
+    const result=await sessionApi("session_my_hours");
+    const data=result?.data||result||{};
+    const shifts=Array.isArray(data.shifts)?data.shifts:[];
+    staffHoursWeekRange.textContent="This week";
+    if(!shifts.length){staffMyHoursContent.innerHTML='<div class="staff-hours-empty">No shifts recorded for this week.</div>';return}
+    staffMyHoursContent.innerHTML=shifts.map(s=>`
+      <div class="staff-hours-day">
+        <div class="staff-hours-day-head"><div class="staff-hours-day-date">${escapeHtml(staffHoursDate(s.clock_in))}</div><div class="staff-hours-day-total">${escapeHtml(staffHoursDuration(s.hours))}</div></div>
+        <div class="staff-hours-grid">
+          <div class="staff-hours-cell"><span>Clock In</span><strong>${escapeHtml(staffHoursTime(s.clock_in))}</strong></div>
+          <div class="staff-hours-cell"><span>Clock Out</span><strong>${escapeHtml(staffHoursTime(s.clock_out))}</strong></div>
+          <div class="staff-hours-cell"><span>Break</span><strong>${escapeHtml(staffBreakDuration(s.break_minutes))}</strong></div>
+        </div>
+      </div>`).join("");
+  }catch(e){
+    console.error("Staff My Hours error:",e);
+    staffMyHoursContent.innerHTML='<div class="staff-hours-empty">Unable to load your hours. Please try again.</div>';
+  }
 }
 
 /* STAFF RENDER */
@@ -4603,6 +4649,8 @@ managerLogoutBtn.addEventListener(
   signOutAll
 );
 
+
+staffHoursRefreshBtn?.addEventListener("click",()=>loadStaffMyHours());
 
 staffBottomNav?.addEventListener("click",event=>{const b=event.target.closest("[data-staff-view]");if(b)setStaffView(b.dataset.staffView||"home")});
 profileLogoutBtn?.addEventListener("click",()=>logoutBtn.click());
