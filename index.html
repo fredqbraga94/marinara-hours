@@ -776,7 +776,7 @@ button{cursor:pointer}
   }
 
 
-/* ===== STAFF HOME V2 ===== */
+/* ===== STAFF HOME V2 - DATABASE TIME ===== */
 .staff-home-shell{padding:2px 0 92px}
 .staff-home-hero{padding:4px 2px 18px}
 .staff-home-eyebrow{color:var(--green);font-size:12px;font-weight:850;letter-spacing:1.1px;text-transform:uppercase;margin-bottom:7px}
@@ -791,8 +791,7 @@ button{cursor:pointer}
 .staff-status-dot{width:12px;height:12px;border-radius:50%;background:#a8b0aa;box-shadow:0 0 0 6px #f0f2f0;flex:0 0 auto}
 .staff-status-dot.working{background:var(--green);box-shadow:0 0 0 6px var(--green-light)}
 .staff-status-dot.break{background:#b16d16;box-shadow:0 0 0 6px #fff5df}
-.staff-status-copy{position:relative;z-index:1}
-.staff-status-kicker{color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px}
+.staff-status-copy{position:relative;z-index:1}.staff-status-kicker{color:var(--muted);font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.8px}
 .staff-status-title{margin-top:3px;font-size:22px;font-weight:900;letter-spacing:-.35px}
 .staff-status-message{position:relative;z-index:1;margin:14px 0 0;color:var(--muted);font-size:13px;line-height:1.45}
 .staff-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px;position:relative;z-index:1}
@@ -856,35 +855,22 @@ button{cursor:pointer}
 <!-- STAFF -->
 
 <section id="homeScreen" class="hidden">
-
   <div id="staffHomeView" class="staff-home-shell">
     <div class="staff-home-hero">
       <div id="staffGreetingEyebrow" class="staff-home-eyebrow">Good day</div>
       <h2 id="staffGreeting" class="staff-home-greeting">Hi, Staff</h2>
       <div id="staffHomeRole" class="staff-home-role">Hawthorne</div>
     </div>
-
-    <div class="staff-live-clock">
-      <div id="currentTime" class="time">--:--</div>
-      <div id="currentDate" class="date"></div>
-    </div>
-
+    <div class="staff-live-clock"><div id="currentTime" class="time">--:--</div><div id="currentDate" class="date"></div></div>
     <div class="card staff-status-card">
-      <div class="staff-status-top">
-        <div id="staffStatusDot" class="staff-status-dot"></div>
-        <div class="staff-status-copy">
-          <div class="staff-status-kicker">Current status</div>
-          <div id="statusValue" class="staff-status-title">Off shift</div>
-        </div>
-      </div>
+      <div class="staff-status-top"><div id="staffStatusDot" class="staff-status-dot"></div><div class="staff-status-copy"><div class="staff-status-kicker">Current status</div><div id="statusValue" class="staff-status-title">Off shift</div></div></div>
       <p id="staffStatusMessage" class="staff-status-message">Ready when you are. Clock in to start your shift.</p>
       <div class="staff-metrics">
         <div class="staff-metric"><div class="staff-metric-label">Started</div><div id="staffStartedAt" class="staff-metric-value">—</div></div>
-        <div class="staff-metric"><div class="staff-metric-label">Worked so far</div><div id="staffWorkedSoFar" class="staff-metric-value">0h 00m</div></div>
-        <div class="staff-metric"><div class="staff-metric-label">Break time</div><div id="staffBreakSoFar" class="staff-metric-value">0h 00m</div></div>
+        <div class="staff-metric"><div class="staff-metric-label">Worked so far</div><div id="staffWorkedSoFar" class="staff-metric-value">—</div></div>
+        <div class="staff-metric"><div class="staff-metric-label">Break time</div><div id="staffBreakSoFar" class="staff-metric-value">—</div></div>
       </div>
     </div>
-
     <div class="card staff-action-card">
       <button id="clockInBtn" class="btn primary hidden">Clock In</button>
       <button id="startBreakBtn" class="btn secondary hidden">Start Break</button>
@@ -892,15 +878,12 @@ button{cursor:pointer}
       <button id="clockOutBtn" class="btn danger hidden">Clock Out</button>
       <div id="actionMessage" class="message"></div>
     </div>
-
     <button id="logoutBtn" class="btn staff-home-signout">Sign Out</button>
   </div>
-
   <div id="staffMyHoursView" class="staff-secondary-view hidden">
     <div class="staff-secondary-head"><div class="staff-home-eyebrow">Marinara Hours</div><h2>My Hours</h2></div>
     <div class="card"><div class="section-title">This shift</div><div id="staffMyHoursContent" class="staff-hours-empty">Your current shift details will appear here.</div></div>
   </div>
-
   <div id="staffProfileView" class="staff-secondary-view hidden">
     <div class="staff-secondary-head"><div class="staff-home-eyebrow">Marinara Hours</div><h2>Profile</h2></div>
     <div class="card staff-profile-card">
@@ -910,7 +893,6 @@ button{cursor:pointer}
     </div>
     <button id="profileLogoutBtn" class="btn staff-home-signout">Sign Out</button>
   </div>
-
   <nav id="staffBottomNav" class="staff-bottom-nav">
     <button type="button" class="staff-nav-item active" data-staff-view="home"><span class="staff-nav-icon">⌂</span><span>Home</span></button>
     <button type="button" class="staff-nav-item" data-staff-view="hours"><span class="staff-nav-icon">◷</span><span>My Hours</span></button>
@@ -1346,23 +1328,22 @@ document.getElementById("clockOutBtn");
 
 const logoutBtn =
 document.getElementById("logoutBtn");
-
-const profileLogoutBtn = document.getElementById("profileLogoutBtn");
-const staffHomeView = document.getElementById("staffHomeView");
-const staffMyHoursView = document.getElementById("staffMyHoursView");
-const staffProfileView = document.getElementById("staffProfileView");
-const staffBottomNav = document.getElementById("staffBottomNav");
-const staffGreetingEyebrow = document.getElementById("staffGreetingEyebrow");
-const staffGreeting = document.getElementById("staffGreeting");
-const staffHomeRole = document.getElementById("staffHomeRole");
-const staffStatusDot = document.getElementById("staffStatusDot");
-const staffStatusMessage = document.getElementById("staffStatusMessage");
-const staffStartedAt = document.getElementById("staffStartedAt");
-const staffWorkedSoFar = document.getElementById("staffWorkedSoFar");
-const staffBreakSoFar = document.getElementById("staffBreakSoFar");
-const staffMyHoursContent = document.getElementById("staffMyHoursContent");
-const staffProfileDepartment = document.getElementById("staffProfileDepartment");
-const staffProfileLocation = document.getElementById("staffProfileLocation");
+const profileLogoutBtn=document.getElementById("profileLogoutBtn");
+const staffHomeView=document.getElementById("staffHomeView");
+const staffMyHoursView=document.getElementById("staffMyHoursView");
+const staffProfileView=document.getElementById("staffProfileView");
+const staffBottomNav=document.getElementById("staffBottomNav");
+const staffGreetingEyebrow=document.getElementById("staffGreetingEyebrow");
+const staffGreeting=document.getElementById("staffGreeting");
+const staffHomeRole=document.getElementById("staffHomeRole");
+const staffStatusDot=document.getElementById("staffStatusDot");
+const staffStatusMessage=document.getElementById("staffStatusMessage");
+const staffStartedAt=document.getElementById("staffStartedAt");
+const staffWorkedSoFar=document.getElementById("staffWorkedSoFar");
+const staffBreakSoFar=document.getElementById("staffBreakSoFar");
+const staffMyHoursContent=document.getElementById("staffMyHoursContent");
+const staffProfileDepartment=document.getElementById("staffProfileDepartment");
+const staffProfileLocation=document.getElementById("staffProfileLocation");
 
 
 /* MANAGER */
@@ -1915,54 +1896,45 @@ function brisbaneLocalToIso(value) {
 
 
 
-/* STAFF HOME V2 HELPERS */
+/* STAFF HOME - SERVER/DATABASE TIME ONLY */
 function getStaffFirstName(name){return String(name||"Staff").trim().split(/\s+/)[0]||"Staff"}
-function getBrisbaneHour(){
-  const p=new Intl.DateTimeFormat("en-AU",{timeZone:"Australia/Brisbane",hour:"2-digit",hourCycle:"h23"}).formatToParts(new Date());
-  return Number(p.find(x=>x.type==="hour")?.value||12);
-}
+function getBrisbaneHour(){const p=new Intl.DateTimeFormat("en-AU",{timeZone:"Australia/Brisbane",hour:"2-digit",hourCycle:"h23"}).formatToParts(new Date());return Number(p.find(x=>x.type==="hour")?.value||12)}
 function getGreetingLabel(){const h=getBrisbaneHour();return h<12?"Good morning":h<17?"Good afternoon":"Good evening"}
 function durationLabelFromMs(ms){const m=Math.max(0,Math.floor(Number(ms||0)/60000));return Math.floor(m/60)+"h "+String(m%60).padStart(2,"0")+"m"}
 function getCurrentShiftObject(data){return data&&typeof data==="object"?(data.shift||data.current_shift||data.currentShift||null):null}
-function getShiftStartValue(data){
-  const localClockIn = sessionStorage.getItem("marinara_staff_clock_in_local");
-  if (
-    localClockIn &&
-    (data?.status === "working" || data?.status === "break")
-  ) {
-    return localClockIn;
-  }
-
-  const s = getCurrentShiftObject(data);
-  return s?.clock_in || data?.clock_in || data?.shift_clock_in || data?.started_at || null;
+function getServerShiftStart(data){
+  const s=getCurrentShiftObject(data);
+  return s?.clock_in||data?.clock_in||data?.shift_clock_in||data?.started_at||null;
 }
-function getBreakRows(data){const s=getCurrentShiftObject(data);const rows=s?.breaks||data?.breaks||[];return Array.isArray(rows)?rows:[]}
-function calculateBreakMs(data){
-  const now=Date.now(),rows=getBreakRows(data);
+function getServerBreakRows(data){const s=getCurrentShiftObject(data);const rows=s?.breaks||data?.breaks||[];return Array.isArray(rows)?rows:[]}
+function calculateServerBreakMs(data){
+  const rows=getServerBreakRows(data),now=Date.now();
   if(rows.length)return rows.reduce((sum,b)=>{const a=b?.break_start?new Date(b.break_start).getTime():NaN;const z=b?.break_end?new Date(b.break_end).getTime():now;return Number.isFinite(a)&&Number.isFinite(z)&&z>=a?sum+(z-a):sum},0);
   const min=Number(data?.break_minutes??getCurrentShiftObject(data)?.break_minutes??0);
   return Number.isFinite(min)?Math.max(0,min*60000):0;
 }
 function updateStaffLiveMetrics(){
   if(!currentData||!staffStartedAt)return;
-  const start=getShiftStartValue(currentData);
   const active=currentData.status==="working"||currentData.status==="break";
-  staffStartedAt.textContent=active&&start?formatShiftTime(start):"—";
-  const breakMs=active?calculateBreakMs(currentData):0;
-  staffBreakSoFar.textContent=durationLabelFromMs(breakMs);
-  if(active&&start){
-    const startMs=new Date(start).getTime();
-    const elapsed=Number.isFinite(startMs)?Math.max(0,Date.now()-startMs):0;
-    staffWorkedSoFar.textContent=durationLabelFromMs(Math.max(0,elapsed-breakMs));
-  }else staffWorkedSoFar.textContent="0h 00m";
-  if(staffMyHoursContent){
-    staffMyHoursContent.innerHTML=active&&start
-      ?`<div class="staff-profile-row"><span>Started</span><strong>${escapeHtml(formatShiftTime(start))}</strong></div>
-        <div class="staff-profile-row"><span>Worked so far</span><strong>${escapeHtml(staffWorkedSoFar.textContent)}</strong></div>
-        <div class="staff-profile-row"><span>Break time</span><strong>${escapeHtml(staffBreakSoFar.textContent)}</strong></div>
-        <div class="staff-profile-row"><span>Status</span><strong>${escapeHtml(statusValue.textContent)}</strong></div>`
-      :'<div class="staff-hours-empty">No active shift right now. Clock in from Home when you are ready.</div>';
+  const start=getServerShiftStart(currentData);
+  if(!active){staffStartedAt.textContent="—";staffWorkedSoFar.textContent="—";staffBreakSoFar.textContent="—";return}
+  if(!start){
+    staffStartedAt.textContent="Syncing…";
+    staffWorkedSoFar.textContent="—";
+    staffBreakSoFar.textContent="—";
+    return;
   }
+  staffStartedAt.textContent=formatShiftTime(start);
+  const breakMs=calculateServerBreakMs(currentData);
+  staffBreakSoFar.textContent=durationLabelFromMs(breakMs);
+  const startMs=new Date(start).getTime();
+  const elapsed=Number.isFinite(startMs)?Math.max(0,Date.now()-startMs):0;
+  staffWorkedSoFar.textContent=durationLabelFromMs(Math.max(0,elapsed-breakMs));
+  if(staffMyHoursContent)staffMyHoursContent.innerHTML=
+    `<div class="staff-profile-row"><span>Started</span><strong>${escapeHtml(formatShiftTime(start))}</strong></div>
+     <div class="staff-profile-row"><span>Worked so far</span><strong>${escapeHtml(staffWorkedSoFar.textContent)}</strong></div>
+     <div class="staff-profile-row"><span>Break time</span><strong>${escapeHtml(staffBreakSoFar.textContent)}</strong></div>
+     <div class="staff-profile-row"><span>Status</span><strong>${escapeHtml(statusValue.textContent)}</strong></div>`;
 }
 function setStaffView(view){
   if(!staffHomeView||!staffMyHoursView||!staffProfileView)return;
@@ -1985,58 +1957,38 @@ function hideActions() {
 }
 
 function render(data) {
-
-  currentData = data;
-
-  if (data.status !== "working" && data.status !== "break") {
-    sessionStorage.removeItem("marinara_staff_clock_in_local");
-  }
-
-  staffName.textContent = data.name || "Staff";
-  staffInfo.textContent =
-    (data.department || "Staff") + " · " + (data.location || "Hawthorne");
-
-  avatar.textContent =
-    (data.name || "S").charAt(0).toUpperCase();
-
-  staffGreetingEyebrow.textContent = getGreetingLabel();
-  staffGreeting.textContent = "Hi, " + getStaffFirstName(data.name);
-  staffHomeRole.textContent =
-    (data.department || "Staff") + " · " + (data.location || "Hawthorne");
-
-  staffProfileDepartment.textContent = data.department || "Staff";
-  staffProfileLocation.textContent = data.location || "Hawthorne";
-
+  currentData=data;
+  staffName.textContent=data.name||"Staff";
+  staffInfo.textContent=(data.department||"Staff")+" · "+(data.location||"Hawthorne");
+  avatar.textContent=(data.name||"S").charAt(0).toUpperCase();
+  staffGreetingEyebrow.textContent=getGreetingLabel();
+  staffGreeting.textContent="Hi, "+getStaffFirstName(data.name);
+  staffHomeRole.textContent=(data.department||"Staff")+" · "+(data.location||"Hawthorne");
+  staffProfileDepartment.textContent=data.department||"Staff";
+  staffProfileLocation.textContent=data.location||"Hawthorne";
   hideActions();
-  statusValue.className = "staff-status-title";
-  staffStatusDot.className = "staff-status-dot";
-
-  if (data.status === "working") {
-    statusValue.textContent = "You are clocked in";
+  statusValue.className="staff-status-title";
+  staffStatusDot.className="staff-status-dot";
+  if(data.status==="working"){
+    statusValue.textContent="You are clocked in";
     statusValue.classList.add("working");
     staffStatusDot.classList.add("working");
-    staffStatusMessage.textContent = "Have a good shift. Start a break when you need one.";
+    staffStatusMessage.textContent="Have a good shift. Start a break when you need one.";
     startBreakBtn.classList.remove("hidden");
     clockOutBtn.classList.remove("hidden");
-  }
-
-  else if (data.status === "break") {
-    statusValue.textContent = "You are on break";
+  }else if(data.status==="break"){
+    statusValue.textContent="You are on break";
     statusValue.classList.add("break");
     staffStatusDot.classList.add("break");
-    staffStatusMessage.textContent = "Enjoy your break. End your break before clocking out.";
+    staffStatusMessage.textContent="Enjoy your break. End your break before clocking out.";
     endBreakBtn.classList.remove("hidden");
-  }
-
-  else {
-    statusValue.textContent = "Off shift";
-    staffStatusMessage.textContent = "Ready when you are. Clock in to start your shift.";
+  }else{
+    statusValue.textContent="Off shift";
+    staffStatusMessage.textContent="Ready when you are. Clock in to start your shift.";
     clockInBtn.classList.remove("hidden");
   }
-
   updateStaffLiveMetrics();
 }
-
 
 async function refreshStatus() {
 
@@ -3374,19 +3326,6 @@ async function performAction(
       sessionActionMap[action] || action
     );
 
-    if (action === "clock_in") {
-      sessionStorage.setItem(
-        "marinara_staff_clock_in_local",
-        new Date().toISOString()
-      );
-    }
-
-    if (action === "clock_out") {
-      sessionStorage.removeItem(
-        "marinara_staff_clock_in_local"
-      );
-    }
-
     showMessage(
       actionMessage,
       successText,
@@ -4611,16 +4550,8 @@ managerLogoutBtn.addEventListener(
 );
 
 
-/* STAFF BOTTOM NAV */
-staffBottomNav?.addEventListener("click", event => {
-  const button = event.target.closest("[data-staff-view]");
-  if (!button) return;
-  setStaffView(button.dataset.staffView || "home");
-});
-
-profileLogoutBtn?.addEventListener("click", () => {
-  logoutBtn.click();
-});
+staffBottomNav?.addEventListener("click",event=>{const b=event.target.closest("[data-staff-view]");if(b)setStaffView(b.dataset.staffView||"home")});
+profileLogoutBtn?.addEventListener("click",()=>logoutBtn.click());
 
 </script>
 
