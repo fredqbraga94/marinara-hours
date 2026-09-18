@@ -818,6 +818,25 @@ button{cursor:pointer}
 .staff-hours-cell{background:#fafbfa;border:1px solid var(--border);border-radius:12px;padding:10px 8px}
 .staff-hours-cell span{display:block;color:var(--muted);font-size:9px;font-weight:800;text-transform:uppercase;margin-bottom:4px}
 .staff-hours-cell strong{font-size:12px}
+
+/* ===== STAFF PROFILE V2 ===== */
+.staff-profile-v2{padding:22px;overflow:hidden;position:relative}
+.staff-profile-v2:after{content:"";position:absolute;width:160px;height:160px;border-radius:50%;right:-92px;top:-92px;background:var(--green-light);pointer-events:none}
+.staff-profile-identity{display:flex;align-items:center;gap:15px;position:relative;z-index:1;padding-bottom:20px}
+.staff-profile-avatar{width:58px;height:58px;border-radius:18px;font-size:20px;box-shadow:0 8px 18px rgba(31,107,69,.10)}
+.staff-profile-name-wrap{min-width:0}.staff-profile-name-wrap h2{margin:2px 0 4px;font-size:23px;letter-spacing:-.35px}
+.staff-profile-name-wrap p{margin:0;color:var(--muted);font-size:13px}
+.staff-profile-kicker{font-size:10px;color:var(--green);font-weight:900;text-transform:uppercase;letter-spacing:.8px}
+.staff-profile-details{border-top:1px solid var(--border);position:relative;z-index:1}
+.staff-profile-detail{display:flex;align-items:center;gap:12px;padding:15px 0;border-bottom:1px solid var(--border)}
+.staff-profile-detail-icon{width:34px;height:34px;border-radius:11px;background:var(--green-light);color:var(--green);display:flex;align-items:center;justify-content:center;font-weight:900}
+.staff-profile-detail>div:last-child{display:flex;flex:1;align-items:center;justify-content:space-between;gap:14px;min-width:0}
+.staff-profile-detail span{color:var(--muted);font-size:12px}
+.staff-profile-detail strong{font-size:13px;text-align:right}
+.staff-profile-note{margin-top:18px;padding:13px 14px;border-radius:14px;background:#fafbfa;color:var(--muted);font-size:11px;line-height:1.45;position:relative;z-index:1}
+.staff-profile-signout{margin-top:14px;min-height:52px;background:#fff;border:1px solid #efd7d7;color:#b63c3c;font-weight:850}
+.staff-profile-signout:hover{background:#fff6f6}
+
 </style>
 </head>
 
@@ -902,12 +921,32 @@ button{cursor:pointer}
   </div>
   <div id="staffProfileView" class="staff-secondary-view hidden">
     <div class="staff-secondary-head"><div class="staff-home-eyebrow">Marinara Hours</div><h2>Profile</h2></div>
-    <div class="card staff-profile-card">
-      <div class="profile"><div id="avatar" class="avatar">S</div><div><h2 id="staffName">Staff</h2><p id="staffInfo">Hawthorne</p></div></div>
-      <div class="staff-profile-row"><span>Department</span><strong id="staffProfileDepartment">—</strong></div>
-      <div class="staff-profile-row"><span>Location</span><strong id="staffProfileLocation">Hawthorne</strong></div>
+    <div class="card staff-profile-card staff-profile-v2">
+      <div class="staff-profile-identity">
+        <div id="avatar" class="avatar staff-profile-avatar">S</div>
+        <div class="staff-profile-name-wrap">
+          <div class="staff-profile-kicker">Staff profile</div>
+          <h2 id="staffName">Staff</h2>
+          <p id="staffInfo">Hawthorne</p>
+        </div>
+      </div>
+
+      <div class="staff-profile-details">
+        <div class="staff-profile-detail">
+          <div class="staff-profile-detail-icon">◫</div>
+          <div><span>Department</span><strong id="staffProfileDepartment">—</strong></div>
+        </div>
+        <div class="staff-profile-detail">
+          <div class="staff-profile-detail-icon">⌖</div>
+          <div><span>Location</span><strong id="staffProfileLocation">Hawthorne</strong></div>
+        </div>
+      </div>
+
+      <div class="staff-profile-note">
+        Your work profile is managed by Marinara Hawthorne.
+      </div>
     </div>
-    <button id="profileLogoutBtn" class="btn staff-home-signout">Sign Out</button>
+    <button id="profileLogoutBtn" class="btn staff-profile-signout">Sign Out</button>
   </div>
   <nav id="staffBottomNav" class="staff-bottom-nav">
     <button type="button" class="staff-nav-item active" data-staff-view="home"><span class="staff-nav-icon">⌂</span><span>Home</span></button>
