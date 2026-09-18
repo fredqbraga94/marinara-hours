@@ -1578,6 +1578,55 @@ async function sessionApi(
 }
 
 
+async function managerApi(
+  action,
+  extra = {}
+) {
+  if (!currentSessionToken) {
+    throw new Error("Your session has ended. Please sign in again.");
+  }
+
+  const response = await fetch(
+    API,
+    {
+      method:"POST",
+      headers:{
+        "Authorization":"Bearer " + SUPABASE_KEY,
+        "apikey":SUPABASE_KEY,
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        action,
+        token:currentSessionToken,
+        ...extra
+      })
+    }
+  );
+
+  let result;
+
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error("Invalid response from server");
+  }
+
+  if (!response.ok || result.success !== true) {
+    if (response.status === 401) {
+      currentSessionToken = "";
+      sessionStorage.removeItem("marinara_session_token");
+    }
+
+    throw new Error(
+      result.error ||
+      "Unable to complete manager action"
+    );
+  }
+
+  return result.data;
+}
+
+
 async function api(
   action,
   extra = {}
@@ -1989,8 +2038,7 @@ async function loadManagerDashboard() {
   try {
 
     const dashboard =
-      await api(
-        "manager_dashboard"
+      await managerApi("manager_dashboard"
       );
 
     managerLocation.textContent =
@@ -2210,8 +2258,8 @@ async function loadStaffHours(weekDate = null) {
 
   try {
     const data = weekDate
-      ? await api("manager_hours",{week_start:weekDate})
-      : await api("manager_hours");
+      ? await managerApi("manager_hours",{week_start:weekDate})
+      : await managerApi("manager_hours");
 
     selectedStaffWeek = data.week_start_date || null;
     staffHoursLocation.textContent = data.manager?.location || "Hawthorne";
@@ -2295,8 +2343,7 @@ async function loadApprovals() {
   try {
 
     const data =
-      await api(
-        "manager_approvals"
+      await managerApi("manager_approvals"
       );
 
     const approvals =
@@ -2780,8 +2827,7 @@ async function saveEditedShift(
 
     try {
 
-      await api(
-        "manager_edit_shift",
+      await managerApi("manager_edit_shift",
         {
           shift_id:shiftId,
           clock_in:clockIn,
@@ -2847,8 +2893,7 @@ async function approveShift(
 
   try {
 
-    await api(
-      "manager_approve_shift",
+    await managerApi("manager_approve_shift",
       {
         shift_id:shiftId
       }
@@ -2990,18 +3035,14 @@ loginBtn.addEventListener(
 
       currentData = data;
 
-      // Manager modules still use the proven PIN path for now.
-      // Staff time-clock actions switch to the secure session below.
-      if (data.role !== "manager") {
-        currentPin = "";
-        const statusData =
-          await sessionApi("session_status");
-        render(statusData);
-      } else {
-        const statusData =
-          await api("status");
-        render(statusData);
-      }
+      // After login, both staff and manager use the secure session token.
+      // The PIN is no longer retained for normal app actions.
+      currentPin = "";
+
+      const statusData =
+        await sessionApi("session_status");
+
+      render(statusData);
 
       loginScreen
       .classList
@@ -3190,7 +3231,16 @@ async function performManagerClockAction(
 
   try {
 
-    await api(action);
+    const sessionActionMap = {
+      clock_in:"session_clock_in",
+      start_break:"session_start_break",
+      end_break:"session_end_break",
+      clock_out:"session_clock_out"
+    };
+
+    await sessionApi(
+      sessionActionMap[action] || action
+    );
 
     showMessage(
       managerActionMessage,
@@ -3484,7 +3534,7 @@ async function loadTimesheets(weekDate) {
       ? { week_start: weekDate }
       : {};
 
-    const data = await api("manager_hours", extra);
+    const data = await managerApi("manager_hours", extra);
 
     currentTimesheetsData = data;
 
@@ -3976,7 +4026,7 @@ async function loadTeamScreen() {
   teamList.innerHTML = "Loading team...";
 
   try {
-    const data = await api("manager_team");
+    const data = await managerApi("manager_team");
 
     const team = data?.team || [];
     teamLocation.textContent =
@@ -4053,8 +4103,7 @@ async function loadTeamScreen() {
         button.textContent = "Saving...";
 
         try {
-          await api(
-            "manager_update_staff",
+          await managerApi("manager_update_staff",
             {
               staff_id: staffId,
               name,
@@ -4082,8 +4131,7 @@ async function loadTeamScreen() {
         teamMessage.textContent = "";
 
         try {
-          await api(
-            "manager_toggle_staff",
+          await managerApi("manager_toggle_staff",
             { staff_id: staffId }
           );
 
@@ -4144,7 +4192,7 @@ addStaffBtn.addEventListener("click", async () => {
   addStaffBtn.textContent = "Adding...";
 
   try {
-    await api("manager_create_staff", {
+    await managerApi("manager_create_staff", {
       name,
       staff_pin: staffPin,
       department
