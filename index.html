@@ -1752,7 +1752,7 @@ function updateClock() {
 
 setInterval(updateClock,1000);
 updateClock();
-setInterval(updateStaffLiveMetrics,30000);
+setInterval(updateStaffLiveMetrics,1000);
 
 
 /* HELPERS */
@@ -1896,6 +1896,23 @@ function brisbaneLocalToIso(value) {
 
 
 
+
+function getSavedStaffIdentity(){
+  try{
+    return JSON.parse(sessionStorage.getItem("marinara_staff_identity") || "{}");
+  }catch(_){return {}}
+}
+function mergeStaffIdentity(data){
+  const saved=getSavedStaffIdentity();
+  return {
+    ...data,
+    name:data?.name||data?.staff_name||saved.name||"Staff",
+    department:data?.department||data?.staff_department||saved.department||"Staff",
+    location:data?.location||data?.staff_location||saved.location||"Hawthorne",
+    role:data?.role||data?.staff_role||saved.role||"staff"
+  };
+}
+
 /* STAFF HOME - SERVER/DATABASE TIME ONLY */
 function getStaffFirstName(name){return String(name||"Staff").trim().split(/\s+/)[0]||"Staff"}
 function getBrisbaneHour(){const p=new Intl.DateTimeFormat("en-AU",{timeZone:"Australia/Brisbane",hour:"2-digit",hourCycle:"h23"}).formatToParts(new Date());return Number(p.find(x=>x.type==="hour")?.value||12)}
@@ -1906,10 +1923,35 @@ function getServerShiftStart(data){
   const s=getCurrentShiftObject(data);
   return s?.clock_in||data?.clock_in||data?.shift_clock_in||data?.started_at||null;
 }
-function getServerBreakRows(data){const s=getCurrentShiftObject(data);const rows=s?.breaks||data?.breaks||[];return Array.isArray(rows)?rows:[]}
+function getServerBreakRows(data){
+  const s=getCurrentShiftObject(data);
+  const rows=s?.breaks||data?.breaks||[];
+  return Array.isArray(rows)?rows:[];
+}
+function getServerActiveBreakStart(data){
+  const s=getCurrentShiftObject(data);
+  const rows=getServerBreakRows(data);
+  const open=[...rows].reverse().find(b=>b?.break_start&&!b?.break_end);
+  return open?.break_start||s?.break_start||s?.current_break_start||
+         data?.break_start||data?.current_break_start||data?.active_break_start||null;
+}
 function calculateServerBreakMs(data){
   const rows=getServerBreakRows(data),now=Date.now();
-  if(rows.length)return rows.reduce((sum,b)=>{const a=b?.break_start?new Date(b.break_start).getTime():NaN;const z=b?.break_end?new Date(b.break_end).getTime():now;return Number.isFinite(a)&&Number.isFinite(z)&&z>=a?sum+(z-a):sum},0);
+
+  if(rows.length){
+    return rows.reduce((sum,b)=>{
+      const a=b?.break_start?new Date(b.break_start).getTime():NaN;
+      const z=b?.break_end?new Date(b.break_end).getTime():now;
+      return Number.isFinite(a)&&Number.isFinite(z)&&z>=a?sum+(z-a):sum;
+    },0);
+  }
+
+  const activeStart=getServerActiveBreakStart(data);
+  if(data?.status==="break"&&activeStart){
+    const startMs=new Date(activeStart).getTime();
+    if(Number.isFinite(startMs))return Math.max(0,now-startMs);
+  }
+
   const min=Number(data?.break_minutes??getCurrentShiftObject(data)?.break_minutes??0);
   return Number.isFinite(min)?Math.max(0,min*60000):0;
 }
@@ -1957,6 +1999,7 @@ function hideActions() {
 }
 
 function render(data) {
+  data=mergeStaffIdentity(data);
   currentData=data;
   staffName.textContent=data.name||"Staff";
   staffInfo.textContent=(data.department||"Staff")+" · "+(data.location||"Hawthorne");
@@ -3201,6 +3244,16 @@ loginBtn.addEventListener(
       };
 
       currentData = data;
+
+      sessionStorage.setItem(
+        "marinara_staff_identity",
+        JSON.stringify({
+          name:data.name || "Staff",
+          department:data.department || loginData.department || loginData.staff_department || "Staff",
+          location:data.location || loginData.location || loginData.staff_location || "Hawthorne",
+          role:data.role || "staff"
+        })
+      );
 
       // After login, both staff and manager use the secure session token.
       // The PIN is no longer retained for normal app actions.
@@ -4465,6 +4518,7 @@ async function signOutAll() {
   currentPin = "";
   currentSessionToken = "";
   sessionStorage.removeItem("marinara_session_token");
+  sessionStorage.removeItem("marinara_staff_identity");
   currentData = null;
 
   // Revoke the same session on the server.
