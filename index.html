@@ -894,8 +894,8 @@ button{cursor:pointer}
     <div class="staff-secondary-head"><div class="staff-home-eyebrow">Marinara Hours</div><h2>My Hours</h2></div>
     <div class="card">
 <div class="row" style="align-items:center;margin-bottom:14px">
-<div><div class="section-title" style="margin-bottom:3px">My Hours</div><div id="staffHoursWeekRange" class="small">This week</div></div>
-<button id="staffHoursRefreshBtn" type="button" class="btn small-btn" style="width:auto">Refresh</button>
+<div><div class="section-title" style="margin-bottom:3px">My Hours</div><div id="staffHoursWeekRange" class="small">Today</div></div>
+
 </div>
 <div id="staffMyHoursContent" class="staff-hours-empty">Loading your hours…</div>
 </div>
@@ -1361,7 +1361,7 @@ const staffMyHoursContent=document.getElementById("staffMyHoursContent");
 const staffProfileDepartment=document.getElementById("staffProfileDepartment");
 const staffProfileLocation=document.getElementById("staffProfileLocation");
 const staffHoursWeekRange=document.getElementById("staffHoursWeekRange");
-const staffHoursRefreshBtn=document.getElementById("staffHoursRefreshBtn");
+
 
 
 /* MANAGER */
@@ -2015,9 +2015,21 @@ async function loadStaffMyHours(){
   try{
     const result=await sessionApi("session_my_hours");
     const data=result?.data||result||{};
-    const shifts=Array.isArray(data.shifts)?data.shifts:[];
-    staffHoursWeekRange.textContent="This week";
-    if(!shifts.length){staffMyHoursContent.innerHTML='<div class="staff-hours-empty">No shifts recorded for this week.</div>';return}
+    const allShifts=Array.isArray(data.shifts)?data.shifts:[];
+    const brisbaneDateKey=(value)=>new Intl.DateTimeFormat("en-CA",{
+      timeZone:"Australia/Brisbane",
+      year:"numeric",month:"2-digit",day:"2-digit"
+    }).format(value instanceof Date?value:new Date(value));
+    const todayKey=brisbaneDateKey(new Date());
+    const shifts=allShifts.filter(s=>s.clock_in&&brisbaneDateKey(s.clock_in)===todayKey);
+
+    staffHoursWeekRange.textContent="Today";
+
+    if(!shifts.length){
+      staffMyHoursContent.innerHTML='<div class="staff-hours-empty">No shifts recorded today.</div>';
+      return;
+    }
+
     staffMyHoursContent.innerHTML=shifts.map(s=>`
       <div class="staff-hours-day">
         <div class="staff-hours-day-head"><div class="staff-hours-day-date">${escapeHtml(staffHoursDate(s.clock_in))}</div><div class="staff-hours-day-total">${escapeHtml(staffHoursDuration(s.hours))}</div></div>
@@ -4650,7 +4662,7 @@ managerLogoutBtn.addEventListener(
 );
 
 
-staffHoursRefreshBtn?.addEventListener("click",()=>loadStaffMyHours());
+
 
 staffBottomNav?.addEventListener("click",event=>{const b=event.target.closest("[data-staff-view]");if(b)setStaffView(b.dataset.staffView||"home")});
 profileLogoutBtn?.addEventListener("click",()=>logoutBtn.click());
