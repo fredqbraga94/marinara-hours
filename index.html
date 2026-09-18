@@ -1924,7 +1924,18 @@ function getBrisbaneHour(){
 function getGreetingLabel(){const h=getBrisbaneHour();return h<12?"Good morning":h<17?"Good afternoon":"Good evening"}
 function durationLabelFromMs(ms){const m=Math.max(0,Math.floor(Number(ms||0)/60000));return Math.floor(m/60)+"h "+String(m%60).padStart(2,"0")+"m"}
 function getCurrentShiftObject(data){return data&&typeof data==="object"?(data.shift||data.current_shift||data.currentShift||null):null}
-function getShiftStartValue(data){const s=getCurrentShiftObject(data);return s?.clock_in||data?.clock_in||data?.shift_clock_in||data?.started_at||null}
+function getShiftStartValue(data){
+  const localClockIn = sessionStorage.getItem("marinara_staff_clock_in_local");
+  if (
+    localClockIn &&
+    (data?.status === "working" || data?.status === "break")
+  ) {
+    return localClockIn;
+  }
+
+  const s = getCurrentShiftObject(data);
+  return s?.clock_in || data?.clock_in || data?.shift_clock_in || data?.started_at || null;
+}
 function getBreakRows(data){const s=getCurrentShiftObject(data);const rows=s?.breaks||data?.breaks||[];return Array.isArray(rows)?rows:[]}
 function calculateBreakMs(data){
   const now=Date.now(),rows=getBreakRows(data);
@@ -1976,6 +1987,10 @@ function hideActions() {
 function render(data) {
 
   currentData = data;
+
+  if (data.status !== "working" && data.status !== "break") {
+    sessionStorage.removeItem("marinara_staff_clock_in_local");
+  }
 
   staffName.textContent = data.name || "Staff";
   staffInfo.textContent =
@@ -3358,6 +3373,19 @@ async function performAction(
     await sessionApi(
       sessionActionMap[action] || action
     );
+
+    if (action === "clock_in") {
+      sessionStorage.setItem(
+        "marinara_staff_clock_in_local",
+        new Date().toISOString()
+      );
+    }
+
+    if (action === "clock_out") {
+      sessionStorage.removeItem(
+        "marinara_staff_clock_in_local"
+      );
+    }
 
     showMessage(
       actionMessage,
