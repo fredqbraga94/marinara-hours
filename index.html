@@ -4245,11 +4245,20 @@ exportTimesheetsPdfBtn.addEventListener("click", () => {
 
 function renderTeamMember(person) {
   const isManager =
-    ["manager", "kitchen_manager", "floor_manager"].includes(
-      person.role
-    );
+    ["manager", "kitchen_manager", "floor_manager"].includes(person.role);
+  const isGeneralManager = currentManagerRole === "manager";
+  const canEditThisPerson = !isManager || isGeneralManager;
   const statusText = person.active ? "ACTIVE" : "INACTIVE";
   const actionText = person.active ? "Deactivate" : "Activate";
+
+  const roleLabel =
+    person.role === "manager"
+      ? "General Manager"
+      : person.role === "kitchen_manager"
+        ? "Kitchen Manager"
+        : person.role === "floor_manager"
+          ? "Floor Manager"
+          : "Staff";
 
   return `
     <div class="person-row team-person-row" data-team-row="${escapeHtml(person.id)}">
@@ -4257,52 +4266,45 @@ function renderTeamMember(person) {
         <div class="person-name">${escapeHtml(person.name || "Staff")}</div>
         <div class="person-meta">
           ${escapeHtml(person.department || "")}
-          · ${escapeHtml(person.role || "staff")}
+          · ${escapeHtml(roleLabel)}
           · ${statusText}
         </div>
       </div>
 
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+        ${isManager ? `<div class="hours-pill">Manager</div>` : ""}
         ${
-          isManager
-            ? `<div class="hours-pill">Manager</div>`
-            : `
+          canEditThisPerson
+            ? `
               <button class="back-btn team-edit-btn"
-                data-staff-id="${escapeHtml(person.id)}">
-                Edit
-              </button>
+                data-staff-id="${escapeHtml(person.id)}">Edit</button>
               <button class="back-btn team-toggle-btn"
-                data-staff-id="${escapeHtml(person.id)}">
-                ${actionText}
-              </button>
+                data-staff-id="${escapeHtml(person.id)}">${actionText}</button>
             `
+            : ""
         }
       </div>
     </div>
 
     ${
-      isManager
-        ? ""
-        : `
+      canEditThisPerson
+        ? `
           <div class="team-edit-panel hidden"
             data-edit-panel="${escapeHtml(person.id)}"
             style="margin:-2px 0 14px;padding:16px;border:1px solid #e5e1d8;border-radius:14px;background:#fffdf8;">
 
-            <div style="font-weight:700;margin-bottom:12px;">Edit Staff</div>
+            <div style="font-weight:700;margin-bottom:12px;">
+              ${isManager ? "Edit Manager" : "Edit Staff"}
+            </div>
 
             <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:600;">Name</label>
-            <input
-              class="team-edit-name"
-              type="text"
+            <input class="team-edit-name" type="text"
               value="${escapeHtml(person.name || "")}"
-              style="width:100%;box-sizing:border-box;margin-bottom:12px;"
-            >
+              style="width:100%;box-sizing:border-box;margin-bottom:12px;">
 
             <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:600;">Department</label>
-            <select
-              class="team-edit-department"
-              style="width:100%;box-sizing:border-box;margin-bottom:12px;"
-            >
+            <select class="team-edit-department"
+              style="width:100%;box-sizing:border-box;margin-bottom:12px;">
               ${
                 currentManagerRole === "kitchen_manager"
                   ? `<option value="Kitchen" selected>Kitchen</option>`
@@ -4315,38 +4317,41 @@ function renderTeamMember(person) {
               }
             </select>
 
+            ${
+              isGeneralManager
+                ? `
+                  <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:600;">Account Type</label>
+                  <select class="team-edit-role"
+                    style="width:100%;box-sizing:border-box;margin-bottom:12px;">
+                    <option value="staff" ${person.role === "staff" ? "selected" : ""}>Staff</option>
+                    <option value="manager" ${person.role === "manager" ? "selected" : ""}>General Manager</option>
+                    <option value="kitchen_manager" ${person.role === "kitchen_manager" ? "selected" : ""}>Kitchen Manager</option>
+                    <option value="floor_manager" ${person.role === "floor_manager" ? "selected" : ""}>Floor Manager</option>
+                  </select>
+                `
+                : ""
+            }
+
             <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:600;">New PIN</label>
-            <input
-              class="team-edit-pin"
-              type="password"
-              inputmode="numeric"
-              maxlength="6"
-              placeholder="Leave blank to keep current PIN"
-              style="width:100%;box-sizing:border-box;margin-bottom:6px;"
-            >
+            <input class="team-edit-pin" type="password" inputmode="numeric"
+              maxlength="6" placeholder="Leave blank to keep current PIN"
+              style="width:100%;box-sizing:border-box;margin-bottom:6px;">
             <div style="font-size:12px;color:#777;margin-bottom:14px;">
               Optional · 4–6 numbers
             </div>
 
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
-              <button
-                class="primary-btn team-save-edit-btn"
-                data-staff-id="${escapeHtml(person.id)}">
-                Save Changes
-              </button>
-              <button
-                class="back-btn team-cancel-edit-btn"
-                data-staff-id="${escapeHtml(person.id)}">
-                Cancel
-              </button>
+              <button class="primary-btn team-save-edit-btn"
+                data-staff-id="${escapeHtml(person.id)}">Save Changes</button>
+              <button class="back-btn team-cancel-edit-btn"
+                data-staff-id="${escapeHtml(person.id)}">Cancel</button>
             </div>
 
-            <div
-              class="team-edit-message"
-              style="margin-top:10px;font-size:13px;">
-            </div>
+            <div class="team-edit-message"
+              style="margin-top:10px;font-size:13px;"></div>
           </div>
         `
+        : ""
     }
   `;
 }
@@ -4452,6 +4457,10 @@ async function loadTeamScreen() {
           panel.querySelector(".team-edit-department").value;
         const newPin =
           panel.querySelector(".team-edit-pin").value.trim();
+        const roleSelect =
+          panel.querySelector(".team-edit-role");
+        const role =
+          roleSelect ? roleSelect.value : "";
         const message =
           panel.querySelector(".team-edit-message");
 
@@ -4476,7 +4485,8 @@ async function loadTeamScreen() {
               staff_id: staffId,
               name,
               department,
-              new_pin: newPin
+              new_pin: newPin,
+              role
             }
           );
 
