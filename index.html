@@ -1283,6 +1283,42 @@ button{cursor:pointer}
 
   </div>
 
+  <div class="card" style="margin-bottom:16px;">
+    <button id="showAddShiftBtn" class="btn primary">+ Add Shift</button>
+
+    <div id="addShiftPanel" class="hidden" style="margin-top:16px;">
+      <div class="section-title">Add Shift</div>
+
+      <label class="field-label" for="manualShiftEmployee">Employee</label>
+      <select id="manualShiftEmployee" class="input"></select>
+
+      <label class="field-label" for="manualShiftDate">Date</label>
+      <input id="manualShiftDate" class="input" type="date">
+
+      <label class="field-label" for="manualShiftClockIn">Clock In</label>
+      <input id="manualShiftClockIn" class="input" type="time">
+
+      <label class="field-label" for="manualShiftClockOut">Clock Out</label>
+      <input id="manualShiftClockOut" class="input" type="time">
+
+      <label class="field-label" for="manualShiftBreak">Break</label>
+      <input id="manualShiftBreak" class="input" type="number" min="0" max="720" step="5" value="0" placeholder="Minutes">
+
+      <label class="field-label" for="manualShiftNotes">Notes <span style="font-weight:400;color:#777;">(optional)</span></label>
+      <input id="manualShiftNotes" class="input" type="text" maxlength="250" placeholder="Reason or note">
+
+      <div style="margin:12px 0;font-weight:700;">
+        Total: <span id="manualShiftTotal">—</span>
+      </div>
+
+      <div style="display:flex;gap:10px;">
+        <button id="saveManualShiftBtn" class="btn primary">Save Shift</button>
+        <button id="cancelManualShiftBtn" class="back-btn">Cancel</button>
+      </div>
+      <div id="manualShiftMessage" class="message"></div>
+    </div>
+  </div>
+
   <div
     id="approvalMessage"
     class="message"
@@ -1552,6 +1588,19 @@ document.getElementById("approvalsList");
 
 const approvalMessage =
 document.getElementById("approvalMessage");
+
+const showAddShiftBtn = document.getElementById("showAddShiftBtn");
+const addShiftPanel = document.getElementById("addShiftPanel");
+const manualShiftEmployee = document.getElementById("manualShiftEmployee");
+const manualShiftDate = document.getElementById("manualShiftDate");
+const manualShiftClockIn = document.getElementById("manualShiftClockIn");
+const manualShiftClockOut = document.getElementById("manualShiftClockOut");
+const manualShiftBreak = document.getElementById("manualShiftBreak");
+const manualShiftNotes = document.getElementById("manualShiftNotes");
+const manualShiftTotal = document.getElementById("manualShiftTotal");
+const saveManualShiftBtn = document.getElementById("saveManualShiftBtn");
+const cancelManualShiftBtn = document.getElementById("cancelManualShiftBtn");
+const manualShiftMessage = document.getElementById("manualShiftMessage");
 
 
 /* MESSAGES */
@@ -2505,6 +2554,138 @@ async function loadStaffHours(weekDate = null) {
 }
 
 /* APPROVALS */
+
+function brisbaneTodayInput() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Australia/Brisbane",
+    year: "numeric", month: "2-digit", day: "2-digit"
+  }).formatToParts(new Date());
+  const get = type => parts.find(p => p.type === type)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+function manualShiftIso(date, time) {
+  // Brisbane has no daylight saving time: UTC+10 year-round.
+  return `${date}T${time}:00+10:00`;
+}
+
+function updateManualShiftTotal() {
+  const date = manualShiftDate.value;
+  const cin = manualShiftClockIn.value;
+  const cout = manualShiftClockOut.value;
+  const brk = Number(manualShiftBreak.value || 0);
+
+  if (!date || !cin || !cout) {
+    manualShiftTotal.textContent = "—";
+    return;
+  }
+
+  const start = new Date(manualShiftIso(date, cin));
+  let end = new Date(manualShiftIso(date, cout));
+  if (end <= start) end = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+
+  const minutes = Math.max(
+    0,
+    Math.floor((end - start) / 60000) - brk
+  );
+
+  manualShiftTotal.textContent =
+    `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}
+
+async function prepareAddShiftForm() {
+  manualShiftMessage.textContent = "";
+  manualShiftDate.value = brisbaneTodayInput();
+  manualShiftClockIn.value = "";
+  manualShiftClockOut.value = "";
+  manualShiftBreak.value = "0";
+  manualShiftNotes.value = "";
+  updateManualShiftTotal();
+
+  const data = await managerApi("manager_team");
+  const staff = (data?.team || []).filter(person =>
+    person.active && person.role === "staff"
+  );
+
+  manualShiftEmployee.innerHTML = staff.length
+    ? staff.map(person =>
+        `<option value="${escapeHtml(person.id)}">${escapeHtml(person.name)} · ${escapeHtml(person.department)}</option>`
+      ).join("")
+    : `<option value="">No active staff available</option>`;
+
+  saveManualShiftBtn.disabled = !staff.length;
+}
+
+showAddShiftBtn.addEventListener("click", async () => {
+  addShiftPanel.classList.remove("hidden");
+  showAddShiftBtn.classList.add("hidden");
+  try {
+    await prepareAddShiftForm();
+  } catch (error) {
+    manualShiftMessage.textContent =
+      error.message || "Unable to load employees.";
+  }
+});
+
+cancelManualShiftBtn.addEventListener("click", () => {
+  addShiftPanel.classList.add("hidden");
+  showAddShiftBtn.classList.remove("hidden");
+  manualShiftMessage.textContent = "";
+});
+
+[manualShiftDate, manualShiftClockIn, manualShiftClockOut, manualShiftBreak]
+  .forEach(el => el.addEventListener("input", updateManualShiftTotal));
+
+saveManualShiftBtn.addEventListener("click", async () => {
+  manualShiftMessage.textContent = "";
+
+  const staffId = manualShiftEmployee.value;
+  const date = manualShiftDate.value;
+  const cin = manualShiftClockIn.value;
+  const cout = manualShiftClockOut.value;
+  const breakMinutes = Number(manualShiftBreak.value || 0);
+
+  if (!staffId || !date || !cin || !cout) {
+    manualShiftMessage.textContent =
+      "Employee, date, clock in and clock out are required.";
+    return;
+  }
+
+  let clockIn = new Date(manualShiftIso(date, cin));
+  let clockOut = new Date(manualShiftIso(date, cout));
+  if (clockOut <= clockIn) {
+    clockOut = new Date(clockOut.getTime() + 24 * 60 * 60 * 1000);
+  }
+
+  saveManualShiftBtn.disabled = true;
+  saveManualShiftBtn.textContent = "Saving...";
+
+  try {
+    await managerApi("manager_create_shift", {
+      staff_id: staffId,
+      clock_in: clockIn.toISOString(),
+      clock_out: clockOut.toISOString(),
+      break_minutes: breakMinutes,
+      notes: manualShiftNotes.value.trim()
+    });
+
+    addShiftPanel.classList.add("hidden");
+    showAddShiftBtn.classList.remove("hidden");
+    showMessage(
+      approvalMessage,
+      "Shift created and sent for approval.",
+      "success"
+    );
+    await loadApprovals();
+    await loadManagerDashboard();
+  } catch (error) {
+    manualShiftMessage.textContent =
+      error.message || "Unable to create shift.";
+  } finally {
+    saveManualShiftBtn.disabled = false;
+    saveManualShiftBtn.textContent = "Save Shift";
+  }
+});
 
 async function loadApprovals() {
 
