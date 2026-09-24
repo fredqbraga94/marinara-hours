@@ -3367,7 +3367,9 @@ loginBtn.addEventListener(
 
 
       if (
-        data.role === "manager"
+        ["manager", "kitchen_manager", "floor_manager"].includes(
+          data.role
+        )
       ) {
 
         homeScreen
@@ -4241,7 +4243,10 @@ exportTimesheetsPdfBtn.addEventListener("click", () => {
 /* TEAM */
 
 function renderTeamMember(person) {
-  const isManager = person.role === "manager";
+  const isManager =
+    ["manager", "kitchen_manager", "floor_manager"].includes(
+      person.role
+    );
   const statusText = person.active ? "ACTIVE" : "INACTIVE";
   const actionText = person.active ? "Deactivate" : "Activate";
 
