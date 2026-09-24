@@ -1069,11 +1069,6 @@ button{cursor:pointer}
 
       </button>
 
-      <button class="menu-card">
-        <strong>Roster</strong>
-        <span>Coming next</span>
-      </button>
-
       <button id="teamCard" class="menu-card">
         <strong>Team</strong>
 
@@ -1326,6 +1321,7 @@ let currentPin = "";
 let currentSessionToken =
   sessionStorage.getItem("marinara_session_token") || "";
 let currentData = null;
+let currentManagerRole = null;
 
 
 /* ELEMENTS */
@@ -2227,6 +2223,9 @@ async function loadManagerDashboard() {
     managerLocation.textContent =
       dashboard.location ||
       "Hawthorne";
+
+    currentManagerRole =
+      dashboard.manager?.role || currentManagerRole || "manager";
 
     const counts =
       dashboard.counts || {};
@@ -3372,6 +3371,8 @@ loginBtn.addEventListener(
         )
       ) {
 
+        currentManagerRole = data.role;
+
         homeScreen
         .classList
         .add("hidden");
@@ -4302,8 +4303,16 @@ function renderTeamMember(person) {
               class="team-edit-department"
               style="width:100%;box-sizing:border-box;margin-bottom:12px;"
             >
-              <option value="Kitchen" ${person.department === "Kitchen" ? "selected" : ""}>Kitchen</option>
-              <option value="Floor" ${person.department === "Floor" ? "selected" : ""}>Floor</option>
+              ${
+                currentManagerRole === "kitchen_manager"
+                  ? `<option value="Kitchen" selected>Kitchen</option>`
+                  : currentManagerRole === "floor_manager"
+                    ? `<option value="Floor" selected>Floor</option>`
+                    : `
+                      <option value="Kitchen" ${person.department === "Kitchen" ? "selected" : ""}>Kitchen</option>
+                      <option value="Floor" ${person.department === "Floor" ? "selected" : ""}>Floor</option>
+                    `
+              }
             </select>
 
             <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:600;">New PIN</label>
@@ -4350,9 +4359,46 @@ async function loadTeamScreen() {
   try {
     const data = await managerApi("manager_team");
 
-    const team = data?.team || [];
+    currentManagerRole =
+      data?.manager?.role || currentManagerRole || "manager";
+
+    const isRestrictedManager =
+      currentManagerRole === "kitchen_manager" ||
+      currentManagerRole === "floor_manager";
+
+    const ownDepartment =
+      currentManagerRole === "kitchen_manager"
+        ? "Kitchen"
+        : currentManagerRole === "floor_manager"
+          ? "Floor"
+          : null;
+
+    // Backend already enforces this. Frontend repeats it so restricted
+    // managers never render another manager account even if stale data exists.
+    const rawTeam = data?.team || [];
+    const team = isRestrictedManager
+      ? rawTeam.filter(person =>
+          person.role === "staff" ||
+          person.id === data?.manager?.id
+        )
+      : rawTeam;
+
     teamLocation.textContent =
       data?.manager?.location || "Hawthorne";
+
+    // Restricted managers get one fixed department only.
+    if (ownDepartment) {
+      newStaffDepartment.innerHTML =
+        `<option value="${ownDepartment}">${ownDepartment}</option>`;
+      newStaffDepartment.value = ownDepartment;
+      newStaffDepartment.disabled = true;
+    } else {
+      newStaffDepartment.innerHTML = `
+        <option value="Kitchen">Kitchen</option>
+        <option value="Floor">Floor</option>
+      `;
+      newStaffDepartment.disabled = false;
+    }
 
     if (!team.length) {
       teamList.innerHTML = "No staff added yet.";
@@ -4522,7 +4568,10 @@ addStaffBtn.addEventListener("click", async () => {
 
     newStaffName.value = "";
     newStaffPin.value = "";
-    newStaffDepartment.value = "Kitchen";
+    newStaffDepartment.value =
+      currentManagerRole === "floor_manager"
+        ? "Floor"
+        : "Kitchen";
 
     teamMessage.textContent = "Staff added successfully.";
     await loadTeamScreen();
