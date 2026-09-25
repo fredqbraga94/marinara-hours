@@ -4186,10 +4186,53 @@ exportTimesheetsPdfBtn.addEventListener("click", () => {
   const summary = data.summary || [];
   const shifts = data.shifts || [];
 
+  // FINAL PDF LOCK:
+  // Never export a week while any shift is still open, on break,
+  // completed but pending approval, or otherwise incomplete.
+  const shiftsNeedingAttention = shifts.filter(shift =>
+    shift.status !== "completed" ||
+    !shift.clock_out ||
+    shift.approved !== true
+  );
+
+  if (shiftsNeedingAttention.length) {
+    const count = shiftsNeedingAttention.length;
+    timesheetsMessage.className = "message show error";
+    timesheetsMessage.textContent =
+      "Timesheet not ready — " +
+      count +
+      " shift" + (count === 1 ? "" : "s") +
+      " still need" + (count === 1 ? "s" : "") +
+      " attention. Review, edit, approve or delete " +
+      (count === 1 ? "it" : "them") +
+      " before exporting the PDF.";
+    timesheetsMessage.scrollIntoView({behavior:"smooth",block:"center"});
+    return;
+  }
+
+  if (!shifts.length) {
+    timesheetsMessage.className = "message show error";
+    timesheetsMessage.textContent =
+      "No approved shifts to export for this week.";
+    return;
+  }
+
+  // Clear any previous export warning.
+  timesheetsMessage.className = "message";
+  timesheetsMessage.textContent = "";
+
+  // Defence in depth: even after the lock above, the PDF itself
+  // is built only from completed + approved shifts.
+  const approvedShifts = shifts.filter(shift =>
+    shift.status === "completed" &&
+    !!shift.clock_out &&
+    shift.approved === true
+  );
+
   const rows = [];
 
   summary.forEach(person => {
-    const personShifts = shifts
+    const personShifts = approvedShifts
       .filter(shift => shift.staff_id === person.staff_id)
       .sort((a,b) => new Date(a.clock_in) - new Date(b.clock_in));
 
