@@ -853,6 +853,39 @@ button{cursor:pointer}
 /* ===== MANAGER HOME V2 ===== */
 .manager-v2{padding-bottom:88px}.manager-v2-hero{margin:2px 0 18px}.manager-v2-eyebrow{color:var(--green);font-size:11px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:7px}.manager-v2-greeting{margin:0;font-size:29px;line-height:1.08;letter-spacing:-.7px}.manager-v2-role{margin-top:7px;color:var(--muted);font-size:13px}.manager-v2 .summary-grid{gap:10px}.manager-v2 .summary-card{position:relative;overflow:hidden;border:1px solid rgba(31,107,69,.08);padding:18px}.manager-v2 .summary-card:after{content:"";position:absolute;width:80px;height:80px;border-radius:50%;right:-35px;top:-35px;background:var(--green-light)}.manager-v2 .summary-number{position:relative;z-index:1;font-size:32px}.manager-v2 .summary-label{position:relative;z-index:1;color:var(--text);font-size:12px;font-weight:850}.manager-summary-sub{position:relative;z-index:1;color:var(--muted);font-size:10px;margin-top:4px}.manager-v2-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}.manager-v2-section-head .section-title{margin:0}.manager-v2-link{border:0;background:transparent;color:var(--green);font-size:12px;font-weight:850;padding:6px}.manager-v2 .card{border:1px solid rgba(31,107,69,.07)}.manager-v2 .person-row{padding:14px 0}.manager-v2 .person-name{font-size:14px}.manager-v2 .hours-pill{font-size:11px}.manager-quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.manager-quick-card{border:1px solid var(--border);background:#fafbfa;border-radius:18px;padding:16px;text-align:left;min-height:92px;color:var(--text)}.manager-quick-icon{width:32px;height:32px;border-radius:10px;background:var(--green-light);color:var(--green);display:flex;align-items:center;justify-content:center;font-weight:900;margin-bottom:10px}.manager-quick-card strong{display:block;font-size:14px}.manager-quick-card span{display:block;color:var(--muted);font-size:10px;line-height:1.35;margin-top:4px}.manager-v2-signout{width:auto;min-height:40px;padding:9px 12px;border-radius:13px;background:transparent;border:1px solid var(--border);color:var(--danger);font-size:12px;font-weight:800}.manager-bottom-nav{position:fixed;z-index:45;left:50%;bottom:0;transform:translateX(-50%);width:min(480px,100%);display:grid;grid-template-columns:repeat(4,1fr);padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);border-top:1px solid var(--border);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}.manager-nav-item{border:0;background:transparent;min-height:52px;border-radius:14px;color:var(--muted);font-size:10px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}.manager-nav-item.active{color:var(--green);background:var(--green-light)}.manager-nav-icon{font-size:17px;line-height:1}
 
+
+/* ===== APPROVALS V2 ===== */
+#approvalsScreen{padding-bottom:92px}
+#approvalsScreen .manager-top{margin:2px 0 14px}
+#approvalsScreen .manager-top h2{font-size:28px;letter-spacing:-.55px}
+#approvalsScreen .manager-top p{font-size:12px;line-height:1.35}
+.approvals-v2-kicker{color:var(--green);font-size:11px;font-weight:900;letter-spacing:1.15px;text-transform:uppercase;margin-bottom:5px}
+.approvals-v2-add{background:white;border:1px solid rgba(31,107,69,.08);border-radius:22px;padding:14px;margin-bottom:14px;box-shadow:0 8px 28px rgba(0,0,0,.045)}
+.approvals-v2-add #showAddShiftBtn{margin:0;min-height:54px;border-radius:16px;font-size:15px}
+.approvals-v2-count{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:2px 2px 12px}
+.approvals-v2-count strong{font-size:14px}
+.approvals-v2-count span{font-size:11px;color:var(--muted)}
+#approvalsScreen .approval-card{border:1px solid rgba(31,107,69,.08);border-radius:24px;padding:18px;box-shadow:0 8px 28px rgba(0,0,0,.05)}
+#approvalsScreen .approval-head{margin-bottom:14px}
+#approvalsScreen .approval-name{font-size:19px;letter-spacing:-.2px}
+#approvalsScreen .pending-badge{padding:6px 10px;font-size:10px;letter-spacing:.45px}
+#approvalsScreen .manual-badge{margin-top:8px}
+#approvalsScreen .shift-date{padding-top:13px;border-top:1px solid var(--border);font-size:13px}
+#approvalsScreen .shift-detail{background:#fbfcfb;padding:13px;border-radius:15px}
+#approvalsScreen .shift-detail-value{font-size:15px}
+#approvalsScreen .approval-actions{grid-template-columns:1fr 1fr;margin-top:14px}
+#approvalsScreen .edit-btn,
+#approvalsScreen .delete-shift-btn,
+#approvalsScreen .approve-btn{min-height:50px;border-radius:15px;font-size:14px}
+#approvalsScreen .delete-shift-btn{border:1px solid #efd2d2;background:#fff7f7;color:var(--danger);font-weight:850}
+#approvalsScreen .approve-btn{grid-column:1/-1;margin-top:0}
+#approvalsScreen .edit-panel{border-radius:18px}
+#approvalsScreen .all-approved{border:1px solid rgba(31,107,69,.08);border-radius:24px}
+#addShiftPanel{padding:4px 4px 2px}
+#addShiftPanel .section-title{font-size:18px;margin-top:4px}
+#addShiftPanel .input{min-height:50px;border-radius:14px}
+#addShiftPanel #saveManualShiftBtn{margin-top:0}
+
 </style>
 </head>
 
@@ -1112,8 +1145,9 @@ button{cursor:pointer}
   <div class="manager-top">
 
     <div>
+      <div class="approvals-v2-kicker">MANAGER</div>
       <h2>Approvals</h2>
-      <p>Completed shifts waiting for review</p>
+      <p>Review completed shifts before they are approved.</p>
     </div>
 
     <button
@@ -1125,7 +1159,7 @@ button{cursor:pointer}
 
   </div>
 
-  <div class="card" style="margin-bottom:16px;">
+  <div class="approvals-v2-add">
     <button id="showAddShiftBtn" class="btn primary">+ Add Shift</button>
 
     <div id="addShiftPanel" class="hidden" style="margin-top:16px;">
@@ -1165,6 +1199,11 @@ button{cursor:pointer}
     id="approvalMessage"
     class="message"
   ></div>
+
+  <div class="approvals-v2-count">
+    <strong>Pending shifts</strong>
+    <span id="approvalsV2Count">Loading…</span>
+  </div>
 
   <div id="approvalsList">
 
@@ -1436,6 +1475,9 @@ document.getElementById("approvalsList");
 
 const approvalMessage =
 document.getElementById("approvalMessage");
+
+const approvalsV2Count =
+document.getElementById("approvalsV2Count");
 
 const showAddShiftBtn = document.getElementById("showAddShiftBtn");
 const addShiftPanel = document.getElementById("addShiftPanel");
@@ -2551,6 +2593,10 @@ async function loadApprovals() {
     approvalMessage
   );
 
+  if (approvalsV2Count) {
+    approvalsV2Count.textContent = "Loading…";
+  }
+
   approvalsList.innerHTML = `
 
     <div class="card">
@@ -2569,6 +2615,13 @@ async function loadApprovals() {
 
     const approvals =
       data.approvals || [];
+
+    if (approvalsV2Count) {
+      approvalsV2Count.textContent =
+        approvals.length === 1
+          ? "1 waiting"
+          : `${approvals.length} waiting`;
+    }
 
 
     if (!approvals.length) {
