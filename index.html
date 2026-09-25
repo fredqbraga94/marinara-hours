@@ -995,8 +995,14 @@ button{cursor:pointer}
     <button id="myClockCard" class="manager-quick-card"><div class="manager-quick-icon">◉</div><strong>My Time Clock</strong><span>Clock in, break and clock out</span></button>
   </div></div>
   <div id="managerClockSection" class="hidden"><div class="card"><div class="section-title">My Time Clock</div><div class="status"><div class="status-label">Current status</div><div id="managerStatusValue" class="status-value">Off shift</div></div><button id="managerClockInBtn" class="btn primary hidden">Clock In</button><button id="managerStartBreakBtn" class="btn secondary hidden">Start Break</button><button id="managerEndBreakBtn" class="btn primary hidden">End Break</button><button id="managerClockOutBtn" class="btn danger hidden">Clock Out</button><div id="managerActionMessage" class="message"></div></div></div>
-  <nav id="managerBottomNav" class="manager-bottom-nav"><button type="button" class="manager-nav-item active" data-manager-nav="home"><span class="manager-nav-icon">⌂</span><span>Home</span></button><button type="button" class="manager-nav-item" data-manager-nav="approvals"><span class="manager-nav-icon">✓</span><span>Approvals</span></button><button type="button" class="manager-nav-item" data-manager-nav="team"><span class="manager-nav-icon">◎</span><span>Team</span></button><button type="button" class="manager-nav-item" data-manager-nav="more"><span class="manager-nav-icon">•••</span><span>More</span></button></nav>
 </section>
+
+<nav id="managerBottomNav" class="manager-bottom-nav hidden">
+  <button type="button" class="manager-nav-item active" data-manager-nav="home"><span class="manager-nav-icon">⌂</span><span>Home</span></button>
+  <button type="button" class="manager-nav-item" data-manager-nav="approvals"><span class="manager-nav-icon">✓</span><span>Approvals</span></button>
+  <button type="button" class="manager-nav-item" data-manager-nav="team"><span class="manager-nav-icon">◎</span><span>Team</span></button>
+  <button type="button" class="manager-nav-item" data-manager-nav="more"><span class="manager-nav-icon">•••</span><span>More</span></button>
+</nav>
 
 <!-- STAFF HOURS SCREEN -->
 <section id="staffHoursScreen" class="hidden">
@@ -3426,6 +3432,7 @@ loginBtn.addEventListener(
         .classList
         .remove("hidden");
 
+        setManagerNavActive("home");
         await loadManagerDashboard();
 
       }
@@ -3443,6 +3450,8 @@ loginBtn.addEventListener(
         staffHoursScreen
         .classList
         .add("hidden");
+
+        hideManagerNav();
 
         homeScreen
         .classList
@@ -4581,6 +4590,7 @@ teamCard.addEventListener("click", async () => {
   approvalsScreen.classList.add("hidden");
   staffHoursScreen.classList.add("hidden");
   teamScreen.classList.remove("hidden");
+  setManagerNavActive("team");
   window.scrollTo({top:0,behavior:"smooth"});
   await loadTeamScreen();
 });
@@ -4588,6 +4598,7 @@ teamCard.addEventListener("click", async () => {
 backTeamBtn.addEventListener("click", async () => {
   teamScreen.classList.add("hidden");
   managerScreen.classList.remove("hidden");
+  setManagerNavActive("home");
   await loadManagerDashboard();
   window.scrollTo({top:0,behavior:"smooth"});
 });
@@ -4656,6 +4667,7 @@ staffHoursCard.addEventListener("click", async () => {
 backStaffHoursBtn.addEventListener("click", async () => {
   staffHoursScreen.classList.add("hidden");
   managerScreen.classList.remove("hidden");
+  setManagerNavActive("home");
   await loadManagerDashboard();
   window.scrollTo({top:0,behavior:"smooth"});
 });
@@ -4674,6 +4686,8 @@ approvalsCard.addEventListener(
     approvalsScreen
     .classList
     .remove("hidden");
+
+    setManagerNavActive("approvals");
 
     window.scrollTo({
       top:0,
@@ -4700,6 +4714,7 @@ backDashboardBtn.addEventListener(
     .classList
     .remove("hidden");
 
+    setManagerNavActive("home");
     await loadManagerDashboard();
 
     window.scrollTo({
@@ -4712,9 +4727,58 @@ backDashboardBtn.addEventListener(
 
 
 /* MANAGER V2 NAVIGATION */
+function setManagerNavActive(target = "home") {
+  if (!managerBottomNav) return;
+  managerBottomNav.classList.remove("hidden");
+  managerBottomNav.querySelectorAll("[data-manager-nav]").forEach(button => {
+    button.classList.toggle("active", button.dataset.managerNav === target);
+  });
+}
+
+function hideManagerNav() {
+  managerBottomNav?.classList.add("hidden");
+}
+
 managerWorkingViewAll?.addEventListener("click",()=>teamCard?.click());
 managerHoursViewAll?.addEventListener("click",()=>staffHoursCard?.click());
-managerBottomNav?.addEventListener("click",event=>{const button=event.target.closest("[data-manager-nav]");if(!button)return;const target=button.dataset.managerNav;if(target==="home"){window.scrollTo({top:0,behavior:"smooth"});return}if(target==="approvals"){approvalsCard?.click();return}if(target==="team"){teamCard?.click();return}if(target==="more"){const quick=document.querySelector("#managerScreen .manager-quick-grid");if(quick)quick.scrollIntoView({behavior:"smooth",block:"center"})}});
+managerBottomNav?.addEventListener("click",event=>{
+  const button=event.target.closest("[data-manager-nav]");
+  if(!button)return;
+  const target=button.dataset.managerNav;
+
+  if(target==="home"){
+    approvalsScreen.classList.add("hidden");
+    teamScreen.classList.add("hidden");
+    staffHoursScreen.classList.add("hidden");
+    timesheetsScreen.classList.add("hidden");
+    managerScreen.classList.remove("hidden");
+    setManagerNavActive("home");
+    loadManagerDashboard();
+    window.scrollTo({top:0,behavior:"smooth"});
+    return;
+  }
+
+  if(target==="approvals"){
+    approvalsCard?.click();
+    return;
+  }
+
+  if(target==="team"){
+    teamCard?.click();
+    return;
+  }
+
+  if(target==="more"){
+    approvalsScreen.classList.add("hidden");
+    teamScreen.classList.add("hidden");
+    staffHoursScreen.classList.add("hidden");
+    timesheetsScreen.classList.add("hidden");
+    managerScreen.classList.remove("hidden");
+    setManagerNavActive("more");
+    const quick=document.querySelector("#managerScreen .manager-quick-grid");
+    if(quick)setTimeout(()=>quick.scrollIntoView({behavior:"smooth",block:"center"}),50);
+  }
+});
 
 /* SIGN OUT */
 
@@ -4786,6 +4850,8 @@ async function signOutAll() {
   managerClockSection
   .classList
   .add("hidden");
+
+  hideManagerNav();
 
   loginScreen
   .classList
