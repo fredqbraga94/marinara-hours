@@ -282,6 +282,18 @@ button{cursor:pointer}
   font-weight:800;
 }
 
+.manual-badge{
+  display:inline-block;
+  margin-top:7px;
+  background:var(--green-light);
+  color:var(--green);
+  padding:6px 9px;
+  border-radius:999px;
+  font-size:10px;
+  font-weight:850;
+  letter-spacing:.35px;
+}
+
 .shift-date{
   font-weight:800;
   font-size:14px;
@@ -2763,6 +2775,10 @@ async function loadApprovals() {
                   shift.department
                 )}
               </div>
+
+              ${String(shift.notes || "").startsWith("[MANUALLY CREATED]")
+                ? '<div class="manual-badge">MANUALLY CREATED</div>'
+                : ""}
 
             </div>
 
