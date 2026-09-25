@@ -1056,7 +1056,7 @@ button{cursor:pointer}
   <div class="manager-v2-hero">
     <div class="manager-v2-eyebrow">MARINARA HOURS</div>
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-      <div><h2 id="managerGreeting" class="manager-v2-greeting">Good morning</h2><div id="managerRoleLine" class="manager-v2-role">General Manager · Hawthorne</div></div>
+      <div><h2 id="managerGreeting" class="manager-v2-greeting">Good morning</h2><div id="managerRoleLine" class="manager-v2-role">Administrator · Hawthorne</div></div>
       <button id="managerLogoutBtn" class="manager-v2-signout">Sign Out</button>
     </div><p id="managerLocation" class="hidden">Hawthorne</p>
   </div>
@@ -1205,7 +1205,7 @@ button{cursor:pointer}
     <div id="moreManagerAvatar" class="more-v2-avatar">M</div>
     <div>
       <strong id="moreManagerName">Manager</strong>
-      <span id="moreManagerRole">General Manager · Hawthorne</span>
+      <span id="moreManagerRole">Administrator · Hawthorne</span>
     </div>
   </div>
 
@@ -1227,7 +1227,7 @@ button{cursor:pointer}
     </button>
     <button id="moreManagersBtn" class="more-v2-item hidden" type="button">
       <span class="more-v2-icon">◎</span>
-      <span><strong>Managers</strong><small>Manage General, Kitchen and Floor Manager accounts</small></span>
+      <span><strong>Managers</strong><small>Manage Administrator, Kitchen and Floor Manager accounts</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
   </div>
@@ -2291,7 +2291,7 @@ async function loadManagerDashboard() {
     const hour = Number(new Intl.DateTimeFormat("en-AU",{timeZone:"Australia/Brisbane",hour:"2-digit",hour12:false}).format(new Date()));
     const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
     if (managerGreeting) managerGreeting.textContent = greeting + ", " + firstName;
-    const roleLabel = currentManagerRole === "kitchen_manager" ? "Kitchen Manager" : currentManagerRole === "floor_manager" ? "Floor Manager" : "General Manager";
+    const roleLabel = currentManagerRole === "kitchen_manager" ? "Kitchen Manager" : currentManagerRole === "floor_manager" ? "Floor Manager" : "Administrator";
     if (managerRoleLine) managerRoleLine.textContent = roleLabel + " · " + (dashboard.location || "Hawthorne");
 
     const counts =
@@ -4478,7 +4478,7 @@ function renderTeamMember(person) {
 
   const roleLabel =
     person.role === "manager"
-      ? "General Manager"
+      ? "Administrator"
       : person.role === "kitchen_manager"
         ? "Kitchen Manager"
         : person.role === "floor_manager"
@@ -4490,8 +4490,9 @@ function renderTeamMember(person) {
       <div>
         <div class="person-name">${escapeHtml(person.name || "Staff")}</div>
         <div class="person-meta">
-          ${escapeHtml(person.department || "")}
-          · ${escapeHtml(roleLabel)}
+          ${person.role === "manager"
+            ? `${escapeHtml(roleLabel)} · Hawthorne`
+            : `${escapeHtml(person.department || "")} · ${escapeHtml(roleLabel)}`}
           · <span class="team-status-dot ${statusDotClass}"></span>${statusText}
         </div>
       </div>
@@ -4549,7 +4550,7 @@ function renderTeamMember(person) {
                   <select class="team-edit-role"
                     style="width:100%;box-sizing:border-box;margin-bottom:12px;">
                     <option value="staff" ${person.role === "staff" ? "selected" : ""}>Staff</option>
-                    <option value="manager" ${person.role === "manager" ? "selected" : ""}>General Manager</option>
+                    <option value="manager" ${person.role === "manager" ? "selected" : ""}>Administrator</option>
                     <option value="kitchen_manager" ${person.role === "kitchen_manager" ? "selected" : ""}>Kitchen Manager</option>
                     <option value="floor_manager" ${person.role === "floor_manager" ? "selected" : ""}>Floor Manager</option>
                   </select>
@@ -4938,7 +4939,7 @@ function openManagerMore() {
   const roleLabel =
     currentManagerRole === "kitchen_manager" ? "Kitchen Manager" :
     currentManagerRole === "floor_manager" ? "Floor Manager" :
-    "General Manager";
+    "Administrator";
 
   if (moreManagerName) moreManagerName.textContent = name;
   if (moreManagerAvatar) moreManagerAvatar.textContent = String(name).trim().charAt(0).toUpperCase() || "M";
