@@ -914,6 +914,25 @@ button{cursor:pointer}
 .team-status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;background:#9da59f}
 .team-status-dot.active{background:var(--green)}
 
+
+/* ===== MORE V2 ===== */
+#managerMoreScreen{padding-bottom:92px}
+.more-v2-kicker{color:var(--green);font-size:11px;font-weight:900;letter-spacing:1.15px;text-transform:uppercase;margin-bottom:5px}
+.more-v2-title{font-size:28px;line-height:1.08;letter-spacing:-.55px;margin:0}
+.more-v2-sub{color:var(--muted);font-size:12px;margin-top:5px}
+.more-v2-profile{display:flex;align-items:center;gap:13px;padding:16px}
+.more-v2-avatar{width:46px;height:46px;border-radius:15px;background:var(--green-light);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900}
+.more-v2-profile strong{display:block;font-size:15px}
+.more-v2-profile span{display:block;color:var(--muted);font-size:11px;margin-top:3px}
+.more-v2-menu{padding:6px 16px}
+.more-v2-item{width:100%;border:0;border-bottom:1px solid var(--border);background:transparent;display:grid;grid-template-columns:38px 1fr 18px;gap:10px;align-items:center;text-align:left;padding:15px 0;color:var(--text)}
+.more-v2-item:last-child{border-bottom:0}
+.more-v2-icon{width:34px;height:34px;border-radius:11px;background:var(--green-light);color:var(--green);display:flex;align-items:center;justify-content:center;font-weight:900}
+.more-v2-item strong{display:block;font-size:14px}
+.more-v2-item small{display:block;color:var(--muted);font-size:10px;line-height:1.35;margin-top:3px}
+.more-v2-chevron{color:#9aa39d;font-size:20px}
+.more-v2-signout{width:100%;min-height:50px;border:1px solid #efd2d2;border-radius:15px;background:#fff7f7;color:var(--danger);font-weight:850;font-size:14px}
+
 </style>
 </head>
 
@@ -1172,6 +1191,53 @@ button{cursor:pointer}
 </section>
 
 
+<!-- MORE SCREEN -->
+<section id="managerMoreScreen" class="hidden">
+  <div class="manager-top">
+    <div>
+      <div class="more-v2-kicker">MANAGER</div>
+      <h2 class="more-v2-title">More</h2>
+      <p class="more-v2-sub">Management tools and account options</p>
+    </div>
+  </div>
+
+  <div class="card more-v2-profile">
+    <div id="moreManagerAvatar" class="more-v2-avatar">M</div>
+    <div>
+      <strong id="moreManagerName">Manager</strong>
+      <span id="moreManagerRole">General Manager · Hawthorne</span>
+    </div>
+  </div>
+
+  <div class="card more-v2-menu">
+    <button id="moreStaffHoursBtn" class="more-v2-item" type="button">
+      <span class="more-v2-icon">◷</span>
+      <span><strong>Staff Hours</strong><small>Review weekly hours and individual shifts</small></span>
+      <span class="more-v2-chevron">›</span>
+    </button>
+    <button id="moreTimesheetsBtn" class="more-v2-item" type="button">
+      <span class="more-v2-icon">▤</span>
+      <span><strong>Timesheets & PDF</strong><small>View weekly timesheets and export the approved PDF</small></span>
+      <span class="more-v2-chevron">›</span>
+    </button>
+    <button id="moreMyClockBtn" class="more-v2-item" type="button">
+      <span class="more-v2-icon">◉</span>
+      <span><strong>My Time Clock</strong><small>Clock in, take a break and clock out</small></span>
+      <span class="more-v2-chevron">›</span>
+    </button>
+    <button id="moreManagersBtn" class="more-v2-item hidden" type="button">
+      <span class="more-v2-icon">◎</span>
+      <span><strong>Managers</strong><small>Manage General, Kitchen and Floor Manager accounts</small></span>
+      <span class="more-v2-chevron">›</span>
+    </button>
+  </div>
+
+  <div class="card">
+    <button id="moreSignOutBtn" class="more-v2-signout" type="button">Sign Out</button>
+  </div>
+</section>
+
+
 <!-- APPROVALS SCREEN -->
 
 <section id="approvalsScreen" class="hidden">
@@ -1361,6 +1427,15 @@ document.getElementById("managerMessage");
 const managerGreeting=document.getElementById("managerGreeting");
 const managerRoleLine=document.getElementById("managerRoleLine");
 const managerBottomNav=document.getElementById("managerBottomNav");
+const managerMoreScreen=document.getElementById("managerMoreScreen");
+const moreManagerAvatar=document.getElementById("moreManagerAvatar");
+const moreManagerName=document.getElementById("moreManagerName");
+const moreManagerRole=document.getElementById("moreManagerRole");
+const moreStaffHoursBtn=document.getElementById("moreStaffHoursBtn");
+const moreTimesheetsBtn=document.getElementById("moreTimesheetsBtn");
+const moreMyClockBtn=document.getElementById("moreMyClockBtn");
+const moreManagersBtn=document.getElementById("moreManagersBtn");
+const moreSignOutBtn=document.getElementById("moreSignOutBtn");
 const managerWorkingViewAll=document.getElementById("managerWorkingViewAll");
 const managerHoursViewAll=document.getElementById("managerHoursViewAll");
 
@@ -4057,6 +4132,7 @@ async function loadTimesheets(weekDate) {
 }
 
 timesheetsCard.addEventListener("click", async () => {
+  managerMoreScreen?.classList.add("hidden");
   managerScreen.classList.add("hidden");
   approvalsScreen.classList.add("hidden");
   staffHoursScreen.classList.add("hidden");
@@ -4699,6 +4775,7 @@ showAddStaffBtn?.addEventListener("click", () => {
 });
 
 teamCard.addEventListener("click", async () => {
+  managerMoreScreen?.classList.add("hidden");
   managerScreen.classList.add("hidden");
   approvalsScreen.classList.add("hidden");
   staffHoursScreen.classList.add("hidden");
@@ -4769,6 +4846,7 @@ addStaffBtn.addEventListener("click", async () => {
 /* OPEN STAFF HOURS */
 
 staffHoursCard.addEventListener("click", async () => {
+  managerMoreScreen?.classList.add("hidden");
   managerScreen.classList.add("hidden");
   approvalsScreen.classList.add("hidden");
   staffHoursScreen.classList.remove("hidden");
@@ -4793,6 +4871,8 @@ backStaffHoursBtn.addEventListener("click", async () => {
 approvalsCard.addEventListener(
   "click",
   async () => {
+
+    managerMoreScreen?.classList.add("hidden");
 
     managerScreen
     .classList
@@ -4841,6 +4921,34 @@ backDashboardBtn.addEventListener(
 );
 
 
+function openManagerMore() {
+  managerScreen.classList.add("hidden");
+  approvalsScreen.classList.add("hidden");
+  teamScreen.classList.add("hidden");
+  staffHoursScreen.classList.add("hidden");
+  timesheetsScreen.classList.add("hidden");
+  managerMoreScreen?.classList.remove("hidden");
+
+  let identity = {};
+  try {
+    identity = JSON.parse(sessionStorage.getItem("marinara_staff_identity") || "{}");
+  } catch (_) {}
+
+  const name = identity.name || "Manager";
+  const roleLabel =
+    currentManagerRole === "kitchen_manager" ? "Kitchen Manager" :
+    currentManagerRole === "floor_manager" ? "Floor Manager" :
+    "General Manager";
+
+  if (moreManagerName) moreManagerName.textContent = name;
+  if (moreManagerAvatar) moreManagerAvatar.textContent = String(name).trim().charAt(0).toUpperCase() || "M";
+  if (moreManagerRole) moreManagerRole.textContent = roleLabel + " · Hawthorne";
+  moreManagersBtn?.classList.toggle("hidden", currentManagerRole !== "manager");
+
+  setManagerNavActive("more");
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
 /* MANAGER V2 NAVIGATION */
 function setManagerNavActive(target = "home") {
   if (!managerBottomNav) return;
@@ -4866,6 +4974,7 @@ managerBottomNav?.addEventListener("click",event=>{
     teamScreen.classList.add("hidden");
     staffHoursScreen.classList.add("hidden");
     timesheetsScreen.classList.add("hidden");
+    managerMoreScreen?.classList.add("hidden");
     managerScreen.classList.remove("hidden");
     setManagerNavActive("home");
     loadManagerDashboard();
@@ -4884,16 +4993,26 @@ managerBottomNav?.addEventListener("click",event=>{
   }
 
   if(target==="more"){
-    approvalsScreen.classList.add("hidden");
-    teamScreen.classList.add("hidden");
-    staffHoursScreen.classList.add("hidden");
-    timesheetsScreen.classList.add("hidden");
-    managerScreen.classList.remove("hidden");
-    setManagerNavActive("more");
-    const quick=document.querySelector("#managerScreen .manager-quick-grid");
-    if(quick)setTimeout(()=>quick.scrollIntoView({behavior:"smooth",block:"center"}),50);
+    openManagerMore();
   }
 });
+
+moreStaffHoursBtn?.addEventListener("click", () => staffHoursCard?.click());
+moreTimesheetsBtn?.addEventListener("click", () => timesheetsCard?.click());
+moreManagersBtn?.addEventListener("click", () => teamCard?.click());
+
+moreMyClockBtn?.addEventListener("click", async () => {
+  managerMoreScreen?.classList.add("hidden");
+  managerScreen.classList.remove("hidden");
+  setManagerNavActive("more");
+  await loadManagerDashboard();
+  if (managerClockSection?.classList.contains("hidden")) {
+    myClockCard?.click();
+  }
+  setTimeout(() => managerClockSection?.scrollIntoView({behavior:"smooth",block:"start"}), 80);
+});
+
+moreSignOutBtn?.addEventListener("click", () => signOutAll());
 
 /* SIGN OUT */
 
@@ -4960,6 +5079,10 @@ async function signOutAll() {
 
   timesheetsScreen
   .classList
+  .add("hidden");
+
+  managerMoreScreen
+  ?.classList
   .add("hidden");
 
   managerClockSection
