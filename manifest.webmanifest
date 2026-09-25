@@ -1,1 +1,11 @@
-
+{
+  "name": "Marinara Hours",
+  "short_name": "Marinara Hours",
+  "description": "Marinara Hawthorne Staff Time Clock",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f3ea",
+  "theme_color": "#1f6b45"
+}
