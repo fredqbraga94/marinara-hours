@@ -886,6 +886,34 @@ button{cursor:pointer}
 #addShiftPanel .input{min-height:50px;border-radius:14px}
 #addShiftPanel #saveManualShiftBtn{margin-top:0}
 
+
+/* ===== TEAM V2 ===== */
+#teamScreen{padding-bottom:92px}
+#teamScreen .manager-top{margin:2px 0 14px}
+#teamScreen .manager-top h2{font-size:28px;letter-spacing:-.55px}
+.team-v2-kicker{color:var(--green);font-size:11px;font-weight:900;letter-spacing:1.15px;text-transform:uppercase;margin-bottom:5px}
+.team-v2-sub{color:var(--muted);font-size:12px;margin-top:4px}
+.team-add-card{padding:14px 16px;border:1px solid rgba(31,107,69,.08);border-radius:22px}
+.team-add-toggle{width:100%;min-height:52px;border:0;border-radius:16px;background:var(--green);color:white;font-weight:850;font-size:15px}
+.team-add-form{padding:6px 2px 2px}
+.team-add-form .field-label{margin-top:13px}
+.team-add-form .input{min-height:50px;border-radius:14px}
+.team-list-card{padding:16px;border:1px solid rgba(31,107,69,.08);border-radius:22px}
+.team-list-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.team-list-head .section-title{margin:0}
+.team-count{font-size:11px;color:var(--muted)}
+#teamScreen .team-person-row{padding:14px 2px;align-items:flex-start}
+#teamScreen .person-name{font-size:15px}
+#teamScreen .person-meta{line-height:1.45}
+.team-person-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+#teamScreen .team-edit-btn,#teamScreen .team-toggle-btn{padding:8px 10px;min-height:36px;border-radius:11px;font-size:11px}
+#teamScreen .team-toggle-btn{background:#f7f8f7}
+#teamScreen .team-edit-panel{margin:0 0 14px!important;padding:16px!important;border:1px solid var(--border)!important;border-radius:18px!important;background:#fbfcfb!important}
+#teamScreen .team-edit-panel input,#teamScreen .team-edit-panel select{min-height:46px;border:1.5px solid var(--border);border-radius:13px;background:white;padding:10px 11px}
+#teamScreen .team-save-edit-btn{border:0;background:var(--green);color:white;border-radius:14px;min-height:46px;padding:10px 14px;font-weight:850}
+.team-status-dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;background:#9da59f}
+.team-status-dot.active{background:var(--green)}
+
 </style>
 </head>
 
@@ -1104,34 +1132,40 @@ button{cursor:pointer}
 
   <div class="manager-top">
     <div>
+      <div class="team-v2-kicker">MANAGER</div>
       <h2>Team</h2>
-      <p id="teamLocation">Hawthorne</p>
+      <p id="teamLocation" class="team-v2-sub">Hawthorne</p>
     </div>
     <button id="backTeamBtn" class="back-btn">Back</button>
   </div>
 
   <div id="teamMessage" class="message"></div>
 
-  <div class="card">
-    <div class="section-title">Add Staff</div>
+  <div class="card team-add-card">
+    <button id="showAddStaffBtn" class="team-add-toggle">+ Add New Staff</button>
 
-    <label class="field-label" for="newStaffName">Name</label>
-    <input id="newStaffName" class="input" type="text" autocomplete="off" placeholder="Staff name">
+    <div id="addStaffPanel" class="team-add-form hidden">
+      <label class="field-label" for="newStaffName">Name</label>
+      <input id="newStaffName" class="input" type="text" autocomplete="off" placeholder="Staff name">
 
-    <label class="field-label" for="newStaffDepartment">Department</label>
-    <select id="newStaffDepartment" class="input">
-      <option value="Kitchen">Kitchen</option>
-      <option value="Floor">Floor</option>
-    </select>
+      <label class="field-label" for="newStaffDepartment">Department</label>
+      <select id="newStaffDepartment" class="input">
+        <option value="Kitchen">Kitchen</option>
+        <option value="Floor">Floor</option>
+      </select>
 
-    <label class="field-label" for="newStaffPin">PIN</label>
-    <input id="newStaffPin" class="input" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="4–6 numbers">
+      <label class="field-label" for="newStaffPin">PIN</label>
+      <input id="newStaffPin" class="input" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="4–6 numbers">
 
-    <button id="addStaffBtn" class="btn primary">Add Staff</button>
+      <button id="addStaffBtn" class="btn primary">Add Staff</button>
+    </div>
   </div>
 
-  <div class="card">
-    <div class="section-title">Hawthorne Team</div>
+  <div class="card team-list-card">
+    <div class="team-list-head">
+      <div class="section-title">Hawthorne Team</div>
+      <div id="teamV2Count" class="team-count">Loading…</div>
+    </div>
     <div id="teamList" class="empty-state">Loading team...</div>
   </div>
 
@@ -1377,6 +1411,15 @@ document.getElementById("newStaffPin");
 
 const addStaffBtn =
 document.getElementById("addStaffBtn");
+
+const showAddStaffBtn =
+document.getElementById("showAddStaffBtn");
+
+const addStaffPanel =
+document.getElementById("addStaffPanel");
+
+const teamV2Count =
+document.getElementById("teamV2Count");
 
 const managerLogoutBtn =
 document.getElementById("managerLogoutBtn");
@@ -4354,6 +4397,7 @@ function renderTeamMember(person) {
   const isGeneralManager = currentManagerRole === "manager";
   const canEditThisPerson = !isManager || isGeneralManager;
   const statusText = person.active ? "ACTIVE" : "INACTIVE";
+  const statusDotClass = person.active ? "active" : "";
   const actionText = person.active ? "Deactivate" : "Activate";
 
   const roleLabel =
@@ -4372,11 +4416,11 @@ function renderTeamMember(person) {
         <div class="person-meta">
           ${escapeHtml(person.department || "")}
           · ${escapeHtml(roleLabel)}
-          · ${statusText}
+          · <span class="team-status-dot ${statusDotClass}"></span>${statusText}
         </div>
       </div>
 
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+      <div class="team-person-actions">
         ${isManager ? `<div class="hours-pill">Manager</div>` : ""}
         ${
           canEditThisPerson
@@ -4495,6 +4539,11 @@ async function loadTeamScreen() {
 
     teamLocation.textContent =
       data?.manager?.location || "Hawthorne";
+
+    if (teamV2Count) {
+      teamV2Count.textContent =
+        team.length === 1 ? "1 member" : `${team.length} members`;
+    }
 
     // Restricted managers get one fixed department only.
     if (ownDepartment) {
@@ -4638,6 +4687,17 @@ async function loadTeamScreen() {
 
 }
 
+showAddStaffBtn?.addEventListener("click", () => {
+  const opening = addStaffPanel?.classList.contains("hidden");
+  addStaffPanel?.classList.toggle("hidden");
+  if (showAddStaffBtn) {
+    showAddStaffBtn.textContent = opening ? "Close Add Staff" : "+ Add New Staff";
+  }
+  if (opening) {
+    setTimeout(() => newStaffName?.focus(), 50);
+  }
+});
+
 teamCard.addEventListener("click", async () => {
   managerScreen.classList.add("hidden");
   approvalsScreen.classList.add("hidden");
@@ -4691,6 +4751,8 @@ addStaffBtn.addEventListener("click", async () => {
         : "Kitchen";
 
     teamMessage.textContent = "Staff added successfully.";
+    addStaffPanel?.classList.add("hidden");
+    if (showAddStaffBtn) showAddStaffBtn.textContent = "+ Add New Staff";
     await loadTeamScreen();
     await loadManagerDashboard();
 
