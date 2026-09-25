@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Marinara Hours">
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="manifest" href="./manifest.webmanifest">
 <title>Marinara Hours</title>
 
 <style>
@@ -4567,16 +4567,6 @@ exportTimesheetsPdfBtn.addEventListener("click", () => {
     setTimeout(() => window.print(), 250);
   });
 <\/script>
-
-<script>
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(error => {
-      console.error("Service worker registration failed:", error);
-    });
-  });
-}
-</script>
 </body>
 </html>`);
   printWindow.document.close();
