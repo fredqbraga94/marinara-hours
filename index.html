@@ -849,6 +849,10 @@ button{cursor:pointer}
 .staff-profile-signout{margin-top:14px;min-height:52px;background:#fff;border:1px solid #efd7d7;color:#b63c3c;font-weight:850}
 .staff-profile-signout:hover{background:#fff6f6}
 
+
+/* ===== MANAGER HOME V2 ===== */
+.manager-v2{padding-bottom:88px}.manager-v2-hero{margin:2px 0 18px}.manager-v2-eyebrow{color:var(--green);font-size:11px;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:7px}.manager-v2-greeting{margin:0;font-size:29px;line-height:1.08;letter-spacing:-.7px}.manager-v2-role{margin-top:7px;color:var(--muted);font-size:13px}.manager-v2 .summary-grid{gap:10px}.manager-v2 .summary-card{position:relative;overflow:hidden;border:1px solid rgba(31,107,69,.08);padding:18px}.manager-v2 .summary-card:after{content:"";position:absolute;width:80px;height:80px;border-radius:50%;right:-35px;top:-35px;background:var(--green-light)}.manager-v2 .summary-number{position:relative;z-index:1;font-size:32px}.manager-v2 .summary-label{position:relative;z-index:1;color:var(--text);font-size:12px;font-weight:850}.manager-summary-sub{position:relative;z-index:1;color:var(--muted);font-size:10px;margin-top:4px}.manager-v2-section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}.manager-v2-section-head .section-title{margin:0}.manager-v2-link{border:0;background:transparent;color:var(--green);font-size:12px;font-weight:850;padding:6px}.manager-v2 .card{border:1px solid rgba(31,107,69,.07)}.manager-v2 .person-row{padding:14px 0}.manager-v2 .person-name{font-size:14px}.manager-v2 .hours-pill{font-size:11px}.manager-quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.manager-quick-card{border:1px solid var(--border);background:#fafbfa;border-radius:18px;padding:16px;text-align:left;min-height:92px;color:var(--text)}.manager-quick-icon{width:32px;height:32px;border-radius:10px;background:var(--green-light);color:var(--green);display:flex;align-items:center;justify-content:center;font-weight:900;margin-bottom:10px}.manager-quick-card strong{display:block;font-size:14px}.manager-quick-card span{display:block;color:var(--muted);font-size:10px;line-height:1.35;margin-top:4px}.manager-v2-signout{width:auto;min-height:40px;padding:9px 12px;border-radius:13px;background:transparent;border:1px solid var(--border);color:var(--danger);font-size:12px;font-weight:800}.manager-bottom-nav{position:fixed;z-index:45;left:50%;bottom:0;transform:translateX(-50%);width:min(480px,100%);display:grid;grid-template-columns:repeat(4,1fr);padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:rgba(255,255,255,.97);border-top:1px solid var(--border);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}.manager-nav-item{border:0;background:transparent;min-height:52px;border-radius:14px;color:var(--muted);font-size:10px;font-weight:800;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}.manager-nav-item.active{color:var(--green);background:var(--green-light)}.manager-nav-icon{font-size:17px;line-height:1}
+
 </style>
 </head>
 
@@ -968,211 +972,31 @@ button{cursor:pointer}
 </section>
 
 <!-- MANAGER DASHBOARD -->
-
-<section id="managerScreen" class="hidden">
-
-  <div class="manager-top">
-
-    <div>
-      <h2>Manager Dashboard</h2>
-      <p id="managerLocation">Hawthorne</p>
-    </div>
-
-    <button
-      id="managerLogoutBtn"
-      class="btn secondary small-btn"
-    >
-      Sign Out
-    </button>
-
+<section id="managerScreen" class="hidden manager-v2">
+  <div class="manager-v2-hero">
+    <div class="manager-v2-eyebrow">MARINARA HOURS</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+      <div><h2 id="managerGreeting" class="manager-v2-greeting">Good morning</h2><div id="managerRoleLine" class="manager-v2-role">General Manager · Hawthorne</div></div>
+      <button id="managerLogoutBtn" class="manager-v2-signout">Sign Out</button>
+    </div><p id="managerLocation" class="hidden">Hawthorne</p>
   </div>
-
   <div id="managerMessage" class="message"></div>
-
   <div class="summary-grid">
-
-    <div class="summary-card">
-
-      <div
-        id="workingNowCount"
-        class="summary-number"
-      >
-        0
-      </div>
-
-      <div class="summary-label">
-        Working now
-      </div>
-
-    </div>
-
-    <div class="summary-card">
-
-      <div
-        id="pendingCount"
-        class="summary-number"
-      >
-        0
-      </div>
-
-      <div class="summary-label">
-        Pending approvals
-      </div>
-
-    </div>
-
+    <div class="summary-card"><div id="workingNowCount" class="summary-number">0</div><div class="summary-label">Working Now</div><div class="manager-summary-sub">Currently on shift</div></div>
+    <div class="summary-card"><div id="pendingCount" class="summary-number">0</div><div class="summary-label">Pending Approvals</div><div class="manager-summary-sub">Needs your review</div></div>
   </div>
-
-
-  <div class="card">
-
-    <div class="section-title">
-      Who's Working
-    </div>
-
-    <div
-      id="workingList"
-      class="empty-state"
-    >
-      Loading...
-    </div>
-
-  </div>
-
-
-  <div class="card">
-
-    <div class="section-title">
-      Staff Hours · This Week
-    </div>
-
-    <div
-      id="hoursList"
-      class="empty-state"
-    >
-      Loading...
-    </div>
-
-  </div>
-
-
-  <div class="card">
-
-    <div class="section-title">
-      Management
-    </div>
-
-    <div class="menu-grid">
-
-      <button id="staffHoursCard" class="menu-card">
-        <strong>Staff Hours</strong>
-        <span>Weekly hours and shifts</span>
-      </button>
-
-      <button
-        id="approvalsCard"
-        class="menu-card"
-      >
-        <strong>Approvals</strong>
-
-        <span id="approvalsText">
-          Review completed shifts
-        </span>
-
-      </button>
-
-      <button id="teamCard" class="menu-card">
-        <strong>Team</strong>
-
-        <span id="teamText">
-          Active Hawthorne staff
-        </span>
-      </button>
-
-      <button id="timesheetsCard" class="menu-card">
-        <strong>Timesheets</strong>
-        <span>Weekly timesheets</span>
-      </button>
-
-      <button
-        id="myClockCard"
-        class="menu-card"
-      >
-        <strong>My Time Clock</strong>
-        <span>Clock in, break and clock out</span>
-      </button>
-
-    </div>
-
-  </div>
-
-
-  <div
-    id="managerClockSection"
-    class="hidden"
-  >
-
-    <div class="card">
-
-      <div class="section-title">
-        My Time Clock
-      </div>
-
-      <div class="status">
-
-        <div class="status-label">
-          Current status
-        </div>
-
-        <div
-          id="managerStatusValue"
-          class="status-value"
-        >
-          Off shift
-        </div>
-
-      </div>
-
-      <button
-        id="managerClockInBtn"
-        class="btn primary hidden"
-      >
-        Clock In
-      </button>
-
-      <button
-        id="managerStartBreakBtn"
-        class="btn secondary hidden"
-      >
-        Start Break
-      </button>
-
-      <button
-        id="managerEndBreakBtn"
-        class="btn primary hidden"
-      >
-        End Break
-      </button>
-
-      <button
-        id="managerClockOutBtn"
-        class="btn danger hidden"
-      >
-        Clock Out
-      </button>
-
-      <div
-        id="managerActionMessage"
-        class="message"
-      ></div>
-
-    </div>
-
-  </div>
-
+  <div class="card"><div class="manager-v2-section-head"><div class="section-title">Who's Working</div><button id="managerWorkingViewAll" class="manager-v2-link" type="button">View team</button></div><div id="workingList" class="empty-state">Loading...</div></div>
+  <div class="card"><div class="manager-v2-section-head"><div class="section-title">This Week</div><button id="managerHoursViewAll" class="manager-v2-link" type="button">Staff Hours</button></div><div id="hoursList" class="empty-state">Loading...</div></div>
+  <div class="card"><div class="section-title">Quick Actions</div><div class="manager-quick-grid">
+    <button id="approvalsCard" class="manager-quick-card"><div class="manager-quick-icon">✓</div><strong>Approvals</strong><span id="approvalsText">Review completed shifts</span></button>
+    <button id="staffHoursCard" class="manager-quick-card"><div class="manager-quick-icon">◷</div><strong>Staff Hours</strong><span>Weekly hours and shifts</span></button>
+    <button id="teamCard" class="manager-quick-card"><div class="manager-quick-icon">◎</div><strong>Team</strong><span id="teamText">Active Hawthorne staff</span></button>
+    <button id="timesheetsCard" class="manager-quick-card"><div class="manager-quick-icon">▤</div><strong>Timesheets</strong><span>Weekly timesheets & PDF</span></button>
+    <button id="myClockCard" class="manager-quick-card"><div class="manager-quick-icon">◉</div><strong>My Time Clock</strong><span>Clock in, break and clock out</span></button>
+  </div></div>
+  <div id="managerClockSection" class="hidden"><div class="card"><div class="section-title">My Time Clock</div><div class="status"><div class="status-label">Current status</div><div id="managerStatusValue" class="status-value">Off shift</div></div><button id="managerClockInBtn" class="btn primary hidden">Clock In</button><button id="managerStartBreakBtn" class="btn secondary hidden">Start Break</button><button id="managerEndBreakBtn" class="btn primary hidden">End Break</button><button id="managerClockOutBtn" class="btn danger hidden">Clock Out</button><div id="managerActionMessage" class="message"></div></div></div>
+  <nav id="managerBottomNav" class="manager-bottom-nav"><button type="button" class="manager-nav-item active" data-manager-nav="home"><span class="manager-nav-icon">⌂</span><span>Home</span></button><button type="button" class="manager-nav-item" data-manager-nav="approvals"><span class="manager-nav-icon">✓</span><span>Approvals</span></button><button type="button" class="manager-nav-item" data-manager-nav="team"><span class="manager-nav-icon">◎</span><span>Team</span></button><button type="button" class="manager-nav-item" data-manager-nav="more"><span class="manager-nav-icon">•••</span><span>More</span></button></nav>
 </section>
-
-
 
 <!-- STAFF HOURS SCREEN -->
 <section id="staffHoursScreen" class="hidden">
@@ -1454,6 +1278,12 @@ document.getElementById("managerLocation");
 
 const managerMessage =
 document.getElementById("managerMessage");
+
+const managerGreeting=document.getElementById("managerGreeting");
+const managerRoleLine=document.getElementById("managerRoleLine");
+const managerBottomNav=document.getElementById("managerBottomNav");
+const managerWorkingViewAll=document.getElementById("managerWorkingViewAll");
+const managerHoursViewAll=document.getElementById("managerHoursViewAll");
 
 const workingNowCount =
 document.getElementById("workingNowCount");
@@ -2287,6 +2117,16 @@ async function loadManagerDashboard() {
 
     currentManagerRole =
       dashboard.manager?.role || currentManagerRole || "manager";
+
+    let managerIdentity = {};
+    try { managerIdentity = JSON.parse(sessionStorage.getItem("marinara_staff_identity") || "{}"); } catch (_) {}
+    const managerName = managerIdentity.name || dashboard.manager?.name || "Manager";
+    const firstName = String(managerName).trim().split(/\s+/)[0] || "Manager";
+    const hour = Number(new Intl.DateTimeFormat("en-AU",{timeZone:"Australia/Brisbane",hour:"2-digit",hour12:false}).format(new Date()));
+    const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    if (managerGreeting) managerGreeting.textContent = greeting + ", " + firstName;
+    const roleLabel = currentManagerRole === "kitchen_manager" ? "Kitchen Manager" : currentManagerRole === "floor_manager" ? "Floor Manager" : "General Manager";
+    if (managerRoleLine) managerRoleLine.textContent = roleLabel + " · " + (dashboard.location || "Hawthorne");
 
     const counts =
       dashboard.counts || {};
@@ -4870,6 +4710,11 @@ backDashboardBtn.addEventListener(
   }
 );
 
+
+/* MANAGER V2 NAVIGATION */
+managerWorkingViewAll?.addEventListener("click",()=>teamCard?.click());
+managerHoursViewAll?.addEventListener("click",()=>staffHoursCard?.click());
+managerBottomNav?.addEventListener("click",event=>{const button=event.target.closest("[data-manager-nav]");if(!button)return;const target=button.dataset.managerNav;if(target==="home"){window.scrollTo({top:0,behavior:"smooth"});return}if(target==="approvals"){approvalsCard?.click();return}if(target==="team"){teamCard?.click();return}if(target==="more"){const quick=document.querySelector("#managerScreen .manager-quick-grid");if(quick)quick.scrollIntoView({behavior:"smooth",block:"center"})}});
 
 /* SIGN OUT */
 
