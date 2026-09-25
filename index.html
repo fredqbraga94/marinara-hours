@@ -5027,7 +5027,16 @@ managerBottomNav?.addEventListener("click",event=>{
   }
 
   if(target==="approvals"){
-    approvalsCard?.click();
+    // Direct navigation fixes the Team → Approvals transition.
+    managerScreen.classList.add("hidden");
+    teamScreen.classList.add("hidden");
+    staffHoursScreen.classList.add("hidden");
+    timesheetsScreen.classList.add("hidden");
+    managerMoreScreen?.classList.add("hidden");
+    approvalsScreen.classList.remove("hidden");
+    setManagerNavActive("approvals");
+    window.scrollTo({top:0,behavior:"smooth"});
+    loadApprovals();
     return;
   }
 
