@@ -5132,6 +5132,61 @@ moreMyClockBtn?.addEventListener("click", async () => {
 
 moreSignOutBtn?.addEventListener("click", () => signOutAll());
 
+/* CROSS-DEVICE AUTO REFRESH */
+
+let autoRefreshBusy = false;
+
+async function syncCurrentView() {
+  if (!currentSessionToken || autoRefreshBusy || document.hidden) return;
+
+  autoRefreshBusy = true;
+
+  try {
+    let identity = {};
+    try {
+      identity = JSON.parse(
+        sessionStorage.getItem("marinara_staff_identity") || "{}"
+      );
+    } catch (_) {}
+
+    const role =
+      identity.role ||
+      currentData?.role ||
+      currentManagerRole ||
+      "staff";
+
+    const isManager =
+      ["manager", "kitchen_manager", "floor_manager"].includes(role);
+
+    // Refresh this user's current clock state.
+    await refreshStatus();
+
+    // Keep the manager dashboard fresh when it is on screen.
+    if (isManager && !managerScreen.classList.contains("hidden")) {
+      await loadManagerDashboard();
+    }
+  } catch (error) {
+    // Background refresh must never interrupt normal clock use.
+    console.debug(
+      "Background sync skipped:",
+      error?.message || error
+    );
+  } finally {
+    autoRefreshBusy = false;
+  }
+}
+
+// Sync open devices every 5 seconds.
+setInterval(syncCurrentView, 5000);
+
+// Sync immediately when returning to the app.
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) syncCurrentView();
+});
+
+window.addEventListener("focus", syncCurrentView);
+
+
 /* SIGN OUT */
 
 async function signOutAll() {
