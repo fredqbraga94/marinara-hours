@@ -3898,7 +3898,13 @@ function timesheetTimeLabel(value) {
 }
 
 function timesheetBreakMinutes(shift) {
-  const breaks = shift.breaks || [];
+  const serverMinutes = Number(shift?.break_minutes);
+
+  if (Number.isFinite(serverMinutes) && serverMinutes >= 0) {
+    return Math.round(serverMinutes);
+  }
+
+  const breaks = shift?.breaks || [];
 
   return Math.round(
     breaks.reduce((total, item) => {
