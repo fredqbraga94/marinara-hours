@@ -990,6 +990,7 @@ button{cursor:pointer}
   .login-pin-card{padding:18px}.login-key{min-height:50px}.login-footer-mark{margin-top:14px}
 }
 
+.reopen-shift-action{display:inline-flex;align-items:center;justify-content:center;margin-top:10px;padding:8px 11px;border:1px solid #1f6b45;border-radius:11px;background:white;color:#1f6b45;font-size:11px;font-weight:850;cursor:pointer}.reopen-shift-action[aria-disabled="true"]{opacity:.55;pointer-events:none}
 </style>
 </head>
 
@@ -2613,6 +2614,7 @@ async function loadStaffHours(weekDate = null) {
                   <div class="shift-detail"><div class="shift-detail-label">Break</div><div class="shift-detail-value">${Number(shift.break_minutes || 0)} min</div></div>
                   <div class="shift-detail"><div class="shift-detail-label">Total</div><div class="shift-detail-value">${formatHours(shift.hours)}</div></div>
                 </div>
+                ${shift.approved ? `<span class="reopen-shift-action" role="button" tabindex="0" data-reopen-shift="${escapeHtml(shift.shift_id)}">Reopen Shift</span>` : ""}
               </div>
             `).join("")}
           </div>
@@ -2634,6 +2636,39 @@ async function loadStaffHours(weekDate = null) {
     nextWeekBtn.disabled = false;
   }
 }
+
+async function reopenApprovedShift(shiftId, control) {
+  if (!shiftId || !control || control.getAttribute("aria-disabled") === "true") return;
+  if (!window.confirm("Reopen this approved shift? It will return to Pending so you can edit, delete or approve it again.")) return;
+  const oldText = control.textContent;
+  control.setAttribute("aria-disabled", "true");
+  control.textContent = "Reopening...";
+  try {
+    await managerApi("manager_reopen_shift", {shift_id: shiftId});
+    await loadStaffHours(selectedStaffWeek || undefined);
+    await loadManagerDashboard();
+    showMessage(staffHoursMessage, "Shift reopened. It is now Pending and can be edited or deleted in Approvals.", "ok");
+  } catch (error) {
+    control.removeAttribute("aria-disabled");
+    control.textContent = oldText;
+    showMessage(staffHoursMessage, error.message || "Unable to reopen shift.", "error");
+  }
+}
+staffHoursList.addEventListener("click", event => {
+  const control = event.target.closest("[data-reopen-shift]");
+  if (!control) return;
+  event.preventDefault();
+  event.stopPropagation();
+  reopenApprovedShift(control.dataset.reopenShift, control);
+});
+staffHoursList.addEventListener("keydown", event => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const control = event.target.closest("[data-reopen-shift]");
+  if (!control) return;
+  event.preventDefault();
+  event.stopPropagation();
+  reopenApprovedShift(control.dataset.reopenShift, control);
+});
 
 /* APPROVALS */
 
