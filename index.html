@@ -991,6 +991,7 @@ button{cursor:pointer}
 }
 
 .reopen-shift-action{display:inline-flex;align-items:center;justify-content:center;margin-top:10px;padding:8px 11px;border:1px solid #1f6b45;border-radius:11px;background:white;color:#1f6b45;font-size:11px;font-weight:850;cursor:pointer}.reopen-shift-action[aria-disabled="true"]{opacity:.55;pointer-events:none}
+.manager-staff-clockout{padding:8px 12px;border:1px solid #1f6b45;border-radius:10px;background:#fff;color:#1f6b45;font-size:12px;font-weight:800;cursor:pointer}.manager-staff-clockout:disabled{opacity:.5}
 </style>
 </head>
 
@@ -2330,6 +2331,38 @@ function renderManagerClock(status) {
 
 /* DASHBOARD */
 
+function brisbaneDateTimeValue(date) {
+  const pieces = new Intl.DateTimeFormat("en-GB",{timeZone:"Australia/Brisbane",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(date);
+  const get = type => pieces.find(p => p.type === type)?.value || "";
+  return get("year")+"-"+get("month")+"-"+get("day")+"T"+get("hour")+":"+get("minute");
+}
+workingList.addEventListener("click",async event => {
+  const button = event.target.closest("[data-close-shift]");
+  if (!button || button.disabled) return;
+  const name = button.dataset.closeName;
+  const shiftId = button.dataset.closeShift;
+  const entered = window.prompt("Actual Clock Out for "+name+" (Brisbane time YYYY-MM-DD HH:MM):",brisbaneDateTimeValue(new Date()).replace("T"," "));
+  if (entered === null) return;
+  const value = entered.trim().replace(" ","T");
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) {
+    window.alert("Enter YYYY-MM-DD HH:MM"); return;
+  }
+  const when = new Date(value+":00+10:00");
+  if (!Number.isFinite(when.getTime()) || brisbaneDateTimeValue(when) !== value) {
+    window.alert("Invalid Brisbane date or time"); return;
+  }
+  if (!window.confirm("Close "+name+"'s shift at "+entered+"? The shift will remain pending approval.")) return;
+  button.disabled = true; button.textContent = "Closing...";
+  try {
+    await managerApi("manager_clock_out_staff",{shift_id:shiftId,clock_out:when.toISOString()});
+    await loadManagerDashboard();
+    showMessage(managerMessage,"Staff shift closed. Pending approval.","ok");
+  } catch(error) {
+    button.disabled = false; button.textContent = "Clock Out";
+    showMessage(managerMessage,error.message || "Unable to close shift.","error");
+  }
+});
+
 async function loadManagerDashboard() {
 
   clearMessage(
@@ -2437,10 +2470,9 @@ async function loadManagerDashboard() {
 
             </div>
 
-            <div class="hours-pill">
-              ${formatHours(
-                person.hours_so_far
-              )}
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+              <div class="hours-pill">${formatHours(person.hours_so_far)}</div>
+              <button type="button" class="manager-staff-clockout" data-close-shift="${escapeHtml(person.shift_id)}" data-close-name="${escapeHtml(person.name)}">Clock Out</button>
             </div>
 
           </div>
