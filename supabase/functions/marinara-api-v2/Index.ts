@@ -18,115 +18,71 @@ function json(data: unknown, status = 200) {
 }
 
 
-const MAX_PIN_ATTEMPTS = 5;
+// PIN brute-force protection.
+// Every login attempt is reserved atomically in the database BEFORE the
+// PIN is checked (public.pin_attempt_reserve), so wrong PINs always count
+// and parallel requests cannot exceed the limit.
+//  - per device/network key: a few attempts, so one person's typos never
+//    lock the whole restaurant;
+//  - global key: hard ceiling across all devices against distributed guessing.
+const PIN_DEVICE_MAX_ATTEMPTS = 8;
+const PIN_GLOBAL_MAX_ATTEMPTS = 40;
+const PIN_WINDOW_MINUTES = 10;
 const PIN_LOCK_MINUTES = 10;
 
-// This is intentionally a global PIN-entry guard for this first production
-// hardening step. It never stores the PIN itself.
+// Existing global row in public.pin_attempts (kept for continuity).
 const PIN_ATTEMPT_KEY = "hawthorne-pin-entry";
 
-async function getPinAttemptState(supabase: any) {
-  const { data, error } = await supabase
-    .from("pin_attempts")
-    .select("failed_attempts, locked_until, last_attempt_at")
-    .eq("attempt_key", PIN_ATTEMPT_KEY)
-    .maybeSingle();
+async function pinDeviceKey(req: Request) {
+  const forwarded =
+    req.headers.get("x-forwarded-for") || "";
 
-  if (error) throw error;
+  const ip =
+    forwarded.split(",")[0].trim() ||
+    req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-real-ip") ||
+    "unknown";
 
-  return data || {
-    failed_attempts: 0,
-    locked_until: null,
-    last_attempt_at: null,
-  };
+  // Only a hash is stored, never the address itself.
+  return "ip:" + (await sha256Hex("marinara-pin:" + ip)).slice(0, 40);
 }
 
-async function checkPinLock(supabase: any) {
-  const state = await getPinAttemptState(supabase);
-
-  if (!state.locked_until) {
-    return { locked: false, retry_after_seconds: 0 };
-  }
-
-  const remainingMs =
-    new Date(state.locked_until).getTime() - Date.now();
-
-  if (remainingMs <= 0) {
-    await supabase
-      .from("pin_attempts")
-      .upsert(
-        {
-          attempt_key: PIN_ATTEMPT_KEY,
-          failed_attempts: 0,
-          locked_until: null,
-          last_attempt_at: new Date().toISOString(),
-        },
-        { onConflict: "attempt_key" }
-      );
-
-    return { locked: false, retry_after_seconds: 0 };
-  }
-
-  return {
-    locked: true,
-    retry_after_seconds: Math.ceil(remainingMs / 1000),
-  };
-}
-
-async function recordFailedPin(supabase: any) {
-  const state = await getPinAttemptState(supabase);
-  const nextFailedAttempts =
-    Number(state.failed_attempts || 0) + 1;
-
-  const shouldLock =
-    nextFailedAttempts >= MAX_PIN_ATTEMPTS;
-
-  const lockedUntil = shouldLock
-    ? new Date(
-        Date.now() +
-          PIN_LOCK_MINUTES * 60 * 1000
-      ).toISOString()
-    : null;
-
-  const { error } = await supabase
-    .from("pin_attempts")
-    .upsert(
-      {
-        attempt_key: PIN_ATTEMPT_KEY,
-        failed_attempts: shouldLock
-          ? MAX_PIN_ATTEMPTS
-          : nextFailedAttempts,
-        locked_until: lockedUntil,
-        last_attempt_at: new Date().toISOString(),
-      },
-      { onConflict: "attempt_key" }
-    );
+async function reservePinAttempt(
+  supabase: any,
+  key: string,
+  maxAttempts: number
+) {
+  const { data, error } = await supabase.rpc(
+    "pin_attempt_reserve",
+    {
+      p_key: key,
+      p_max: maxAttempts,
+      p_window_minutes: PIN_WINDOW_MINUTES,
+      p_lock_minutes: PIN_LOCK_MINUTES,
+    }
+  );
 
   if (error) throw error;
 
   return {
-    locked: shouldLock,
-    attempts_remaining: shouldLock
-      ? 0
-      : MAX_PIN_ATTEMPTS - nextFailedAttempts,
-    retry_after_seconds: shouldLock
-      ? PIN_LOCK_MINUTES * 60
-      : 0,
+    allowed: data?.allowed === true,
+    remaining: Number(data?.remaining ?? 0),
+    retry_after_seconds: Number(data?.retry_after_seconds ?? 0),
   };
 }
 
-async function clearFailedPins(supabase: any) {
-  const { error } = await supabase
-    .from("pin_attempts")
-    .upsert(
-      {
-        attempt_key: PIN_ATTEMPT_KEY,
-        failed_attempts: 0,
-        locked_until: null,
-        last_attempt_at: new Date().toISOString(),
-      },
-      { onConflict: "attempt_key" }
-    );
+async function releasePinAttempt(
+  supabase: any,
+  key: string,
+  clear: boolean
+) {
+  const { error } = await supabase.rpc(
+    "pin_attempt_release",
+    {
+      p_key: key,
+      p_clear: clear,
+    }
+  );
 
   if (error) throw error;
 }
@@ -852,126 +808,131 @@ Deno.serve(async (req) => {
 
 
     // =========================
-    // PIN ATTEMPT PROTECTION
-    // =========================
-
-    // Only check the PIN lock when this request is actually using a PIN.
-    if (pin) {
-    try {
-      const pinLock =
-        await checkPinLock(supabase);
-
-      if (pinLock.locked) {
-        return pinLockedResponse(
-          pinLock.retry_after_seconds
-        );
-      }
-    } catch (pinProtectionError) {
-      console.error(
-        "PIN protection check error:",
-        pinProtectionError
-      );
-
-      return json(
-        { error: "Unable to validate PIN safely" },
-        500
-      );
-    }
-    }
-
-
-    // =========================
-    // NORMAL TIME CLOCK ACTIONS
+    // LOGIN (PIN -> secure session)
     // =========================
 
     // Production rule:
     // PIN is used only to establish a secure session.
     // All time-clock operations use the session_* token routes above.
-    const staffActions: Record<
-      string,
-      {
-        functionName: string;
-        parameterName: string;
-      }
-    > = {
-      login: {
-        functionName: "login_with_pin",
-        parameterName: "p_pin",
-      },
-    };
+    if (action === "login") {
 
-    const selectedAction =
-      staffActions[action];
-
-    if (selectedAction) {
-
-      const { data, error } =
-        await supabase.rpc(
-          selectedAction.functionName,
-          {
-            [selectedAction.parameterName]:
-              pin,
-          }
-        );
-
-      if (error) {
-
-        console.error(
-          `${selectedAction.functionName} RPC error:`,
-          error.message
-        );
-
-        if (
-          error.message.includes(
-            "INVALID_PIN"
-          ) ||
-          error.message
-            .toLowerCase()
-            .includes("invalid pin")
-        ) {
-
-          try {
-            const failure =
-              await recordFailedPin(supabase);
-
-            if (failure.locked) {
-              return pinLockedResponse(
-                failure.retry_after_seconds
-              );
-            }
-
-            return json(
-              {
-                error: "Invalid PIN",
-                attempts_remaining:
-                  failure.attempts_remaining,
-              },
-              401
-            );
-          } catch (pinProtectionError) {
-            console.error(
-              "PIN protection write error:",
-              pinProtectionError
-            );
-
-            return json(
-              { error: "Invalid PIN" },
-              401
-            );
-          }
-        }
-
+      if (!/^[0-9]{4,6}$/.test(pin)) {
         return json(
-          {
-            error:
-              "Unable to complete action",
-          },
+          { error: "Enter your 4–6 digit PIN." },
           400
         );
       }
 
+      let deviceKey = "";
+      let deviceSlot: any = null;
+      let globalSlot: any = null;
+
       try {
-        await clearFailedPins(supabase);
+        deviceKey = await pinDeviceKey(req);
+
+        deviceSlot = await reservePinAttempt(
+          supabase,
+          deviceKey,
+          PIN_DEVICE_MAX_ATTEMPTS
+        );
+
+        if (!deviceSlot.allowed) {
+          return pinLockedResponse(
+            deviceSlot.retry_after_seconds
+          );
+        }
+
+        globalSlot = await reservePinAttempt(
+          supabase,
+          PIN_ATTEMPT_KEY,
+          PIN_GLOBAL_MAX_ATTEMPTS
+        );
+
+        if (!globalSlot.allowed) {
+          // This attempt never reached the PIN check.
+          await releasePinAttempt(supabase, deviceKey, false);
+
+          return pinLockedResponse(
+            globalSlot.retry_after_seconds
+          );
+        }
+      } catch (pinProtectionError) {
+        console.error(
+          "PIN protection check error:",
+          pinProtectionError
+        );
+
+        return json(
+          { error: "Unable to validate PIN safely" },
+          500
+        );
+      }
+
+      const { data, error } =
+        await supabase.rpc(
+          "login_with_pin_v2",
+          { p_pin: pin }
+        );
+
+      if (error) {
+        console.error(
+          "login_with_pin_v2 RPC error:",
+          error.message
+        );
+
+        // Server failure, not a wrong PIN: give the attempt back.
+        try {
+          await releasePinAttempt(supabase, deviceKey, false);
+          await releasePinAttempt(supabase, PIN_ATTEMPT_KEY, false);
+        } catch (releaseError) {
+          console.error("PIN attempt release error:", releaseError);
+        }
+
+        return json(
+          { error: "Unable to complete action" },
+          500
+        );
+      }
+
+      const matches =
+        Array.isArray(data)
+          ? data
+          : data
+            ? [data]
+            : [];
+
+      if (matches.length === 0) {
+        return json(
+          {
+            error: "Invalid PIN",
+            attempts_remaining: Math.min(
+              deviceSlot.remaining,
+              globalSlot.remaining
+            ),
+          },
+          401
+        );
+      }
+
+      if (matches.length > 1) {
+        // Never guess which person this is.
+        console.error(
+          "Login refused: PIN matches more than one active account"
+        );
+
+        return json(
+          {
+            error:
+              "This PIN can't be used. Ask a manager to set a new PIN for you.",
+            code: "PIN_NOT_UNIQUE",
+          },
+          409
+        );
+      }
+
+      try {
+        await releasePinAttempt(supabase, deviceKey, true);
+        await releasePinAttempt(supabase, PIN_ATTEMPT_KEY, false);
       } catch (pinProtectionError) {
         console.error(
           "PIN protection reset error:",
@@ -979,84 +940,46 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (action === "login") {
-        function extractStaffId(value: any): string | null {
-          if (!value) return null;
+      const staffId =
+        typeof matches[0]?.staff_id === "string"
+          ? matches[0].staff_id
+          : "";
 
-          if (Array.isArray(value)) {
-            for (const item of value) {
-              const found = extractStaffId(item);
-              if (found) return found;
-            }
-            return null;
-          }
+      if (!staffId) {
+        console.error(
+          "Unable to create session: login response has no staff ID"
+        );
 
-          if (typeof value === "object") {
-            if (typeof value.staff_id === "string" && value.staff_id) {
-              return value.staff_id;
-            }
-
-            if (value.staff && typeof value.staff.id === "string" && value.staff.id) {
-              return value.staff.id;
-            }
-
-            if (typeof value.id === "string" && value.id) {
-              return value.id;
-            }
-
-            if (value.data) {
-              const found = extractStaffId(value.data);
-              if (found) return found;
-            }
-          }
-
-          return null;
-        }
-
-        const staffId = extractStaffId(data);
-
-        if (!staffId) {
-          console.error(
-            "Unable to create session: login response has no staff ID"
-          );
-
-          return json(
-            { error: "Unable to create secure session" },
-            500
-          );
-        }
-
-        try {
-          const session =
-            await createStaffSession(
-              supabase,
-              staffId
-            );
-
-          return json({
-            success: true,
-            action,
-            data,
-            session,
-          });
-        } catch (sessionError) {
-          console.error(
-            "Create session error:",
-            sessionError
-          );
-
-          return json(
-            { error: "Unable to create secure session" },
-            500
-          );
-        }
+        return json(
+          { error: "Unable to create secure session" },
+          500
+        );
       }
 
-      return json({
-        success: true,
-        action,
-        data,
-      });
+      try {
+        const session =
+          await createStaffSession(
+            supabase,
+            staffId
+          );
+
+        return json({
+          success: true,
+          action,
+          data: [matches[0]],
+          session,
+        });
+      } catch (sessionError) {
+        console.error(
+          "Create session error:",
+          sessionError
+        );
+
+        return json(
+          { error: "Unable to create secure session" },
+          500
+        );
+      }
     }
 
 
@@ -1089,9 +1012,7 @@ Deno.serve(async (req) => {
           error: "Unknown action",
 
           allowed_actions: [
-            ...Object.keys(
-              staffActions
-            ),
+            "login",
 
             ...Array.from(
               managerActions
