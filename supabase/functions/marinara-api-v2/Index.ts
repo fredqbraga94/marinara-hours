@@ -419,6 +419,125 @@ function getBrisbaneWeekStart() {
   return getBrisbaneWeekRange().week_start;
 }
 
+// =========================
+// LOGIN OBSERVATION (observe-only, phase 3a)
+// Records login outcomes in the function logs so real patterns can be
+// measured before any blocking is switched on. It NEVER changes the login
+// response, never blocks anyone, never writes to the database and never
+// logs a PIN. Any failure here is swallowed.
+// =========================
+
+function runInBackground(task: Promise<unknown>) {
+  const guarded = task.catch((error) => {
+    console.error(
+      "[login-observe] skipped:",
+      error instanceof Error ? error.message : String(error)
+    );
+  });
+
+  try {
+    const runtime = (globalThis as any).EdgeRuntime;
+    if (runtime && typeof runtime.waitUntil === "function") {
+      runtime.waitUntil(guarded);
+    }
+  } catch (_) {
+    // Observation is optional.
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("timeout")), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (error) => { clearTimeout(timer); reject(error); }
+    );
+  });
+}
+
+// Pseudonymous device/network tag: HMAC of the client IP keyed with a
+// server secret, so the address cannot be recovered from the logs.
+async function loginDeviceTag(req: Request, secret: string) {
+  const forwarded = req.headers.get("x-forwarded-for") || "";
+  const ip =
+    forwarded.split(",")[0].trim() ||
+    req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-real-ip") ||
+    "unknown";
+
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode("login-device:" + ip)
+  );
+
+  return bytesToHex(new Uint8Array(signature)).slice(0, 16);
+}
+
+function observeLogin(
+  req: Request,
+  supabase: any,
+  secret: string,
+  pin: string,
+  loginData: unknown
+) {
+  try {
+    const rows =
+      Array.isArray(loginData)
+        ? loginData
+        : loginData
+          ? [loginData]
+          : [];
+
+    const outcome = rows.length === 0 ? "wrong_pin" : "ok";
+
+    runInBackground((async () => {
+      const device = await loginDeviceTag(req, secret);
+
+      if (outcome === "wrong_pin") {
+        console.warn(`[login-observe] outcome=wrong_pin device=${device}`);
+        return;
+      }
+
+      console.log(`[login-observe] outcome=ok device=${device}`);
+
+      // Shared-PIN detection without revealing any PIN: count how many
+      // active accounts match the PIN that was just typed.
+      const { data: matches, error } = await withTimeout(
+        supabase.rpc("pin_match_count", { p_pin: pin }),
+        3000
+      ) as any;
+
+      if (error) {
+        console.warn(
+          `[login-observe] shared-PIN check unavailable: ${error.message}`
+        );
+        return;
+      }
+
+      if (Number(matches) > 1) {
+        console.warn(
+          `[login-observe] outcome=shared_pin matches=${Number(matches)} ` +
+          `staff=${(rows[0] as any)?.staff_id ?? "unknown"}`
+        );
+      }
+    })());
+  } catch (error) {
+    console.error(
+      "[login-observe] skipped:",
+      error instanceof Error ? error.message : String(error)
+    );
+  }
+}
+
 Deno.serve(async (req) => {
 
   if (req.method === "OPTIONS") {
@@ -968,6 +1087,11 @@ Deno.serve(async (req) => {
           },
           400
         );
+      }
+
+      // Observe-only: does not wait, cannot change this response.
+      if (action === "login") {
+        observeLogin(req, supabase, serviceRoleKey, pin, data);
       }
 
       try {
