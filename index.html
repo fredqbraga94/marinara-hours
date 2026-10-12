@@ -2447,6 +2447,10 @@ async function loadManagerDashboard() {
       await managerApi("manager_dashboard"
       );
 
+    // Do not replace the form while a manager is choosing a finish time.
+    // The 5-second background refresh otherwise destroys the open panel.
+    if (workingList.querySelector(".staff-clockout-panel:not(.hidden)")) return;
+
     managerLocation.textContent =
       dashboard.location ||
       "Hawthorne";
