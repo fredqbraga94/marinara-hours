@@ -48,6 +48,17 @@ export async function loadApi(sourcePath) {
   await import(pathToFileURL(file).href);
   if (!handler) throw new Error("Deno.serve was not called");
   return {
+    async callWith(body, headers) {
+      const req = new Request("http://fake/functions/v1/marinara-api-v2", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...headers },
+        body: JSON.stringify(body),
+      });
+      const res = await handler(req);
+      let json = null;
+      try { json = await res.json(); } catch (_) { /* empty */ }
+      return { status: res.status, body: json };
+    },
     async call(body, { ip = "203.0.113.10", method = "POST" } = {}) {
       const req = new Request("http://fake/functions/v1/marinara-api-v2", {
         method,

@@ -429,10 +429,11 @@ function getBrisbaneWeekStart() {
 
 function runInBackground(task: Promise<unknown>) {
   const guarded = task.catch((error) => {
-    console.error(
-      "[login-observe] skipped:",
-      error instanceof Error ? error.message : String(error)
-    );
+    const reason =
+      error instanceof Error && error.message === "timeout"
+        ? "timeout"
+        : "error";
+    console.warn(`[login-observe] skipped: ${reason}`);
   });
 
   try {
@@ -455,15 +456,21 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-// Pseudonymous device/network tag: HMAC of the client IP keyed with a
-// server secret, so the address cannot be recovered from the logs.
+// Pseudonymous network tag for the day: HMAC of the client IP keyed with a
+// server secret, so the address cannot be recovered from the logs. The
+// Brisbane date is part of the input, so tags change every day and cannot be
+// used to follow a device over time. Headers set by the platform proxy are
+// preferred over X-Forwarded-For, which a client can send itself.
 async function loginDeviceTag(req: Request, secret: string) {
-  const forwarded = req.headers.get("x-forwarded-for") || "";
-  const ip =
-    forwarded.split(",")[0].trim() ||
-    req.headers.get("cf-connecting-ip") ||
-    req.headers.get("x-real-ip") ||
-    "unknown";
+  const cf = (req.headers.get("cf-connecting-ip") || "").trim();
+  const real = (req.headers.get("x-real-ip") || "").trim();
+  const forwarded = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+
+  const source = cf ? "cf" : real ? "real" : forwarded ? "xff" : "none";
+  const ip = cf || real || forwarded || "unknown";
+
+  const brisbaneDay =
+    new Date(Date.now() + 10 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
   const key = await crypto.subtle.importKey(
     "raw",
@@ -476,10 +483,13 @@ async function loginDeviceTag(req: Request, secret: string) {
   const signature = await crypto.subtle.sign(
     "HMAC",
     key,
-    new TextEncoder().encode("login-device:" + ip)
+    new TextEncoder().encode("login-device:" + brisbaneDay + ":" + ip)
   );
 
-  return bytesToHex(new Uint8Array(signature)).slice(0, 16);
+  return {
+    tag: bytesToHex(new Uint8Array(signature)).slice(0, 16),
+    source,
+  };
 }
 
 function observeLogin(
@@ -503,11 +513,15 @@ function observeLogin(
       const device = await loginDeviceTag(req, secret);
 
       if (outcome === "wrong_pin") {
-        console.warn(`[login-observe] outcome=wrong_pin device=${device}`);
+        console.warn(
+          `[login-observe] outcome=wrong_pin device=${device.tag} src=${device.source}`
+        );
         return;
       }
 
-      console.log(`[login-observe] outcome=ok device=${device}`);
+      console.log(
+        `[login-observe] outcome=ok device=${device.tag} src=${device.source}`
+      );
 
       // Shared-PIN detection without revealing any PIN: count how many
       // active accounts match the PIN that was just typed.
@@ -517,9 +531,8 @@ function observeLogin(
       ) as any;
 
       if (error) {
-        console.warn(
-          `[login-observe] shared-PIN check unavailable: ${error.message}`
-        );
+        // Fixed text only: database error messages are never copied to logs.
+        console.warn("[login-observe] shared-PIN check unavailable");
         return;
       }
 
@@ -530,11 +543,8 @@ function observeLogin(
         );
       }
     })());
-  } catch (error) {
-    console.error(
-      "[login-observe] skipped:",
-      error instanceof Error ? error.message : String(error)
-    );
+  } catch (_) {
+    console.warn("[login-observe] skipped: error");
   }
 }
 

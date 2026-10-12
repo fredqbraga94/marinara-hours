@@ -162,13 +162,13 @@ describe("B. What is observed (and nothing sensitive)", () => {
     const r = await runScenario(candidate, scenarios["login: wrong PIN"]);
     const lines = observeLines(r.logs);
     assert.equal(lines.length, 1);
-    assert.match(lines[0], /^warn: \[login-observe\] outcome=wrong_pin device=[0-9a-f]{16}$/);
+    assert.match(lines[0], /^warn: \[login-observe\] outcome=wrong_pin device=[0-9a-f]{16} src=xff$/);
   });
 
   test("successful login is recorded; no shared PIN reported for a unique PIN", async () => {
     const r = await runScenario(candidate, scenarios["login: correct PIN"]);
     const lines = observeLines(r.logs);
-    assert.deepEqual(lines.map((l) => l.replace(/device=[0-9a-f]{16}/, "device=X")), ["log: [login-observe] outcome=ok device=X"]);
+    assert.deepEqual(lines.map((l) => l.replace(/device=[0-9a-f]{16}/, "device=X")), ["log: [login-observe] outcome=ok device=X src=xff"]);
   });
 
   test("a PIN shared by two accounts is reported (by staff id, never by PIN), login still works as today", async () => {
@@ -186,6 +186,52 @@ describe("B. What is observed (and nothing sensitive)", () => {
     const tags = observeLines(r.logs).map((l) => l.match(/device=([0-9a-f]{16})/)[1]);
     assert.equal(tags[0], tags[1]);
     assert.notEqual(tags[0], tags[2]);
+  });
+
+  test("a client cannot pick its tag: platform header wins over X-Forwarded-For", async () => {
+    const api = candidate;
+    const db = seed();
+    const runtime = installEdgeRuntime();
+    const logs = captureConsole();
+    try {
+      const call = (headers) => api.callWith({ action: "login", pin: "9999" }, headers);
+      await call({ "cf-connecting-ip": "198.51.100.50", "x-forwarded-for": "1.1.1.1" });
+      await call({ "cf-connecting-ip": "198.51.100.50", "x-forwarded-for": "2.2.2.2" });
+      await runtime.settle();
+    } finally { logs.restore(); }
+    const lines = logs.lines.filter((l) => l.includes("[login-observe]"));
+    const tags = lines.map((l) => l.match(/device=([0-9a-f]{16})/)[1]);
+    assert.equal(tags[0], tags[1], "spoofed X-Forwarded-For does not change the tag");
+    assert.ok(lines.every((l) => l.endsWith("src=cf")));
+    assert.ok(db);
+  });
+
+  test("tags change every day (no long-term tracking of a device)", async () => {
+    const realNow = Date.now;
+    const tagAt = async (ms) => {
+      Date.now = () => ms;
+      const r = await runScenario(candidate, { steps: [{ body: { action: "login", pin: "9999" }, ip: "198.51.100.9" }] });
+      Date.now = realNow;
+      return r.logs.find((l) => l.includes("wrong_pin")).match(/device=([0-9a-f]{16})/)[1];
+    };
+    try {
+      const day1a = await tagAt(Date.parse("2026-10-13T00:30:00Z"));
+      const day1b = await tagAt(Date.parse("2026-10-13T12:00:00Z"));
+      const day2 = await tagAt(Date.parse("2026-10-14T00:30:00Z"));
+      assert.equal(day1a, day1b, "same Brisbane day, same tag");
+      assert.notEqual(day1a, day2, "next Brisbane day, different tag");
+    } finally { Date.now = realNow; }
+  });
+
+  test("database error messages are never copied into the logs", async () => {
+    const r = await runScenario(candidate, {
+      setup: (db) => { db.rpc.pin_match_count = () => { throw new Error("details 5555 SECRET-ERROR-TEXT"); }; },
+      steps: [{ body: { action: "login", pin: "5555" } }],
+    });
+    const text = r.logs.join("\n");
+    assert.ok(text.includes("[login-observe] shared-PIN check unavailable"));
+    assert.ok(!text.includes("SECRET-ERROR-TEXT"));
+    assert.ok(!text.includes("5555"));
   });
 
   test("no PIN, token, IP address or name ever appears in the logs", async () => {
