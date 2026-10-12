@@ -255,6 +255,24 @@ describe("B. What is observed (and nothing sensitive)", () => {
 });
 
 describe("C. Failures of the observation never affect login or the time clock", () => {
+  test("logger failure leaves no rejected background task", async () => {
+    seed();
+    const runtime = installEdgeRuntime();
+    const originalWarn = console.warn;
+    try {
+      console.warn = () => { throw new Error("logger unavailable"); };
+      const response = await candidate.call({ action: "login", pin: "9999" });
+      assert.equal(response.status, 500, "preserve the current wrong-PIN response");
+      assert.ok(runtime.pending.length > 0);
+      const results = await Promise.allSettled(runtime.pending.splice(0));
+      assert.ok(results.every((r) => r.status === "fulfilled"),
+        "observation must swallow logger failures, including its error handler");
+    } finally {
+      console.warn = originalWarn;
+      await runtime.settle();
+    }
+  });
+
   const failures = {
     "shared-PIN function not installed yet (migration not applied)": (db) => { delete db.rpc.pin_match_count; },
     "shared-PIN function throws": (db) => { db.rpc.pin_match_count = () => { throw new Error("boom"); }; },

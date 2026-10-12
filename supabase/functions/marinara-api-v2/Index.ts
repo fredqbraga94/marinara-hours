@@ -433,7 +433,11 @@ function runInBackground(task: Promise<unknown>) {
       error instanceof Error && error.message === "timeout"
         ? "timeout"
         : "error";
-    console.warn(`[login-observe] skipped: ${reason}`);
+    try {
+      console.warn(`[login-observe] skipped: ${reason}`);
+    } catch (_) {
+      // A failed logger must not turn optional observation into a rejection.
+    }
   });
 
   try {
@@ -544,7 +548,11 @@ function observeLogin(
       }
     })());
   } catch (_) {
-    console.warn("[login-observe] skipped: error");
+    try {
+      console.warn("[login-observe] skipped: error");
+    } catch (_) {
+      // Logging is best-effort and must never escape into the login path.
+    }
   }
 }
 
