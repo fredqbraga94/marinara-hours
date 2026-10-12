@@ -82,6 +82,7 @@ async function scenarioRun(browser, api, origin, { name, setup, steps }) {
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   const net = { failNext: null };
+  let activeApi = setup?.session ? baseline : api;
   await page.route("**/*", async (route) => {
     const url = route.request().url();
     if (url.startsWith(origin)) return route.continue();
@@ -90,15 +91,19 @@ async function scenarioRun(browser, api, origin, { name, setup, steps }) {
     if (route.request().method() === "OPTIONS") return route.fulfill({ status: 200, headers: cors, body: "ok" });
     if (net.failNext === "abort") { net.failNext = null; return route.abort("internetdisconnected"); }
     if (net.failNext === "503") { net.failNext = null; return route.fulfill({ status: 503, headers: cors, contentType: "application/json", body: '{"message":"Service Unavailable"}' }); }
-    const r = await api.call(JSON.parse(route.request().postData() || "{}"), { ip: "203.0.113.9" });
+    const r = await activeApi.call(JSON.parse(route.request().postData() || "{}"), { ip: "203.0.113.9" });
     return route.fulfill({ status: r.status, headers: cors, contentType: "application/json", body: JSON.stringify(r.body) });
   });
-  if (setup?.session) {
-    const token = sessionFor(db, setup.session);
-    await page.addInitScript((t) => sessionStorage.setItem("marinara_session_token", t), token);
-  }
   await page.goto(`${origin}/index.html`);
   await page.waitForTimeout(400);
+  if (setup?.session) {
+    // Open the session through v36, then switch only the backend handler.
+    await page.fill("#pinInput", "6666");
+    await page.click("#loginBtn");
+    await page.locator("#homeScreen").waitFor({ state: "visible" });
+    assert.equal(db.tables.staff_sessions.length, 1);
+    activeApi = api;
+  }
   const seen = [];
   if (!steps.length) seen.push({ step: "page load", onLogin: await page.locator("#loginScreen").first().isVisible().catch(() => false), onHome: await page.locator("#homeScreen").first().isVisible().catch(() => false) });
   const text = async (sel) => ((await page.locator(sel).first().textContent().catch(() => "")) || "").replace(/\s+/g, " ").trim();
@@ -123,6 +128,11 @@ async function scenarioRun(browser, api, origin, { name, setup, steps }) {
   await runtime.settle();
   const f1 = db.tables.shifts.filter((s) => s.staff_id === "f1");
   const stored = { shifts: f1.map((s) => s.status), breaks: db.tables.breaks.filter((b) => f1.some((s) => s.id === b.shift_id)).map((b) => !!b.break_end), sessions: db.tables.staff_sessions.length };
+  if (setup?.session) {
+    assert.equal(stored.sessions, 1, "existing session must not require a new login");
+    assert.deepEqual(stored.shifts, ["completed"], "existing v36 session must clock in and out");
+    assert.equal(db.rpcCalls.filter((c) => c.name === "login_with_pin").length, 1);
+  }
   await ctx.close();
   return { name, seen, stored, errors };
 }
@@ -137,7 +147,7 @@ const scenarios = [
     { pin: "6666", label: "during 503", net: "503" }, { pin: "6666", label: "after recovery" }] },
   { name: "Supabase unavailable (503) at Clock Out, then retry", steps: [
     { pin: "6666", label: "correct" }, { click: "#clockInBtn" }, { click: "#clockOutBtn", net: "503" }, { click: "#clockOutBtn" }] },
-  { name: "already-open session keeps working (no new login)", setup: Object.assign(() => {}, { session: "f1" }), steps: [] },
+  { name: "already-open session keeps working (no new login)", setup: Object.assign(() => {}, { session: "f1" }), steps: [{ click: "#clockInBtn" }, { click: "#clockOutBtn" }] },
 ];
 
 const browser = await chromium.launch({ executablePath: CHROME });
