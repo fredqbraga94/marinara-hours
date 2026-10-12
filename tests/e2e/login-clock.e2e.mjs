@@ -17,8 +17,8 @@ import { loadApi, seed, sessionFor, installEdgeRuntime } from "../edge/harness.m
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "../..");
 const require = createRequire(import.meta.url);
-const { chromium, devices } = require(process.env.PLAYWRIGHT_PATH || "/opt/node-tools/node_modules/playwright");
-const CHROME = process.env.CHROME_PATH || "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+const { chromium, devices } = require(process.env.PLAYWRIGHT_PATH || "playwright");
+const CHROME = process.env.CHROME_PATH || chromium.executablePath();
 
 // Realistic time-clock functions (mirror tests/db/schema_snapshot.sql).
 function realisticClock(db) {
