@@ -272,9 +272,80 @@ describe("5. Hours, breaks and Brisbane weeks", () => {
 describe("6. Approvals integrity", () => {
   test("approved shifts cannot be edited or deleted; active shifts cannot be approved", async () => {
     const t = sessionFor(db, "gm");
-    assert.equal((await api.call({ action: "manager_edit_shift", token: t, shift_id: "a0000000-0000-4000-8000-000000000006", clock_in: isoAgo(30), clock_out: isoAgo(21), break_minutes: 0 })).status, 400);
+    const edit = await api.call({ action: "manager_edit_shift", token: t, shift_id: "a0000000-0000-4000-8000-000000000006", clock_in: isoAgo(30), clock_out: isoAgo(21), break_minutes: 0 });
+    assert.ok([400, 409].includes(edit.status), `edit of approved shift refused (got ${edit.status})`);
     assert.equal((await api.call({ action: "manager_delete_shift", token: t, shift_id: "a0000000-0000-4000-8000-000000000006" })).status, 400);
     assert.equal((await api.call({ action: "manager_approve_shift", token: t, shift_id: "a0000000-0000-4000-8000-000000000001" })).status, 400);
     assert.ok(db.tables.shifts.find((s) => s.id === "a0000000-0000-4000-8000-000000000006"));
+  });
+});
+
+describe("7. Audit trail and integrity of manager changes", () => {
+  const PENDING = "a0000000-0000-4000-8000-000000000005"; // k1 completed, pending, 30h -> 22h ago
+  const auditFor = (id, action) => db.tables.shift_audit.filter((a) => a.shift_id === id && (a.new_data?.action === action));
+
+  test("approve is recorded once with the manager, and is idempotent", async () => {
+    const t = sessionFor(db, "km");
+    const r1 = await api.call({ action: "manager_approve_shift", token: t, shift_id: PENDING });
+    assert.equal(r1.status, 200);
+    assert.equal(db.tables.shifts.find((s) => s.id === PENDING).approved, true);
+    const r2 = await api.call({ action: "manager_approve_shift", token: t, shift_id: PENDING });
+    assert.equal(r2.status, 200);
+    const audits = auditFor(PENDING, "manager_approve_shift");
+    assert.equal(audits.length, 1, "double approval does not create a second record");
+    assert.equal(audits[0].changed_by, "km");
+    assert.equal(audits[0].old_data.approved, false);
+  });
+
+  test("reopen is recorded", async () => {
+    const t = sessionFor(db, "gm");
+    const APPROVED = "a0000000-0000-4000-8000-000000000006";
+    assert.equal((await api.call({ action: "manager_reopen_shift", token: t, shift_id: APPROVED })).status, 200);
+    assert.equal(db.tables.shifts.find((s) => s.id === APPROVED).approved, false);
+    assert.equal(auditFor(APPROVED, "manager_reopen_shift").length, 1);
+  });
+
+  test("delete keeps a full copy of the deleted shift in the audit trail", async () => {
+    const t = sessionFor(db, "km");
+    const r = await api.call({ action: "manager_delete_shift", token: t, shift_id: PENDING });
+    assert.equal(r.status, 200);
+    assert.ok(!db.tables.shifts.find((s) => s.id === PENDING));
+    const a = auditFor(PENDING, "manager_delete_shift");
+    assert.equal(a.length, 1);
+    assert.equal(a[0].old_data.id, PENDING);
+    assert.equal(a[0].old_data.breaks.length, 1, "breaks are kept in the record");
+  });
+
+  test("edit goes through the atomic database function with the manager's identity", async () => {
+    const t = sessionFor(db, "km");
+    const r = await api.call({ action: "manager_edit_shift", token: t, shift_id: PENDING, clock_in: isoAgo(31), clock_out: isoAgo(23), break_minutes: 30 });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.data.shift.hours, 7.5);
+    const call = db.rpcCalls.find((c) => c.name === "manager_edit_shift");
+    assert.equal(call.args.p_manager_id, "km");
+    assert.equal(auditFor(PENDING, "manager_edit_shift").length, 1);
+  });
+
+  test("edit that overlaps another shift is refused with a clear message", async () => {
+    const t = sessionFor(db, "km");
+    // the open k1 shift started 5h ago
+    const r = await api.call({ action: "manager_edit_shift", token: t, shift_id: PENDING, clock_in: isoAgo(10), clock_out: isoAgo(4), break_minutes: 0 });
+    assert.equal(r.status, 409);
+    assert.equal(r.body.code, "SHIFT_OVERLAP");
+  });
+
+  test("manual shift: overlap and future are refused; a valid one is audited", async () => {
+    const t = sessionFor(db, "km");
+    const overlap = await api.call({ action: "manager_create_shift", token: t, staff_id: "k1", clock_in: isoAgo(29), clock_out: isoAgo(25), break_minutes: 0 });
+    assert.equal(overlap.status, 409);
+    const future = await api.call({ action: "manager_create_shift", token: t, staff_id: "k1", clock_in: isoAgo(1), clock_out: new Date(Date.now() + 3 * 3600e3).toISOString(), break_minutes: 0 });
+    assert.equal(future.status, 400);
+    const before = db.tables.shifts.length;
+    const ok = await api.call({ action: "manager_create_shift", token: t, staff_id: "k1", clock_in: isoAgo(60), clock_out: isoAgo(52), break_minutes: 30, notes: "forgot phone" });
+    assert.equal(ok.status, 200);
+    assert.equal(db.tables.shifts.length, before + 1);
+    const created = ok.body.data.shift;
+    assert.equal(created.approved, false);
+    assert.equal(auditFor(created.id, "manager_create_shift").length, 1);
   });
 });

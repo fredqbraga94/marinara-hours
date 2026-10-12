@@ -180,6 +180,32 @@ function installRpc(db) {
     return { shift_id: sh.id, approved: false, status: "completed" };
   };
 
+  // Mirrors supabase/migrations/20261012070000_audit_and_integrity.sql (manager_edit_shift)
+  db.rpc.manager_edit_shift = ({ p_manager_id, p_shift_id, p_clock_in, p_clock_out, p_break_minutes }) => {
+    const mgr = findStaff(p_manager_id);
+    if (!mgr || !mgr.active || !MANAGER_ROLES.includes(mgr.role)) throw new Error("MANAGER_REQUIRED");
+    const scope = mgr.role === "kitchen_manager" ? "Kitchen" : mgr.role === "floor_manager" ? "Floor" : null;
+    const sh = T.shifts.find((x) => x.id === p_shift_id);
+    if (!sh) throw new Error("SHIFT_NOT_FOUND");
+    const st = findStaff(sh.staff_id);
+    if (!st || !st.active || st.location !== (mgr.location || "Hawthorne")) throw new Error("SHIFT_NOT_FOUND");
+    if (scope && st.department !== scope) throw new Error("DEPARTMENT_DENIED");
+    if (!sh.clock_out) throw new Error("SHIFT_STILL_OPEN");
+    if (sh.approved) throw new Error("SHIFT_APPROVED");
+    const a = Date.parse(p_clock_in), b = Date.parse(p_clock_out);
+    if (b <= a) throw new Error("CLOCK_OUT_BEFORE_CLOCK_IN");
+    if (b > Date.now() + 60e3) throw new Error("CLOCK_OUT_IN_FUTURE");
+    if (b - a > 24 * 3600e3) throw new Error("SHIFT_TOO_LONG");
+    if (p_break_minutes < 0 || p_break_minutes > 720 || p_break_minutes * 60e3 >= b - a) throw new Error("INVALID_BREAK");
+    const overlap = T.shifts.some((o) => o.staff_id === sh.staff_id && o.id !== sh.id && Date.parse(o.clock_in) < b && (o.clock_out ? Date.parse(o.clock_out) : Infinity) > a);
+    if (overlap) throw new Error("SHIFT_OVERLAP");
+    Object.assign(sh, { clock_in: p_clock_in, clock_out: p_clock_out, status: "completed" });
+    T.breaks = T.breaks.filter((x) => x.shift_id !== sh.id);
+    if (p_break_minutes > 0) T.breaks.push({ id: randomUUID(), shift_id: sh.id, break_start: new Date(b - p_break_minutes * 60e3).toISOString(), break_end: p_clock_out });
+    T.shift_audit.push({ id: randomUUID(), shift_id: sh.id, changed_by: mgr.id, new_data: { action: "manager_edit_shift" } });
+    return { id: sh.id, hours: Math.round(((b - a) / 3600e3 - p_break_minutes / 60) * 100) / 100, break_minutes: p_break_minutes };
+  };
+
   db.rpc.manager_update_staff = ({ p_staff_id, p_name, p_department }) => {
     const s = findStaff(p_staff_id);
     Object.assign(s, { name: p_name, department: p_department });

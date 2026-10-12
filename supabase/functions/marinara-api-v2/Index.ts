@@ -1699,6 +1699,88 @@ Deno.serve(async (req) => {
 
 
     // =========================
+    // AUDIT TRAIL
+    // Every manager change to a shift is recorded in public.shift_audit
+    // (who, when, before, after).
+    // =========================
+
+    async function shiftSnapshot(shiftId: string) {
+      const { data, error } = await supabase
+        .from("shifts")
+        .select(`
+          id,
+          staff_id,
+          clock_in,
+          clock_out,
+          status,
+          approved,
+          notes,
+          breaks (
+            id,
+            break_start,
+            break_end
+          )
+        `)
+        .eq("id", shiftId)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data || null;
+    }
+
+    async function writeShiftAudit(
+      shiftId: string,
+      auditAction: string,
+      oldData: unknown,
+      newData: unknown
+    ) {
+      const { error } = await supabase
+        .from("shift_audit")
+        .insert({
+          shift_id: shiftId,
+          changed_by: managerStatus.id,
+          old_data: oldData,
+          new_data: {
+            action: auditAction,
+            ...(newData && typeof newData === "object" ? newData : { value: newData }),
+            manager: {
+              id: managerStatus.id,
+              name: managerStatus.name,
+              role: managerStatus.role,
+            },
+            performed_at: new Date().toISOString(),
+          },
+        });
+
+      if (error) throw error;
+    }
+
+    function mapShiftRpcError(message: string) {
+      const known: Record<string, [string, number]> = {
+        MANAGER_REQUIRED: ["Manager access required", 403],
+        DEPARTMENT_DENIED: ["Access denied for this department", 403],
+        SHIFT_NOT_FOUND: ["Shift not found", 404],
+        SHIFT_APPROVED: ["Approved shifts cannot be changed", 409],
+        SHIFT_STILL_OPEN: ["Active shifts cannot be edited here", 400],
+        SHIFT_ALREADY_CLOSED: ["This shift has already been clocked out", 409],
+        SHIFT_OVERLAP: ["This shift overlaps another shift for the same person", 409],
+        SHIFT_TOO_LONG: ["A shift cannot be longer than 24 hours", 400],
+        INVALID_BREAK: ["Break must be shorter than the shift (0–720 minutes)", 400],
+        CLOCK_OUT_BEFORE_CLOCK_IN: ["Clock Out must be after Clock In", 400],
+        CLOCK_OUT_IN_FUTURE: ["Clock Out cannot be in the future", 400],
+        CLOCK_OUT_BEFORE_BREAK_END: ["Clock Out must be after the recorded breaks", 400],
+        INVALID_INPUT: ["Invalid request", 400],
+      };
+
+      const match = Object.keys(known).find((key) => message.includes(key));
+      return match ? { error: known[match][0], code: match, status: known[match][1] } : null;
+    }
+
+    const UUID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+
+    // =========================
     // RETURN MANAGER DATA
     // =========================
 
@@ -1750,7 +1832,7 @@ Deno.serve(async (req) => {
         const breakMinutes =
           Number(body.break_minutes ?? 0);
 
-        if (!shiftId) {
+        if (!UUID_RE.test(shiftId)) {
           return json(
             { error: "Shift ID is required" },
             400
@@ -1780,7 +1862,7 @@ Deno.serve(async (req) => {
         }
 
         if (
-          !Number.isFinite(breakMinutes) ||
+          !Number.isInteger(breakMinutes) ||
           breakMinutes < 0 ||
           breakMinutes > 720
         ) {
@@ -1790,16 +1872,8 @@ Deno.serve(async (req) => {
           );
         }
 
-        const shiftMinutes =
-          (clockOutDate.getTime() - clockInDate.getTime()) / 60000;
-
-        if (breakMinutes >= shiftMinutes) {
-          return json(
-            { error: "Break cannot be as long as the whole shift" },
-            400
-          );
-        }
-
+        // Scope pre-check for a clear 403; the database function checks
+        // everything again inside one locked transaction and writes the audit.
         const {
           data: existingShift,
           error: existingShiftError,
@@ -1807,11 +1881,6 @@ Deno.serve(async (req) => {
           .from("shifts")
           .select(`
             id,
-            staff_id,
-            clock_in,
-            clock_out,
-            approved,
-
             staff!inner (
               location,
               department,
@@ -1841,106 +1910,31 @@ Deno.serve(async (req) => {
           return json({ error: "Access denied for this department" }, 403);
         }
 
-        if (!existingShift.clock_out) {
-          return json(
-            { error: "Active shifts cannot be edited here" },
-            400
+        const { data: edited, error: editError } =
+          await supabase.rpc(
+            "manager_edit_shift",
+            {
+              p_manager_id: managerStatus.id,
+              p_shift_id: shiftId,
+              p_clock_in: clockInDate.toISOString(),
+              p_clock_out: clockOutDate.toISOString(),
+              p_break_minutes: breakMinutes,
+            }
           );
-        }
 
-        if (existingShift.approved) {
-          return json(
-            { error: "Approved shifts cannot be edited here" },
-            400
-          );
-        }
-
-        const { error: updateShiftError } =
-          await supabase
-            .from("shifts")
-            .update({
-              clock_in: clockInDate.toISOString(),
-              clock_out: clockOutDate.toISOString(),
-              status: "completed",
-            })
-            .eq("id", shiftId);
-
-        if (updateShiftError) {
-          throw updateShiftError;
-        }
-
-        const { error: deleteBreakError } =
-          await supabase
-            .from("breaks")
-            .delete()
-            .eq("shift_id", shiftId);
-
-        if (deleteBreakError) {
-          throw deleteBreakError;
-        }
-
-        if (breakMinutes > 0) {
-          const breakEnd =
-            new Date(clockOutDate.getTime());
-
-          const breakStart =
-            new Date(
-              breakEnd.getTime() -
-              breakMinutes * 60000
-            );
-
-          const { error: insertBreakError } =
-            await supabase
-              .from("breaks")
-              .insert({
-                shift_id: shiftId,
-                break_start: breakStart.toISOString(),
-                break_end: breakEnd.toISOString(),
-              });
-
-          if (insertBreakError) {
-            throw insertBreakError;
+        if (editError) {
+          const mapped = mapShiftRpcError(String(editError.message || ""));
+          if (mapped) {
+            return json({ error: mapped.error, code: mapped.code }, mapped.status);
           }
-        }
-
-        const {
-          data: updatedShift,
-          error: updatedShiftError,
-        } = await supabase
-          .from("shifts")
-          .select(`
-            id,
-            staff_id,
-            clock_in,
-            clock_out,
-            status,
-            approved,
-            notes,
-
-            breaks (
-              id,
-              break_start,
-              break_end
-            )
-          `)
-          .eq("id", shiftId)
-          .single();
-
-        if (updatedShiftError) {
-          throw updatedShiftError;
+          throw editError;
         }
 
         return json({
           success: true,
           action,
           data: {
-            shift: {
-              ...updatedShift,
-              break_minutes: Math.round(breakMinutes),
-              hours: Number(
-                calculateHours(updatedShift).toFixed(2)
-              ),
-            },
+            shift: edited,
           },
         });
       }
@@ -1956,7 +1950,7 @@ Deno.serve(async (req) => {
             ? body.shift_id.trim()
             : "";
 
-        if (!shiftId) {
+        if (!UUID_RE.test(shiftId)) {
           return json(
             { error: "Shift ID is required" },
             400
@@ -2017,14 +2011,27 @@ Deno.serve(async (req) => {
           );
         }
 
-        const { error: deleteError } =
+        // Record what is being deleted BEFORE deleting it.
+        const before = await shiftSnapshot(shiftId);
+        await writeShiftAudit(shiftId, "manager_delete_shift", before, { deleted: true });
+
+        const { data: deletedRows, error: deleteError } =
           await supabase
             .from("shifts")
             .delete()
-            .eq("id", shiftId);
+            .eq("id", shiftId)
+            .eq("approved", false)
+            .select("id");
 
         if (deleteError) {
           throw deleteError;
+        }
+
+        if (!deletedRows || deletedRows.length === 0) {
+          return json(
+            { error: "This shift changed. Refresh and try again." },
+            409
+          );
         }
 
         return json({
@@ -2104,6 +2111,37 @@ Deno.serve(async (req) => {
           return json({ error: "Access denied for this department" }, 403);
         }
 
+        if (outDate.getTime() > Date.now() + 60 * 1000) {
+          return json({ error: "Clock Out cannot be in the future" }, 400);
+        }
+
+        if (outDate.getTime() - inDate.getTime() > 24 * 3600 * 1000) {
+          return json({ error: "A shift cannot be longer than 24 hours" }, 400);
+        }
+
+        // Never double-count hours: refuse a shift that overlaps another
+        // shift (open or closed) of the same person.
+        const { data: overlapping, error: overlapError } =
+          await supabase
+            .from("shifts")
+            .select("id, clock_in, clock_out")
+            .eq("staff_id", staffId)
+            .lt("clock_in", outDate.toISOString());
+
+        if (overlapError) throw overlapError;
+
+        const overlaps = (overlapping || []).some((other: any) =>
+          !other.clock_out ||
+          new Date(other.clock_out).getTime() > inDate.getTime()
+        );
+
+        if (overlaps) {
+          return json(
+            { error: "This shift overlaps another shift for the same person", code: "SHIFT_OVERLAP" },
+            409
+          );
+        }
+
         const manualNote =
           notes
             ? `[MANUALLY CREATED] ${notes}`
@@ -2154,6 +2192,17 @@ Deno.serve(async (req) => {
               .eq("id", createdShift.id);
             throw breakError;
           }
+        }
+
+        try {
+          await writeShiftAudit(
+            createdShift.id,
+            "manager_create_shift",
+            null,
+            { shift: await shiftSnapshot(createdShift.id) }
+          );
+        } catch (auditError) {
+          console.error("Audit write failed (create shift):", auditError);
         }
 
         return json({
@@ -2244,13 +2293,6 @@ Deno.serve(async (req) => {
           return json({ error: "Access denied for this department" }, 403);
         }
 
-        if (
-          managerDepartmentScope &&
-          shift.staff?.department !== managerDepartmentScope
-        ) {
-          return json({ error: "Access denied for this department" }, 403);
-        }
-
         if (!shift.clock_out) {
 
           return json(
@@ -2262,29 +2304,54 @@ Deno.serve(async (req) => {
           );
         }
 
+        if (shift.approved) {
+          // Already approved: idempotent, nothing to change or audit.
+          return json({
+            success: true,
+            action,
+            data: { shift, already_approved: true },
+          });
+        }
+
+        const before = await shiftSnapshot(shiftId);
+
         const {
-          data: approvedShift,
+          data: approvedRows,
           error: approveError,
         } = await supabase
           .from("shifts")
           .update({
             approved: true,
           })
-          .eq(
-            "id",
-            shiftId
-          )
+          .eq("id", shiftId)
+          .eq("approved", false)
           .select(`
             id,
             staff_id,
             clock_in,
             clock_out,
             approved
-          `)
-          .single();
+          `);
 
         if (approveError) {
           throw approveError;
+        }
+
+        const approvedShift =
+          Array.isArray(approvedRows) ? approvedRows[0] : approvedRows;
+
+        if (!approvedShift) {
+          return json({
+            success: true,
+            action,
+            data: { shift_id: shiftId, already_approved: true },
+          });
+        }
+
+        try {
+          await writeShiftAudit(shiftId, "manager_approve_shift", before, { shift: approvedShift });
+        } catch (auditError) {
+          console.error("Audit write failed (approve):", auditError);
         }
 
         return json({
@@ -2356,6 +2423,8 @@ Deno.serve(async (req) => {
           });
         }
 
+        const before = await shiftSnapshot(shiftId);
+
         const { data: reopenedShift, error: reopenError } = await supabase
           .from("shifts")
           .update({ approved: false })
@@ -2364,6 +2433,12 @@ Deno.serve(async (req) => {
           .single();
 
         if (reopenError) throw reopenError;
+
+        try {
+          await writeShiftAudit(shiftId, "manager_reopen_shift", before, { shift: reopenedShift });
+        } catch (auditError) {
+          console.error("Audit write failed (reopen):", auditError);
+        }
 
         return json({
           success: true,
