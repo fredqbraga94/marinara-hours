@@ -14,7 +14,8 @@ import { loadApi, seed, sessionFor, installEdgeRuntime, captureConsole } from ".
 
 const here = dirname(fileURLToPath(import.meta.url));
 const BASELINE = resolve(here, "baseline-v36.ts");
-const CANDIDATE = resolve(here, "../../supabase/functions/marinara-api-v2/Index.ts");
+// v37 (= PR #5, the version in production). The current Index.ts is v38: see tests/integration/hardening.mjs.
+const CANDIDATE = resolve(here, "baseline-v37.ts");
 
 let baseline;
 let candidate;

@@ -154,7 +154,8 @@ const browser = await chromium.launch({ executablePath: CHROME });
 const server = await serveApp();
 const origin = `http://127.0.0.1:${server.address().port}`;
 const baseline = await loadApi(resolve(root, "tests/edge/baseline-v36.ts"));
-const candidate = await loadApi(resolve(root, "supabase/functions/marinara-api-v2/Index.ts"));
+// v37 (= PR #5, in production). v38 browser tests: tests/e2e/v38.e2e.mjs
+const candidate = await loadApi(resolve(root, "tests/edge/baseline-v37.ts"));
 let failures = 0;
 const quiet = console.log; const quietWarn = console.warn;
 try {

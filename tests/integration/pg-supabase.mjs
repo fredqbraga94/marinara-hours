@@ -148,6 +148,10 @@ class Query {
   }
 
   async exec() {
+    const inj = this.client.inject;
+    if (inj && inj.failQuery && inj.failQuery(this.table, this.op)) {
+      return { data: null, error: { message: "simulated connection failure", code: null, details: null, hint: null } };
+    }
     let sql;
     try { sql = this.sql(); } catch (e) { return { data: null, error: toError(e) }; }
     let data;
@@ -167,13 +171,16 @@ class Query {
   }
 }
 
-export function makeCreateClient(pool, log = []) {
+export function makeCreateClient(pool, log = [], inject = null) {
   const retsetCache = new Map();
   return function createClient() {
-    const client = { pool, log };
+    const client = { pool, log, inject };
     client.from = (table) => new Query(client, table);
     client.rpc = async (name, args = {}) => {
       ident(name);
+      if (inject && inject.failRpc && inject.failRpc(name)) {
+        return { data: null, error: { message: "simulated connection failure", code: null, details: null, hint: null } };
+      }
       const keys = Object.keys(args).map(ident);
       try {
         const cacheKey = `${name}(${keys.slice().sort().join(",")})`;

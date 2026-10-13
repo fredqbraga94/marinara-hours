@@ -18,119 +18,6 @@ function json(data: unknown, status = 200) {
 }
 
 
-const MAX_PIN_ATTEMPTS = 5;
-const PIN_LOCK_MINUTES = 10;
-
-// This is intentionally a global PIN-entry guard for this first production
-// hardening step. It never stores the PIN itself.
-const PIN_ATTEMPT_KEY = "hawthorne-pin-entry";
-
-async function getPinAttemptState(supabase: any) {
-  const { data, error } = await supabase
-    .from("pin_attempts")
-    .select("failed_attempts, locked_until, last_attempt_at")
-    .eq("attempt_key", PIN_ATTEMPT_KEY)
-    .maybeSingle();
-
-  if (error) throw error;
-
-  return data || {
-    failed_attempts: 0,
-    locked_until: null,
-    last_attempt_at: null,
-  };
-}
-
-async function checkPinLock(supabase: any) {
-  const state = await getPinAttemptState(supabase);
-
-  if (!state.locked_until) {
-    return { locked: false, retry_after_seconds: 0 };
-  }
-
-  const remainingMs =
-    new Date(state.locked_until).getTime() - Date.now();
-
-  if (remainingMs <= 0) {
-    await supabase
-      .from("pin_attempts")
-      .upsert(
-        {
-          attempt_key: PIN_ATTEMPT_KEY,
-          failed_attempts: 0,
-          locked_until: null,
-          last_attempt_at: new Date().toISOString(),
-        },
-        { onConflict: "attempt_key" }
-      );
-
-    return { locked: false, retry_after_seconds: 0 };
-  }
-
-  return {
-    locked: true,
-    retry_after_seconds: Math.ceil(remainingMs / 1000),
-  };
-}
-
-async function recordFailedPin(supabase: any) {
-  const state = await getPinAttemptState(supabase);
-  const nextFailedAttempts =
-    Number(state.failed_attempts || 0) + 1;
-
-  const shouldLock =
-    nextFailedAttempts >= MAX_PIN_ATTEMPTS;
-
-  const lockedUntil = shouldLock
-    ? new Date(
-        Date.now() +
-          PIN_LOCK_MINUTES * 60 * 1000
-      ).toISOString()
-    : null;
-
-  const { error } = await supabase
-    .from("pin_attempts")
-    .upsert(
-      {
-        attempt_key: PIN_ATTEMPT_KEY,
-        failed_attempts: shouldLock
-          ? MAX_PIN_ATTEMPTS
-          : nextFailedAttempts,
-        locked_until: lockedUntil,
-        last_attempt_at: new Date().toISOString(),
-      },
-      { onConflict: "attempt_key" }
-    );
-
-  if (error) throw error;
-
-  return {
-    locked: shouldLock,
-    attempts_remaining: shouldLock
-      ? 0
-      : MAX_PIN_ATTEMPTS - nextFailedAttempts,
-    retry_after_seconds: shouldLock
-      ? PIN_LOCK_MINUTES * 60
-      : 0,
-  };
-}
-
-async function clearFailedPins(supabase: any) {
-  const { error } = await supabase
-    .from("pin_attempts")
-    .upsert(
-      {
-        attempt_key: PIN_ATTEMPT_KEY,
-        failed_attempts: 0,
-        locked_until: null,
-        last_attempt_at: new Date().toISOString(),
-      },
-      { onConflict: "attempt_key" }
-    );
-
-  if (error) throw error;
-}
-
 function pinLockedResponse(retryAfterSeconds: number) {
   const retryMinutes = Math.max(
     1,
@@ -181,92 +68,32 @@ function createSessionToken() {
   return bytesToHex(bytes);
 }
 
-async function createStaffSession(
-  supabase: any,
-  staffId: string
-) {
-  const token =
-    createSessionToken();
-
-  const tokenHash =
-    await sha256Hex(token);
-
-  const expiresAt =
-    new Date(
-      Date.now() +
-      SESSION_HOURS * 60 * 60 * 1000
-    ).toISOString();
-
-  const { error } =
-    await supabase
-      .from("staff_sessions")
-      .insert({
-        staff_id: staffId,
-        token_hash: tokenHash,
-        expires_at: expiresAt,
-        last_used_at:
-          new Date().toISOString(),
-      });
-
-  if (error) throw error;
-
-  return {
-    token,
-    expires_at: expiresAt,
-  };
-}
-
-
 async function validateStaffSession(
   supabase: any,
-  token: string
+  token: string,
+  deviceHash: string | null = null
 ) {
   if (!token) {
     return { ok: false, error: "Session token is required" };
   }
 
   const tokenHash = await sha256Hex(token);
-  const nowIso = new Date().toISOString();
 
-  const { data: session, error: sessionError } =
-    await supabase
-      .from("staff_sessions")
-      .select("id, staff_id, expires_at, revoked_at")
-      .eq("token_hash", tokenHash)
-      .is("revoked_at", null)
-      .gt("expires_at", nowIso)
-      .maybeSingle();
+  // One database call: session, staff and device checks (see auth_session).
+  const { data, error } = await supabase.rpc("auth_session", {
+    p_token_hash: tokenHash,
+    p_device_hash: deviceHash,
+  });
 
-  if (sessionError) throw sessionError;
-  if (!session) {
-    return { ok: false, error: "Invalid or expired session" };
+  if (error) throw error;
+  if (!data?.ok) {
+    return { ok: false, error: data?.error || "Invalid or expired session" };
   }
-
-  const { data: staff, error: staffError } =
-    await supabase
-      .from("staff")
-      .select("id, name, department, location, role, active")
-      .eq("id", session.staff_id)
-      .eq("active", true)
-      .maybeSingle();
-
-  if (staffError) throw staffError;
-  if (!staff) {
-    return { ok: false, error: "Staff account is inactive or unavailable" };
-  }
-
-  const { error: touchError } =
-    await supabase
-      .from("staff_sessions")
-      .update({ last_used_at: nowIso })
-      .eq("id", session.id);
-
-  if (touchError) throw touchError;
 
   return {
     ok: true,
-    staff,
-    expires_at: session.expires_at,
+    staff: data.staff,
+    expires_at: data.expires_at,
   };
 }
 
@@ -420,140 +247,115 @@ function getBrisbaneWeekStart() {
 }
 
 // =========================
-// LOGIN OBSERVATION (observe-only, phase 3a)
-// Records login outcomes in the function logs so real patterns can be
-// measured before any blocking is switched on. It NEVER changes the login
-// response, never blocks anyone, never writes to the database and never
-// logs a PIN. Any failure here is swallowed.
+// AUTHORISED DEVICES AND ERRORS (v38)
+// The app keeps a random secret per device (43 base64url characters) and
+// sends it as body.device. Only its SHA-256 is sent to the database.
+// IP addresses and other request headers are never used for security
+// decisions and never logged. PINs, tokens and device secrets are never logged.
 // =========================
 
-function runInBackground(task: Promise<unknown>) {
-  const guarded = task.catch((error) => {
-    const reason =
-      error instanceof Error && error.message === "timeout"
-        ? "timeout"
-        : "error";
-    try {
-      console.warn(`[login-observe] skipped: ${reason}`);
-    } catch (_) {
-      // A failed logger must not turn optional observation into a rejection.
-    }
-  });
+async function deviceHashFrom(body: any): Promise<string | null> {
+  const device = typeof body?.device === "string" ? body.device.trim() : "";
+  if (!/^[A-Za-z0-9_-]{43}$/.test(device)) return null;
+  return await sha256Hex(device);
+}
 
+const PAIRING_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+function createPairingCode() {
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  let code = "";
+  for (const b of bytes) code += PAIRING_ALPHABET[b % PAIRING_ALPHABET.length];
+  return code;
+}
+
+function normalisePairingCode(value: unknown) {
+  return typeof value === "string"
+    ? value.toUpperCase().replace(/[^A-Z0-9]/g, "")
+    : "";
+}
+
+function authLog(event: string, fields: Record<string, string | number | boolean | null>) {
   try {
-    const runtime = (globalThis as any).EdgeRuntime;
-    if (runtime && typeof runtime.waitUntil === "function") {
-      runtime.waitUntil(guarded);
-    }
+    const parts = Object.entries(fields).map(([k, v]) => `${k}=${v}`);
+    console.log(`[auth] ${event} ${parts.join(" ")}`.trim());
   } catch (_) {
-    // Observation is optional.
+    // Logging is best-effort and must never break a request.
   }
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("timeout")), ms);
-    promise.then(
-      (value) => { clearTimeout(timer); resolve(value); },
-      (error) => { clearTimeout(timer); reject(error); }
-    );
-  });
+function waitMinutes(seconds: number) {
+  const minutes = Math.max(1, Math.ceil(Number(seconds || 0) / 60));
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
 }
 
-// Pseudonymous network tag for the day: HMAC of the client IP keyed with a
-// server secret, so the address cannot be recovered from the logs. The
-// Brisbane date is part of the input, so tags change every day and cannot be
-// used to follow a device over time. Headers set by the platform proxy are
-// preferred over X-Forwarded-For, which a client can send itself.
-async function loginDeviceTag(req: Request, secret: string) {
-  const cf = (req.headers.get("cf-connecting-ip") || "").trim();
-  const real = (req.headers.get("x-real-ip") || "").trim();
-  const forwarded = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim();
+// Database error codes raised by the SQL functions -> stable code.
+function dbErrorCode(error: any): string {
+  const message = String(error?.message || "");
+  if (/^[A-Z][A-Z_]+$/.test(message)) return message;
+  if (error?.code === "23P01") return "OVERLAP";
+  if (error?.code === "23505" && message.includes("breaks_one_open_per_shift")) return "BREAK_ALREADY_STARTED";
+  if (error?.code === "23505" && message.includes("shifts_one_open_per_staff")) return "SHIFT_ALREADY_OPEN";
+  return "";
+}
 
-  const source = cf ? "cf" : real ? "real" : forwarded ? "xff" : "none";
-  const ip = cf || real || forwarded || "unknown";
+const CLOCK_MESSAGES: Record<string, string> = {
+  SHIFT_ALREADY_OPEN: "You are already clocked in.",
+  NO_WORKING_SHIFT: "You can only start a break while you are clocked in and not on a break.",
+  BREAK_ALREADY_STARTED: "Your break has already started.",
+  NO_ACTIVE_BREAK: "You are not on a break.",
+  END_BREAK_REQUIRED: "End your break before clocking out.",
+  NO_OPEN_SHIFT: "You are not clocked in.",
+  STAFF_NOT_FOUND: "Staff account is inactive or unavailable",
+  OVERLAP: "This would overlap another shift.",
+};
 
-  const brisbaneDay =
-    new Date(Date.now() + 10 * 60 * 60 * 1000).toISOString().slice(0, 10);
+const MANAGER_MESSAGES: Record<string, [number, string]> = {
+  SHIFT_NOT_FOUND: [404, "Shift not found"],
+  STAFF_NOT_FOUND: [404, "Staff member not found"],
+  DEPARTMENT_DENIED: [403, "Access denied for this department"],
+  GM_REQUIRED: [403, "Only the General Manager can manage manager accounts"],
+  MANAGER_REQUIRED: [403, "Manager access required"],
+  SHIFT_APPROVED: [400, "Approved shifts cannot be changed. Reopen the shift first."],
+  SHIFT_STILL_OPEN: [400, "Active shifts cannot be changed here"],
+  SHIFT_OVERLAP: [409, "This shift overlaps another shift for the same person."],
+  OVERLAP: [409, "This shift overlaps another shift for the same person."],
+  INVALID_BREAK: [400, "Break must be shorter than the shift"],
+  CLOCK_OUT_BEFORE_CLOCK_IN: [400, "Clock Out must be after Clock In"],
+  PIN_IN_USE: [409, "This PIN is already used by another person. Choose a different PIN."],
+  CANNOT_DEACTIVATE_SELF: [400, "You cannot deactivate your own manager account"],
+  INVALID_ROLE: [400, "Invalid account role"],
+  DEVICE_NOT_FOUND: [404, "Device not found"],
+  TOO_MANY_ACTIVE_CODES: [429, "Too many unused device codes. Wait for them to expire."],
+  INVALID_INPUT: [400, "Invalid request"],
+};
 
-  const key = await crypto.subtle.importKey(
-    "raw",
-    new TextEncoder().encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
+function managerDbError(error: any, fallback: string, fallbackStatus = 400) {
+  const code = dbErrorCode(error);
+  const known = MANAGER_MESSAGES[code];
+  if (known) return json({ error: known[1], code }, known[0]);
+  console.error("Manager database error:", error?.code || "", error?.message || "");
+  return json({ error: fallback }, fallbackStatus);
+}
 
-  const signature = await crypto.subtle.sign(
-    "HMAC",
-    key,
-    new TextEncoder().encode("login-device:" + brisbaneDay + ":" + ip)
-  );
-
-  return {
-    tag: bytesToHex(new Uint8Array(signature)).slice(0, 16),
-    source,
+function pickShift(shift: any, breaks: any[] | null) {
+  const out: any = {
+    id: shift.id,
+    staff_id: shift.staff_id,
+    clock_in: shift.clock_in,
+    clock_out: shift.clock_out,
+    status: shift.status,
+    approved: shift.approved,
+    notes: shift.notes,
   };
-}
-
-function observeLogin(
-  req: Request,
-  supabase: any,
-  secret: string,
-  pin: string,
-  loginData: unknown
-) {
-  try {
-    const rows =
-      Array.isArray(loginData)
-        ? loginData
-        : loginData
-          ? [loginData]
-          : [];
-
-    const outcome = rows.length === 0 ? "wrong_pin" : "ok";
-
-    runInBackground((async () => {
-      const device = await loginDeviceTag(req, secret);
-
-      if (outcome === "wrong_pin") {
-        console.warn(
-          `[login-observe] outcome=wrong_pin device=${device.tag} src=${device.source}`
-        );
-        return;
-      }
-
-      console.log(
-        `[login-observe] outcome=ok device=${device.tag} src=${device.source}`
-      );
-
-      // Shared-PIN detection without revealing any PIN: count how many
-      // active accounts match the PIN that was just typed.
-      const { data: matches, error } = await withTimeout(
-        supabase.rpc("pin_match_count", { p_pin: pin }),
-        3000
-      ) as any;
-
-      if (error) {
-        // Fixed text only: database error messages are never copied to logs.
-        console.warn("[login-observe] shared-PIN check unavailable");
-        return;
-      }
-
-      if (Number(matches) > 1) {
-        console.warn(
-          `[login-observe] outcome=shared_pin matches=${Number(matches)} ` +
-          `staff=${(rows[0] as any)?.staff_id ?? "unknown"}`
-        );
-      }
-    })());
-  } catch (_) {
-    try {
-      console.warn("[login-observe] skipped: error");
-    } catch (_) {
-      // Logging is best-effort and must never escape into the login path.
-    }
+  if (breaks) {
+    out.breaks = breaks.map((b: any) => ({
+      id: b.id,
+      break_start: b.break_start,
+      break_end: b.break_end,
+    }));
   }
+  return out;
 }
 
 Deno.serve(async (req) => {
@@ -616,6 +418,70 @@ Deno.serve(async (req) => {
       typeof body.action === "string"
         ? body.action.trim()
         : "";
+
+    const deviceHash = await deviceHashFrom(body);
+
+    // =========================
+    // DEVICE STATUS / PAIRING (no session needed)
+    // =========================
+
+    if (action === "device_status") {
+      const { data, error } = await supabase.rpc("auth_device_status", {
+        p_device_hash: deviceHash,
+      });
+      if (error) {
+        console.error("Device status error:", error.code || "");
+        return json({ error: "Unable to check this device" }, 503);
+      }
+      return json({
+        success: true,
+        action,
+        data: {
+          mode: data?.mode || "grace",
+          device: deviceHash ? data?.device || "unknown" : "missing",
+        },
+      });
+    }
+
+    if (action === "device_pair") {
+      if (!deviceHash) {
+        return json({ error: "This browser cannot be authorised. Please reload the app.", code: "DEVICE_ID_MISSING" }, 400);
+      }
+      const code = normalisePairingCode(body.code);
+      if (!/^[A-Z0-9]{8}$/.test(code)) {
+        return json({ error: "Enter the 8-character device code.", code: "INVALID_CODE_FORMAT" }, 400);
+      }
+      const label =
+        typeof body.label === "string" ? body.label.trim().slice(0, 60) : "";
+      const { data: r, error } = await supabase.rpc("auth_redeem_pairing_code", {
+        p_code_hash: await sha256Hex(code),
+        p_device_hash: deviceHash,
+        p_label: label || null,
+      });
+      if (error || !r) {
+        console.error("Device pairing error:", error?.code || "");
+        return json({ error: "Unable to authorise this device right now. Please try again." }, 503);
+      }
+      authLog("pair", { result: r.result });
+      if (r.result === "ok") {
+        return json({ success: true, action, data: { authorised: true } });
+      }
+      if (r.result === "busy") {
+        return json({ error: "Please wait a moment and try again.", code: "BUSY", retry_after_seconds: r.retry_after_seconds || 2 }, 429);
+      }
+      if (r.result === "locked" || Number(r.retry_after_seconds) > 0) {
+        return json({
+          error: `Too many incorrect device codes. Try again in ${waitMinutes(r.retry_after_seconds)}.`,
+          code: "PAIRING_LOCKED",
+          retry_after_seconds: r.retry_after_seconds,
+        }, 429);
+      }
+      return json({
+        error: "That device code is not valid or has expired.",
+        code: "INVALID_CODE",
+        attempts_remaining: r.attempts_remaining,
+      }, 400);
+    }
 
     // SECURE LOGOUT:
     // Revoke the current bearer session immediately on the server.
@@ -701,7 +567,8 @@ Deno.serve(async (req) => {
         const result =
           await validateStaffSession(
             supabase,
-            token
+            token,
+            deviceHash
           );
 
         if (!result.ok) {
@@ -754,7 +621,7 @@ Deno.serve(async (req) => {
             : "";
 
         const sessionResult =
-          await validateStaffSession(supabase, token);
+          await validateStaffSession(supabase, token, deviceHash);
 
         if (!sessionResult.ok) {
           return json(
@@ -904,7 +771,7 @@ Deno.serve(async (req) => {
             : "";
 
         const sessionResult =
-          await validateStaffSession(supabase, token);
+          await validateStaffSession(supabase, token, deviceHash);
 
         if (!sessionResult.ok) {
           return json(
@@ -927,12 +794,13 @@ Deno.serve(async (req) => {
           );
 
         if (error) {
-          console.error(
-            `${sessionRpc} RPC error:`,
-            error.message
-          );
+          const code = dbErrorCode(error);
+          console.error(`${sessionRpc} RPC error:`, code || error.code || "");
           return json(
-            { error: error.message },
+            {
+              error: CLOCK_MESSAGES[code] || "Unable to complete action",
+              code: code || "ACTION_FAILED",
+            },
             400
           );
         }
@@ -989,216 +857,92 @@ Deno.serve(async (req) => {
 
 
     // =========================
-    // PIN ATTEMPT PROTECTION
+    // LOGIN (v38)
+    // Device check, attempt limits, PIN check against every active person
+    // (a PIN shared by two people is refused, never guessed), device
+    // authorisation and session creation happen in ONE database transaction:
+    // public.auth_pin_login. The PIN is never logged or stored.
     // =========================
 
-    // Only check the PIN lock when this request is actually using a PIN.
-    if (pin) {
-    try {
-      const pinLock =
-        await checkPinLock(supabase);
+    const staffActions: Record<string, true> = { login: true };
 
-      if (pinLock.locked) {
-        return pinLockedResponse(
-          pinLock.retry_after_seconds
-        );
-      }
-    } catch (pinProtectionError) {
-      console.error(
-        "PIN protection check error:",
-        pinProtectionError
-      );
+    if (action === "login") {
+      const sessionToken = createSessionToken();
+      const expiresAt = new Date(
+        Date.now() + SESSION_HOURS * 60 * 60 * 1000
+      ).toISOString();
 
-      return json(
-        { error: "Unable to validate PIN safely" },
-        500
-      );
-    }
-    }
+      const { data: result, error } = await supabase.rpc("auth_pin_login", {
+        p_pin: pin,
+        p_device_hash: deviceHash,
+        p_token_hash: await sha256Hex(sessionToken),
+        p_expires_at: expiresAt,
+      });
 
-
-    // =========================
-    // NORMAL TIME CLOCK ACTIONS
-    // =========================
-
-    // Production rule:
-    // PIN is used only to establish a secure session.
-    // All time-clock operations use the session_* token routes above.
-    const staffActions: Record<
-      string,
-      {
-        functionName: string;
-        parameterName: string;
-      }
-    > = {
-      login: {
-        functionName: "login_with_pin",
-        parameterName: "p_pin",
-      },
-    };
-
-    const selectedAction =
-      staffActions[action];
-
-    if (selectedAction) {
-
-      const { data, error } =
-        await supabase.rpc(
-          selectedAction.functionName,
-          {
-            [selectedAction.parameterName]:
-              pin,
-          }
-        );
-
-      if (error) {
-
-        console.error(
-          `${selectedAction.functionName} RPC error:`,
-          error.message
-        );
-
-        if (
-          error.message.includes(
-            "INVALID_PIN"
-          ) ||
-          error.message
-            .toLowerCase()
-            .includes("invalid pin")
-        ) {
-
-          try {
-            const failure =
-              await recordFailedPin(supabase);
-
-            if (failure.locked) {
-              return pinLockedResponse(
-                failure.retry_after_seconds
-              );
-            }
-
-            return json(
-              {
-                error: "Invalid PIN",
-                attempts_remaining:
-                  failure.attempts_remaining,
-              },
-              401
-            );
-          } catch (pinProtectionError) {
-            console.error(
-              "PIN protection write error:",
-              pinProtectionError
-            );
-
-            return json(
-              { error: "Invalid PIN" },
-              401
-            );
-          }
-        }
-
+      if (error || !result?.result) {
+        console.error("Login error:", error?.code || "no result");
         return json(
-          {
-            error:
-              "Unable to complete action",
-          },
-          400
+          { error: "Unable to sign in right now. Please try again.", code: "LOGIN_UNAVAILABLE" },
+          503
         );
       }
 
-      // Observe-only: does not wait, cannot change this response.
-      if (action === "login") {
-        observeLogin(req, supabase, serviceRoleKey, pin, data);
-      }
+      authLog("login", {
+        result: result.result,
+        device: !deviceHash
+          ? "none"
+          : result.result === "ok"
+            ? (result.device?.newly_approved ? "new" : "approved")
+            : (typeof result.device === "string" ? result.device : "n/a"),
+      });
 
-      try {
-        await clearFailedPins(supabase);
-      } catch (pinProtectionError) {
-        console.error(
-          "PIN protection reset error:",
-          pinProtectionError
-        );
-      }
-
-      if (action === "login") {
-        function extractStaffId(value: any): string | null {
-          if (!value) return null;
-
-          if (Array.isArray(value)) {
-            for (const item of value) {
-              const found = extractStaffId(item);
-              if (found) return found;
-            }
-            return null;
-          }
-
-          if (typeof value === "object") {
-            if (typeof value.staff_id === "string" && value.staff_id) {
-              return value.staff_id;
-            }
-
-            if (value.staff && typeof value.staff.id === "string" && value.staff.id) {
-              return value.staff.id;
-            }
-
-            if (typeof value.id === "string" && value.id) {
-              return value.id;
-            }
-
-            if (value.data) {
-              const found = extractStaffId(value.data);
-              if (found) return found;
-            }
-          }
-
-          return null;
-        }
-
-        const staffId = extractStaffId(data);
-
-        if (!staffId) {
-          console.error(
-            "Unable to create session: login response has no staff ID"
-          );
-
-          return json(
-            { error: "Unable to create secure session" },
-            500
-          );
-        }
-
-        try {
-          const session =
-            await createStaffSession(
-              supabase,
-              staffId
-            );
-
+      switch (result.result) {
+        case "ok":
           return json({
             success: true,
             action,
-            data,
-            session,
+            data: [result.staff],
+            session: { token: sessionToken, expires_at: expiresAt },
           });
-        } catch (sessionError) {
-          console.error(
-            "Create session error:",
-            sessionError
-          );
-
+        case "invalid_pin":
+          if (Number(result.retry_after_seconds) > 0) {
+            return pinLockedResponse(result.retry_after_seconds);
+          }
           return json(
-            { error: "Unable to create secure session" },
-            500
+            { error: "Invalid PIN", code: "INVALID_PIN", attempts_remaining: result.attempts_remaining },
+            401
           );
-        }
+        case "pin_conflict":
+          if (Number(result.retry_after_seconds) > 0) {
+            return pinLockedResponse(result.retry_after_seconds);
+          }
+          return json(
+            {
+              error: "This PIN is used by more than one person. Ask a manager to set a new PIN for you.",
+              code: "PIN_CONFLICT",
+            },
+            409
+          );
+        case "locked":
+          return pinLockedResponse(result.retry_after_seconds);
+        case "busy":
+          return json(
+            { error: "Please wait a moment and try again.", code: "BUSY", retry_after_seconds: result.retry_after_seconds || 2 },
+            429
+          );
+        case "device_not_authorized":
+          return json(
+            { error: "This device is not authorised yet. Ask a manager for a device code.", code: "DEVICE_NOT_AUTHORIZED" },
+            403
+          );
+        case "device_revoked":
+          return json(
+            { error: "This device was removed by a manager. Ask a manager for a device code.", code: "DEVICE_REVOKED" },
+            403
+          );
+        default:
+          return json({ error: "Unable to sign in right now. Please try again." }, 503);
       }
-
-      return json({
-        success: true,
-        action,
-        data,
-      });
     }
 
 
@@ -1222,6 +966,12 @@ Deno.serve(async (req) => {
         "manager_clock_out_staff",
         "manager_edit_shift",
         "manager_delete_shift",
+        "manager_devices",
+        "manager_device_code",
+        "manager_device_revoke",
+        "manager_device_unlock",
+        "manager_device_rename",
+        "manager_auth_mode",
       ]);
 
     if (!managerActions.has(action)) {
@@ -1265,7 +1015,8 @@ Deno.serve(async (req) => {
       const managerSession =
         await validateStaffSession(
           supabase,
-          managerToken
+          managerToken,
+          deviceHash
         );
 
       if (!managerSession.ok) {
@@ -1360,7 +1111,8 @@ Deno.serve(async (req) => {
             location,
             role,
             active,
-            created_at
+            created_at,
+            pin_conflict_at
           `)
           .eq(
             "location",
@@ -1952,205 +1704,64 @@ Deno.serve(async (req) => {
         action ===
         "manager_edit_shift"
       ) {
-
         const shiftId =
-          typeof body.shift_id === "string"
-            ? body.shift_id.trim()
-            : "";
-
+          typeof body.shift_id === "string" ? body.shift_id.trim() : "";
         const clockIn =
-          typeof body.clock_in === "string"
-            ? body.clock_in.trim()
-            : "";
-
+          typeof body.clock_in === "string" ? body.clock_in.trim() : "";
         const clockOut =
-          typeof body.clock_out === "string"
-            ? body.clock_out.trim()
-            : "";
-
-        const breakMinutes =
-          Number(body.break_minutes ?? 0);
+          typeof body.clock_out === "string" ? body.clock_out.trim() : "";
+        const breakMinutes = Number(body.break_minutes ?? 0);
 
         if (!shiftId) {
-          return json(
-            { error: "Shift ID is required" },
-            400
-          );
+          return json({ error: "Shift ID is required" }, 400);
         }
-
         const clockInDate = new Date(clockIn);
         const clockOutDate = new Date(clockOut);
-
         if (
           !clockIn ||
           !clockOut ||
           Number.isNaN(clockInDate.getTime()) ||
           Number.isNaN(clockOutDate.getTime())
         ) {
-          return json(
-            { error: "Valid Clock In and Clock Out are required" },
-            400
-          );
+          return json({ error: "Valid Clock In and Clock Out are required" }, 400);
         }
-
         if (clockOutDate <= clockInDate) {
-          return json(
-            { error: "Clock Out must be after Clock In" },
-            400
-          );
+          return json({ error: "Clock Out must be after Clock In" }, 400);
         }
-
-        if (
-          !Number.isFinite(breakMinutes) ||
-          breakMinutes < 0 ||
-          breakMinutes > 720
-        ) {
-          return json(
-            { error: "Break minutes are invalid" },
-            400
-          );
+        if (!Number.isFinite(breakMinutes) || breakMinutes < 0 || breakMinutes > 720) {
+          return json({ error: "Break minutes are invalid" }, 400);
         }
-
         const shiftMinutes =
           (clockOutDate.getTime() - clockInDate.getTime()) / 60000;
-
         if (breakMinutes >= shiftMinutes) {
-          return json(
-            { error: "Break cannot be as long as the whole shift" },
-            400
-          );
+          return json({ error: "Break cannot be as long as the whole shift" }, 400);
+        }
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shiftId)) {
+          return json({ error: "Shift not found" }, 404);
         }
 
-        const {
-          data: existingShift,
-          error: existingShiftError,
-        } = await supabase
-          .from("shifts")
-          .select(`
-            id,
-            staff_id,
-            clock_in,
-            clock_out,
-            approved,
-
-            staff!inner (
-              location,
-              department,
-              active
-            )
-          `)
-          .eq("id", shiftId)
-          .eq("staff.location", location)
-          .eq("staff.active", true)
-          .maybeSingle();
-
-        if (existingShiftError) {
-          throw existingShiftError;
-        }
-
-        if (!existingShift) {
-          return json(
-            { error: "Shift not found" },
-            404
-          );
-        }
-
-        if (
-          managerDepartmentScope &&
-          existingShift.staff?.department !== managerDepartmentScope
-        ) {
-          return json({ error: "Access denied for this department" }, 403);
-        }
-
-        if (!existingShift.clock_out) {
-          return json(
-            { error: "Active shifts cannot be edited here" },
-            400
-          );
-        }
-
-        if (existingShift.approved) {
-          return json(
-            { error: "Approved shifts cannot be edited here" },
-            400
-          );
-        }
-
-        const { error: updateShiftError } =
-          await supabase
-            .from("shifts")
-            .update({
-              clock_in: clockInDate.toISOString(),
-              clock_out: clockOutDate.toISOString(),
-              status: "completed",
-            })
-            .eq("id", shiftId);
-
-        if (updateShiftError) {
-          throw updateShiftError;
-        }
-
-        const { error: deleteBreakError } =
-          await supabase
-            .from("breaks")
-            .delete()
-            .eq("shift_id", shiftId);
-
-        if (deleteBreakError) {
-          throw deleteBreakError;
-        }
-
-        if (breakMinutes > 0) {
-          const breakEnd =
-            new Date(clockOutDate.getTime());
-
-          const breakStart =
-            new Date(
-              breakEnd.getTime() -
-              breakMinutes * 60000
-            );
-
-          const { error: insertBreakError } =
-            await supabase
-              .from("breaks")
-              .insert({
-                shift_id: shiftId,
-                break_start: breakStart.toISOString(),
-                break_end: breakEnd.toISOString(),
-              });
-
-          if (insertBreakError) {
-            throw insertBreakError;
+        // One transaction: lock, scope check, update, breaks, audit.
+        const { data: edited, error: editError } = await supabase.rpc(
+          "manager_edit_shift",
+          {
+            p_manager_id: managerStatus.id,
+            p_shift_id: shiftId,
+            p_clock_in: clockInDate.toISOString(),
+            p_clock_out: clockOutDate.toISOString(),
+            p_break_minutes: Math.round(breakMinutes),
           }
+        );
+        if (editError) {
+          if (dbErrorCode(editError) === "SHIFT_STILL_OPEN") {
+            return json({ error: "Active shifts cannot be edited here" }, 400);
+          }
+          if (dbErrorCode(editError) === "SHIFT_APPROVED") {
+            return json({ error: "Approved shifts cannot be edited here" }, 400);
+          }
+          return managerDbError(editError, "Unable to edit shift", 500);
         }
 
-        const {
-          data: updatedShift,
-          error: updatedShiftError,
-        } = await supabase
-          .from("shifts")
-          .select(`
-            id,
-            staff_id,
-            clock_in,
-            clock_out,
-            status,
-            approved,
-            notes,
-
-            breaks (
-              id,
-              break_start,
-              break_end
-            )
-          `)
-          .eq("id", shiftId)
-          .single();
-
-        if (updatedShiftError) {
-          throw updatedShiftError;
-        }
-
+        const updatedShift = pickShift(edited.shift, edited.breaks || []);
         return json({
           success: true,
           action,
@@ -2158,106 +1769,44 @@ Deno.serve(async (req) => {
             shift: {
               ...updatedShift,
               break_minutes: Math.round(breakMinutes),
-              hours: Number(
-                calculateHours(updatedShift).toFixed(2)
-              ),
+              hours: Number(calculateHours(updatedShift).toFixed(2)),
             },
           },
         });
       }
 
-
       if (
         action ===
         "manager_delete_shift"
       ) {
-
         const shiftId =
-          typeof body.shift_id === "string"
-            ? body.shift_id.trim()
-            : "";
-
+          typeof body.shift_id === "string" ? body.shift_id.trim() : "";
         if (!shiftId) {
-          return json(
-            { error: "Shift ID is required" },
-            400
-          );
+          return json({ error: "Shift ID is required" }, 400);
         }
-
-        const {
-          data: shift,
-          error: shiftError,
-        } = await supabase
-          .from("shifts")
-          .select(`
-            id,
-            staff_id,
-            clock_in,
-            clock_out,
-            approved,
-
-            staff!inner (
-              location,
-              department,
-              active
-            )
-          `)
-          .eq("id", shiftId)
-          .eq("staff.location", location)
-          .maybeSingle();
-
-        if (shiftError) {
-          throw shiftError;
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shiftId)) {
+          return json({ error: "Shift not found" }, 404);
         }
-
-        if (!shift) {
-          return json(
-            { error: "Shift not found" },
-            404
-          );
-        }
-
-        if (
-          managerDepartmentScope &&
-          shift.staff?.department !== managerDepartmentScope
-        ) {
-          return json({ error: "Access denied for this department" }, 403);
-        }
-
-        if (!shift.clock_out) {
-          return json(
-            { error: "Active shifts cannot be deleted here" },
-            400
-          );
-        }
-
-        if (shift.approved) {
-          return json(
-            { error: "Approved shifts cannot be deleted here" },
-            400
-          );
-        }
-
-        const { error: deleteError } =
-          await supabase
-            .from("shifts")
-            .delete()
-            .eq("id", shiftId);
-
+        // The audit row keeps the full deleted shift and its breaks.
+        const { error: deleteError } = await supabase.rpc(
+          "manager_delete_shift",
+          { p_manager_id: managerStatus.id, p_shift_id: shiftId }
+        );
         if (deleteError) {
-          throw deleteError;
+          if (dbErrorCode(deleteError) === "SHIFT_STILL_OPEN") {
+            return json({ error: "Active shifts cannot be deleted here" }, 400);
+          }
+          if (dbErrorCode(deleteError) === "SHIFT_APPROVED") {
+            return json({ error: "Approved shifts cannot be deleted here" }, 400);
+          }
+          return managerDbError(deleteError, "Unable to delete shift", 500);
         }
-
         return json({
           success: true,
           action,
-          data: {
-            deleted: true,
-            shift_id: shiftId,
-          },
+          data: { deleted: true, shift_id: shiftId },
         });
       }
-
 
       if (
         action ===
@@ -2276,18 +1825,11 @@ Deno.serve(async (req) => {
         if (!staffId || !clockIn || !clockOut) {
           return json({ error: "Employee, clock in and clock out are required" }, 400);
         }
-
-        if (
-          !Number.isFinite(breakMinutes) ||
-          breakMinutes < 0 ||
-          breakMinutes > 720
-        ) {
+        if (!Number.isFinite(breakMinutes) || breakMinutes < 0 || breakMinutes > 720) {
           return json({ error: "Invalid break duration" }, 400);
         }
-
         const inDate = new Date(clockIn);
         const outDate = new Date(clockOut);
-
         if (
           Number.isNaN(inDate.getTime()) ||
           Number.isNaN(outDate.getTime()) ||
@@ -2295,304 +1837,135 @@ Deno.serve(async (req) => {
         ) {
           return json({ error: "Clock out must be after clock in" }, 400);
         }
-
         const grossMinutes =
           Math.floor((outDate.getTime() - inDate.getTime()) / 60000);
-
         if (breakMinutes >= grossMinutes) {
           return json({ error: "Break must be shorter than the shift" }, 400);
         }
-
-        const { data: employee, error: employeeError } =
-          await supabase
-            .from("staff")
-            .select("id,name,department,location,role,active")
-            .eq("id", staffId)
-            .eq("location", location)
-            .eq("active", true)
-            .maybeSingle();
-
-        if (employeeError) throw employeeError;
-
-        if (!employee) {
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(staffId)) {
           return json({ error: "Employee not found" }, 404);
         }
 
-        if (
-          managerDepartmentScope &&
-          employee.department !== managerDepartmentScope
-        ) {
-          return json({ error: "Access denied for this department" }, 403);
-        }
-
-        const manualNote =
-          notes
-            ? `[MANUALLY CREATED] ${notes}`
-            : "[MANUALLY CREATED]";
-
-        const { data: createdShift, error: createShiftError } =
-          await supabase
-            .from("shifts")
-            .insert({
-              staff_id: staffId,
-              clock_in: inDate.toISOString(),
-              clock_out: outDate.toISOString(),
-              status: "completed",
-              approved: false,
-              notes: manualNote,
-            })
-            .select("id,staff_id,clock_in,clock_out,status,approved,notes")
-            .single();
-
-        if (createShiftError) throw createShiftError;
-
-        if (breakMinutes > 0) {
-          const breakStartMs =
-            inDate.getTime() +
-            Math.floor(
-              ((outDate.getTime() - inDate.getTime()) -
-                breakMinutes * 60000) / 2
-            );
-
-          const breakStart = new Date(breakStartMs);
-          const breakEnd = new Date(
-            breakStartMs + breakMinutes * 60000
-          );
-
-          const { error: breakError } =
-            await supabase
-              .from("breaks")
-              .insert({
-                shift_id: createdShift.id,
-                break_start: breakStart.toISOString(),
-                break_end: breakEnd.toISOString(),
-              });
-
-          if (breakError) {
-            await supabase
-              .from("shifts")
-              .delete()
-              .eq("id", createdShift.id);
-            throw breakError;
+        // One transaction: shift + break + audit; overlaps are refused by the database.
+        const { data: created, error: createShiftError } = await supabase.rpc(
+          "manager_create_shift",
+          {
+            p_manager_id: managerStatus.id,
+            p_staff_id: staffId,
+            p_clock_in: inDate.toISOString(),
+            p_clock_out: outDate.toISOString(),
+            p_break_minutes: Math.round(breakMinutes),
+            p_notes: notes,
           }
+        );
+        if (createShiftError) {
+          if (dbErrorCode(createShiftError) === "STAFF_NOT_FOUND") {
+            return json({ error: "Employee not found" }, 404);
+          }
+          return managerDbError(createShiftError, "Unable to create shift", 500);
         }
-
+        const employee = created.employee || {};
         return json({
           success: true,
           action,
           data: {
-            shift: createdShift,
-            employee,
+            shift: pickShift(created.shift, null),
+            employee: {
+              id: employee.id,
+              name: employee.name,
+              department: employee.department,
+              location: employee.location,
+              role: employee.role,
+              active: employee.active,
+            },
             break_minutes: breakMinutes,
             manually_created: true,
           },
         });
       }
 
-
       if (
         action ===
         "manager_approve_shift"
       ) {
-
         const shiftId =
-          typeof body.shift_id === "string"
-            ? body.shift_id.trim()
-            : "";
-
+          typeof body.shift_id === "string" ? body.shift_id.trim() : "";
         if (!shiftId) {
-
-          return json(
-            {
-              error:
-                "Shift ID is required",
-            },
-            400
-          );
+          return json({ error: "Shift ID is required" }, 400);
         }
-
-        const {
-          data: shift,
-          error: shiftError,
-        } = await supabase
-          .from("shifts")
-          .select(`
-            id,
-            staff_id,
-            clock_in,
-            clock_out,
-            approved,
-
-            staff!inner (
-              location,
-              department,
-              active
-            )
-          `)
-          .eq(
-            "id",
-            shiftId
-          )
-          .eq(
-            "staff.location",
-            location
-          )
-          .eq(
-            "staff.active",
-            true
-          )
-          .maybeSingle();
-
-        if (shiftError) {
-          throw shiftError;
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shiftId)) {
+          return json({ error: "Shift not found" }, 404);
         }
-
-        if (!shift) {
-
-          return json(
-            {
-              error:
-                "Shift not found",
-            },
-            404
-          );
-        }
-
-        if (
-          managerDepartmentScope &&
-          shift.staff?.department !== managerDepartmentScope
-        ) {
-          return json({ error: "Access denied for this department" }, 403);
-        }
-
-        if (
-          managerDepartmentScope &&
-          shift.staff?.department !== managerDepartmentScope
-        ) {
-          return json({ error: "Access denied for this department" }, 403);
-        }
-
-        if (!shift.clock_out) {
-
-          return json(
-            {
-              error:
-                "Active shifts cannot be approved",
-            },
-            400
-          );
-        }
-
-        const {
-          data: approvedShift,
-          error: approveError,
-        } = await supabase
-          .from("shifts")
-          .update({
-            approved: true,
-          })
-          .eq(
-            "id",
-            shiftId
-          )
-          .select(`
-            id,
-            staff_id,
-            clock_in,
-            clock_out,
-            approved
-          `)
-          .single();
-
+        const { data: approved, error: approveError } = await supabase.rpc(
+          "manager_set_shift_approved",
+          { p_manager_id: managerStatus.id, p_shift_id: shiftId, p_approved: true }
+        );
         if (approveError) {
-          throw approveError;
+          if (dbErrorCode(approveError) === "SHIFT_STILL_OPEN") {
+            return json({ error: "Active shifts cannot be approved" }, 400);
+          }
+          return managerDbError(approveError, "Unable to approve shift", 500);
         }
-
+        const sh = approved.shift;
         return json({
-
           success: true,
-
           action,
-
           data: {
-
-            shift:
-              approvedShift,
+            shift: {
+              id: sh.id,
+              staff_id: sh.staff_id,
+              clock_in: sh.clock_in,
+              clock_out: sh.clock_out,
+              approved: sh.approved,
+            },
           },
         });
       }
-
 
       if (
         action ===
         "manager_reopen_shift"
       ) {
         const shiftId =
-          typeof body.shift_id === "string"
-            ? body.shift_id.trim()
-            : "";
-
+          typeof body.shift_id === "string" ? body.shift_id.trim() : "";
         if (!shiftId) {
           return json({ error: "Shift ID is required" }, 400);
         }
-
-        const { data: shift, error: shiftError } = await supabase
-          .from("shifts")
-          .select(`
-            id,
-            staff_id,
-            clock_in,
-            clock_out,
-            approved,
-            staff!inner (
-              location,
-              department,
-              active
-            )
-          `)
-          .eq("id", shiftId)
-          .eq("staff.location", location)
-          .eq("staff.active", true)
-          .maybeSingle();
-
-        if (shiftError) throw shiftError;
-        if (!shift) return json({ error: "Shift not found" }, 404);
-
-        if (
-          managerDepartmentScope &&
-          shift.staff?.department !== managerDepartmentScope
-        ) {
-          return json({ error: "Access denied for this department" }, 403);
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shiftId)) {
+          return json({ error: "Shift not found" }, 404);
         }
-
-        if (!shift.clock_out) {
-          return json({ error: "Active shifts cannot be reopened" }, 400);
+        const { data: reopened, error: reopenError } = await supabase.rpc(
+          "manager_set_shift_approved",
+          { p_manager_id: managerStatus.id, p_shift_id: shiftId, p_approved: false }
+        );
+        if (reopenError) {
+          if (dbErrorCode(reopenError) === "SHIFT_STILL_OPEN") {
+            return json({ error: "Active shifts cannot be reopened" }, 400);
+          }
+          return managerDbError(reopenError, "Unable to reopen shift", 500);
         }
-
-        if (!shift.approved) {
+        if (!reopened.changed) {
           return json({
             success: true,
             action,
             data: { shift_id: shiftId, approved: false, already_pending: true },
           });
         }
-
-        const { data: reopenedShift, error: reopenError } = await supabase
-          .from("shifts")
-          .update({ approved: false })
-          .eq("id", shiftId)
-          .select("id,staff_id,clock_in,clock_out,approved")
-          .single();
-
-        if (reopenError) throw reopenError;
-
+        const sh = reopened.shift;
         return json({
           success: true,
           action,
-          data: { shift: reopenedShift },
+          data: {
+            shift: {
+              id: sh.id,
+              staff_id: sh.staff_id,
+              clock_in: sh.clock_in,
+              clock_out: sh.clock_out,
+              approved: sh.approved,
+            },
+          },
         });
       }
-
 
       // =========================
       // MANAGER CLOCK OUT STAFF
@@ -2741,369 +2114,244 @@ Deno.serve(async (req) => {
         action ===
         "manager_create_staff"
       ) {
-
         const name =
-          typeof body.name === "string"
-            ? body.name.trim()
-            : "";
-
+          typeof body.name === "string" ? body.name.trim() : "";
         const staffPin =
-          typeof body.staff_pin === "string"
-            ? body.staff_pin.trim()
-            : "";
-
+          typeof body.staff_pin === "string" ? body.staff_pin.trim() : "";
         const department =
-          typeof body.department === "string"
-            ? body.department.trim()
-            : "";
+          typeof body.department === "string" ? body.department.trim() : "";
 
         if (!name) {
-          return json(
-            { error: "Name is required" },
-            400
-          );
+          return json({ error: "Name is required" }, 400);
         }
-
         if (!/^[0-9]{4,6}$/.test(staffPin)) {
-          return json(
-            { error: "PIN must contain 4 to 6 numbers" },
-            400
-          );
+          return json({ error: "PIN must contain 4 to 6 numbers" }, 400);
         }
-
-        if (
-          department !== "Kitchen" &&
-          department !== "Floor"
-        ) {
-          return json(
-            { error: "Department must be Kitchen or Floor" },
-            400
-          );
+        if (department !== "Kitchen" && department !== "Floor") {
+          return json({ error: "Department must be Kitchen or Floor" }, 400);
         }
-
         if (!departmentAllowed(department)) {
           return json({ error: "Access denied for this department" }, 403);
         }
 
-        const {
-          data: createdStaff,
-          error: createStaffError,
-        } = await supabase.rpc(
-          "manager_create_staff",
+        // Refuses a PIN that another active person already uses; writes an audit row.
+        const { data: createdStaff, error: createStaffError } = await supabase.rpc(
+          "manager_create_staff_audited",
           {
+            p_manager_id: managerStatus.id,
             p_name: name,
             p_pin: staffPin,
             p_department: department,
-            p_location: location,
           }
         );
-
         if (createStaffError) {
-          console.error(
-            "Create staff error:",
-            createStaffError.message
-          );
-
-          return json(
-            { error: "Unable to create staff member" },
-            400
-          );
+          const code = dbErrorCode(createStaffError);
+          if (code === "PIN_IN_USE" || code === "DEPARTMENT_DENIED") {
+            return managerDbError(createStaffError, "Unable to create staff member");
+          }
+          console.error("Create staff error:", createStaffError.code || "");
+          return json({ error: "Unable to create staff member" }, 400);
         }
-
         return json({
           success: true,
           action,
-          data: {
-            staff:
-              Array.isArray(createdStaff)
-                ? createdStaff[0] || null
-                : createdStaff,
-          },
+          data: { staff: createdStaff },
         });
       }
-
 
       if (
         action ===
         "manager_update_staff"
       ) {
-
         const staffId =
-          typeof body.staff_id === "string"
-            ? body.staff_id.trim()
-            : "";
-
+          typeof body.staff_id === "string" ? body.staff_id.trim() : "";
         const name =
-          typeof body.name === "string"
-            ? body.name.trim()
-            : "";
-
+          typeof body.name === "string" ? body.name.trim() : "";
         const department =
-          typeof body.department === "string"
-            ? body.department.trim()
-            : "";
-
+          typeof body.department === "string" ? body.department.trim() : "";
         const newPin =
-          typeof body.new_pin === "string"
-            ? body.new_pin.trim()
-            : "";
-
+          typeof body.new_pin === "string" ? body.new_pin.trim() : "";
         const requestedRole =
-          typeof body.role === "string"
-            ? body.role.trim()
-            : "";
+          typeof body.role === "string" ? body.role.trim() : "";
 
         if (!staffId) {
-          return json(
-            { error: "Staff ID is required" },
-            400
-          );
+          return json({ error: "Staff ID is required" }, 400);
         }
-
         if (!name) {
-          return json(
-            { error: "Name is required" },
-            400
-          );
+          return json({ error: "Name is required" }, 400);
         }
-
-        if (
-          department !== "Kitchen" &&
-          department !== "Floor"
-        ) {
-          return json(
-            { error: "Department must be Kitchen or Floor" },
-            400
-          );
+        if (department !== "Kitchen" && department !== "Floor") {
+          return json({ error: "Department must be Kitchen or Floor" }, 400);
         }
-
-        if (
-          newPin &&
-          !/^[0-9]{4,6}$/.test(newPin)
-        ) {
-          return json(
-            { error: "PIN must contain 4 to 6 numbers" },
-            400
-          );
+        if (newPin && !/^[0-9]{4,6}$/.test(newPin)) {
+          return json({ error: "PIN must contain 4 to 6 numbers" }, 400);
         }
-
         if (
           requestedRole &&
           !["staff", "manager", "kitchen_manager", "floor_manager"].includes(requestedRole)
         ) {
           return json({ error: "Invalid account role" }, 400);
         }
-
-        const {
-          data: targetStaff,
-          error: targetStaffError,
-        } = await supabase
-          .from("staff")
-          .select(`
-            id,
-            location,
-            department,
-            role
-          `)
-          .eq("id", staffId)
-          .eq("location", location)
-          .maybeSingle();
-
-        if (targetStaffError) {
-          throw targetStaffError;
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(staffId)) {
+          return json({ error: "Staff member not found" }, 404);
         }
-
-        if (!targetStaff) {
-          return json(
-            { error: "Staff member not found" },
-            404
-          );
-        }
-
+        // Department scope is checked here (clear 403) and again in the database.
         if (
           managerDepartmentScope &&
-          (
-            targetStaff.department !== managerDepartmentScope ||
-            department !== managerDepartmentScope
-          )
+          department !== managerDepartmentScope
         ) {
           return json({ error: "Access denied for this department" }, 403);
         }
 
-        if (targetStaff.role !== "staff" && !isGeneralManager) {
-          return json({ error: "Only the General Manager can manage manager accounts" }, 403);
-        }
-
-        const {
-          data: updatedStaff,
-          error: updateStaffError,
-        } = await supabase.rpc(
-          "manager_update_staff",
+        const { data: updated, error: updateStaffError } = await supabase.rpc(
+          "manager_update_staff_audited",
           {
+            p_manager_id: managerStatus.id,
             p_staff_id: staffId,
             p_name: name,
             p_department: department,
             p_new_pin: newPin || null,
+            p_role: requestedRole || null,
           }
         );
-
         if (updateStaffError) {
-          console.error(
-            "Update staff error:",
-            updateStaffError.message
-          );
-
-          return json(
-            { error: "Unable to update staff member" },
-            400
-          );
+          const code = dbErrorCode(updateStaffError);
+          if (["PIN_IN_USE", "DEPARTMENT_DENIED", "GM_REQUIRED", "STAFF_NOT_FOUND", "INVALID_ROLE"].includes(code)) {
+            return managerDbError(updateStaffError, "Unable to update staff member");
+          }
+          console.error("Update staff error:", updateStaffError.code || "");
+          return json({ error: "Unable to update staff member" }, 400);
         }
-
-        let staff =
-          Array.isArray(updatedStaff)
-            ? updatedStaff[0] || null
-            : updatedStaff;
-
-        if (
-          isGeneralManager &&
-          requestedRole &&
-          staff &&
-          requestedRole !== staff.role
-        ) {
-          const { data: roleUpdated, error: roleUpdateError } =
-            await supabase
-              .from("staff")
-              .update({ role: requestedRole })
-              .eq("id", staffId)
-              .eq("location", location)
-              .select("id,name,department,location,role,active,created_at")
-              .single();
-
-          if (roleUpdateError) throw roleUpdateError;
-          staff = roleUpdated;
-        }
-
-        if (!staff) {
-          return json(
-            { error: "Staff member not found" },
-            404
-          );
-        }
-
         return json({
           success: true,
           action,
           data: {
-            staff,
+            staff: {
+              id: updated.id,
+              name: updated.name,
+              department: updated.department,
+              location: updated.location,
+              role: updated.role,
+              active: updated.active,
+              created_at: updated.created_at,
+            },
           },
         });
       }
-
 
       if (
         action ===
         "manager_toggle_staff"
       ) {
-
         const staffId =
-          typeof body.staff_id === "string"
-            ? body.staff_id.trim()
-            : "";
-
+          typeof body.staff_id === "string" ? body.staff_id.trim() : "";
         if (!staffId) {
-          return json(
-            { error: "Staff ID is required" },
-            400
-          );
+          return json({ error: "Staff ID is required" }, 400);
         }
-
-        const {
-          data: targetStaff,
-          error: targetStaffError,
-        } = await supabase
-          .from("staff")
-          .select(`
-            id,
-            name,
-            department,
-            location,
-            role,
-            active,
-            created_at
-          `)
-          .eq("id", staffId)
-          .eq("location", location)
-          .maybeSingle();
-
-        if (targetStaffError) {
-          throw targetStaffError;
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(staffId)) {
+          return json({ error: "Staff member not found" }, 404);
         }
-
-        if (!targetStaff) {
-          return json(
-            { error: "Staff member not found" },
-            404
-          );
+        const { data: toggled, error: toggleError } = await supabase.rpc(
+          "manager_toggle_staff_audited",
+          { p_manager_id: managerStatus.id, p_staff_id: staffId }
+        );
+        if (toggleError) {
+          return managerDbError(toggleError, "Unable to update staff member", 500);
         }
-
-        if (
-          managerDepartmentScope &&
-          targetStaff.department !== managerDepartmentScope
-        ) {
-          return json({ error: "Access denied for this department" }, 403);
-        }
-
-        if (
-          targetStaff.role !== "staff" &&
-          !isGeneralManager
-        ) {
-          return json(
-            { error: "Only the General Manager can manage manager accounts" },
-            403
-          );
-        }
-
-        if (targetStaff.id === managerStatus.id) {
-          return json(
-            { error: "You cannot deactivate your own manager account" },
-            400
-          );
-        }
-
-        const {
-          data: updatedStaff,
-          error: updateStaffError,
-        } = await supabase
-          .from("staff")
-          .update({
-            active: !targetStaff.active,
-          })
-          .eq("id", staffId)
-          .eq("location", location)
-          .select(`
-            id,
-            name,
-            department,
-            location,
-            role,
-            active,
-            created_at
-          `)
-          .single();
-
-        if (updateStaffError) {
-          throw updateStaffError;
-        }
-
         return json({
           success: true,
           action,
           data: {
-            staff: updatedStaff,
+            staff: {
+              id: toggled.id,
+              name: toggled.name,
+              department: toggled.department,
+              location: toggled.location,
+              role: toggled.role,
+              active: toggled.active,
+              created_at: toggled.created_at,
+            },
           },
         });
       }
 
+      // =========================
+      // AUTHORISED DEVICES (managers)
+      // =========================
+
+      if (action === "manager_devices") {
+        const { data, error } = await supabase.rpc("auth_list_devices", {
+          p_manager_id: managerStatus.id,
+          p_current_device_hash: deviceHash,
+        });
+        if (error) return managerDbError(error, "Unable to load devices", 500);
+        return json({ success: true, action, data });
+      }
+
+      if (action === "manager_device_code") {
+        const code = createPairingCode();
+        const label =
+          typeof body.label === "string" ? body.label.trim().slice(0, 60) : "";
+        const { data, error } = await supabase.rpc("auth_create_pairing_code", {
+          p_manager_id: managerStatus.id,
+          p_code_hash: await sha256Hex(code),
+          p_label: label || null,
+        });
+        if (error) return managerDbError(error, "Unable to create a device code", 500);
+        authLog("pairing_code", { created: true });
+        return json({
+          success: true,
+          action,
+          data: { code: code.slice(0, 4) + "-" + code.slice(4), expires_at: data.expires_at },
+        });
+      }
+
+      if (
+        action === "manager_device_revoke" ||
+        action === "manager_device_unlock" ||
+        action === "manager_device_rename"
+      ) {
+        const deviceId =
+          typeof body.device_id === "string" ? body.device_id.trim() : "";
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deviceId)) {
+          return json({ error: "Device not found" }, 404);
+        }
+        const rpcName =
+          action === "manager_device_revoke"
+            ? "auth_revoke_device"
+            : action === "manager_device_unlock"
+              ? "auth_unlock_device"
+              : "auth_rename_device";
+        const args: Record<string, unknown> = {
+          p_manager_id: managerStatus.id,
+          p_device_id: deviceId,
+        };
+        if (action === "manager_device_rename") {
+          args.p_label = typeof body.label === "string" ? body.label : "";
+        }
+        const { data, error } = await supabase.rpc(rpcName, args);
+        if (error) return managerDbError(error, "Unable to update the device", 500);
+        return json({ success: true, action, data });
+      }
+
+      if (action === "manager_auth_mode") {
+        const mode = typeof body.mode === "string" ? body.mode.trim() : "";
+        if (mode !== "grace" && mode !== "enforce") {
+          return json({ error: "Mode must be grace or enforce" }, 400);
+        }
+        const { data, error } = await supabase.rpc("auth_set_mode", {
+          p_manager_id: managerStatus.id,
+          p_mode: mode,
+        });
+        if (error) {
+          if (dbErrorCode(error) === "GM_REQUIRED") {
+            return json({ error: "Only the General Manager can change this setting", code: "GM_REQUIRED" }, 403);
+          }
+          return managerDbError(error, "Unable to change the setting", 500);
+        }
+        authLog("mode", { mode });
+        return json({ success: true, action, data });
+      }
 
       if (
         action ===

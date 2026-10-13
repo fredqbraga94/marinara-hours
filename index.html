@@ -993,6 +993,21 @@ button{cursor:pointer}
 .reopen-shift-action{display:inline-flex;align-items:center;justify-content:center;margin-top:10px;padding:8px 11px;border:1px solid #1f6b45;border-radius:11px;background:white;color:#1f6b45;font-size:11px;font-weight:850;cursor:pointer}.reopen-shift-action[aria-disabled="true"]{opacity:.55;pointer-events:none}
 .manager-staff-clockout{padding:8px 12px;border:1px solid #1f6b45;border-radius:10px;background:#fff;color:#1f6b45;font-size:12px;font-weight:800;cursor:pointer}.manager-staff-clockout:disabled{opacity:.5}
 .staff-clockout-panel{margin:0 0 14px;padding:14px;background:#fafbfa;border:1px solid var(--border);border-radius:16px}.staff-clockout-panel .edit-title{margin-bottom:6px}.staff-clockout-hint{color:var(--muted);font-size:11px;line-height:1.4;margin-bottom:10px}.staff-clockout-error{color:var(--danger);font-size:12px;font-weight:700;margin-top:8px;min-height:0}.staff-clockout-error:empty{display:none}
+
+/* v38: device authorisation (uses existing colours) */
+.login-link-btn{display:block;margin:14px auto 0;background:none;border:0;color:var(--green);font-weight:800;font-size:14px;text-decoration:underline;cursor:pointer}
+#pairPanel{margin-top:12px}
+#pairPanel .pin{letter-spacing:4px;text-transform:uppercase;font-size:22px}
+.device-code-box{margin:14px 0 4px;padding:14px;border-radius:16px;background:#f3f8f5;text-align:center}
+.device-code-box strong{display:block;font-size:30px;letter-spacing:5px;color:var(--green)}
+.device-code-box small{color:var(--muted)}
+.device-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:12px 2px;border-top:1px solid rgba(0,0,0,.06)}
+.device-row:first-child{border-top:0}
+.device-row .person-meta{line-height:1.45}
+.device-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.device-actions .back-btn{padding:8px 10px;min-height:36px;border-radius:11px;font-size:11px}
+.team-pin-conflict{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:9px;background:#fff1e6;color:#9a4a00;font-size:11px;font-weight:800}
+button:disabled{opacity:.6}
 </style>
 </head>
 
@@ -1037,6 +1052,24 @@ button{cursor:pointer}
 
     <button id="loginBtn" class="btn primary">Continue</button>
     <div id="loginMessage" class="message"></div>
+
+    <button id="pairToggleBtn" type="button" class="login-link-btn hidden">Authorise this device</button>
+    <div id="pairPanel" class="hidden">
+      <div class="login-pin-sub">Enter the device code from a manager</div>
+      <input
+        id="pairCodeInput"
+        class="pin"
+        type="text"
+        autocomplete="off"
+        autocapitalize="characters"
+        spellcheck="false"
+        maxlength="9"
+        placeholder="XXXX-XXXX"
+        aria-label="Device code"
+      >
+      <button id="pairBtn" type="button" class="btn secondary">Authorise device</button>
+      <div id="pairMessage" class="message"></div>
+    </div>
   </div>
 
   <div class="login-footer-mark">MARINARA HAWTHORNE</div>
@@ -1259,6 +1292,27 @@ button{cursor:pointer}
 
 
 <!-- MORE SCREEN -->
+<section id="devicesScreen" class="hidden">
+  <div class="manager-top">
+    <div>
+      <div class="more-v2-kicker">MANAGER</div>
+      <h2 class="more-v2-title">Devices</h2>
+      <p class="more-v2-sub">Phones and tablets allowed to sign in</p>
+    </div>
+  </div>
+  <div class="card">
+    <div id="devicesModeBox" class="person-meta"></div>
+    <button id="newDeviceCodeBtn" class="btn primary" type="button">New device code</button>
+    <div id="deviceCodeBox" class="device-code-box hidden"></div>
+    <div id="devicesMessage" class="message"></div>
+  </div>
+  <div class="card">
+    <div class="section-title">Authorised devices</div>
+    <div id="devicesList"></div>
+  </div>
+  <button id="devicesBackBtn" class="btn secondary" type="button">Back</button>
+</section>
+
 <section id="managerMoreScreen" class="hidden">
   <div class="manager-top">
     <div>
@@ -1290,6 +1344,11 @@ button{cursor:pointer}
     <button id="moreMyClockBtn" class="more-v2-item" type="button">
       <span class="more-v2-icon">◉</span>
       <span><strong>My Time Clock</strong><small>Clock in, take a break and clock out</small></span>
+      <span class="more-v2-chevron">›</span>
+    </button>
+    <button id="moreDevicesBtn" class="more-v2-item" type="button">
+      <span class="more-v2-icon">▣</span>
+      <span><strong>Devices</strong><small>Phones and tablets allowed to sign in</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
     <button id="moreManagersBtn" class="more-v2-item hidden" type="button">
@@ -1412,6 +1471,18 @@ let currentManagerRole = null;
 
 const loginScreen =
 document.getElementById("loginScreen");
+
+const pairToggleBtn = document.getElementById("pairToggleBtn");
+const pairPanel = document.getElementById("pairPanel");
+const pairCodeInput = document.getElementById("pairCodeInput");
+const pairBtn = document.getElementById("pairBtn");
+const pairMessage = document.getElementById("pairMessage");
+const devicesScreen = document.getElementById("devicesScreen");
+const devicesList = document.getElementById("devicesList");
+const devicesModeBox = document.getElementById("devicesModeBox");
+const devicesMessage = document.getElementById("devicesMessage");
+const deviceCodeBox = document.getElementById("deviceCodeBox");
+const newDeviceCodeBtn = document.getElementById("newDeviceCodeBtn");
 
 const homeScreen =
 document.getElementById("homeScreen");
@@ -1703,27 +1774,109 @@ function clearMessage(element) {
 
 /* API */
 
-async function loginApi(pin) {
-  const response = await fetch(
-    API,
-    {
+/* DEVICE SECRET (v38)
+   A random secret kept on this device. Only its hash is stored on the server;
+   it lets the server limit PIN attempts per authorised device without trusting
+   IP addresses. If the browser cannot store it, it lasts for this page only. */
+
+const DEVICE_KEY = "marinara_device_secret";
+
+function loadDeviceSecret() {
+  let value = null;
+  try { value = localStorage.getItem(DEVICE_KEY); } catch (_) {}
+  if (!value || !/^[A-Za-z0-9_-]{43}$/.test(value)) {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    let binary = "";
+    bytes.forEach(b => { binary += String.fromCharCode(b); });
+    value = btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    try { localStorage.setItem(DEVICE_KEY, value); } catch (_) {}
+  }
+  return value;
+}
+
+const DEVICE_SECRET = loadDeviceSecret();
+
+const MANAGER_ROLES = ["manager", "kitchen_manager", "floor_manager"];
+
+/* API */
+
+// One place for every request: adds the device secret, turns network
+// failures and non-JSON answers into clear messages.
+async function postApi(payload) {
+  let response;
+  try {
+    response = await fetch(API, {
       method:"POST",
       headers:{
         "Authorization":"Bearer " + SUPABASE_KEY,
         "apikey":SUPABASE_KEY,
         "Content-Type":"application/json"
       },
-      body:JSON.stringify({
-        action:"login",
-        pin
-      })
-    }
-  );
+      body:JSON.stringify({ ...payload, device:DEVICE_SECRET })
+    });
+  } catch (_) {
+    const error = new Error(
+      navigator.onLine === false
+        ? "You are offline. Check your connection and try again."
+        : "Can't reach the server. Check your connection and try again."
+    );
+    error.network = true;
+    throw error;
+  }
+  let result = null;
+  try { result = await response.json(); } catch (_) { result = null; }
+  return { response, result: result || {} };
+}
 
-  const result = await response.json();
+// Plain-language versions of codes older servers send as the message.
+const FRIENDLY_ERRORS = {
+  SHIFT_ALREADY_OPEN:"You are already clocked in.",
+  NO_WORKING_SHIFT:"You can only start a break while you are clocked in and not on a break.",
+  NO_ACTIVE_BREAK:"You are not on a break.",
+  END_BREAK_REQUIRED:"End your break before clocking out.",
+  NO_OPEN_SHIFT:"You are not clocked in.",
+  STAFF_NOT_FOUND:"Staff account is inactive or unavailable"
+};
+
+function friendlyError(response, result, fallback) {
+  const raw = typeof result.error === "string" ? result.error : "";
+  if (FRIENDLY_ERRORS[raw]) return FRIENDLY_ERRORS[raw];
+  if (raw.includes("shifts_one_open_per_staff")) return FRIENDLY_ERRORS.SHIFT_ALREADY_OPEN;
+  if (raw.includes("breaks_one_open_per_shift")) return "Your break has already started.";
+  if (/duplicate key|violates|constraint/i.test(raw)) return fallback;
+  if (raw && response.status < 500) return raw;
+  if ([502, 503, 504].includes(response.status) || (response.status >= 500 && !raw)) {
+    return "The server is busy right now. Please try again in a moment.";
+  }
+  return raw || fallback;
+}
+
+function apiError(message, result) {
+  const error = new Error(message);
+  error.code = (result && result.code) || "";
+  return error;
+}
+
+async function loginApi(pin) {
+  const { response, result } = await postApi({ action:"login", pin });
 
   if (!response.ok || result.success !== true) {
-    throw new Error(result.error || "PIN not recognised.");
+    // The previous server answered a wrong PIN with this 500 message.
+    if (
+      response.status === 401 ||
+      (response.status === 500 && result.error === "Unable to create secure session")
+    ) {
+      const left = Number(result.attempts_remaining);
+      throw apiError(
+        "PIN not recognised." +
+          (Number.isFinite(left) && left > 0 && left <= 3
+            ? ` ${left} attempt${left === 1 ? "" : "s"} left on this device.`
+            : ""),
+        result
+      );
+    }
+    throw apiError(friendlyError(response, result, "Unable to sign in. Please try again."), result);
   }
 
   const data =
@@ -1742,40 +1895,33 @@ async function loginApi(pin) {
   };
 }
 
+function sessionEndedError() {
+  currentSessionToken = "";
+  sessionStorage.removeItem("marinara_session_token");
+  const error = new Error("Your session has ended. Please sign in again.");
+  error.sessionEnded = true;
+  return error;
+}
 
 async function sessionApi(
   action,
   extra = {}
 ) {
   if (!currentSessionToken) {
-    throw new Error("Your session has ended. Please sign in again.");
+    throw sessionEndedError();
   }
 
-  const response = await fetch(
-    API,
-    {
-      method:"POST",
-      headers:{
-        "Authorization":"Bearer " + SUPABASE_KEY,
-        "apikey":SUPABASE_KEY,
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({
-        action,
-        token:currentSessionToken,
-        ...extra
-      })
-    }
-  );
-
-  const result = await response.json();
+  const { response, result } = await postApi({
+    action,
+    token:currentSessionToken,
+    ...extra
+  });
 
   if (!response.ok || result.success !== true) {
     if (response.status === 401) {
-      currentSessionToken = "";
-      sessionStorage.removeItem("marinara_session_token");
+      throw sessionEndedError();
     }
-    throw new Error(result.error || "Unable to complete action");
+    throw apiError(friendlyError(response, result, "Unable to complete action"), result);
   }
 
   return result.data;
@@ -1787,44 +1933,20 @@ async function managerApi(
   extra = {}
 ) {
   if (!currentSessionToken) {
-    throw new Error("Your session has ended. Please sign in again.");
+    throw sessionEndedError();
   }
 
-  const response = await fetch(
-    API,
-    {
-      method:"POST",
-      headers:{
-        "Authorization":"Bearer " + SUPABASE_KEY,
-        "apikey":SUPABASE_KEY,
-        "Content-Type":"application/json"
-      },
-      body:JSON.stringify({
-        action,
-        token:currentSessionToken,
-        ...extra
-      })
-    }
-  );
-
-  let result;
-
-  try {
-    result = await response.json();
-  } catch {
-    throw new Error("Invalid response from server");
-  }
+  const { response, result } = await postApi({
+    action,
+    token:currentSessionToken,
+    ...extra
+  });
 
   if (!response.ok || result.success !== true) {
     if (response.status === 401) {
-      currentSessionToken = "";
-      sessionStorage.removeItem("marinara_session_token");
+      throw sessionEndedError();
     }
-
-    throw new Error(
-      result.error ||
-      "Unable to complete manager action"
-    );
+    throw apiError(friendlyError(response, result, "Unable to complete manager action"), result);
   }
 
   return result.data;
@@ -1835,54 +1957,14 @@ async function api(
   action,
   extra = {}
 ) {
+  const { response, result } = await postApi({
+    action,
+    pin:currentPin,
+    ...extra
+  });
 
-  const response =
-  await fetch(
-    API,
-    {
-      method:"POST",
-
-      headers:{
-        "Authorization":
-          "Bearer " + SUPABASE_KEY,
-
-        "apikey":
-          SUPABASE_KEY,
-
-        "Content-Type":
-          "application/json"
-      },
-
-      body:JSON.stringify({
-        action,
-        pin:currentPin,
-        ...extra
-      })
-    }
-  );
-
-  let result;
-
-  try {
-    result = await response.json();
-  }
-
-  catch {
-    throw new Error(
-      "Invalid response from server"
-    );
-  }
-
-  if (
-    !response.ok ||
-    result.success !== true
-  ) {
-
-    throw new Error(
-      result.error ||
-      "Unable to complete action"
-    );
-
+  if (!response.ok || result.success !== true) {
+    throw apiError(friendlyError(response, result, "Unable to complete action"), result);
   }
 
   return result.data;
@@ -2042,6 +2124,11 @@ function toBrisbaneDateTimeLocal(value) {
 
 
 function brisbaneLocalToIso(value) {
+
+  // Some browsers (older iOS Safari) add seconds to datetime-local values.
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?$/.test(value || "")) {
+    value = value.slice(0, 16);
+  }
 
   if (
     !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(
@@ -2347,6 +2434,9 @@ function closeStaffClockoutPanels() {
 
 function staffClockoutIso(value) {
   // Brisbane has no daylight saving time: always UTC+10.
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?$/.test(value || "")) {
+    value = value.slice(0, 16);
+  }
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value || "")) {
     throw new Error("Enter the date and time the staff member actually finished.");
   }
@@ -3867,6 +3957,10 @@ loginBtn.addEventListener(
         "error"
       );
 
+      if (error.code === "DEVICE_NOT_AUTHORIZED" || error.code === "DEVICE_REVOKED") {
+        showPairing(true);
+      }
+
     }
 
     finally {
@@ -3896,10 +3990,18 @@ pinInput.addEventListener(
 
 /* STAFF ACTIONS */
 
+let staffClockBusy = false;
+
 async function performAction(
   action,
   successText
 ) {
+
+  // One request at a time: a double tap must not send two actions.
+  if (staffClockBusy) return;
+  staffClockBusy = true;
+  const clockButtons = [clockInBtn, startBreakBtn, endBreakBtn, clockOutBtn];
+  clockButtons.forEach(b => { b.disabled = true; });
 
   clearMessage(
     actionMessage
@@ -3930,12 +4032,22 @@ async function performAction(
 
   catch(error) {
 
+    if (error.sessionEnded) {
+      handleSessionEnded();
+      return;
+    }
+
     showMessage(
       actionMessage,
       error.message,
       "error"
     );
 
+  }
+
+  finally {
+    staffClockBusy = false;
+    clockButtons.forEach(b => { b.disabled = false; });
   }
 
 }
@@ -3979,10 +4091,17 @@ clockOutBtn.addEventListener(
 
 /* MANAGER TIME CLOCK */
 
+let managerClockBusy = false;
+
 async function performManagerClockAction(
   action,
   successText
 ) {
+
+  if (managerClockBusy) return;
+  managerClockBusy = true;
+  const clockButtons = [managerClockInBtn, managerStartBreakBtn, managerEndBreakBtn, managerClockOutBtn];
+  clockButtons.forEach(b => { b.disabled = true; });
 
   clearMessage(
     managerActionMessage
@@ -4013,6 +4132,11 @@ async function performManagerClockAction(
 
   catch(error) {
 
+    if (error.sessionEnded) {
+      handleSessionEnded();
+      return;
+    }
+
     showMessage(
       managerActionMessage,
       error.message ||
@@ -4020,6 +4144,11 @@ async function performManagerClockAction(
       "error"
     );
 
+  }
+
+  finally {
+    managerClockBusy = false;
+    clockButtons.forEach(b => { b.disabled = false; });
   }
 
 }
@@ -4760,6 +4889,9 @@ function renderTeamMember(person) {
             : `${escapeHtml(person.department || "")} · ${escapeHtml(roleLabel)}`}
           · <span class="team-status-dot ${statusDotClass}"></span>${statusText}
         </div>
+        ${person.pin_conflict_at && person.active
+          ? `<div class="team-pin-conflict">PIN shared with someone else — set a new PIN</div>`
+          : ""}
       </div>
 
       <div class="team-person-actions">
@@ -5193,6 +5325,7 @@ function openManagerMore() {
   teamScreen.classList.add("hidden");
   staffHoursScreen.classList.add("hidden");
   timesheetsScreen.classList.add("hidden");
+  devicesScreen?.classList.add("hidden");
   managerMoreScreen?.classList.remove("hidden");
 
   let identity = {};
@@ -5233,6 +5366,7 @@ managerHoursViewAll?.addEventListener("click",()=>staffHoursCard?.click());
 managerBottomNav?.addEventListener("click",event=>{
   const button=event.target.closest("[data-manager-nav]");
   if(!button)return;
+  devicesScreen?.classList.add("hidden");
   const target=button.dataset.managerNav;
 
   if(target==="home"){
@@ -5323,6 +5457,10 @@ async function syncCurrentView() {
       await loadManagerDashboard();
     }
   } catch (error) {
+    if (error?.sessionEnded) {
+      handleSessionEnded();
+      return;
+    }
     // Background refresh must never interrupt normal clock use.
     console.debug(
       "Background sync skipped:",
@@ -5415,6 +5553,10 @@ async function signOutAll() {
   ?.classList
   .add("hidden");
 
+  devicesScreen
+  ?.classList
+  .add("hidden");
+
   managerClockSection
   .classList
   .add("hidden");
@@ -5452,6 +5594,262 @@ managerLogoutBtn.addEventListener(
 staffBottomNav?.addEventListener("click",event=>{const b=event.target.closest("[data-staff-view]");if(b)setStaffView(b.dataset.staffView||"home")});
 profileLogoutBtn?.addEventListener("click",()=>logoutBtn.click());
 
+
+
+/* SESSION RESTORE, SESSION END, DEVICE AUTHORISATION (v38) */
+
+function signedInRole(statusData) {
+  let identity = {};
+  try { identity = JSON.parse(sessionStorage.getItem("marinara_staff_identity") || "{}"); } catch (_) {}
+  return statusData?.staff_role || identity.role || "staff";
+}
+
+async function showSignedInView(role) {
+  loginScreen.classList.add("hidden");
+  approvalsScreen.classList.add("hidden");
+  staffHoursScreen.classList.add("hidden");
+  devicesScreen?.classList.add("hidden");
+  if (MANAGER_ROLES.includes(role)) {
+    currentManagerRole = role;
+    homeScreen.classList.add("hidden");
+    managerScreen.classList.remove("hidden");
+    setManagerNavActive("home");
+    await loadManagerDashboard();
+  } else {
+    managerScreen.classList.add("hidden");
+    hideManagerNav();
+    homeScreen.classList.remove("hidden");
+  }
+}
+
+let sessionEndedShown = false;
+
+async function handleSessionEnded() {
+  if (sessionEndedShown) return;
+  sessionEndedShown = true;
+  try {
+    await signOutAll();
+    showMessage(loginMessage, "Your session has ended. Please sign in again.", "error");
+  } finally {
+    sessionEndedShown = false;
+  }
+}
+
+// Reloading the page keeps the person signed in (same tab, same session).
+async function restoreSession() {
+  if (!currentSessionToken) return;
+  loginBtn.disabled = true;
+  try {
+    const statusData = await sessionApi("session_status");
+    render(statusData);
+    await showSignedInView(signedInRole(statusData));
+    // The server is the source of truth for the role.
+    try {
+      const identity = JSON.parse(sessionStorage.getItem("marinara_staff_identity") || "{}");
+      identity.role = statusData?.staff_role || identity.role;
+      sessionStorage.setItem("marinara_staff_identity", JSON.stringify(identity));
+    } catch (_) {}
+  } catch (error) {
+    if (error.sessionEnded) {
+      showMessage(loginMessage, "Your session has ended. Please sign in again.", "error");
+    } else {
+      showMessage(loginMessage, error.message || "Unable to restore your session.", "error");
+    }
+  } finally {
+    loginBtn.disabled = false;
+  }
+}
+
+function showPairing(open) {
+  pairToggleBtn?.classList.remove("hidden");
+  if (open) {
+    pairPanel?.classList.remove("hidden");
+  }
+}
+
+pairToggleBtn?.addEventListener("click", () => {
+  pairPanel.classList.toggle("hidden");
+  if (!pairPanel.classList.contains("hidden")) pairCodeInput.focus();
+});
+
+let pairingBusy = false;
+pairBtn?.addEventListener("click", async () => {
+  if (pairingBusy) return;
+  clearMessage(pairMessage);
+  const code = (pairCodeInput.value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (code.length !== 8) {
+    showMessage(pairMessage, "Enter the 8-character device code.", "error");
+    return;
+  }
+  pairingBusy = true;
+  pairBtn.disabled = true;
+  try {
+    const { response, result } = await postApi({ action:"device_pair", code, label:"" });
+    if (!response.ok || result.success !== true) {
+      throw apiError(friendlyError(response, result, "Unable to authorise this device."), result);
+    }
+    pairCodeInput.value = "";
+    pairPanel.classList.add("hidden");
+    pairToggleBtn.classList.add("hidden");
+    clearMessage(loginMessage);
+    showMessage(loginMessage, "This device is authorised. Enter your PIN.", "ok");
+    pinInput.focus();
+  } catch (error) {
+    showMessage(pairMessage, error.message, "error");
+  } finally {
+    pairingBusy = false;
+    pairBtn.disabled = false;
+  }
+});
+
+pairCodeInput?.addEventListener("keydown", event => {
+  if (event.key === "Enter") pairBtn.click();
+});
+
+async function checkDeviceStatus() {
+  try {
+    const { response, result } = await postApi({ action:"device_status" });
+    if (!response.ok || result.success !== true) return; // older server: nothing to show
+    if (result.data?.device === "revoked" ||
+        (result.data?.mode === "enforce" && result.data?.device !== "approved")) {
+      showPairing(false);
+      if (!currentSessionToken) {
+        showMessage(loginMessage, "This device needs to be authorised before you can sign in.", "error");
+      }
+    }
+  } catch (_) {
+    // Offline: the PIN screen will show the connection message when used.
+  }
+}
+
+/* MANAGER: DEVICES */
+
+function deviceWhen(value) {
+  return value ? formatBrisbaneDayTime(value) : "—";
+}
+
+const deviceRevokeArmed = new Set();
+
+async function loadDevices() {
+  clearMessage(devicesMessage);
+  devicesList.innerHTML = '<div class="person-meta">Loading…</div>';
+  try {
+    const data = await managerApi("manager_devices");
+    const mode = data.mode === "enforce" ? "enforce" : "grace";
+    devicesModeBox.innerHTML =
+      (mode === "enforce"
+        ? "<strong>Sign-in is limited to authorised devices.</strong> New devices need a device code."
+        : "<strong>Transition mode.</strong> A device is authorised the first time someone signs in on it.") +
+      (data.unknown_locked_until
+        ? `<br>New devices are blocked until ${escapeHtml(deviceWhen(data.unknown_locked_until))} after too many wrong PINs. Authorised devices are not affected.`
+        : "") +
+      (data.can_change_mode
+        ? `<br><button id="toggleAuthModeBtn" class="back-btn" type="button" data-mode="${mode === "enforce" ? "grace" : "enforce"}">${mode === "enforce" ? "Switch back to transition mode" : "Allow authorised devices only"}</button>`
+        : "");
+    const devices = Array.isArray(data.devices) ? data.devices : [];
+    if (!devices.length) {
+      devicesList.innerHTML = '<div class="person-meta">No authorised devices yet.</div>';
+      return;
+    }
+    devicesList.innerHTML = devices.map(d => `
+      <div class="device-row">
+        <div>
+          <div class="person-name">${escapeHtml(d.label || "Device")}${d.is_current ? " · this device" : ""}</div>
+          <div class="person-meta">
+            ${d.status === "revoked" ? "Removed " + escapeHtml(deviceWhen(d.revoked_at)) : "Authorised " + escapeHtml(deviceWhen(d.approved_at))}
+            ${d.approved_via === "pairing" ? " · device code" : d.approved_via === "session" ? " · open session" : " · first sign-in"}
+            <br>Last used ${escapeHtml(deviceWhen(d.last_seen_at))}${d.last_staff ? " by " + escapeHtml(d.last_staff) : ""}
+            ${d.locked_until ? "<br>Locked after wrong PINs until " + escapeHtml(deviceWhen(d.locked_until)) : ""}
+          </div>
+        </div>
+        <div class="device-actions">
+          ${d.status === "approved" && d.locked_until ? `<button class="back-btn" type="button" data-device-unlock="${escapeHtml(d.id)}">Unlock</button>` : ""}
+          ${d.status === "approved" ? `<button class="back-btn" type="button" data-device-revoke="${escapeHtml(d.id)}">${deviceRevokeArmed.has(d.id) ? "Tap again to remove" : "Remove"}</button>` : ""}
+        </div>
+      </div>`).join("");
+  } catch (error) {
+    if (error.sessionEnded) { handleSessionEnded(); return; }
+    devicesList.innerHTML = "";
+    showMessage(devicesMessage, error.message || "Unable to load devices.", "error");
+  }
+}
+
+function openDevices() {
+  managerMoreScreen?.classList.add("hidden");
+  managerScreen.classList.add("hidden");
+  deviceCodeBox.classList.add("hidden");
+  devicesScreen.classList.remove("hidden");
+  setManagerNavActive("more");
+  window.scrollTo({top:0,behavior:"smooth"});
+  loadDevices();
+}
+
+document.getElementById("moreDevicesBtn")?.addEventListener("click", openDevices);
+document.getElementById("devicesBackBtn")?.addEventListener("click", () => openManagerMore());
+
+let deviceCodeBusy = false;
+newDeviceCodeBtn?.addEventListener("click", async () => {
+  if (deviceCodeBusy) return;
+  deviceCodeBusy = true;
+  newDeviceCodeBtn.disabled = true;
+  clearMessage(devicesMessage);
+  try {
+    const data = await managerApi("manager_device_code");
+    deviceCodeBox.innerHTML =
+      `<strong>${escapeHtml(data.code)}</strong><small>Type this code on the new device. Works once, until ${escapeHtml(deviceWhen(data.expires_at))}.</small>`;
+    deviceCodeBox.classList.remove("hidden");
+  } catch (error) {
+    if (error.sessionEnded) { handleSessionEnded(); return; }
+    showMessage(devicesMessage, error.message || "Unable to create a device code.", "error");
+  } finally {
+    deviceCodeBusy = false;
+    newDeviceCodeBtn.disabled = false;
+  }
+});
+
+devicesScreen?.addEventListener("click", async event => {
+  const revoke = event.target.closest("[data-device-revoke]");
+  const unlock = event.target.closest("[data-device-unlock]");
+  const modeBtn = event.target.closest("#toggleAuthModeBtn");
+  if (!revoke && !unlock && !modeBtn) return;
+  const button = revoke || unlock || modeBtn;
+  if (button.disabled) return;
+  if (revoke && !deviceRevokeArmed.has(revoke.dataset.deviceRevoke)) {
+    // Second tap confirms (no browser dialogs).
+    deviceRevokeArmed.add(revoke.dataset.deviceRevoke);
+    revoke.textContent = "Tap again to remove";
+    setTimeout(() => {
+      deviceRevokeArmed.delete(revoke.dataset.deviceRevoke);
+      if (document.body.contains(revoke)) revoke.textContent = "Remove";
+    }, 5000);
+    return;
+  }
+  button.disabled = true;
+  clearMessage(devicesMessage);
+  try {
+    let done;
+    if (revoke) {
+      deviceRevokeArmed.delete(revoke.dataset.deviceRevoke);
+      const r = await managerApi("manager_device_revoke", { device_id:revoke.dataset.deviceRevoke });
+      done = `Device removed. ${r?.sessions_ended || 0} open session(s) ended.`;
+    } else if (unlock) {
+      await managerApi("manager_device_unlock", { device_id:unlock.dataset.deviceUnlock });
+      done = "Device unlocked.";
+    } else {
+      await managerApi("manager_auth_mode", { mode:modeBtn.dataset.mode });
+      done = "Setting saved.";
+    }
+    await loadDevices();
+    showMessage(devicesMessage, done, "ok");
+  } catch (error) {
+    if (error.sessionEnded) { handleSessionEnded(); return; }
+    showMessage(devicesMessage, error.message || "Unable to update the device.", "error");
+    button.disabled = false;
+  }
+});
+
+restoreSession();
+checkDeviceStatus();
 </script>
 
 </body>

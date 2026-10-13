@@ -27,7 +27,8 @@ const ts = (() => {
 })();
 
 const V36 = resolve(root, "tests/edge/baseline-v36.ts");
-const PR5 = process.env.PR5_SOURCE || resolve(root, "supabase/functions/marinara-api-v2/Index.ts");
+// v37 (= PR #5, in production). v38 is validated by tests/integration/hardening.mjs.
+const PR5 = process.env.PR5_SOURCE || resolve(root, "tests/edge/baseline-v37.ts");
 const MIGRATION = resolve(root, "supabase/migrations/20261012080000_pin_match_count.sql");
 const SERVICE_KEY = "synthetic-service-role-key-" + randomBytes(8).toString("hex");
 
