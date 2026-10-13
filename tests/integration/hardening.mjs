@@ -27,15 +27,22 @@ const log = (...a) => console.log(...a);
 const gha = (level, title, msg) => {
   if (process.env.GITHUB_ACTIONS) console.log(`::${level} title=${title.replace(/[:,\n]/g, " ").slice(0, 120)}::${String(msg).replace(/\r?\n/g, " | ").slice(0, 900)}`);
 };
+const summary = [];
+process.on("exit", () => {
+  // one annotation per 8 results (GitHub shows at most 10 notices per step)
+  for (let i = 0; i < summary.length; i += 8) gha("warning", `results ${i + 1}-${Math.min(i + 8, summary.length)} of ${summary.length}`, summary.slice(i, i + 8).join(" ; "));
+});
 async function check(name, fn) {
   try {
     const note = await fn();
     log(`  ✔ ${name}${note ? `\n      ${note}` : ""}`);
     gha("notice", name, note || "passed");
+    summary.push("ok: " + name.slice(0, 70));
     evidence.push({ name, ok: true, note: note || "" });
   } catch (e) {
     failures++;
     gha("error", name, e?.stack || e);
+    summary.push("FAILED: " + name.slice(0, 70));
     log(`  ✖ ${name}\n      ${String(e?.stack || e).split("\n").slice(0, 8).join("\n      ")}`);
     evidence.push({ name, ok: false, note: String(e?.message || e) });
   }

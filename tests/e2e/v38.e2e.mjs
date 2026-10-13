@@ -31,14 +31,21 @@ const log = (...a) => console.log(...a);
 const gha = (level, title, msg) => {
   if (process.env.GITHUB_ACTIONS) console.log(`::${level} title=${title.replace(/[:,\n]/g, " ").slice(0, 120)}::${String(msg).replace(/\r?\n/g, " | ").slice(0, 900)}`);
 };
+const summary = [];
+process.on("exit", () => {
+  // one annotation per 8 results (GitHub shows at most 10 notices per step)
+  for (let i = 0; i < summary.length; i += 8) gha("warning", `results ${i + 1}-${Math.min(i + 8, summary.length)} of ${summary.length}`, summary.slice(i, i + 8).join(" ; "));
+});
 async function check(name, fn) {
   try {
     const note = await fn();
     log(`  ✔ ${name}${note ? `\n      ${note}` : ""}`);
     gha("notice", name, note || "passed");
+    summary.push("ok: " + name.slice(0, 70));
   } catch (e) {
     failures++;
     gha("error", name, e?.stack || e);
+    summary.push("FAILED: " + name.slice(0, 70));
     log(`  ✖ ${name}\n      ${String(e?.stack || e).split("\n").slice(0, 6).join("\n      ")}`);
   }
 }
@@ -184,7 +191,8 @@ try {
     assert.equal(s["wrong PIN"], "Unable to create secure session");
     assert.match(s["no internet"], /Failed to fetch|Load failed|NetworkError/);
     // 503 with a JSON body showed "PIN not recognised."; with a plain-text body (as here) a JSON parse error
-    assert.match(s["server unavailable (503)"], /PIN not recognised|not valid JSON|JSON/);
+    // Chrome: JSON parse error text; Safari (iPhone): "The string did not match the expected pattern."
+    assert.match(s["server unavailable (503)"], /PIN not recognised|JSON|did not match the expected pattern/);
     return JSON.stringify(s);
   });
   await check("new app shows the right message for each case", async () => {
