@@ -23,13 +23,19 @@ const V38 = resolve(root, "supabase/functions/marinara-api-v2/Index.ts");
 let failures = 0;
 const evidence = [];
 const log = (...a) => console.log(...a);
+// In GitHub Actions every result is also written as an annotation (readable without the raw log).
+const gha = (level, title, msg) => {
+  if (process.env.GITHUB_ACTIONS) console.log(`::${level} title=${title.replace(/[:,\n]/g, " ").slice(0, 120)}::${String(msg).replace(/\r?\n/g, " | ").slice(0, 900)}`);
+};
 async function check(name, fn) {
   try {
     const note = await fn();
     log(`  ✔ ${name}${note ? `\n      ${note}` : ""}`);
+    gha("notice", name, note || "passed");
     evidence.push({ name, ok: true, note: note || "" });
   } catch (e) {
     failures++;
+    gha("error", name, e?.stack || e);
     log(`  ✖ ${name}\n      ${String(e?.stack || e).split("\n").slice(0, 8).join("\n      ")}`);
     evidence.push({ name, ok: false, note: String(e?.message || e) });
   }
