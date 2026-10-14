@@ -1,6 +1,25 @@
 # Marinara Hours v38 — roteiro de publicação
 
-**Nada aqui foi executado em produção.** Cada passo exige autorização explícita do proprietário.
+## Publicação concluída — 15/10/2026 (Brisbane)
+
+Autorização do proprietário nesta conversa: “Então fazer o que falta”.
+
+- PR #6 integrado em `e152d394b9fc85ea925cbd31f74fae5671ff3db8`; fonte aprovada `2a2257d595a1756fe94539045164da115734e3a0`.
+- Backup lógico privado de dados, definições, privilégios e fonte v37 guardado antes das mudanças; arquivo de recuperação conferido. Não é um pg_dump completo da plataforma.
+- Pré-checagem: zero sobreposições e durações negativas; nenhum turno aberto.
+- Migração A aplicada como `20261014230420_integrity_audit_privileges`; migração B como `20261014230456_device_auth_pin_limits`. O MCP atribuiu as versões de execução; os arquivos-fonte originais permanecem os mesmos.
+- Edge Function v38 ACTIVE, verify_jwt=true; código rebaixado do servidor comparado exatamente com o arquivo aprovado.
+- GitHub Pages conferido por HTTP: conteúdo do index.html exatamente igual ao aprovado.
+- 22 funcionários, 111 turnos e 18 intervalos comparados integralmente com a cópia anterior: iguais, desconsiderando apenas a coluna nova nula pin_conflict_at. Nenhum funcionário de teste permaneceu.
+- Duas sessões ativas preservadas. Compatibilidade das sessões anteriores verificada em transação desfeita.
+- Fluxo SQL no PostgreSQL 17 real com dados sintéticos em transação desfeita: login, vínculo ao aparelho, entrada, intervalo, saída, aprovação/reabertura, edição com desconto de intervalo, recusa de sobreposição e auditoria preservada após exclusão — passou.
+- HTTP: device_status 200; sessão falsa 401; ações sem credencial 400 conforme esperado. Nenhum 5xx/erro novo nos logs observados entre 23:05 e 23:15 UTC.
+- Seis grupos CI do commit aprovado concluídos com sucesso, incluindo WebKit e hardening. Não foi executado teste em iPhone físico.
+- Modo atual: `grace`. `enforce` NÃO foi ativado. Requer checar aparelhos da equipe e recuperação antes da decisão posterior.
+
+O roteiro abaixo documenta a sequência usada e a recuperação; os itens 1–5 já foram executados. O item 6 permanece pendente.
+
+
 PR: #6 (`hardening/v38`). Substitui os rascunhos #3 e #4 e contém o PR #5 (que é a v37 já em produção).
 
 ## 1. O que será publicado
