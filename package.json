@@ -1,0 +1,19 @@
+{
+  "name": "marinara-hours",
+  "private": true,
+  "type": "module",
+  "description": "Marinara Hours time clock. The app is index.html (GitHub Pages); the backend lives in supabase/.",
+  "scripts": {
+    "test": "node --test --test-reporter=spec tests/edge/observe.test.mjs",
+    "test:db": "bash tests/db/run.sh supabase/migrations/20261012080000_pin_match_count.sql",
+    "test:e2e": "node tests/e2e/login-clock.e2e.mjs",
+    "test:integration": "node tests/integration/run.mjs",
+    "test:hardening": "node tests/integration/hardening.mjs",
+    "test:e2e:v38": "node tests/e2e/v38.e2e.mjs",
+    "test:e2e:v38:webkit": "E2E_BROWSER=webkit node tests/e2e/v38.e2e.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1",
+    "typescript": "5.9.3"
+  }
+}
