@@ -36,6 +36,7 @@
         {content:group.total[1],styles:{fillColor:[235,235,235],fontStyle:'bold',fontSize:7,cellPadding:0.7}},
         {content:'',styles:{fillColor:[235,235,235]}}
       ]);
+      if (group !== groups[groups.length - 1]) body.push([{content:' ',colSpan:7,styles:{minCellHeight:2.6,cellPadding:0.3,fillColor:[255,255,255]}}]);
     }
     doc.autoTable({
       startY:52, margin:{top:52,bottom:14,left:10,right:10},tableWidth:width,
@@ -61,7 +62,7 @@
       doc.text('HAWTHORNE / STAFF HOURS',87,28);
       doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255);
       doc.text(report.week,282,36,{align:'right',maxWidth:185});
-      doc.setFontSize(8); doc.setTextColor(48); doc.text(report.department,10,46;
+      doc.setFontSize(8); doc.setTextColor(48); doc.text(report.department,10,46);
       doc.setFont('helvetica','normal'); doc.setTextColor(112);
       doc.text(`${report.employees} employees · ${report.shifts} shifts | Australia/Brisbane`,287,46,{align:'right'});
       doc.setDrawColor(215); doc.line(10,197,287,197);
