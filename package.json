@@ -10,9 +10,13 @@
     "test:integration": "node tests/integration/run.mjs",
     "test:hardening": "node tests/integration/hardening.mjs",
     "test:e2e:v38": "node tests/e2e/v38.e2e.mjs",
-    "test:e2e:v38:webkit": "E2E_BROWSER=webkit node tests/e2e/v38.e2e.mjs"
+    "test:e2e:v38:webkit": "E2E_BROWSER=webkit node tests/e2e/v38.e2e.mjs",
+    "test:pdf": "node --test tests/e2e/pdf-regression.test.mjs && node tests/e2e/pdf.e2e.mjs",
+    "test:pdf:webkit": "E2E_BROWSER=webkit node tests/e2e/pdf.e2e.mjs"
   },
   "devDependencies": {
+    "jspdf": "4.2.1",
+    "jspdf-autotable": "5.0.8",
     "playwright": "1.56.1",
     "typescript": "5.9.3"
   }

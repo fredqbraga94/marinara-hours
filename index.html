@@ -1009,6 +1009,7 @@ button{cursor:pointer}
 .team-pin-conflict{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:9px;background:#fff1e6;color:#9a4a00;font-size:11px;font-weight:800}
 button:disabled{opacity:.6}
 </style>
+<script defer src="./timesheet-pdf.js"></script>
 </head>
 
 <body>
@@ -4525,7 +4526,8 @@ timesheetsNextBtn.addEventListener("click", async () => {
 });
 
 
-exportTimesheetsPdfBtn.addEventListener("click", () => {
+exportTimesheetsPdfBtn.addEventListener("click", async () => {
+  if (exportTimesheetsPdfBtn.disabled) return;
   const data = currentTimesheetsData;
 
   if (!data) {
@@ -4629,107 +4631,24 @@ exportTimesheetsPdfBtn.addEventListener("click", () => {
     `);
   });
 
-  const weekLabel =
-    escapeHtml(timesheetsWeek.textContent || "");
-
-  const printWindow = window.open("", "_blank");
-
-  if (!printWindow) {
-    timesheetsMessage.textContent =
-      "Allow pop-ups to export the PDF.";
-    return;
+  exportTimesheetsPdfBtn.disabled = true;
+  exportTimesheetsPdfBtn.textContent = "Generating PDF…";
+  try {
+    await window.MarinaraPdf.open({
+      rows: rows.join(""),
+      week: timesheetsWeek.textContent || "",
+      department: departments.length === 1 ? departments[0].toUpperCase() : "STAFF TIMESHEETS",
+      employees: new Set(approvedShifts.map(shift => shift.staff_id)).size,
+      shifts: approvedShifts.length,
+      logo: document.querySelector('.login-original-logo').src
+    });
+  } catch (error) {
+    timesheetsMessage.className = "message show error";
+    timesheetsMessage.textContent = "Unable to generate PDF. Please try again. " + (error.message || "");
+  } finally {
+    exportTimesheetsPdfBtn.disabled = false;
+    exportTimesheetsPdfBtn.textContent = "Export PDF";
   }
-
-  printWindow.document.open();
-  printWindow.document.write(`<!doctype html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Marinara Hawthorne Timesheets</title>
-<style>
-  @page { size: A4 landscape; margin: 10mm; }
-  * { box-sizing: border-box; }
-  html,body { margin:0; padding:0; background:#fff; color:#202020; font-family:Arial,sans-serif; }
-  body { font-size:10px; }
-  .header { display:grid; grid-template-columns:30% 70%; background:#111; color:#fff; padding:16px 20px; border-bottom:4px solid #303030; margin-bottom:14px; align-items:center; }
-  .report-logo { width:100%; max-width:245px; height:auto; display:block; }
-  .heading { padding-left:22px; }
-  h1 { margin:0 0 10px; font-size:28px; line-height:1.1; text-transform:uppercase; }
-  .location { color:#ccc; font-size:11px; letter-spacing:.6px; text-transform:uppercase; }
-  .week { text-align:right; margin-top:16px; font-size:13px; font-weight:700; }
-  .report-meta { display:flex; justify-content:space-between; color:#707070; font-size:10px; margin:0 0 14px; }
-  .report-meta strong { color:#303030; }
-  table { width:100%; border-collapse:collapse; table-layout:fixed; }
-  col.employee { width:20%; } col.date { width:20%; } col.clock { width:12.5%; }
-  col.break { width:11%; } col.total { width:12%; } col.status { width:12%; }
-  th { background:#303030; color:#fff; text-align:left; padding:9px 10px; font-size:10px; text-transform:uppercase; }
-  td { padding:5px 10px; vertical-align:middle; font-size:10px; }
-  td.employee, td.total { font-weight:700; }
-  td.employee small { display:block; font-size:8px; font-weight:400; color:#707070; margin-top:2px; }
-  td.total,.status { white-space:nowrap; }
-  .status { color:#303030; font-size:8px; font-weight:700; }
-  tr.weekly-total td { background:#ededed; border-bottom:1px solid #d7d7d7; font-weight:700; padding-top:7px; padding-bottom:7px; }
-  tr.employee-gap td { height:12px; padding:0; border:0; background:white; }
-  tbody:last-of-type tr.employee-gap { display:none; }
-  .footer { margin-top:16px; padding-top:10px; border-top:1px solid #d7d7d7; display:flex; justify-content:space-between; color:#707070; font-size:8px; }
-  .footer strong { color:#303030; }
-  thead { display:table-header-group; }
-  tr,tbody.employee-group { break-inside:avoid; page-break-inside:avoid; }
-  @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
-</style>
-</head>
-<body>
-
-  <div class="header">
-    <img class="report-logo" src="${escapeHtml(document.querySelector('.login-original-logo').src)}" alt="Marinara Ristorante Cafe">
-    <div class="heading">
-      <h1>Weekly Timesheets</h1>
-      <div class="location">Hawthorne / Staff Hours</div>
-      <div class="week">${weekLabel}</div>
-    </div>
-  </div>
-  <div class="report-meta">
-    <strong>${departments.length === 1 ? escapeHtml(departments[0].toUpperCase()) : "STAFF TIMESHEETS"}</strong>
-    <span>${new Set(approvedShifts.map(shift => shift.staff_id)).size} employees · ${approvedShifts.length} shifts | Australia/Brisbane</span>
-  </div>
-
-  <table>
-    <colgroup>
-      <col class="employee">
-      <col class="date">
-      <col class="clock">
-      <col class="clock">
-      <col class="break">
-      <col class="total">
-      <col class="status">
-    </colgroup>
-    <thead>
-      <tr>
-        <th>Employee</th>
-        <th>Date</th>
-        <th>Clock In</th>
-        <th>Clock Out</th>
-        <th>Break</th>
-        <th>Total</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    ${rows.join("")}
-  </table>
-
-  <div class="footer">
-    <strong>MARINARA HAWTHORNE</strong>
-    <span>Generated from Marinara Hours</span>
-  </div>
-
-<script>
-  window.addEventListener("load", () => {
-    setTimeout(() => window.print(), 250);
-  });
-<\/script>
-</body>
-</html>`);
-  printWindow.document.close();
 });
 
 
