@@ -964,6 +964,7 @@ Deno.serve(async (req) => {
         "manager_approve_shift",
         "manager_reopen_shift",
         "manager_clock_out_staff",
+        "manager_shift_status",
         "manager_edit_shift",
         "manager_delete_shift",
         "manager_devices",
@@ -1094,6 +1095,18 @@ Deno.serve(async (req) => {
       return !managerDepartmentScope || department === managerDepartmentScope;
     }
 
+
+    if (action === "manager_shift_status") {
+      const shiftId = typeof body.shift_id === "string" ? body.shift_id : "";
+      if (!/^[0-9a-f-]{36}$/i.test(shiftId)) return json({error:"Invalid shift ID"},400);
+      const {data:shift,error} = await supabase.from("shifts")
+        .select("id, clock_in, clock_out, status, approved, staff!inner(id, department, role, location)")
+        .eq("id",shiftId).eq("staff.location",location).maybeSingle();
+      if (error) return json({error:"Unable to verify shift"},503);
+      if (!shift || (managerDepartmentScope && (shift.staff?.department !== managerDepartmentScope ||
+          (shift.staff?.role !== "staff" && shift.staff?.id !== managerStatus.id)))) return json({error:"Shift not found"},404);
+      return json({success:true,data:{id:shift.id,clock_in:shift.clock_in,clock_out:shift.clock_out,status:shift.status,approved:shift.approved}});
+    }
 
     // =========================
     // TEAM

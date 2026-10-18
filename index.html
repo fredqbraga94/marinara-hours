@@ -1803,30 +1803,29 @@ const MANAGER_ROLES = ["manager", "kitchen_manager", "floor_manager"];
 
 // One place for every request: adds the device secret, turns network
 // failures and non-JSON answers into clear messages.
+const API_TIMEOUT_MS = 15000;
 async function postApi(payload) {
-  let response;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
   try {
-    response = await fetch(API, {
-      method:"POST",
-      headers:{
-        "Authorization":"Bearer " + SUPABASE_KEY,
-        "apikey":SUPABASE_KEY,
-        "Content-Type":"application/json"
-      },
+    const response = await fetch(API, {
+      method:"POST", signal:controller.signal,
+      headers:{"Authorization":"Bearer " + SUPABASE_KEY,"apikey":SUPABASE_KEY,"Content-Type":"application/json"},
       body:JSON.stringify({ ...payload, device:DEVICE_SECRET })
     });
+    let result;
+    try { result = await response.json(); }
+    catch (_) { throw new Error("Invalid server response"); }
+    if (!result || typeof result !== "object") throw new Error("Invalid server response");
+    return { response, result };
   } catch (_) {
-    const error = new Error(
-      navigator.onLine === false
-        ? "You are offline. Check your connection and try again."
-        : "Can't reach the server. Check your connection and try again."
-    );
+    const error = new Error(controller.signal.aborted
+      ? "The server took too long to respond. The change may have been saved."
+      : "Connection interrupted. The change may have been saved. Reconnect to check.");
     error.network = true;
+    console.warn("marinara_request", {action:payload.action, outcome:controller.signal.aborted ? "timeout" : "network_or_response"});
     throw error;
-  }
-  let result = null;
-  try { result = await response.json(); } catch (_) { result = null; }
-  return { response, result: result || {} };
+  } finally { clearTimeout(timer); }
 }
 
 // Plain-language versions of codes older servers send as the message.
@@ -2420,6 +2419,20 @@ function renderManagerClock(status) {
 /* DASHBOARD */
 
 /* MANAGER CLOCK OUT STAFF (forgotten clock-outs) */
+const clockoutInFlight = new Set();
+// Keep unresolved operations across reloads. Never save PINs or session tokens here.
+function clockoutPending(shiftId, value) {
+  const key = "marinara_clockout_" + shiftId;
+  if (value === null) localStorage.removeItem(key);
+  else if (value) localStorage.setItem(key, JSON.stringify(value));
+  else { try { return JSON.parse(localStorage.getItem(key) || "null"); } catch (_) { return null; } }
+}
+async function reconcileStaffClockout(shiftId) {
+  const state = await managerApi("manager_shift_status", {shift_id:shiftId});
+  if (!state || state.id !== shiftId) throw new Error("Could not verify this shift. Reconnect before trying again.");
+  return state;
+}
+
 
 function formatBrisbaneDayTime(value) {
   return new Intl.DateTimeFormat("en-AU", {
@@ -2474,6 +2487,7 @@ workingList.addEventListener("click", async event => {
   if (!confirmBtn || confirmBtn.disabled) return;
 
   const shiftId = confirmBtn.dataset.confirmClockout;
+  if (clockoutInFlight.has(shiftId)) return;
   const panel = document.getElementById("clockout-" + shiftId);
   const errorBox = panel.querySelector(".staff-clockout-error");
   const name = panel.dataset.name || "this staff member";
@@ -2503,29 +2517,54 @@ workingList.addEventListener("click", async event => {
   if (!window.confirm("Clock out " + name + " at " + label + " (Brisbane)?\n\nThe shift will stay Pending until approved.")) return;
 
   confirmBtn.disabled = true;
+  clockoutInFlight.add(shiftId);
   const oldText = confirmBtn.textContent;
   confirmBtn.textContent = "Saving...";
-
   try {
-    const result = await managerApi("manager_clock_out_staff", {
-      shift_id: shiftId,
-      clock_out: when.toISOString()
-    });
-    await loadManagerDashboard();
-    const hours = result?.shift?.hours;
-    showMessage(
-      managerMessage,
-      name + " clocked out" + (hours != null ? " · " + formatHours(hours) : "") + ". Pending approval.",
-      "ok"
-    );
+    const unresolved = clockoutPending(shiftId);
+    let closed = null;
+    if (unresolved) {
+      const state = await reconcileStaffClockout(shiftId);
+      if (state.clock_out) closed = state;
+      // An open read does not prove a timed-out write cannot still commit.
+      // The original immutable shift/time is the only safe retry.
+      else if (unresolved.clock_out !== when.toISOString()) {
+        throw new Error("An earlier Clock Out is still being checked. Keep the original finish time or refresh the dashboard.");
+      }
+    }
+    if (!closed) {
+      clockoutPending(shiftId, {clock_out:when.toISOString()});
+      try {
+        const result = await managerApi("manager_clock_out_staff", {shift_id:shiftId,clock_out:when.toISOString()});
+        closed = result?.shift || {clock_out:when.toISOString(),approved:false};
+      } catch (error) {
+        if (error.network || ["SHIFT_ALREADY_CLOSED", "SHIFT_APPROVED"].includes(error.code)) {
+          confirmBtn.textContent = "Checking...";
+          const state = await reconcileStaffClockout(shiftId);
+          if (!state.clock_out) throw new Error("Clock Out is not confirmed yet. Retry with the same finish time after reconnecting.");
+          closed = state;
+        } else { clockoutPending(shiftId, null); throw error; }
+      }
+    }
+    clockoutPending(shiftId, null);
+    closeStaffClockoutPanels();
+    const refreshed = await loadManagerDashboard();
+    showMessage(managerMessage, name + " clocked out at " + formatBrisbaneDayTime(closed.clock_out || when) +
+      (closed.approved ? ". Already approved." : ". Pending approval.") +
+      (refreshed === false ? " Refresh the dashboard to update totals." : ""), "ok");
+    if (typeof loadApprovals === "function") await loadApprovals();
   } catch (error) {
+    errorBox.textContent = error.message || "Unable to confirm Clock Out. Reconnect to check before retrying.";
+  } finally {
     confirmBtn.disabled = false;
     confirmBtn.textContent = oldText;
-    errorBox.textContent = error.message || "Unable to clock out this shift.";
+    clockoutInFlight.delete(shiftId);
   }
 });
 
+let dashboardRequest = 0;
 async function loadManagerDashboard() {
+  const request = ++dashboardRequest;
 
   clearMessage(
     managerMessage
@@ -2537,6 +2576,7 @@ async function loadManagerDashboard() {
       await managerApi("manager_dashboard"
       );
 
+    if (request !== dashboardRequest) return false;
     // Do not replace the form while a manager is choosing a finish time.
     // The 5-second background refresh otherwise destroys the open panel.
     if (workingList.querySelector(".staff-clockout-panel:not(.hidden)")) return;
@@ -2740,6 +2780,7 @@ async function loadManagerDashboard() {
       dashboard.manager?.status ||
       "off_shift"
     );
+    return true;
 
   }
 
@@ -2751,6 +2792,7 @@ async function loadManagerDashboard() {
       "Unable to load Manager Dashboard.",
       "error"
     );
+    return false;
 
   }
 
