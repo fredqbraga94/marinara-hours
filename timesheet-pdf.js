@@ -26,37 +26,29 @@
     const doc = new window.jspdf.jsPDF({orientation:'landscape', unit:'mm', format:'a4', compress:true});
     const width = 277;
     const columns = {0:{cellWidth:55.4},1:{cellWidth:55.4},2:{cellWidth:34.6},3:{cellWidth:34.6},4:{cellWidth:30.5},5:{cellWidth:33.2},6:{cellWidth:33.3}};
-    let y = 60;
-    groups.forEach(group => {
-      // Keep a normal employee together. Oversized groups must start on the
-      // current empty page instead of creating a blank page via pageBreak:avoid.
-      doc.setFont('helvetica','bold'); doc.setFontSize(8);
-      const rowHeight = row => Math.max(...row.map((text,i) =>
-        doc.splitTextToSize(text,columns[i].cellWidth-2.6).length * 8 * 1.15 * 25.4 / 72 + 2.6));
-      const groupHeight = 8 + group.rows.reduce((height,row)=>height+rowHeight(row),0) + 10;
-      if (y > 60 && (groupHeight > 132 || y + groupHeight > 192)) { doc.addPage(); y=60; }
-      doc.autoTable({
-        startY:y, margin:{top:60, bottom:18, left:10, right:10}, tableWidth:width,
-        head:[['Employee','Date','Clock In','Clock Out','Break','Total','Status']],
-        body:group.rows,
-        foot:[[{content:group.total[0],colSpan:5},group.total[1],'']],
-        showFoot:'lastPage', showHead:'everyPage', pageBreak:'auto', rowPageBreak:'avoid',
-        theme:'plain', styles:{font:'helvetica',fontSize:8,cellPadding:1.3,textColor:32,overflow:'linebreak'},
-        columnStyles:columns,
-        headStyles:{cellPadding:2,fillColor:48,textColor:255,fontStyle:'bold',fontSize:8},
-        footStyles:{fillColor:237,textColor:32,fontStyle:'bold',cellPadding:2.5},
-        didDrawPage(data) {
-          if (data.pageNumber>1) {
-            doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(80);
-            doc.text(group.rows[0][0].split('\n')[0] + ' (continued)',10,58,{maxWidth:277});
-          }
-        },
-        didParseCell(cell) {
-          if (cell.section==='body' && (cell.column.index===0 || cell.column.index===5)) cell.cell.styles.fontStyle='bold';
-          if (cell.section==='body' && cell.column.index===6) cell.cell.styles.fontSize=7;
-        }
-      });
-      y = doc.lastAutoTable.finalY + 5;
+    // One continuous compact table: a single column header and weekly totals.
+    // autoTable may paginate exceptionally long weeks rather than truncate data.
+    const body = [];
+    for (const group of groups) {
+      for (const row of group.rows) body.push(row);
+      body.push([
+        {content:group.total[0],colSpan:5,styles:{fillColor:[235,235,235],fontStyle:'bold',fontSize:9,cellPadding:1.4}},
+        {content:group.total[1],styles:{fillColor:[235,235,235],fontStyle:'bold',fontSize:8,cellPadding:1.4}},
+        {content:'',styles:{fillColor:[235,235,235]}}
+      ]);
+    }
+    doc.autoTable({
+      startY:60, margin:{top:60,bottom:18,left:10,right:10},tableWidth:width,
+      head:[['Employee','Date','Clock In','Clock Out','Break','Total','Status']],
+      body, showHead:'firstPage', pageBreak:'auto',rowPageBreak:'avoid',
+      theme:'plain',
+      styles:{font:'helvetica',fontSize:7.2,cellPadding:{top:0.85,bottom:0.85,left:1.3,right:1.3},textColor:32,overflow:'linebreak',minCellHeight:4.6},
+      columnStyles:columns,
+      headStyles:{cellPadding:1.6,fillColor:48,textColor:255,fontStyle:'bold',fontSize:7.5},
+      didParseCell(data) {
+        if(data.section==='body' && (data.column.index===0 || data.column.index===5)) data.cell.styles.fontStyle='bold';
+        if(data.section==='body' && data.column.index===6) data.cell.styles.fontSize=6.7;
+      }
     });
     const pages = doc.getNumberOfPages();
     for (let page=1; page<=pages; page++) {
