@@ -38,7 +38,7 @@
       ]);
     }
     doc.autoTable({
-      startY:57, margin:{top:57,bottom:14,left:10,right:10},tableWidth:width,
+      startY:52, margin:{top:52,bottom:14,left:10,right:10},tableWidth:width,
       head:[['Employee','Date','Clock In','Clock Out','Break','Total','Status']],
       body, showHead:'firstPage', pageBreak:'auto',rowPageBreak:'avoid',
       theme:'plain',
@@ -53,17 +53,17 @@
     const pages = doc.getNumberOfPages();
     for (let page=1; page<=pages; page++) {
       doc.setPage(page);
-      doc.setFillColor(17); doc.rect(10,10,width,35,'F');
-      doc.addImage(report.logo,'PNG',15,15,65,23.3);
-      doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(21);
-      doc.text('WEEKLY TIMESHEETS',96,23);
+      doc.setFillColor(17); doc.rect(10,10,width,30,'F');
+      doc.addImage(report.logo,'PNG',15,14,58,20.8);
+      doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(18);
+      doc.text('WEEKLY TIMESHEETS',87,22);
       doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(204);
-      doc.text('HAWTHORNE / STAFF HOURS',96,30);
+      doc.text('HAWTHORNE / STAFF HOURS',87,28);
       doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255);
-      doc.text(report.week,282,40,{align:'right',maxWidth:185});
-      doc.setFontSize(8); doc.setTextColor(48); doc.text(report.department,10,53);
+      doc.text(report.week,282,36,{align:'right',maxWidth:185});
+      doc.setFontSize(8); doc.setTextColor(48); doc.text(report.department,10,46;
       doc.setFont('helvetica','normal'); doc.setTextColor(112);
-      doc.text(`${report.employees} employees · ${report.shifts} shifts | Australia/Brisbane`,287,53,{align:'right'});
+      doc.text(`${report.employees} employees · ${report.shifts} shifts | Australia/Brisbane`,287,46,{align:'right'});
       doc.setDrawColor(215); doc.line(10,197,287,197);
       doc.setFontSize(7); doc.text('MARINARA HAWTHORNE',10,202);
       doc.text(`Generated from Marinara Hours · ${page} / ${pages}`,287,202,{align:'right'});
