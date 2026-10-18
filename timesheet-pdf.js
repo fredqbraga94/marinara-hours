@@ -32,19 +32,19 @@
     for (const group of groups) {
       for (const row of group.rows) body.push(row);
       body.push([
-        {content:group.total[0],colSpan:5,styles:{fillColor:[235,235,235],fontStyle:'bold',fontSize:9,cellPadding:1.4}},
-        {content:group.total[1],styles:{fillColor:[235,235,235],fontStyle:'bold',fontSize:8,cellPadding:1.4}},
+        {content:group.total[0],colSpan:5,styles:{fillColor:[235,235,235],fontStyle:'bold',fontSize:7.5,cellPadding:0.7}},
+        {content:group.total[1],styles:{fillColor:[235,235,235],fontStyle:'bold',fontSize:7,cellPadding:0.7}},
         {content:'',styles:{fillColor:[235,235,235]}}
       ]);
     }
     doc.autoTable({
-      startY:60, margin:{top:60,bottom:18,left:10,right:10},tableWidth:width,
+      startY:57, margin:{top:57,bottom:14,left:10,right:10},tableWidth:width,
       head:[['Employee','Date','Clock In','Clock Out','Break','Total','Status']],
       body, showHead:'firstPage', pageBreak:'auto',rowPageBreak:'avoid',
       theme:'plain',
-      styles:{font:'helvetica',fontSize:7.2,cellPadding:{top:0.85,bottom:0.85,left:1.3,right:1.3},textColor:32,overflow:'linebreak',minCellHeight:4.6},
+      styles:{font:'helvetica',fontSize:6.8,cellPadding:{top:0.45,bottom:0.45,left:1.3,right:1.3},textColor:32,overflow:'linebreak',minCellHeight:3.7},
       columnStyles:columns,
-      headStyles:{cellPadding:1.6,fillColor:48,textColor:255,fontStyle:'bold',fontSize:7.5},
+      headStyles:{cellPadding:1.1,fillColor:48,textColor:255,fontStyle:'bold',fontSize:7.5},
       didParseCell(data) {
         if(data.section==='body' && (data.column.index===0 || data.column.index===5)) data.cell.styles.fontStyle='bold';
         if(data.section==='body' && data.column.index===6) data.cell.styles.fontSize=6.7;
