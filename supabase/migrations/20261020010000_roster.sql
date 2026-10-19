@@ -47,6 +47,16 @@ create table if not exists public.roster_audit (
   changed_at timestamptz not null default now()
 );
 
+-- Kitchen planning estimates agreed with the owner (2026-10-20): slightly
+-- generous on purpose (earliest start: chef L 10:30, chef D 16:30; dish
+-- finishes after the 21:30 close), so the visa warning comes early, not late.
+-- Real worked hours always come from the time clock, not from these.
+insert into public.roster_services (location, department, service, start_time, end_time)
+select u.location, 'Kitchen', v.service, v.start_time, v.end_time
+  from (values ('Hawthorne'), ('Paddington'), ('Clayfield')) u(location),
+       (values ('L', time '10:30', time '15:00'), ('D', time '16:30', time '22:30')) v(service, start_time, end_time)
+on conflict (location, department, service) do nothing;
+
 alter table public.roster_services enable row level security;
 alter table public.roster_entries enable row level security;
 alter table public.roster_audit enable row level security;
