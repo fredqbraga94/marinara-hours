@@ -1064,6 +1064,12 @@ button{cursor:pointer}
 .timeoff-kind button.selected{background:var(--green);border-color:var(--green);color:#fff}
 .timeoff-dates{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
 .timeoff-dates label{min-width:0}
+.date-wrap{position:relative;display:block}
+.date-hint{display:none}
+@supports (-webkit-touch-callout: none) {
+  .date-hint{display:block;position:absolute;left:12px;top:50%;transform:translateY(-35%);color:#9aa39c;font-size:15px;font-weight:600;pointer-events:none}
+  .date-wrap input:valid + .date-hint{display:none}
+}
 .timeoff-form input[type=date]{min-width:0;max-width:100%;-webkit-appearance:none;appearance:none;display:block}
 .timeoff-form label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px}
 .timeoff-form input,.timeoff-form select,.timeoff-form textarea{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 10px;font-size:16px;margin-top:4px;background:#fff;font-family:inherit}
@@ -1230,8 +1236,8 @@ button:disabled{opacity:.6}
         <button type="button" data-kind="DAY_OFF">Day off</button>
       </div>
       <div class="timeoff-dates">
-        <label><span id="staffTimeOffStartLabel">From</span><input id="staffTimeOffStart" type="date"></label>
-        <label id="staffTimeOffEndWrap">Until<input id="staffTimeOffEnd" type="date"></label>
+        <label><span id="staffTimeOffStartLabel">From</span><span class="date-wrap"><input id="staffTimeOffStart" type="date" required><span class="date-hint">Tap to choose</span></span></label>
+        <label id="staffTimeOffEndWrap">Until<span class="date-wrap"><input id="staffTimeOffEnd" type="date" required><span class="date-hint">Tap to choose</span></span></label>
       </div>
       <label>Note for your manager (optional)<textarea id="staffTimeOffNote" maxlength="200" placeholder="e.g. Trip to Sydney"></textarea></label>
       <button id="staffTimeOffSend" class="btn primary" type="button">Send request</button>
@@ -1445,8 +1451,8 @@ button:disabled{opacity:.6}
       <button type="button" data-kind="DAY_OFF">Day off</button>
     </div>
     <div class="timeoff-dates">
-      <label><span id="timeOffStartLabel">From</span><input id="timeOffStart" type="date"></label>
-      <label id="timeOffEndWrap">Until<input id="timeOffEnd" type="date"></label>
+      <label><span id="timeOffStartLabel">From</span><span class="date-wrap"><input id="timeOffStart" type="date" required><span class="date-hint">Tap to choose</span></span></label>
+      <label id="timeOffEndWrap">Until<span class="date-wrap"><input id="timeOffEnd" type="date" required><span class="date-hint">Tap to choose</span></span></label>
     </div>
     <label>Note (optional)<textarea id="timeOffNote" maxlength="200"></textarea></label>
     <button id="timeOffAddBtn" class="btn primary" type="button">Add (approved)</button>
@@ -5911,9 +5917,10 @@ async function loadManagerTimeOff() {
       : "Nothing approved in the next months.";
     const select = document.getElementById("timeOffPerson");
     const keep = select.value;
-    select.innerHTML = (data.team || []).map(m =>
-      `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)} · ${escapeHtml(m.department)}</option>`).join("");
-    if (keep) select.value = keep;
+    select.innerHTML = `<option value="" disabled>Choose a person…</option>` +
+      (data.team || []).map(m =>
+        `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)} · ${escapeHtml(m.department)}</option>`).join("");
+    select.value = keep && (data.team || []).some(m => m.id === keep) ? keep : "";
     const cardText = document.getElementById("timeOffCardText");
     if (cardText) cardText.textContent = pending.length ? `${pending.length} waiting for you` : "Holidays and days off";
   } catch (error) {
@@ -5974,6 +5981,7 @@ document.getElementById("timeOffAddBtn")?.addEventListener("click", async () => 
     await managerApi("manager_leave_create", { staff_id: staffId, ...req, note: document.getElementById("timeOffNote").value });
     document.getElementById("timeOffNote").value = "";
     managerTimeOffForm.reset(false);
+    document.getElementById("timeOffPerson").value = "";
     timeOffMessage(msg, "Added and approved.", true);
     await loadManagerTimeOff();
   } catch (error) {
