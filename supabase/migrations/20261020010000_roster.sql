@@ -1,5 +1,7 @@
 -- Weekly roster, like the paper one on the wall: per unit and department,
--- one cell per person per day with L (lunch), D (dinner), LD (both) or OFF.
+-- one cell per person per day. Kitchen uses L (lunch), D (dinner), LD (both);
+-- Floor uses a start and end time (SHIFT, e.g. 17:00-21:00). Both use OFF.
+-- A SHIFT whose end is not after its start finishes the next day (17:00-01:00).
 -- Additive only: new tables and new functions. Nothing existing is changed.
 -- Tables are reached only through the audited functions below (service role);
 -- RLS is on with no policies, so the public API keys cannot read or write them.
@@ -20,10 +22,16 @@ create table if not exists public.roster_entries (
   id uuid primary key default gen_random_uuid(),
   staff_id uuid not null references public.staff(id),
   work_date date not null,
-  code text not null check (code in ('L', 'D', 'LD', 'OFF')),
+  code text not null check (code in ('L', 'D', 'LD', 'OFF', 'SHIFT')),
+  start_time time,
+  end_time time,
   updated_by uuid references public.staff(id),
   updated_at timestamptz not null default now(),
-  unique (staff_id, work_date)
+  unique (staff_id, work_date),
+  constraint roster_entries_times_check check (
+    (code = 'SHIFT' and start_time is not null and end_time is not null and start_time <> end_time)
+    or (code <> 'SHIFT' and start_time is null and end_time is null)
+  )
 );
 create index if not exists roster_entries_date_idx on public.roster_entries (work_date);
 
@@ -34,6 +42,8 @@ create table if not exists public.roster_audit (
   changed_by uuid references public.staff(id),
   old_code text,
   new_code text,
+  old_times text,
+  new_times text,
   changed_at timestamptz not null default now()
 );
 
@@ -42,12 +52,15 @@ alter table public.roster_entries enable row level security;
 alter table public.roster_audit enable row level security;
 revoke all on public.roster_services, public.roster_entries, public.roster_audit from anon, authenticated;
 
--- Set or clear one cell. p_code: 'L', 'D', 'LD', 'OFF', or null/'' to clear.
+-- Set or clear one cell. p_code: 'L', 'D', 'LD', 'OFF', 'SHIFT' (with
+-- p_start/p_end), or null/'' to clear.
 create or replace function public.manager_roster_set(
   p_manager_id uuid,
   p_staff_id uuid,
   p_work_date date,
-  p_code text
+  p_code text,
+  p_start time default null,
+  p_end time default null
 )
 returns jsonb
 language plpgsql
@@ -59,10 +72,15 @@ declare
   v_scope text := public.mh_scope(mgr.role);
   st public.staff%rowtype;
   v_code text := nullif(upper(trim(coalesce(p_code, ''))), '');
-  v_old text;
+  v_old public.roster_entries%rowtype;
+  v_start time := case when v_code = 'SHIFT' then p_start end;
+  v_end time := case when v_code = 'SHIFT' then p_end end;
+  v_old_times text;
+  v_new_times text := case when v_code = 'SHIFT' then to_char(p_start, 'HH24:MI') || '-' || to_char(p_end, 'HH24:MI') end;
 begin
   if p_work_date is null then raise exception 'INVALID_INPUT'; end if;
-  if v_code is not null and v_code not in ('L', 'D', 'LD', 'OFF') then raise exception 'INVALID_INPUT'; end if;
+  if v_code is not null and v_code not in ('L', 'D', 'LD', 'OFF', 'SHIFT') then raise exception 'INVALID_INPUT'; end if;
+  if v_code = 'SHIFT' and (p_start is null or p_end is null or p_start = p_end) then raise exception 'INVALID_INPUT'; end if;
 
   select * into st from public.staff where id = p_staff_id;
   if not found or not st.active
@@ -73,24 +91,28 @@ begin
     raise exception 'DEPARTMENT_DENIED';
   end if;
 
-  select code into v_old from public.roster_entries
+  select * into v_old from public.roster_entries
    where staff_id = p_staff_id and work_date = p_work_date for update;
+  v_old_times := case when v_old.code = 'SHIFT'
+    then to_char(v_old.start_time, 'HH24:MI') || '-' || to_char(v_old.end_time, 'HH24:MI') end;
 
   if v_code is null then
     delete from public.roster_entries where staff_id = p_staff_id and work_date = p_work_date;
   else
-    insert into public.roster_entries (staff_id, work_date, code, updated_by, updated_at)
-    values (p_staff_id, p_work_date, v_code, mgr.id, now())
+    insert into public.roster_entries (staff_id, work_date, code, start_time, end_time, updated_by, updated_at)
+    values (p_staff_id, p_work_date, v_code, v_start, v_end, mgr.id, now())
     on conflict (staff_id, work_date)
-    do update set code = excluded.code, updated_by = excluded.updated_by, updated_at = now();
+    do update set code = excluded.code, start_time = excluded.start_time, end_time = excluded.end_time,
+                  updated_by = excluded.updated_by, updated_at = now();
   end if;
 
-  if v_old is distinct from v_code then
-    insert into public.roster_audit (staff_ref, work_date, changed_by, old_code, new_code)
-    values (p_staff_id, p_work_date, mgr.id, v_old, v_code);
+  if v_old.code is distinct from v_code or v_old_times is distinct from v_new_times then
+    insert into public.roster_audit (staff_ref, work_date, changed_by, old_code, new_code, old_times, new_times)
+    values (p_staff_id, p_work_date, mgr.id, v_old.code, v_code, v_old_times, v_new_times);
   end if;
 
-  return jsonb_build_object('staff_id', p_staff_id, 'work_date', p_work_date, 'code', v_code);
+  return jsonb_build_object('staff_id', p_staff_id, 'work_date', p_work_date, 'code', v_code,
+                            'start_time', to_char(v_start, 'HH24:MI'), 'end_time', to_char(v_end, 'HH24:MI'));
 end $function$;
 
 -- One unit's roster for the week starting p_week_start (a Monday), limited to
@@ -119,7 +141,9 @@ begin
     'location', v_location,
     'week_start', p_week_start,
     'entries', coalesce((
-      select jsonb_agg(jsonb_build_object('staff_id', e.staff_id, 'work_date', e.work_date, 'code', e.code)
+      select jsonb_agg(jsonb_build_object('staff_id', e.staff_id, 'work_date', e.work_date, 'code', e.code,
+                                          'start_time', to_char(e.start_time, 'HH24:MI'),
+                                          'end_time', to_char(e.end_time, 'HH24:MI'))
                        order by e.work_date)
         from public.roster_entries e
         join public.staff s on s.id = e.staff_id
@@ -138,7 +162,7 @@ begin
   );
 end $function$;
 
-revoke all on function public.manager_roster_set(uuid, uuid, date, text) from public, anon, authenticated;
+revoke all on function public.manager_roster_set(uuid, uuid, date, text, time, time) from public, anon, authenticated;
 revoke all on function public.manager_roster_week(uuid, text, date) from public, anon, authenticated;
-grant execute on function public.manager_roster_set(uuid, uuid, date, text) to service_role;
+grant execute on function public.manager_roster_set(uuid, uuid, date, text, time, time) to service_role;
 grant execute on function public.manager_roster_week(uuid, text, date) to service_role;
