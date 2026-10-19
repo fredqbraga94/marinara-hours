@@ -326,6 +326,12 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   CANNOT_DEACTIVATE_SELF: [400, "You cannot deactivate your own manager account"],
   INVALID_ROLE: [400, "Invalid account role"],
   DEVICE_NOT_FOUND: [404, "Device not found"],
+  ON_LEAVE: [409, "This person is on approved leave that day."],
+  LEAVE_OVERLAP: [409, "There is already a request for some of these days."],
+  LEAVE_NOT_FOUND: [404, "Request not found"],
+  LEAVE_NOT_PENDING: [409, "This request was already decided."],
+  LEAVE_IN_PAST: [400, "Choose a date from today onwards."],
+  LEAVE_NOT_CANCELLABLE: [409, "This request can no longer be cancelled."],
   TOO_MANY_ACTIVE_CODES: [429, "Too many unused device codes. Wait for them to expire."],
   INVALID_INPUT: [400, "Invalid request"],
 };
@@ -780,6 +786,60 @@ Deno.serve(async (req) => {
 
     // STAFF MY HOURS:
     // Secure weekly history for the currently signed-in staff member only.
+    // STAFF TIME OFF: own holiday / day-off requests (session required).
+    if (
+      action === "session_leave_list" ||
+      action === "session_leave_request" ||
+      action === "session_leave_cancel"
+    ) {
+      try {
+        const token =
+          typeof body.token === "string" ? body.token.trim() : "";
+        const sessionResult =
+          await validateStaffSession(supabase, token, deviceHash);
+        if (!sessionResult.ok) {
+          return json({ success: false, action, error: sessionResult.error }, 401);
+        }
+        const staffId = sessionResult.staff.id;
+        const isDate = (v: unknown) =>
+          typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.trim());
+
+        if (action === "session_leave_request") {
+          const kind = typeof body.kind === "string" ? body.kind.trim().toUpperCase() : "";
+          const start = typeof body.start_date === "string" ? body.start_date.trim() : "";
+          const end = typeof body.end_date === "string" && body.end_date.trim() ? body.end_date.trim() : start;
+          const note = typeof body.note === "string" ? body.note.trim().slice(0, 200) : "";
+          if (!["HOLIDAY", "DAY_OFF"].includes(kind) || !isDate(start) || !isDate(end)) {
+            return json({ error: "Choose the type and the dates.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("staff_leave_request", {
+            p_staff_id: staffId, p_kind: kind, p_start: start, p_end: end, p_note: note || null,
+          });
+          if (error) return managerDbError(error, "Unable to send the request");
+          return json({ success: true, action, data: { request: data } });
+        }
+
+        if (action === "session_leave_cancel") {
+          const leaveId = typeof body.leave_id === "string" ? body.leave_id.trim() : "";
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leaveId)) {
+            return json({ error: "Request not found", code: "LEAVE_NOT_FOUND" }, 404);
+          }
+          const { data, error } = await supabase.rpc("staff_leave_cancel", {
+            p_staff_id: staffId, p_leave_id: leaveId,
+          });
+          if (error) return managerDbError(error, "Unable to cancel the request");
+          return json({ success: true, action, data: { request: data } });
+        }
+
+        const { data, error } = await supabase.rpc("staff_leave_list", { p_staff_id: staffId });
+        if (error) return managerDbError(error, "Unable to load your requests", 500);
+        return json({ success: true, action, data: { requests: data || [] } });
+      } catch (error) {
+        console.error("Staff leave error:", (error as any)?.code || "");
+        return json({ error: "Unable to complete the request" }, 500);
+      }
+    }
+
     if (action === "session_my_hours") {
       try {
         const token =
@@ -1142,6 +1202,9 @@ Deno.serve(async (req) => {
         "manager_set_student_visa",
         "manager_roster_week",
         "manager_roster_set",
+        "manager_leave_list",
+        "manager_leave_decide",
+        "manager_leave_create",
       ]);
 
     if (!managerActions.has(action)) {
@@ -2556,6 +2619,7 @@ Deno.serve(async (req) => {
             })),
             entries,
             services,
+            leave: thisWeek.data?.leave || [],
             planned_hours: hours.planned_hours,
             visa: hours.visa,
           },
@@ -2603,6 +2667,76 @@ Deno.serve(async (req) => {
           return managerDbError(cellError, "Unable to save the roster");
         }
         return json({ success: true, action, data: { cell } });
+      }
+
+      if (
+        action === "manager_leave_list" ||
+        action === "manager_leave_decide" ||
+        action === "manager_leave_create"
+      ) {
+        const isUuid = (v: string) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+        if (action === "manager_leave_decide") {
+          const leaveId = typeof body.leave_id === "string" ? body.leave_id.trim() : "";
+          const decision = typeof body.decision === "string" ? body.decision.trim().toUpperCase() : "";
+          if (!isUuid(leaveId) || !["APPROVE", "DECLINE", "CANCEL"].includes(decision)) {
+            return json({ error: "Invalid request", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_leave_decide", {
+            p_manager_id: managerStatus.id, p_leave_id: leaveId, p_decision: decision,
+          });
+          if (error) return managerDbError(error, "Unable to update the request");
+          return json({ success: true, action, data: { request: data } });
+        }
+
+        if (action === "manager_leave_create") {
+          const staffId = typeof body.staff_id === "string" ? body.staff_id.trim() : "";
+          const kind = typeof body.kind === "string" ? body.kind.trim().toUpperCase() : "";
+          const start = typeof body.start_date === "string" ? body.start_date.trim() : "";
+          const end = typeof body.end_date === "string" && body.end_date.trim() ? body.end_date.trim() : start;
+          const note = typeof body.note === "string" ? body.note.trim().slice(0, 200) : "";
+          if (!isUuid(staffId) || !["HOLIDAY", "DAY_OFF"].includes(kind) || !isDate(start) || !isDate(end)) {
+            return json({ error: "Choose the person, the type and the dates.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_leave_create", {
+            p_manager_id: managerStatus.id, p_staff_id: staffId, p_kind: kind,
+            p_start: start, p_end: end, p_note: note || null,
+          });
+          if (error) return managerDbError(error, "Unable to add the time off");
+          return json({ success: true, action, data: { request: data } });
+        }
+
+        // List: everything pending, plus pending/approved from today for 120 days.
+        const today = new Date(Date.now() + BRISBANE_OFFSET_MS).toISOString().slice(0, 10);
+        const until = new Date(Date.parse(`${today}T00:00:00Z`) + 120 * DAY_MS).toISOString().slice(0, 10);
+        const [pending, upcoming] = await Promise.all([
+          supabase.rpc("manager_leave_list", {
+            p_manager_id: managerStatus.id, p_location: location, p_from: null, p_to: null,
+          }),
+          supabase.rpc("manager_leave_list", {
+            p_manager_id: managerStatus.id, p_location: location, p_from: today, p_to: until,
+          }),
+        ]);
+        if (pending.error || upcoming.error) {
+          return managerDbError(pending.error || upcoming.error, "Unable to load time off", 500);
+        }
+        const team = (await loadTeam())
+          .filter((m: any) => m.active)
+          .map((m: any) => ({ id: m.id, name: m.name, department: m.department, role: m.role }));
+        return json({
+          success: true,
+          action,
+          data: {
+            manager: managerStatus,
+            location,
+            today,
+            pending: pending.data || [],
+            upcoming: (upcoming.data || []).filter((r: any) => r.status === "APPROVED"),
+            team,
+          },
+        });
       }
 
       if (
