@@ -36,19 +36,19 @@
         {content:group.total[1],styles:{fillColor:[220,220,220],fontStyle:'bold',fontSize:7,cellPadding:0.7}},
         {content:'',styles:{fillColor:[220,220,220]}}
       ]);
-      if (group !== groups[groups.length - 1]) body.push([{content:' ',colSpan:7,styles:{minCellHeight:5.5,cellPadding:0.5,fillColor:[255,255,255]}}]);
+      if (group !== groups[groups.length - 1]) body.push([{content:' ',colSpan:7,styles:{minCellHeight:3.3,cellPadding:0.3,fillColor:[255,255,255]}}]);
     }
     doc.autoTable({
       startY:52, margin:{top:52,bottom:14,left:10,right:10},tableWidth:width,
       head:[['Employee','Date','Clock In','Clock Out','Break','Total','Status']],
       body, showHead:'firstPage', pageBreak:'auto',rowPageBreak:'avoid',
       theme:'plain',
-      styles:{font:'helvetica',fontSize:7.5,cellPadding:{top:0.7,bottom:0.7,left:1.3,right:1.3},textColor:32,overflow:'linebreak',minCellHeight:4.5},
+      styles:{font:'helvetica',fontSize:6.8,cellPadding:{top:0.45,bottom:0.45,left:1.3,right:1.3},textColor:32,overflow:'linebreak',minCellHeight:3.7},
       columnStyles:columns,
       headStyles:{cellPadding:1.1,fillColor:48,textColor:255,fontStyle:'bold',fontSize:7.5},
       didParseCell(data) {
         if(data.section==='body' && (data.column.index===0 || data.column.index===5)) data.cell.styles.fontStyle='bold';
-        if(data.section==='body' && data.column.index===6) data.cell.styles.fontSize=7.2;
+        if(data.section==='body' && data.column.index===6) data.cell.styles.fontSize=6.7;
       }
     });
     const pages = doc.getNumberOfPages();
