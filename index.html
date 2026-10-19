@@ -1012,6 +1012,42 @@ button{cursor:pointer}
 .team-visa-near{background:#fff6dc;color:#8a5a00}
 .team-visa-over{background:#fde8e8;color:#a11d1d}
 .team-visa-break{background:#eef0f3;color:#4b5563}
+/* ROSTER */
+#rosterScreen{padding-bottom:96px}
+.roster-weekbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.roster-weekbar button{border:1px solid var(--border);background:#fff;border-radius:12px;min-width:44px;min-height:40px;font-size:18px;font-weight:800;color:var(--green)}
+.roster-weeklabel{font-weight:850;font-size:14px;text-align:center}
+.roster-weeklabel small{display:block;color:var(--muted);font-weight:600;font-size:11px;margin-top:2px}
+.roster-tabs{display:flex;gap:8px;margin-bottom:12px}
+.roster-tabs button{flex:1;min-height:40px;border-radius:12px;border:1px solid var(--border);background:#fff;font-weight:800;font-size:13px;color:var(--muted)}
+.roster-tabs button.active{background:var(--green);border-color:var(--green);color:#fff}
+.roster-grid{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:11px}
+.roster-grid th{font-size:10px;color:var(--muted);font-weight:800;padding:4px 0 6px;text-align:center}
+.roster-grid th.roster-today{color:var(--green)}
+.roster-grid th:first-child{width:86px;text-align:left}
+.roster-grid td{border-top:1px solid var(--border);padding:4px 1px;vertical-align:middle}
+.roster-name{font-weight:800;font-size:12px;line-height:1.2;word-break:break-word}
+.roster-name small{display:block;color:var(--muted);font-weight:600;font-size:10px;margin-top:2px}
+.roster-cell{width:100%;min-height:42px;border-radius:9px;border:1px dashed #d6dbd6;background:#fff;color:var(--muted);font-weight:850;font-size:12px;padding:2px 0;line-height:1.15}
+.roster-cell.filled{border-style:solid;border-color:#cfe3d7;background:var(--green-light);color:var(--green)}
+.roster-cell.off{border-style:solid;border-color:#e5e8e5;background:#f3f4f3;color:#8a918b}
+.roster-cell.time{font-size:10px}
+.roster-visa-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:1px}
+.roster-visa-dot.ok{background:#2e8b57}.roster-visa-dot.near{background:#d99a00}.roster-visa-dot.over{background:#c62828}.roster-visa-dot.break{background:#9aa1a9}
+.roster-visa-list .team-visa{margin:8px 0 0}
+.roster-sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:60}
+.roster-sheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(480px,100%);box-sizing:border-box;background:#fff;border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));z-index:61;box-shadow:0 -8px 30px rgba(0,0,0,.12)}
+.roster-sheet h3{margin:0 0 4px;font-size:17px}
+.roster-sheet p{margin:0 0 14px;color:var(--muted);font-size:12px}
+.roster-choice{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.roster-choice button,.roster-sheet-actions button{min-height:48px;border-radius:13px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:15px;color:var(--text)}
+.roster-choice button.selected{background:var(--green);border-color:var(--green);color:#fff}
+.roster-times{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.roster-times label{font-size:12px;font-weight:700;color:var(--muted)}
+.roster-times input{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 10px;font-size:16px;margin-top:4px}
+.roster-sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.roster-sheet-actions .primary{background:var(--green);border-color:var(--green);color:#fff}
+.roster-sheet-msg{min-height:18px;font-size:13px;margin-top:10px;color:var(--danger)}
 button:disabled{opacity:.6}
 </style>
 <script defer src="./timesheet-pdf.js"></script>
@@ -1178,6 +1214,7 @@ button:disabled{opacity:.6}
     <button id="staffHoursCard" class="manager-quick-card"><div class="manager-quick-icon">◷</div><strong>Staff Hours</strong><span>Weekly hours and shifts</span></button>
     <button id="teamCard" class="manager-quick-card"><div class="manager-quick-icon">◎</div><strong>Team</strong><span id="teamText">Active Hawthorne staff</span></button>
     <button id="timesheetsCard" class="manager-quick-card"><div class="manager-quick-icon">▤</div><strong>Timesheets</strong><span>Weekly timesheets & PDF</span></button>
+    <button id="rosterCard" class="manager-quick-card"><div class="manager-quick-icon">▦</div><strong>Roster</strong><span>Plan the week · L / D or times</span></button>
     <button id="myClockCard" class="manager-quick-card"><div class="manager-quick-icon">◉</div><strong>My Time Clock</strong><span>Clock in, break and clock out</span></button>
   </div></div>
   <div id="managerClockSection" class="hidden"><div class="card"><div class="section-title">My Time Clock</div><div class="status"><div class="status-label">Current status</div><div id="managerStatusValue" class="status-value">Off shift</div></div><button id="managerClockInBtn" class="btn primary hidden">Clock In</button><button id="managerStartBreakBtn" class="btn secondary hidden">Start Break</button><button id="managerEndBreakBtn" class="btn primary hidden">End Break</button><button id="managerClockOutBtn" class="btn danger hidden">Clock Out</button><div id="managerActionMessage" class="message"></div></div></div>
@@ -1297,6 +1334,32 @@ button:disabled{opacity:.6}
 </section>
 
 
+<!-- ROSTER SCREEN -->
+<section id="rosterScreen" class="hidden">
+  <div class="manager-top">
+    <div>
+      <div class="team-v2-kicker">MANAGER</div>
+      <h2>Roster</h2>
+      <p id="rosterLocation" class="team-v2-sub">Hawthorne</p>
+    </div>
+    <button id="backRosterBtn" class="back-btn">Back</button>
+  </div>
+  <div class="card">
+    <div class="roster-weekbar">
+      <button id="rosterPrevBtn" type="button" aria-label="Previous week">‹</button>
+      <div id="rosterWeekLabel" class="roster-weeklabel">Week</div>
+      <button id="rosterNextBtn" type="button" aria-label="Next week">›</button>
+    </div>
+    <div id="rosterTabs" class="roster-tabs"></div>
+    <div id="rosterMessage" class="message"></div>
+    <div id="rosterGridBox" class="empty-state">Loading roster...</div>
+  </div>
+  <div id="rosterVisaCard" class="card hidden">
+    <div class="section-title">Student visa · last week + this week</div>
+    <div id="rosterVisaList" class="roster-visa-list"></div>
+  </div>
+</section>
+
 <!-- MORE SCREEN -->
 <section id="devicesScreen" class="hidden">
   <div class="manager-top">
@@ -1345,6 +1408,11 @@ button:disabled{opacity:.6}
     <button id="moreTimesheetsBtn" class="more-v2-item" type="button">
       <span class="more-v2-icon">▤</span>
       <span><strong>Timesheets & PDF</strong><small>View weekly timesheets and export the approved PDF</small></span>
+      <span class="more-v2-chevron">›</span>
+    </button>
+    <button id="moreRosterBtn" class="more-v2-item" type="button">
+      <span class="more-v2-icon">▦</span>
+      <span><strong>Roster</strong><small>Plan the week for Kitchen and Floor</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
     <button id="moreMyClockBtn" class="more-v2-item" type="button">
@@ -1606,6 +1674,8 @@ document.getElementById("teamCard");
 
 const teamScreen =
 document.getElementById("teamScreen");
+const rosterScreen =
+document.getElementById("rosterScreen");
 
 const backTeamBtn =
 document.getElementById("backTeamBtn");
@@ -4496,6 +4566,7 @@ timesheetsCard.addEventListener("click", async () => {
   approvalsScreen.classList.add("hidden");
   staffHoursScreen.classList.add("hidden");
   teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
   timesheetsScreen.classList.remove("hidden");
 
   selectedTimesheetsWeek = null;
@@ -5046,6 +5117,7 @@ teamCard.addEventListener("click", async () => {
 
 backTeamBtn.addEventListener("click", async () => {
   teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
   managerScreen.classList.remove("hidden");
   setManagerNavActive("home");
   await loadManagerDashboard();
@@ -5184,6 +5256,7 @@ function openManagerMore() {
   managerScreen.classList.add("hidden");
   approvalsScreen.classList.add("hidden");
   teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
   staffHoursScreen.classList.add("hidden");
   timesheetsScreen.classList.add("hidden");
   devicesScreen?.classList.add("hidden");
@@ -5209,6 +5282,289 @@ function openManagerMore() {
   window.scrollTo({top:0,behavior:"smooth"});
 }
 
+/* ROSTER */
+// Paper-style weekly roster. Kitchen cells: L, D, L/D, Off. Floor cells: a
+// start and finish time (e.g. 17:00-21:00), or Off. The server checks every
+// change (department/unit access) and returns the student-visa fortnight
+// (last week + this week) so the warning shows while the week is planned.
+const ROSTER_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const rosterState = { week: null, dept: null, data: null };
+
+function rosterAddDays(dateStr, days) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function rosterMonday(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  return rosterAddDays(dateStr, -((d.getUTCDay() + 6) % 7));
+}
+
+function rosterShortDate(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
+}
+
+function rosterHours(n) {
+  const m = Math.round((Number(n) || 0) * 60);
+  return m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h`;
+}
+
+function rosterTimeLabel(t) {
+  // "17:00" -> "5p", "16:30" -> "4:30p", "10:30" -> "10:30a"
+  const [h, m] = String(t || "").split(":").map(Number);
+  if (Number.isNaN(h)) return "";
+  const suffix = h >= 12 ? "p" : "a";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return m ? `${h12}:${String(m).padStart(2, "0")}${suffix}` : `${h12}${suffix}`;
+}
+
+function rosterCellHtml(entry, staffId, date) {
+  const attrs = `data-roster-staff="${escapeHtml(staffId)}" data-roster-date="${escapeHtml(date)}"`;
+  if (!entry) return `<button class="roster-cell" ${attrs} aria-label="Empty">+</button>`;
+  if (entry.code === "OFF") return `<button class="roster-cell off" ${attrs}>Off</button>`;
+  if (entry.code === "SHIFT") {
+    return `<button class="roster-cell filled time" ${attrs}>${escapeHtml(rosterTimeLabel(entry.start_time))}<br>${escapeHtml(rosterTimeLabel(entry.end_time))}</button>`;
+  }
+  const label = entry.code === "LD" ? "L/D" : entry.code;
+  return `<button class="roster-cell filled" ${attrs}>${escapeHtml(label)}</button>`;
+}
+
+function rosterVisaLevel(v) {
+  if (!v) return "";
+  if (v.course_break) return "break";
+  if (v.fortnight_hours > v.limit_hours) return "over";
+  if (v.fortnight_hours >= v.limit_hours - 8) return "near";
+  return "ok";
+}
+
+function renderRoster() {
+  const data = rosterState.data;
+  if (!data) return;
+  const role = data.manager?.role || currentManagerRole;
+  const ownDept = role === "kitchen_manager" ? "Kitchen" : role === "floor_manager" ? "Floor" : null;
+  if (ownDept) rosterState.dept = ownDept;
+  if (!rosterState.dept) rosterState.dept = "Kitchen";
+
+  const tabs = document.getElementById("rosterTabs");
+  tabs.innerHTML = ownDept
+    ? ""
+    : ["Kitchen", "Floor"].map(d =>
+        `<button type="button" data-roster-dept="${d}" class="${d === rosterState.dept ? "active" : ""}">${d}</button>`
+      ).join("");
+
+  document.getElementById("rosterLocation").textContent =
+    `${data.location || "Hawthorne"} · ${rosterState.dept}`;
+
+  const week = data.week_start;
+  const today = brisbaneTodayInput();
+  document.getElementById("rosterWeekLabel").innerHTML =
+    `${escapeHtml(rosterShortDate(week))} – ${escapeHtml(rosterShortDate(rosterAddDays(week, 6)))}` +
+    `<small>${week === rosterMonday(today) ? "This week" : week > today ? "Upcoming" : "Past week"}</small>`;
+
+  const people = (data.team || []).filter(m => m.department === rosterState.dept);
+  const cells = {};
+  (data.entries || []).forEach(e => { cells[`${e.staff_id}|${e.work_date}`] = e; });
+  const visaById = {};
+  (data.visa || []).forEach(v => { visaById[v.staff_id] = v; });
+  const days = ROSTER_DAYS.map((_, i) => rosterAddDays(week, i));
+
+  const box = document.getElementById("rosterGridBox");
+  if (!people.length) {
+    box.className = "empty-state";
+    box.textContent = `No active ${rosterState.dept} staff.`;
+  } else {
+    box.className = "";
+    box.innerHTML = `
+      <table class="roster-grid">
+        <thead><tr><th></th>${days.map((d, i) =>
+          `<th class="${d === today ? "roster-today" : ""}">${ROSTER_DAYS[i]}<br>${escapeHtml(rosterShortDate(d))}</th>`
+        ).join("")}</tr></thead>
+        <tbody>${people.map(m => {
+          const v = visaById[m.id];
+          const dot = v ? `<span class="roster-visa-dot ${rosterVisaLevel(v)}"></span>` : "";
+          return `<tr>
+            <td><div class="roster-name">${dot}${escapeHtml(m.name)}<small>${escapeHtml(rosterHours(data.planned_hours?.[m.id]))}</small></div></td>
+            ${days.map(d => `<td>${rosterCellHtml(cells[`${m.id}|${d}`], m.id, d)}</td>`).join("")}
+          </tr>`;
+        }).join("")}</tbody>
+      </table>`;
+  }
+
+  const visaPeople = people.filter(m => visaById[m.id]);
+  const visaCard = document.getElementById("rosterVisaCard");
+  visaCard.classList.toggle("hidden", !visaPeople.length);
+  document.getElementById("rosterVisaList").innerHTML = visaPeople.map(m => {
+    const v = visaById[m.id];
+    const level = rosterVisaLevel(v);
+    const detail = `last week ${rosterHours(v.prev_week_hours)} + this week ${rosterHours(v.week_hours)}`;
+    const text = level === "break"
+      ? `${m.name} · course break — no limit (${rosterHours(v.fortnight_hours)})`
+      : level === "over"
+        ? `${m.name} · ${rosterHours(v.fortnight_hours)} of ${rosterHours(v.limit_hours)} — over the limit (${detail})`
+        : `${m.name} · ${rosterHours(v.fortnight_hours)} of ${rosterHours(v.limit_hours)} (${detail})`;
+    return `<div class="team-visa team-visa-${level}">${escapeHtml(text)}</div>`;
+  }).join("") +
+  `<div class="person-meta" style="margin-top:10px">Past days use clocked hours; today and later use the roster. Hours at other jobs also count.</div>`;
+}
+
+async function loadRoster(week) {
+  const msg = document.getElementById("rosterMessage");
+  msg.className = "message";
+  msg.textContent = "";
+  try {
+    const data = await managerApi("manager_roster_week", week ? { week_start: week } : {});
+    rosterState.data = data;
+    rosterState.week = data.week_start;
+    renderRoster();
+    return data;
+  } catch (error) {
+    document.getElementById("rosterGridBox").className = "empty-state";
+    document.getElementById("rosterGridBox").textContent = "Unable to load the roster.";
+    msg.className = "message show error";
+    msg.textContent = error.message || "Unable to load the roster.";
+    return null;
+  }
+}
+
+function closeRosterSheet() {
+  document.querySelectorAll(".roster-sheet, .roster-sheet-backdrop").forEach(el => el.remove());
+}
+
+function openRosterSheet(staffId, date) {
+  const data = rosterState.data;
+  const person = (data?.team || []).find(m => m.id === staffId);
+  if (!person) return;
+  const entry = (data.entries || []).find(e => e.staff_id === staffId && e.work_date === date);
+  const isFloor = person.department === "Floor";
+  const d = new Date(`${date}T00:00:00Z`);
+  const dayName = ROSTER_DAYS[(d.getUTCDay() + 6) % 7];
+
+  closeRosterSheet();
+  const backdrop = document.createElement("div");
+  backdrop.className = "roster-sheet-backdrop";
+  const sheet = document.createElement("div");
+  sheet.className = "roster-sheet";
+  sheet.setAttribute("role", "dialog");
+  sheet.innerHTML = `
+    <h3>${escapeHtml(person.name)}</h3>
+    <p>${escapeHtml(dayName)} ${escapeHtml(rosterShortDate(date))} · ${escapeHtml(person.department)}</p>
+    ${isFloor ? `
+      <div class="roster-times">
+        <label>Start<input type="time" class="roster-start" step="900" value="${escapeHtml(entry?.code === "SHIFT" ? entry.start_time : "17:00")}"></label>
+        <label>Finish<input type="time" class="roster-end" step="900" value="${escapeHtml(entry?.code === "SHIFT" ? entry.end_time : "21:00")}"></label>
+      </div>
+      <div class="roster-sheet-actions" style="margin-bottom:8px">
+        <button type="button" class="primary" data-roster-save="SHIFT">Save time</button>
+        <button type="button" data-roster-save="OFF">Off</button>
+      </div>
+    ` : `
+      <div class="roster-choice">
+        ${[["L", "L"], ["D", "D"], ["LD", "L/D"], ["OFF", "Off"]].map(([code, label]) =>
+          `<button type="button" data-roster-save="${code}" class="${entry?.code === code ? "selected" : ""}">${label}</button>`
+        ).join("")}
+      </div>
+    `}
+    <div class="roster-sheet-actions">
+      <button type="button" data-roster-save="">Clear</button>
+      <button type="button" data-roster-cancel>Cancel</button>
+    </div>
+    <div class="roster-sheet-msg"></div>`;
+  document.body.appendChild(backdrop);
+  document.body.appendChild(sheet);
+  backdrop.addEventListener("click", closeRosterSheet);
+  sheet.querySelector("[data-roster-cancel]").addEventListener("click", closeRosterSheet);
+
+  sheet.querySelectorAll("[data-roster-save]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const code = button.dataset.rosterSave;
+      const message = sheet.querySelector(".roster-sheet-msg");
+      const payload = { staff_id: staffId, work_date: date, code };
+      if (code === "SHIFT") {
+        payload.start_time = sheet.querySelector(".roster-start").value;
+        payload.end_time = sheet.querySelector(".roster-end").value;
+        if (!payload.start_time || !payload.end_time || payload.start_time === payload.end_time) {
+          message.textContent = "Enter a start and finish time.";
+          return;
+        }
+      }
+      const before = (rosterState.data.visa || []).find(v => v.staff_id === staffId);
+      sheet.querySelectorAll("button").forEach(b => { b.disabled = true; });
+      try {
+        await managerApi("manager_roster_set", payload);
+        closeRosterSheet();
+        const fresh = await loadRoster(rosterState.week);
+        const after = (fresh?.visa || []).find(v => v.staff_id === staffId);
+        if (after && !after.course_break && after.fortnight_hours > after.limit_hours &&
+            !(before && before.fortnight_hours > before.limit_hours && after.fortnight_hours <= before.fortnight_hours)) {
+          const msg = document.getElementById("rosterMessage");
+          msg.className = "message show error";
+          msg.textContent =
+            `⚠ ${person.name} now has ${rosterHours(after.fortnight_hours)} in this fortnight — over the ${rosterHours(after.limit_hours)} student visa limit.`;
+          msg.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      } catch (error) {
+        sheet.querySelectorAll("button").forEach(b => { b.disabled = false; });
+        message.textContent = error.message || "Unable to save.";
+      }
+    });
+  });
+}
+
+async function openRosterScreen() {
+  managerMoreScreen?.classList.add("hidden");
+  managerScreen.classList.add("hidden");
+  approvalsScreen.classList.add("hidden");
+  staffHoursScreen.classList.add("hidden");
+  teamScreen.classList.add("hidden");
+  timesheetsScreen.classList.add("hidden");
+  devicesScreen?.classList.add("hidden");
+  rosterScreen.classList.remove("hidden");
+  setManagerNavActive("more");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  document.getElementById("rosterGridBox").className = "empty-state";
+  document.getElementById("rosterGridBox").textContent = "Loading roster...";
+  await loadRoster(rosterState.week);
+}
+
+document.getElementById("rosterCard")?.addEventListener("click", openRosterScreen);
+document.getElementById("moreRosterBtn")?.addEventListener("click", openRosterScreen);
+document.getElementById("backRosterBtn")?.addEventListener("click", async () => {
+  closeRosterSheet();
+  rosterScreen.classList.add("hidden");
+  managerScreen.classList.remove("hidden");
+  setManagerNavActive("home");
+  await loadManagerDashboard();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+document.getElementById("rosterPrevBtn")?.addEventListener("click", () =>
+  rosterState.week && loadRoster(rosterAddDays(rosterState.week, -7)));
+document.getElementById("rosterNextBtn")?.addEventListener("click", () =>
+  rosterState.week && loadRoster(rosterAddDays(rosterState.week, 7)));
+document.getElementById("rosterTabs")?.addEventListener("click", event => {
+  const button = event.target.closest("[data-roster-dept]");
+  if (!button) return;
+  rosterState.dept = button.dataset.rosterDept;
+  const msg = document.getElementById("rosterMessage");
+  msg.className = "message";
+  msg.textContent = "";
+  renderRoster();
+});
+document.getElementById("rosterGridBox")?.addEventListener("click", event => {
+  const cell = event.target.closest("[data-roster-staff]");
+  if (cell) openRosterSheet(cell.dataset.rosterStaff, cell.dataset.rosterDate);
+});
+// Any other manager navigation leaves the roster.
+document.addEventListener("click", event => {
+  if (rosterScreen.classList.contains("hidden")) return;
+  const nav = event.target.closest("[data-manager-nav], .manager-quick-card, .more-v2-item, #managerLogoutBtn, #moreSignOutBtn");
+  if (nav && nav.id !== "rosterCard" && nav.id !== "moreRosterBtn") {
+    closeRosterSheet();
+    rosterScreen.classList.add("hidden");
+  }
+}, true);
+
 /* MANAGER V2 NAVIGATION */
 function setManagerNavActive(target = "home") {
   if (!managerBottomNav) return;
@@ -5233,6 +5589,7 @@ managerBottomNav?.addEventListener("click",event=>{
   if(target==="home"){
     approvalsScreen.classList.add("hidden");
     teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
     staffHoursScreen.classList.add("hidden");
     timesheetsScreen.classList.add("hidden");
     managerMoreScreen?.classList.add("hidden");
@@ -5247,6 +5604,7 @@ managerBottomNav?.addEventListener("click",event=>{
     // Direct navigation fixes the Team → Approvals transition.
     managerScreen.classList.add("hidden");
     teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
     staffHoursScreen.classList.add("hidden");
     timesheetsScreen.classList.add("hidden");
     managerMoreScreen?.classList.add("hidden");
@@ -5404,6 +5762,10 @@ async function signOutAll() {
 
   teamScreen
   .classList
+  .add("hidden");
+
+  rosterScreen
+  ?.classList
   .add("hidden");
 
   timesheetsScreen
