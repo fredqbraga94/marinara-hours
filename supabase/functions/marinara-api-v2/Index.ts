@@ -331,15 +331,29 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
 };
 
 // VISA-HOURS-START
-// Student visa (subclass 500): at most 48 worked hours in any 14 consecutive
-// days while the course is in session. Counts worked time (breaks removed)
-// inside the last 14 days up to `now`, including a shift still in progress.
-// Only this workplace's hours are known; other jobs also count toward it.
+// Student visa (subclass 500, condition 8105): at most 48 worked hours per
+// fortnight while the course is in session. A fortnight is 14 days starting
+// on a Monday, and every Monday starts one, so any two consecutive Mon-Sun
+// weeks must stay within 48h. This counts worked time (breaks removed) from
+// Monday 00:00 of LAST week (Brisbane time) up to `now`, i.e. last week +
+// this week so far, including a shift still in progress. Only this
+// workplace's hours are known; other jobs also count toward the limit.
 const VISA_LIMIT_HOURS = 48;
 const VISA_WINDOW_DAYS = 14;
+const BRISBANE_OFFSET_MS = 10 * 60 * 60 * 1000; // UTC+10, no daylight saving
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function visaFortnightStart(now: number) {
+  const local = now + BRISBANE_OFFSET_MS;
+  const localMidnight = Math.floor(local / DAY_MS) * DAY_MS;
+  const daysSinceMonday = (new Date(localMidnight).getUTCDay() + 6) % 7;
+  const thisMonday = localMidnight - daysSinceMonday * DAY_MS;
+  return thisMonday - 7 * DAY_MS - BRISBANE_OFFSET_MS;
+}
 
 function computeVisaHours(visaStaff: any[], shifts: any[], now: number) {
-  const windowStart = now - VISA_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const windowStart = visaFortnightStart(now);
+  const windowEnd = windowStart + VISA_WINDOW_DAYS * DAY_MS;
   const overlap = (start: number, end: number) =>
     Math.max(0, Math.min(end, now) - Math.max(start, windowStart));
 
@@ -368,6 +382,7 @@ function computeVisaHours(visaStaff: any[], shifts: any[], now: number) {
       remaining_hours: Math.max(0, Math.round((VISA_LIMIT_HOURS - hours) * 100) / 100),
       course_break: !!m.visa_course_break,
       window_start: new Date(windowStart).toISOString(),
+      window_end: new Date(windowEnd).toISOString(),
     };
   });
 }
@@ -1205,11 +1220,9 @@ Deno.serve(async (req) => {
       if (!visaStaff.length) return [];
 
       const now = Date.now();
-      // One extra day back so a shift that started before the window and
+      // One extra day back so a shift that started before the fortnight and
       // finished inside it is still counted (only the part inside).
-      const fetchFrom = new Date(
-        now - (VISA_WINDOW_DAYS + 1) * 24 * 60 * 60 * 1000
-      ).toISOString();
+      const fetchFrom = new Date(visaFortnightStart(now) - DAY_MS).toISOString();
 
       const { data, error } = await supabase
         .from("shifts")

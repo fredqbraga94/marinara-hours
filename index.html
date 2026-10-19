@@ -4661,8 +4661,9 @@ exportTimesheetsPdfBtn.addEventListener("click", async () => {
 
 /* TEAM */
 
-// Student visa (subclass 500): 48 worked hours in any 14 days while the
-// course is in session. The server sends the last-14-days total per person.
+// Student visa (subclass 500): 48 worked hours per fortnight while the course
+// is in session. A fortnight starts on a Monday and every Monday starts one,
+// so the server sends last week + this week so far (from Monday, Brisbane).
 // Only hours worked here are known; hours at other jobs also count.
 function renderVisaBadge(person, visa) {
   if (!person.student_visa || !person.active) return "";
@@ -4680,8 +4681,8 @@ function renderVisaBadge(person, visa) {
   };
   const level = used >= limit ? "over" : used >= limit - 8 ? "near" : "ok";
   const text = used >= limit
-    ? `Student visa · ${fmt(used)} in the last 14 days — over the ${fmt(limit)} limit. Do not roster until the total drops.`
-    : `Student visa · ${fmt(used)} of ${fmt(limit)} in the last 14 days · ${fmt(left)} left`;
+    ? `Student visa · ${fmt(used)} last week + this week — over the ${fmt(limit)} limit. Do not roster more this week.`
+    : `Student visa · ${fmt(used)} of ${fmt(limit)} (last week + this week) · ${fmt(left)} left until Sunday`;
   return `<div class="team-visa team-visa-${level}">${escapeHtml(text)}</div>`;
 }
 
