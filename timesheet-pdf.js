@@ -22,53 +22,137 @@
     return libraries;
   }
 
-  function generate(report, groups) {
-    const doc = new window.jspdf.jsPDF({orientation:'landscape', unit:'mm', format:'a4', compress:true});
-    const width = 277;
-    const columns = {0:{cellWidth:55.4},1:{cellWidth:55.4},2:{cellWidth:34.6},3:{cellWidth:34.6},4:{cellWidth:30.5},5:{cellWidth:33.2},6:{cellWidth:33.3}};
-    // One continuous compact table: a single column header and weekly totals.
-    // autoTable may paginate exceptionally long weeks rather than truncate data.
-    const body = [];
-    for (const group of groups) {
-      for (const row of group.rows) body.push(row);
-      body.push([
-        {content:group.total[0],colSpan:5,styles:{fillColor:[220,220,220],fontStyle:'bold',fontSize:7.5,cellPadding:0.7}},
-        {content:group.total[1],styles:{fillColor:[220,220,220],fontStyle:'bold',fontSize:7,cellPadding:0.7}},
-        {content:'',styles:{fillColor:[220,220,220]}}
-      ]);
-      if (group !== groups[groups.length - 1]) body.push([{content:' ',colSpan:7,styles:{minCellHeight:5.5,cellPadding:0.5,fillColor:[255,255,255]}}]);
-    }
-    doc.autoTable({
-      startY:52, margin:{top:52,bottom:14,left:10,right:10},tableWidth:width,
-      head:[['Employee','Date','Clock In','Clock Out','Break','Total','Status']],
-      body, showHead:'firstPage', pageBreak:'auto',rowPageBreak:'avoid',
-      theme:'plain',
-      styles:{font:'helvetica',fontSize:7.5,cellPadding:{top:0.7,bottom:0.7,left:1.3,right:1.3},textColor:32,overflow:'linebreak',minCellHeight:4.5},
-      columnStyles:columns,
-      headStyles:{cellPadding:1.1,fillColor:48,textColor:255,fontStyle:'bold',fontSize:7.5},
-      didParseCell(data) {
-        if(data.section==='body' && (data.column.index===0 || data.column.index===5)) data.cell.styles.fontStyle='bold';
-        if(data.section==='body' && data.column.index===6) data.cell.styles.fontSize=7.2;
+  // ---- Layout (A4 landscape, mm) -------------------------------------------
+  // Header band 8–30, info line 36, table 39–198, footer rule 199.
+  const PAGE = {width:297, left:10, right:10, tableTop:39, tableBottom:198};
+  const TABLE_WIDTH = PAGE.width - PAGE.left - PAGE.right; // 277
+  const COLUMNS = {0:{cellWidth:55.4},1:{cellWidth:55.4},2:{cellWidth:34.6},3:{cellWidth:34.6},4:{cellWidth:30.5},5:{cellWidth:33.2},6:{cellWidth:33.3}};
+  // Density levels, most comfortable first. A row is
+  // max(minRow, fontPt * 0.3528 * 1.15 + 2 * pad) mm; the first level whose
+  // real autoTable layout ends on page 1 is used. The last level is the
+  // smallest size we accept as readable; longer weeks paginate at a
+  // comfortable size instead of shrinking further. Data is never dropped.
+  const LEVELS = [
+    {font:8.4, pad:1.0,  minRow:5.2, gap:3.0},
+    {font:8.0, pad:0.9,  minRow:4.9, gap:2.8},
+    {font:7.6, pad:0.8,  minRow:4.6, gap:2.6},
+    {font:7.2, pad:0.7,  minRow:4.3, gap:2.4},
+    {font:6.9, pad:0.6,  minRow:4.0, gap:2.2},
+    {font:6.6, pad:0.5,  minRow:3.75, gap:2.0},
+  ];
+  const PAGINATED_LEVEL = LEVELS[2];
+  const TOTAL_FILL = [218,218,218];
+  const DEPT_GREY = 110;
+
+  // Department labels used to sit on a second line inside each employee's
+  // first row, doubling the height of 7 rows. Put the label in the (empty)
+  // employee cell of the second row instead; one-shift employees get
+  // "Name · Department" on a single line.
+  function bodyRows(groups) {
+    const rows = [];
+    groups.forEach((group, g) => {
+      const shiftRows = group.rows.map(row => row.slice());
+      const [name, dept] = String(shiftRows[0]?.[0] || '').split('\n');
+      shiftRows.forEach((row, i) => {
+        const cells = row.map(content => ({content}));
+        if (i === 0) cells[0] = {content: dept && shiftRows.length === 1 ? `${name} · ${dept}` : name, styles:{fontStyle:'bold', textColor:20}};
+        else if (i === 1 && dept) cells[0] = {content: dept, styles:{fontStyle:'normal', textColor:DEPT_GREY}};
+        else if (i > 0) cells[0] = {content:''};
+        cells.kind = i === 0 ? 'first' : 'shift';
+        rows.push(cells);
+      });
+      const total = [
+        {content:group.total[0], colSpan:5, styles:{fillColor:TOTAL_FILL, fontStyle:'bold', textColor:20}},
+        {content:group.total[1], styles:{fillColor:TOTAL_FILL, fontStyle:'bold', textColor:20}},
+        {content:'', styles:{fillColor:TOTAL_FILL}},
+      ];
+      total.kind = 'total';
+      rows.push(total);
+      if (g < groups.length - 1) {
+        const gap = [{content:'', colSpan:7}];
+        gap.kind = 'gap';
+        rows.push(gap);
       }
     });
+    return rows;
+  }
+
+  function tableOptions(rows, level, paginate) {
+    return {
+      startY:PAGE.tableTop,
+      margin:{top:PAGE.tableTop, bottom:210 - PAGE.tableBottom, left:PAGE.left, right:PAGE.right},
+      tableWidth:TABLE_WIDTH,
+      head:[['Employee','Date','Clock In','Clock Out','Break','Total','Status']],
+      body:rows,
+      showHead:paginate ? 'everyPage' : 'firstPage',
+      pageBreak:'auto', rowPageBreak:'avoid',
+      theme:'plain',
+      styles:{font:'helvetica', fontSize:level.font, cellPadding:{top:level.pad, bottom:level.pad, left:1.4, right:1.4},
+        textColor:40, overflow:'linebreak', minCellHeight:level.minRow, valign:'middle', lineWidth:0},
+      columnStyles:COLUMNS,
+      headStyles:{fillColor:30, textColor:255, fontStyle:'bold', fontSize:Math.min(level.font, 8), cellPadding:{top:level.pad + 0.4, bottom:level.pad + 0.4, left:1.4, right:1.4}, minCellHeight:level.minRow},
+      didParseCell(data) {
+        if (data.section !== 'body') return;
+        const kind = data.row.raw.kind;
+        if (kind === 'gap') {
+          data.cell.styles.minCellHeight = level.gap;
+          data.cell.styles.cellPadding = 0;
+          data.cell.styles.fontSize = 1;
+          return;
+        }
+        if (data.column.index === 5) data.cell.styles.fontStyle = 'bold';
+        if (data.column.index === 6 && kind !== 'total') data.cell.styles.fontSize = Math.max(level.font - 0.4, 6.2);
+        if (data.column.index === 0 && kind === 'shift' && data.cell.raw?.content) data.cell.styles.fontSize = Math.max(level.font - 0.6, 6);
+      },
+      didDrawCell(data) {
+        // Thin rule above each employee's first row: a visible but quiet separator.
+        if (data.section === 'body' && data.row.raw.kind === 'first' && data.column.index === 0) {
+          data.doc.setDrawColor(170); data.doc.setLineWidth(0.25);
+          data.doc.line(PAGE.left, data.cell.y, PAGE.left + TABLE_WIDTH, data.cell.y);
+        }
+      },
+    };
+  }
+
+  // Measures the real layout with autoTable on a scratch document.
+  function fitsOnePage(rows, level) {
+    const probe = new window.jspdf.jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+    probe.autoTable(tableOptions(rows, level, false));
+    return probe.getNumberOfPages() === 1 && probe.lastAutoTable.finalY <= PAGE.tableBottom + 0.01;
+  }
+
+  function chooseLayout(rows) {
+    for (const level of LEVELS) if (fitsOnePage(rows, level)) return {level, paginate:false};
+    return {level:PAGINATED_LEVEL, paginate:true};
+  }
+
+  function drawFrame(doc, report, page, pages) {
+    doc.setPage(page);
+    doc.setFillColor(17); doc.rect(PAGE.left, 8, TABLE_WIDTH, 22, 'F');
+    doc.addImage(report.logo, 'PNG', 13, 10.6, 47, 16.9);
+    doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(16);
+    doc.text('WEEKLY TIMESHEETS', 70, 18.2);
+    doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(200);
+    doc.text('HAWTHORNE / STAFF HOURS', 70, 24.2);
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255);
+    doc.text(report.week, 283, 24.2, {align:'right', maxWidth:120});
+    doc.setFontSize(8); doc.setTextColor(40); doc.text(report.department, PAGE.left, 35.4);
+    doc.setFont('helvetica','normal'); doc.setTextColor(110);
+    doc.text(`${report.employees} employees · ${report.shifts} shifts | Australia/Brisbane`, 287, 35.4, {align:'right'});
+    doc.setDrawColor(205); doc.setLineWidth(0.2); doc.line(PAGE.left, 199, 287, 199);
+    doc.setFontSize(6.5); doc.setTextColor(130);
+    doc.text('MARINARA HAWTHORNE', PAGE.left, 203.2);
+    doc.text(`Generated from Marinara Hours · ${page} / ${pages}`, 287, 203.2, {align:'right'});
+  }
+
+  function generate(report, groups) {
+    const rows = bodyRows(groups);
+    const {level, paginate} = chooseLayout(rows);
+    const doc = new window.jspdf.jsPDF({orientation:'landscape', unit:'mm', format:'a4', compress:true});
+    doc.autoTable(tableOptions(rows, level, paginate));
     const pages = doc.getNumberOfPages();
-    for (let page=1; page<=pages; page++) {
-      doc.setPage(page);
-      doc.setFillColor(17); doc.rect(10,10,width,30,'F');
-      doc.addImage(report.logo,'PNG',15,14,58,20.8);
-      doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(18);
-      doc.text('WEEKLY TIMESHEETS',87,22);
-      doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(204);
-      doc.text('HAWTHORNE / STAFF HOURS',87,28);
-      doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255);
-      doc.text(report.week,282,36,{align:'right',maxWidth:185});
-      doc.setFontSize(8); doc.setTextColor(48); doc.text(report.department,10,46);
-      doc.setFont('helvetica','normal'); doc.setTextColor(112);
-      doc.text(`${report.employees} employees · ${report.shifts} shifts | Australia/Brisbane`,287,46,{align:'right'});
-      doc.setDrawColor(215); doc.line(10,197,287,197);
-      doc.setFontSize(7); doc.text('MARINARA HAWTHORNE',10,202);
-      doc.text(`Generated from Marinara Hours · ${page} / ${pages}`,287,202,{align:'right'});
-    }
+    for (let page = 1; page <= pages; page++) drawFrame(doc, report, page, pages);
+    generate.lastLayout = {font:level.font, paginate, pages};
     return doc.output('blob');
   }
 
