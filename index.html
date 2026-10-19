@@ -2512,6 +2512,8 @@ workingList.addEventListener("click", async event => {
       shift_id: shiftId,
       clock_out: when.toISOString()
     });
+    // Close the panel first: the dashboard skips refreshing while a clock-out panel is open.
+    panel.classList.add("hidden");
     await loadManagerDashboard();
     const hours = result?.shift?.hours;
     showMessage(
