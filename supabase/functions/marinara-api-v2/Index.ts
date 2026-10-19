@@ -328,7 +328,13 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   DEVICE_NOT_FOUND: [404, "Device not found"],
   TOO_MANY_ACTIVE_CODES: [429, "Too many unused device codes. Wait for them to expire."],
   INVALID_INPUT: [400, "Invalid request"],
+  ADMIN_REQUIRED: [403, "Only an admin can manage admin accounts"],
+  LOCATION_DENIED: [403, "Access denied for this unit"],
 };
+
+// Units (restaurants) in this system. Admins can switch between them;
+// every other manager is locked to their own unit.
+const UNITS = ["Hawthorne", "Paddington", "Clayfield"];
 
 // VISA-HOURS-START
 // Student visa (subclass 500, condition 8105): at most 48 worked hours per
@@ -1090,7 +1096,7 @@ Deno.serve(async (req) => {
       }
 
       if (
-        !["manager", "kitchen_manager", "floor_manager"].includes(
+        !["manager", "kitchen_manager", "floor_manager", "admin"].includes(
           managerSession.staff.role
         )
       ) {
@@ -1112,11 +1118,16 @@ Deno.serve(async (req) => {
         location:
           managerSession.staff.location,
         manager_type:
-          managerSession.staff.role === "manager"
+          managerSession.staff.role === "manager" ||
+          managerSession.staff.role === "admin"
             ? "general"
             : managerSession.staff.role === "kitchen_manager"
               ? "kitchen"
               : "floor",
+        is_admin:
+          managerSession.staff.role === "admin",
+        home_location:
+          managerSession.staff.location,
       };
     } catch (error) {
       console.error(
@@ -1133,9 +1144,16 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Admin: the unit chosen on screen (body.unit). Everyone else: their own unit.
+    const requestedUnit =
+      typeof body.unit === "string" ? body.unit.trim() : "";
     const location =
-      managerStatus.location ||
-      "Hawthorne";
+      managerStatus.is_admin && UNITS.includes(requestedUnit)
+        ? requestedUnit
+        : managerStatus.location ||
+          "Hawthorne";
+    managerStatus.location = location;
+    managerStatus.units = managerStatus.is_admin ? UNITS : [location];
 
     // Server-enforced manager scope.
     // manager = General Manager; scoped managers only see their department.
@@ -1147,7 +1165,8 @@ Deno.serve(async (req) => {
           : null;
 
     const isGeneralManager =
-      managerStatus.role === "manager";
+      managerStatus.role === "manager" ||
+      managerStatus.role === "admin";
 
     function departmentAllowed(department: string) {
       return !managerDepartmentScope || department === managerDepartmentScope;
@@ -1220,7 +1239,7 @@ Deno.serve(async (req) => {
       if (!visaStaff.length) return [];
 
       const now = Date.now();
-      // One extra day back so a shift that started before the fortnight and
+      // One extra day back so a shift that started before the window and
       // finished inside it is still counted (only the part inside).
       const fetchFrom = new Date(visaFortnightStart(now) - DAY_MS).toISOString();
 
@@ -2231,18 +2250,20 @@ Deno.serve(async (req) => {
         }
 
         // Refuses a PIN that another active person already uses; writes an audit row.
+        // Created in the unit being viewed (admins) or the manager's own unit.
         const { data: createdStaff, error: createStaffError } = await supabase.rpc(
-          "manager_create_staff_audited",
+          "manager_create_staff_in_unit",
           {
             p_manager_id: managerStatus.id,
             p_name: name,
             p_pin: staffPin,
             p_department: department,
+            p_location: location,
           }
         );
         if (createStaffError) {
           const code = dbErrorCode(createStaffError);
-          if (code === "PIN_IN_USE" || code === "DEPARTMENT_DENIED") {
+          if (code === "PIN_IN_USE" || code === "DEPARTMENT_DENIED" || code === "LOCATION_DENIED") {
             return managerDbError(createStaffError, "Unable to create staff member");
           }
           console.error("Create staff error:", createStaffError.code || "");
@@ -2284,7 +2305,7 @@ Deno.serve(async (req) => {
         }
         if (
           requestedRole &&
-          !["staff", "manager", "kitchen_manager", "floor_manager"].includes(requestedRole)
+          !["staff", "manager", "kitchen_manager", "floor_manager", "admin"].includes(requestedRole)
         ) {
           return json({ error: "Invalid account role" }, 400);
         }
@@ -2312,7 +2333,7 @@ Deno.serve(async (req) => {
         );
         if (updateStaffError) {
           const code = dbErrorCode(updateStaffError);
-          if (["PIN_IN_USE", "DEPARTMENT_DENIED", "GM_REQUIRED", "STAFF_NOT_FOUND", "INVALID_ROLE"].includes(code)) {
+          if (["PIN_IN_USE", "DEPARTMENT_DENIED", "GM_REQUIRED", "STAFF_NOT_FOUND", "INVALID_ROLE", "ADMIN_REQUIRED"].includes(code)) {
             return managerDbError(updateStaffError, "Unable to update staff member");
           }
           console.error("Update staff error:", updateStaffError.code || "");
