@@ -45,6 +45,7 @@ jobs:
       - run: npm run test:pdf
       - run: pip install pdfplumber
       - run: python tests/e2e/check-pdf.py
+      - run: python tests/e2e/check-pdf-seven.py
       - run: npm run test:e2e:v38
   browser-webkit:
     # Safari's engine (what iPhones use) on Linux, with the iPhone 13 profile.
@@ -59,6 +60,7 @@ jobs:
       - run: npm run test:pdf:webkit
       - run: pip install pdfplumber
       - run: python tests/e2e/check-pdf.py webkit
+      - run: python tests/e2e/check-pdf-seven.py webkit
       - run: npm run test:e2e:v38:webkit
   hardening:
     runs-on: ubuntu-latest

@@ -11,8 +11,8 @@
     "test:hardening": "node tests/integration/hardening.mjs",
     "test:e2e:v38": "node tests/e2e/v38.e2e.mjs",
     "test:e2e:v38:webkit": "E2E_BROWSER=webkit node tests/e2e/v38.e2e.mjs",
-    "test:pdf": "node --test tests/e2e/pdf-regression.test.mjs && node tests/e2e/pdf.e2e.mjs",
-    "test:pdf:webkit": "E2E_BROWSER=webkit node tests/e2e/pdf.e2e.mjs"
+    "test:pdf": "node --test tests/e2e/pdf-regression.test.mjs && node tests/e2e/pdf.e2e.mjs && node tests/e2e/pdf-seven.e2e.mjs",
+    "test:pdf:webkit": "E2E_BROWSER=webkit node tests/e2e/pdf.e2e.mjs && E2E_BROWSER=webkit node tests/e2e/pdf-seven.e2e.mjs"
   },
   "devDependencies": {
     "jspdf": "4.2.1",
