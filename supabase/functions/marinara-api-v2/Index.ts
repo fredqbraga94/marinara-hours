@@ -330,6 +330,49 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   INVALID_INPUT: [400, "Invalid request"],
 };
 
+// VISA-HOURS-START
+// Student visa (subclass 500): at most 48 worked hours in any 14 consecutive
+// days while the course is in session. Counts worked time (breaks removed)
+// inside the last 14 days up to `now`, including a shift still in progress.
+// Only this workplace's hours are known; other jobs also count toward it.
+const VISA_LIMIT_HOURS = 48;
+const VISA_WINDOW_DAYS = 14;
+
+function computeVisaHours(visaStaff: any[], shifts: any[], now: number) {
+  const windowStart = now - VISA_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const overlap = (start: number, end: number) =>
+    Math.max(0, Math.min(end, now) - Math.max(start, windowStart));
+
+  const minutesByStaff: Record<string, number> = {};
+  for (const shift of shifts || []) {
+    if (!shift || !shift.clock_in) continue;
+    const start = new Date(shift.clock_in).getTime();
+    const end = shift.clock_out ? new Date(shift.clock_out).getTime() : now;
+    let worked = overlap(start, end);
+    for (const b of shift.breaks || []) {
+      if (!b || !b.break_start) continue;
+      const bs = Math.max(new Date(b.break_start).getTime(), start);
+      const be = Math.min(b.break_end ? new Date(b.break_end).getTime() : now, end);
+      if (be > bs) worked -= overlap(bs, be);
+    }
+    minutesByStaff[shift.staff_id] =
+      (minutesByStaff[shift.staff_id] || 0) + Math.max(0, worked) / 60000;
+  }
+
+  return (visaStaff || []).map((m: any) => {
+    const hours = Math.round(((minutesByStaff[m.id] || 0) / 60) * 100) / 100;
+    return {
+      staff_id: m.id,
+      hours_14d: hours,
+      limit_hours: VISA_LIMIT_HOURS,
+      remaining_hours: Math.max(0, Math.round((VISA_LIMIT_HOURS - hours) * 100) / 100),
+      course_break: !!m.visa_course_break,
+      window_start: new Date(windowStart).toISOString(),
+    };
+  });
+}
+// VISA-HOURS-END
+
 function managerDbError(error: any, fallback: string, fallbackStatus = 400) {
   const code = dbErrorCode(error);
   const known = MANAGER_MESSAGES[code];
@@ -972,6 +1015,7 @@ Deno.serve(async (req) => {
         "manager_device_unlock",
         "manager_device_rename",
         "manager_auth_mode",
+        "manager_set_student_visa",
       ]);
 
     if (!managerActions.has(action)) {
@@ -1112,7 +1156,9 @@ Deno.serve(async (req) => {
             role,
             active,
             created_at,
-            pin_conflict_at
+            pin_conflict_at,
+            student_visa,
+            visa_course_break
           `)
           .eq(
             "location",
@@ -1147,6 +1193,43 @@ Deno.serve(async (req) => {
 
       // General Manager keeps the full Hawthorne team view.
       return team;
+    }
+
+
+    // =========================
+    // STUDENT VISA HOURS
+    // =========================
+
+    async function loadVisaHours(team: any[]) {
+      const visaStaff = (team || []).filter((m: any) => m.student_visa && m.active);
+      if (!visaStaff.length) return [];
+
+      const now = Date.now();
+      // One extra day back so a shift that started before the window and
+      // finished inside it is still counted (only the part inside).
+      const fetchFrom = new Date(
+        now - (VISA_WINDOW_DAYS + 1) * 24 * 60 * 60 * 1000
+      ).toISOString();
+
+      const { data, error } = await supabase
+        .from("shifts")
+        .select(`
+          staff_id,
+          clock_in,
+          clock_out,
+          breaks (
+            break_start,
+            break_end
+          )
+        `)
+        .in("staff_id", visaStaff.map((m: any) => m.id))
+        .gte("clock_in", fetchFrom);
+
+      if (error) {
+        throw error;
+      }
+
+      return computeVisaHours(visaStaff, data || [], now);
     }
 
 
@@ -2241,6 +2324,38 @@ Deno.serve(async (req) => {
 
       if (
         action ===
+        "manager_set_student_visa"
+      ) {
+        const staffId =
+          typeof body.staff_id === "string" ? body.staff_id.trim() : "";
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(staffId)) {
+          return json({ error: "Staff member not found" }, 404);
+        }
+        if (typeof body.student_visa !== "boolean") {
+          return json({ error: "student_visa must be true or false" }, 400);
+        }
+        const { data: visa, error: visaError } = await supabase.rpc(
+          "manager_set_student_visa_audited",
+          {
+            p_manager_id: managerStatus.id,
+            p_staff_id: staffId,
+            p_student_visa: body.student_visa,
+            p_course_break: body.course_break === true,
+          }
+        );
+        if (visaError) {
+          const code = dbErrorCode(visaError);
+          if (["DEPARTMENT_DENIED", "STAFF_NOT_FOUND"].includes(code)) {
+            return managerDbError(visaError, "Unable to update visa details");
+          }
+          console.error("Student visa error:", visaError.code || "");
+          return json({ error: "Unable to update visa details" }, 400);
+        }
+        return json({ success: true, action, data: { staff: visa } });
+      }
+
+      if (
+        action ===
         "manager_toggle_staff"
       ) {
         const staffId =
@@ -2369,8 +2484,10 @@ Deno.serve(async (req) => {
             manager:
               managerStatus,
 
-            team:
-              await loadTeam(),
+            ...(await (async () => {
+              const team = await loadTeam();
+              return { team, visa_hours: await loadVisaHours(team) };
+            })()),
           },
         });
       }
@@ -2465,6 +2582,9 @@ Deno.serve(async (req) => {
           working,
 
           hours,
+
+          visa_hours:
+            await loadVisaHours(team),
 
           counts: {
 

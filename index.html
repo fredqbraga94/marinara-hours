@@ -1007,6 +1007,11 @@ button{cursor:pointer}
 .device-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .device-actions .back-btn{padding:8px 10px;min-height:36px;border-radius:11px;font-size:11px}
 .team-pin-conflict{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:9px;background:#fff1e6;color:#9a4a00;font-size:11px;font-weight:800}
+.team-visa{display:block;margin-top:6px;padding:4px 10px;border-radius:9px;font-size:12px;font-weight:700;line-height:1.35}
+.team-visa-ok{background:#eaf6ec;color:#21633a}
+.team-visa-near{background:#fff6dc;color:#8a5a00}
+.team-visa-over{background:#fde8e8;color:#a11d1d}
+.team-visa-break{background:#eef0f3;color:#4b5563}
 button:disabled{opacity:.6}
 </style>
 <script defer src="./timesheet-pdf.js"></script>
@@ -4656,7 +4661,31 @@ exportTimesheetsPdfBtn.addEventListener("click", async () => {
 
 /* TEAM */
 
-function renderTeamMember(person) {
+// Student visa (subclass 500): 48 worked hours in any 14 days while the
+// course is in session. The server sends the last-14-days total per person.
+// Only hours worked here are known; hours at other jobs also count.
+function renderVisaBadge(person, visa) {
+  if (!person.student_visa || !person.active) return "";
+  if (person.visa_course_break) {
+    return `<div class="team-visa team-visa-break">Student visa · course break — no hour limit</div>`;
+  }
+  if (!visa) return "";
+  const used = Number(visa.hours_14d) || 0;
+  const limit = Number(visa.limit_hours) || 48;
+  const left = Math.max(0, limit - used);
+  // Whole minutes, so "used" and "left" always add up to the limit.
+  const fmt = n => {
+    const m = Math.round(n * 60);
+    return m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h`;
+  };
+  const level = used >= limit ? "over" : used >= limit - 8 ? "near" : "ok";
+  const text = used >= limit
+    ? `Student visa · ${fmt(used)} in the last 14 days — over the ${fmt(limit)} limit. Do not roster until the total drops.`
+    : `Student visa · ${fmt(used)} of ${fmt(limit)} in the last 14 days · ${fmt(left)} left`;
+  return `<div class="team-visa team-visa-${level}">${escapeHtml(text)}</div>`;
+}
+
+function renderTeamMember(person, visa) {
   const isManager =
     ["manager", "kitchen_manager", "floor_manager"].includes(person.role);
   const isGeneralManager = currentManagerRole === "manager";
@@ -4687,6 +4716,7 @@ function renderTeamMember(person) {
         ${person.pin_conflict_at && person.active
           ? `<div class="team-pin-conflict">PIN shared with someone else — set a new PIN</div>`
           : ""}
+        ${renderVisaBadge(person, visa)}
       </div>
 
       <div class="team-person-actions">
@@ -4757,6 +4787,21 @@ function renderTeamMember(person) {
             <div style="font-size:12px;color:#777;margin-bottom:14px;">
               Optional · 4–6 numbers
             </div>
+
+            ${
+              "student_visa" in person
+                ? `
+                  <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px;font-weight:600;">
+                    <input class="team-edit-visa" type="checkbox" ${person.student_visa ? "checked" : ""}>
+                    Student visa (max 48h per fortnight)
+                  </label>
+                  <label style="display:flex;gap:8px;align-items:center;margin-bottom:14px;font-size:13px;">
+                    <input class="team-edit-visa-break" type="checkbox" ${person.visa_course_break ? "checked" : ""}>
+                    Course on an official break (no limit for now)
+                  </label>
+                `
+                : ""
+            }
 
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button class="primary-btn team-save-edit-btn"
@@ -4834,7 +4879,11 @@ async function loadTeamScreen() {
     }
 
     teamList.className = "";
-    teamList.innerHTML = team.map(renderTeamMember).join("");
+    const visaById = {};
+    (data?.visa_hours || []).forEach(v => { visaById[v.staff_id] = v; });
+    teamList.innerHTML = team
+      .map(person => renderTeamMember(person, visaById[person.id]))
+      .join("");
 
     teamList.querySelectorAll(".team-edit-btn").forEach(button => {
       button.addEventListener("click", () => {
@@ -4912,6 +4961,22 @@ async function loadTeamScreen() {
               role
             }
           );
+
+          const visaBox = panel.querySelector(".team-edit-visa");
+          const breakBox = panel.querySelector(".team-edit-visa-break");
+          if (visaBox) {
+            const person = team.find(p => p.id === staffId) || {};
+            const wantVisa = visaBox.checked;
+            const wantBreak = wantVisa && !!(breakBox && breakBox.checked);
+            if (wantVisa !== !!person.student_visa ||
+                wantBreak !== !!person.visa_course_break) {
+              await managerApi("manager_set_student_visa", {
+                staff_id: staffId,
+                student_visa: wantVisa,
+                course_break: wantBreak
+              });
+            }
+          }
 
           teamMessage.textContent = "Staff updated successfully.";
           await loadTeamScreen();
