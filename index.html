@@ -1042,12 +1042,45 @@ button{cursor:pointer}
 .roster-choice{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
 .roster-choice button,.roster-sheet-actions button{min-height:48px;border-radius:13px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:15px;color:var(--text)}
 .roster-choice button.selected{background:var(--green);border-color:var(--green);color:#fff}
-.roster-times{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.roster-times{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-bottom:10px}
+.roster-times input{min-width:0;max-width:100%}
 .roster-times label{font-size:12px;font-weight:700;color:var(--muted)}
 .roster-times input{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 10px;font-size:16px;margin-top:4px}
 .roster-sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .roster-sheet-actions .primary{background:var(--green);border-color:var(--green);color:#fff}
 .roster-sheet-msg{min-height:18px;font-size:13px;margin-top:10px;color:var(--danger)}
+.roster-cell.leave{border-style:solid;border-color:#d7d2f0;background:#f1eefb;color:#5b4ba8}
+.roster-cell.pending{box-shadow:inset 0 -3px 0 #e0a800}
+.roster-cell.conflict{border-style:solid;border-color:#e6a3a3;background:#fdecec;color:#a11d1d}
+.roster-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:11px;color:var(--muted)}
+.roster-legend span{display:inline-flex;align-items:center;gap:5px}
+.roster-legend i{display:inline-block;width:12px;height:12px;border-radius:4px}
+.roster-sheet-note{padding:10px 12px;border-radius:12px;background:#f1eefb;color:#5b4ba8;font-size:13px;font-weight:700;margin-bottom:12px}
+.roster-sheet-note.pending{background:#fff6dc;color:#8a5a00}
+/* TIME OFF */
+.staff-bottom-nav.has-timeoff{grid-template-columns:repeat(4,1fr)}
+.timeoff-kind{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.timeoff-kind button{min-height:46px;border-radius:13px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:14px;color:var(--text)}
+.timeoff-kind button.selected{background:var(--green);border-color:var(--green);color:#fff}
+.timeoff-dates{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.timeoff-dates label{min-width:0}
+.timeoff-form input[type=date]{min-width:0;max-width:100%;-webkit-appearance:none;appearance:none;display:block}
+.timeoff-form label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px}
+.timeoff-form input,.timeoff-form select,.timeoff-form textarea{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 10px;font-size:16px;margin-top:4px;background:#fff;font-family:inherit}
+.timeoff-form textarea{min-height:64px;resize:vertical}
+.timeoff-item{padding:12px 0;border-top:1px solid var(--border)}
+.timeoff-item:first-child{border-top:0}
+.timeoff-item-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.timeoff-item strong{font-size:14px}
+.timeoff-item .person-meta{margin-top:3px}
+.timeoff-status{font-size:10px;font-weight:900;letter-spacing:.4px;padding:3px 8px;border-radius:8px;white-space:nowrap}
+.timeoff-status.PENDING{background:#fff6dc;color:#8a5a00}
+.timeoff-status.APPROVED{background:#eaf6ec;color:#21633a}
+.timeoff-status.DECLINED,.timeoff-status.CANCELLED{background:#eef0f3;color:#6b7280}
+.timeoff-actions{display:flex;gap:8px;margin-top:10px}
+.timeoff-actions button{flex:1;min-height:40px;border-radius:12px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:13px}
+.timeoff-actions .approve{background:var(--green);border-color:var(--green);color:#fff}
+.timeoff-actions .decline{color:var(--danger)}
 button:disabled{opacity:.6}
 </style>
 <script defer src="./timesheet-pdf.js"></script>
@@ -1188,9 +1221,31 @@ button:disabled{opacity:.6}
     </div>
     <button id="profileLogoutBtn" class="btn staff-profile-signout">Sign Out</button>
   </div>
+  <div id="staffTimeOffView" class="staff-secondary-view hidden">
+    <div class="staff-secondary-head"><div class="staff-home-eyebrow">Marinara Hours</div><h2>Time off</h2></div>
+    <div class="card timeoff-form">
+      <div class="section-title">Ask for time off</div>
+      <div class="timeoff-kind" id="staffTimeOffKind">
+        <button type="button" data-kind="HOLIDAY" class="selected">Holiday</button>
+        <button type="button" data-kind="DAY_OFF">Day off</button>
+      </div>
+      <div class="timeoff-dates">
+        <label><span id="staffTimeOffStartLabel">From</span><input id="staffTimeOffStart" type="date"></label>
+        <label id="staffTimeOffEndWrap">Until<input id="staffTimeOffEnd" type="date"></label>
+      </div>
+      <label>Note for your manager (optional)<textarea id="staffTimeOffNote" maxlength="200" placeholder="e.g. Trip to Sydney"></textarea></label>
+      <button id="staffTimeOffSend" class="btn primary" type="button">Send request</button>
+      <div id="staffTimeOffMessage" class="message"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">My requests</div>
+      <div id="staffTimeOffList" class="empty-state">Loading…</div>
+    </div>
+  </div>
   <nav id="staffBottomNav" class="staff-bottom-nav">
     <button type="button" class="staff-nav-item active" data-staff-view="home"><span class="staff-nav-icon">⌂</span><span>Home</span></button>
     <button type="button" class="staff-nav-item" data-staff-view="hours"><span class="staff-nav-icon">◷</span><span>My Hours</span></button>
+    <button type="button" class="staff-nav-item hidden" data-staff-view="timeoff"><span class="staff-nav-icon">✈</span><span>Time off</span></button>
     <button type="button" class="staff-nav-item" data-staff-view="profile"><span class="staff-nav-icon">○</span><span>Profile</span></button>
   </nav>
 </section>
@@ -1217,6 +1272,7 @@ button:disabled{opacity:.6}
     <button id="teamCard" class="manager-quick-card"><div class="manager-quick-icon">◎</div><strong>Team</strong><span id="teamText">Active Hawthorne staff</span></button>
     <button id="timesheetsCard" class="manager-quick-card"><div class="manager-quick-icon">▤</div><strong>Timesheets</strong><span>Weekly timesheets & PDF</span></button>
     <button id="rosterCard" class="manager-quick-card"><div class="manager-quick-icon">▦</div><strong>Roster</strong><span>Plan the week · L / D or times</span></button>
+    <button id="timeOffCard" class="manager-quick-card"><div class="manager-quick-icon">✈</div><strong>Time off</strong><span id="timeOffCardText">Holidays and days off</span></button>
     <button id="myClockCard" class="manager-quick-card"><div class="manager-quick-icon">◉</div><strong>My Time Clock</strong><span>Clock in, break and clock out</span></button>
   </div></div>
   <div id="managerClockSection" class="hidden"><div class="card"><div class="section-title">My Time Clock</div><div class="status"><div class="status-label">Current status</div><div id="managerStatusValue" class="status-value">Off shift</div></div><button id="managerClockInBtn" class="btn primary hidden">Clock In</button><button id="managerStartBreakBtn" class="btn secondary hidden">Start Break</button><button id="managerEndBreakBtn" class="btn primary hidden">End Break</button><button id="managerClockOutBtn" class="btn danger hidden">Clock Out</button><div id="managerActionMessage" class="message"></div></div></div>
@@ -1362,6 +1418,42 @@ button:disabled{opacity:.6}
   </div>
 </section>
 
+<!-- TIME OFF SCREEN (MANAGER) -->
+<section id="timeOffScreen" class="hidden">
+  <div class="manager-top">
+    <div>
+      <div class="team-v2-kicker">MANAGER</div>
+      <h2>Time off</h2>
+      <p id="timeOffLocation" class="team-v2-sub">Hawthorne</p>
+    </div>
+    <button id="backTimeOffBtn" class="back-btn">Back</button>
+  </div>
+  <div id="timeOffMessage" class="message"></div>
+  <div class="card">
+    <div class="section-title">Waiting for you</div>
+    <div id="timeOffPending" class="empty-state">Loading…</div>
+  </div>
+  <div class="card">
+    <div class="section-title">Coming up · approved</div>
+    <div id="timeOffUpcoming" class="empty-state">Loading…</div>
+  </div>
+  <div class="card timeoff-form">
+    <div class="section-title">Add time off</div>
+    <label>Person<select id="timeOffPerson"></select></label>
+    <div class="timeoff-kind" id="timeOffKind">
+      <button type="button" data-kind="HOLIDAY" class="selected">Holiday</button>
+      <button type="button" data-kind="DAY_OFF">Day off</button>
+    </div>
+    <div class="timeoff-dates">
+      <label><span id="timeOffStartLabel">From</span><input id="timeOffStart" type="date"></label>
+      <label id="timeOffEndWrap">Until<input id="timeOffEnd" type="date"></label>
+    </div>
+    <label>Note (optional)<textarea id="timeOffNote" maxlength="200"></textarea></label>
+    <button id="timeOffAddBtn" class="btn primary" type="button">Add (approved)</button>
+    <div id="timeOffAddMessage" class="message"></div>
+  </div>
+</section>
+
 <!-- MORE SCREEN -->
 <section id="devicesScreen" class="hidden">
   <div class="manager-top">
@@ -1415,6 +1507,11 @@ button:disabled{opacity:.6}
     <button id="moreRosterBtn" class="more-v2-item" type="button">
       <span class="more-v2-icon">▦</span>
       <span><strong>Roster</strong><small>Plan the week for Kitchen and Floor</small></span>
+      <span class="more-v2-chevron">›</span>
+    </button>
+    <button id="moreTimeOffBtn" class="more-v2-item" type="button">
+      <span class="more-v2-icon">✈</span>
+      <span><strong>Time off</strong><small>Approve holidays and days off</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
     <button id="moreMyClockBtn" class="more-v2-item" type="button">
@@ -1678,6 +1775,10 @@ const teamScreen =
 document.getElementById("teamScreen");
 const rosterScreen =
 document.getElementById("rosterScreen");
+const timeOffScreen =
+document.getElementById("timeOffScreen");
+const staffTimeOffView =
+document.getElementById("staffTimeOffView");
 
 const backTeamBtn =
 document.getElementById("backTeamBtn");
@@ -2325,8 +2426,10 @@ function setStaffView(view){
   staffHomeView.classList.toggle("hidden",view!=="home");
   staffMyHoursView.classList.toggle("hidden",view!=="hours");
   staffProfileView.classList.toggle("hidden",view!=="profile");
+  staffTimeOffView?.classList.toggle("hidden",view!=="timeoff");
   staffBottomNav?.querySelectorAll(".staff-nav-item").forEach(b=>b.classList.toggle("active",b.dataset.staffView===view));
   if(view==="hours")loadStaffMyHours();
+  if(view==="timeoff")loadStaffTimeOff();
 }
 
 
@@ -4569,6 +4672,7 @@ timesheetsCard.addEventListener("click", async () => {
   staffHoursScreen.classList.add("hidden");
   teamScreen.classList.add("hidden");
   rosterScreen?.classList.add("hidden");
+  timeOffScreen?.classList.add("hidden");
   timesheetsScreen.classList.remove("hidden");
 
   selectedTimesheetsWeek = null;
@@ -5120,6 +5224,7 @@ teamCard.addEventListener("click", async () => {
 backTeamBtn.addEventListener("click", async () => {
   teamScreen.classList.add("hidden");
   rosterScreen?.classList.add("hidden");
+  timeOffScreen?.classList.add("hidden");
   managerScreen.classList.remove("hidden");
   setManagerNavActive("home");
   await loadManagerDashboard();
@@ -5259,6 +5364,7 @@ function openManagerMore() {
   approvalsScreen.classList.add("hidden");
   teamScreen.classList.add("hidden");
   rosterScreen?.classList.add("hidden");
+  timeOffScreen?.classList.add("hidden");
   staffHoursScreen.classList.add("hidden");
   timesheetsScreen.classList.add("hidden");
   devicesScreen?.classList.add("hidden");
@@ -5322,8 +5428,36 @@ function rosterTimeLabel(t) {
   return m ? `${h12}:${String(m).padStart(2, "0")}${suffix}` : `${h12}${suffix}`;
 }
 
-function rosterCellHtml(entry, staffId, date) {
+function rosterLeaveByCell(leave, week) {
+  const out = {};
+  for (const l of leave) {
+    for (let i = 0; i < 7; i++) {
+      const d = rosterAddDays(week, i);
+      if (d >= l.start_date && d <= l.end_date) {
+        const key = `${l.staff_id}|${d}`;
+        // approved wins over pending when both exist
+        if (!out[key] || l.status === "APPROVED") out[key] = l;
+      }
+    }
+  }
+  return out;
+}
+
+function rosterCellHtml(entry, staffId, date, leave) {
   const attrs = `data-roster-staff="${escapeHtml(staffId)}" data-roster-date="${escapeHtml(date)}"`;
+  if (leave) {
+    const short = leave.kind === "HOLIDAY" ? "Hol" : "D/O";
+    const working = entry && entry.code !== "OFF";
+    if (leave.status === "APPROVED" && working) {
+      return `<button class="roster-cell conflict" ${attrs} aria-label="Conflict">⚠<br>${short}</button>`;
+    }
+    if (leave.status === "APPROVED") {
+      return `<button class="roster-cell leave" ${attrs}>${short}</button>`;
+    }
+    // pending: show the planned cell with a yellow line underneath
+    const inner = rosterCellHtml(entry, staffId, date, null);
+    return inner.replace('class="roster-cell', 'class="roster-cell pending').replace(">+<", `>${short}?<`);
+  }
   if (!entry) return `<button class="roster-cell" ${attrs} aria-label="Empty">+</button>`;
   if (entry.code === "OFF") return `<button class="roster-cell off" ${attrs}>Off</button>`;
   if (entry.code === "SHIFT") {
@@ -5368,6 +5502,7 @@ function renderRoster() {
   const people = (data.team || []).filter(m => m.department === rosterState.dept);
   const cells = {};
   (data.entries || []).forEach(e => { cells[`${e.staff_id}|${e.work_date}`] = e; });
+  const leaveCells = rosterLeaveByCell(data.leave || [], week);
   const visaById = {};
   (data.visa || []).forEach(v => { visaById[v.staff_id] = v; });
   const days = ROSTER_DAYS.map((_, i) => rosterAddDays(week, i));
@@ -5388,10 +5523,15 @@ function renderRoster() {
           const dot = v ? `<span class="roster-visa-dot ${rosterVisaLevel(v)}"></span>` : "";
           return `<tr>
             <td><div class="roster-name">${dot}${escapeHtml(m.name)}<small>${escapeHtml(rosterHours(data.planned_hours?.[m.id]))}</small></div></td>
-            ${days.map(d => `<td>${rosterCellHtml(cells[`${m.id}|${d}`], m.id, d)}</td>`).join("")}
+            ${days.map(d => `<td>${rosterCellHtml(cells[`${m.id}|${d}`], m.id, d, leaveCells[`${m.id}|${d}`])}</td>`).join("")}
           </tr>`;
         }).join("")}</tbody>
-      </table>`;
+      </table>
+      ${(data.leave || []).length ? `<div class="roster-legend">
+        <span><i style="background:#f1eefb;border:1px solid #d7d2f0"></i>Hol = holiday · D/O = day off</span>
+        <span><i style="background:#fff;box-shadow:inset 0 -3px 0 #e0a800;border:1px solid #d6dbd6"></i>waiting approval</span>
+        <span><i style="background:#fdecec;border:1px solid #e6a3a3"></i>rostered on approved leave</span>
+      </div>` : ""}`;
   }
 
   const visaPeople = people.filter(m => visaById[m.id]);
@@ -5439,6 +5579,14 @@ function openRosterSheet(staffId, date) {
   const person = (data?.team || []).find(m => m.id === staffId);
   if (!person) return;
   const entry = (data.entries || []).find(e => e.staff_id === staffId && e.work_date === date);
+  const leave = rosterLeaveByCell(data.leave || [], data.week_start)[`${staffId}|${date}`];
+  const leaveNote = leave
+    ? `<div class="roster-sheet-note ${leave.status === "PENDING" ? "pending" : ""}">${
+        leave.status === "APPROVED"
+          ? `${escapeHtml(TIMEOFF_LABEL[leave.kind])} approved (${escapeHtml(timeOffRange(leave))}). Only Off or Clear can be set.`
+          : `${escapeHtml(TIMEOFF_LABEL[leave.kind])} requested (${escapeHtml(timeOffRange(leave))}) — waiting for approval.`
+      }</div>`
+    : "";
   const isFloor = person.department === "Floor";
   const d = new Date(`${date}T00:00:00Z`);
   const dayName = ROSTER_DAYS[(d.getUTCDay() + 6) % 7];
@@ -5452,6 +5600,7 @@ function openRosterSheet(staffId, date) {
   sheet.innerHTML = `
     <h3>${escapeHtml(person.name)}</h3>
     <p>${escapeHtml(dayName)} ${escapeHtml(rosterShortDate(date))} · ${escapeHtml(person.department)}</p>
+    ${leaveNote}
     ${isFloor ? `
       <div class="roster-times">
         <label>Start<input type="time" class="roster-start" step="900" value="${escapeHtml(entry?.code === "SHIFT" ? entry.start_time : "17:00")}"></label>
@@ -5567,6 +5716,279 @@ document.addEventListener("click", event => {
   }
 }, true);
 
+/* TIME OFF */
+// Holidays (a date range) and days off (one day). Staff ask from their app;
+// the manager of their department approves or declines; managers can also
+// add time off directly (already approved). Approved days block rostering.
+const TIMEOFF_LABEL = { HOLIDAY: "Holiday", DAY_OFF: "Day off" };
+const TIMEOFF_STATUS = { PENDING: "Waiting", APPROVED: "Approved", DECLINED: "Declined", CANCELLED: "Cancelled" };
+
+function timeOffDate(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  return new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(d);
+}
+
+function timeOffRange(r) {
+  if (r.start_date === r.end_date) return timeOffDate(r.start_date);
+  const days = Math.round((Date.parse(r.end_date) - Date.parse(r.start_date)) / 86400000) + 1;
+  return `${timeOffDate(r.start_date)} – ${timeOffDate(r.end_date)} · ${days} days`;
+}
+
+function setupTimeOffForm(kindBoxId, startId, endId, endWrapId, startLabelId) {
+  const box = document.getElementById(kindBoxId);
+  const start = document.getElementById(startId);
+  const end = document.getElementById(endId);
+  const endWrap = document.getElementById(endWrapId);
+  const startLabel = document.getElementById(startLabelId);
+  const today = brisbaneTodayInput();
+  const state = { kind: "HOLIDAY" };
+  const apply = () => {
+    box.querySelectorAll("[data-kind]").forEach(b => b.classList.toggle("selected", b.dataset.kind === state.kind));
+    const dayOff = state.kind === "DAY_OFF";
+    endWrap.style.visibility = dayOff ? "hidden" : "visible";
+    startLabel.textContent = dayOff ? "Day" : "From";
+  };
+  box.addEventListener("click", e => {
+    const b = e.target.closest("[data-kind]");
+    if (!b) return;
+    state.kind = b.dataset.kind;
+    apply();
+  });
+  start.addEventListener("change", () => {
+    if (!end.value || end.value < start.value) end.value = start.value;
+  });
+  state.reset = (minToday) => {
+    start.value = "";
+    end.value = "";
+    if (minToday) { start.min = today; end.min = today; }
+  };
+  state.read = () => ({
+    kind: state.kind,
+    start_date: start.value,
+    end_date: state.kind === "DAY_OFF" ? start.value : (end.value || start.value),
+  });
+  apply();
+  return state;
+}
+
+function timeOffMessage(el, text, ok) {
+  el.className = `message show ${ok ? "success" : "error"}`;
+  el.textContent = text;
+}
+
+/* staff side */
+let staffTimeOffForm = null;
+let staffTimeOffProbed = false;
+
+function renderStaffTimeOff(requests) {
+  const list = document.getElementById("staffTimeOffList");
+  if (!requests.length) {
+    list.className = "empty-state";
+    list.textContent = "No requests yet.";
+    return;
+  }
+  const today = brisbaneTodayInput();
+  list.className = "";
+  list.innerHTML = requests.map(r => {
+    const canCancel = r.status === "PENDING" || (r.status === "APPROVED" && r.start_date > today);
+    return `<div class="timeoff-item">
+      <div class="timeoff-item-top">
+        <div><strong>${escapeHtml(TIMEOFF_LABEL[r.kind] || r.kind)}</strong>
+          <div class="person-meta">${escapeHtml(timeOffRange(r))}${r.note ? " · " + escapeHtml(r.note) : ""}</div></div>
+        <span class="timeoff-status ${escapeHtml(r.status)}">${escapeHtml(TIMEOFF_STATUS[r.status] || r.status)}</span>
+      </div>
+      ${canCancel ? `<div class="timeoff-actions"><button type="button" class="decline" data-timeoff-cancel="${escapeHtml(r.id)}">Cancel request</button></div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+async function loadStaffTimeOff() {
+  if (!staffTimeOffForm) {
+    staffTimeOffForm = setupTimeOffForm("staffTimeOffKind", "staffTimeOffStart", "staffTimeOffEnd", "staffTimeOffEndWrap", "staffTimeOffStartLabel");
+  }
+  staffTimeOffForm.reset(true);
+  const list = document.getElementById("staffTimeOffList");
+  try {
+    const data = await managerApi("session_leave_list");
+    renderStaffTimeOff(data.requests || []);
+  } catch (error) {
+    list.className = "empty-state";
+    list.textContent = error.message || "Unable to load your requests.";
+  }
+}
+
+document.getElementById("staffTimeOffSend")?.addEventListener("click", async () => {
+  const msg = document.getElementById("staffTimeOffMessage");
+  const button = document.getElementById("staffTimeOffSend");
+  const req = staffTimeOffForm.read();
+  if (!req.start_date) { timeOffMessage(msg, "Choose the date.", false); return; }
+  if (req.end_date < req.start_date) { timeOffMessage(msg, "The end date is before the start.", false); return; }
+  button.disabled = true;
+  try {
+    await managerApi("session_leave_request", { ...req, note: document.getElementById("staffTimeOffNote").value });
+    document.getElementById("staffTimeOffNote").value = "";
+    timeOffMessage(msg, "Request sent. Your manager will approve or decline it.", true);
+    await loadStaffTimeOff();
+  } catch (error) {
+    timeOffMessage(msg, error.message || "Unable to send the request.", false);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.getElementById("staffTimeOffList")?.addEventListener("click", async e => {
+  const b = e.target.closest("[data-timeoff-cancel]");
+  if (!b) return;
+  b.disabled = true;
+  try {
+    await managerApi("session_leave_cancel", { leave_id: b.dataset.timeoffCancel });
+    await loadStaffTimeOff();
+  } catch (error) {
+    timeOffMessage(document.getElementById("staffTimeOffMessage"), error.message || "Unable to cancel.", false);
+    b.disabled = false;
+  }
+});
+
+// Show the "Time off" tab only when this server supports it (checked once per sign-in).
+async function probeStaffTimeOff() {
+  if (staffTimeOffProbed || !currentSessionToken) return;
+  staffTimeOffProbed = true;
+  try {
+    await managerApi("session_leave_list");
+    staffBottomNav?.querySelector('[data-staff-view="timeoff"]')?.classList.remove("hidden");
+    staffBottomNav?.classList.add("has-timeoff");
+  } catch (_) {
+    staffTimeOffProbed = false;
+  }
+}
+const homeScreenEl = document.getElementById("homeScreen");
+if (homeScreenEl) {
+  new MutationObserver(() => {
+    if (!homeScreenEl.classList.contains("hidden")) probeStaffTimeOff();
+    else staffTimeOffProbed = false;
+  }).observe(homeScreenEl, { attributes: true, attributeFilter: ["class"] });
+}
+
+/* manager side */
+let managerTimeOffForm = null;
+
+function timeOffItemHtml(r, buttons) {
+  return `<div class="timeoff-item">
+    <div class="timeoff-item-top">
+      <div><strong>${escapeHtml(r.name || "Staff")}</strong>
+        <div class="person-meta">${escapeHtml(TIMEOFF_LABEL[r.kind] || r.kind)} · ${escapeHtml(timeOffRange(r))}</div>
+        <div class="person-meta">${escapeHtml(r.department || "")}${r.note ? " · “" + escapeHtml(r.note) + "”" : ""}${r.requested_by_manager ? " · added by a manager" : ""}</div></div>
+      <span class="timeoff-status ${escapeHtml(r.status)}">${escapeHtml(TIMEOFF_STATUS[r.status] || r.status)}</span>
+    </div>
+    <div class="timeoff-actions">${buttons}</div>
+  </div>`;
+}
+
+async function loadManagerTimeOff() {
+  const msg = document.getElementById("timeOffMessage");
+  msg.className = "message";
+  msg.textContent = "";
+  if (!managerTimeOffForm) {
+    managerTimeOffForm = setupTimeOffForm("timeOffKind", "timeOffStart", "timeOffEnd", "timeOffEndWrap", "timeOffStartLabel");
+  }
+  try {
+    const data = await managerApi("manager_leave_list");
+    document.getElementById("timeOffLocation").textContent = data.location || "Hawthorne";
+    const pendingBox = document.getElementById("timeOffPending");
+    const upcomingBox = document.getElementById("timeOffUpcoming");
+    const pending = data.pending || [];
+    const upcoming = data.upcoming || [];
+    pendingBox.className = pending.length ? "" : "empty-state";
+    pendingBox.innerHTML = pending.length
+      ? pending.map(r => timeOffItemHtml(r,
+          `<button type="button" class="approve" data-timeoff-decide="APPROVE" data-id="${escapeHtml(r.id)}">Approve</button>
+           <button type="button" class="decline" data-timeoff-decide="DECLINE" data-id="${escapeHtml(r.id)}">Decline</button>`)).join("")
+      : "No requests waiting.";
+    upcomingBox.className = upcoming.length ? "" : "empty-state";
+    upcomingBox.innerHTML = upcoming.length
+      ? upcoming.map(r => timeOffItemHtml(r,
+          `<button type="button" class="decline" data-timeoff-decide="CANCEL" data-id="${escapeHtml(r.id)}">Cancel</button>`)).join("")
+      : "Nothing approved in the next months.";
+    const select = document.getElementById("timeOffPerson");
+    const keep = select.value;
+    select.innerHTML = (data.team || []).map(m =>
+      `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)} · ${escapeHtml(m.department)}</option>`).join("");
+    if (keep) select.value = keep;
+    const cardText = document.getElementById("timeOffCardText");
+    if (cardText) cardText.textContent = pending.length ? `${pending.length} waiting for you` : "Holidays and days off";
+  } catch (error) {
+    timeOffMessage(msg, error.message || "Unable to load time off.", false);
+  }
+}
+
+async function openTimeOffScreen() {
+  managerMoreScreen?.classList.add("hidden");
+  managerScreen.classList.add("hidden");
+  approvalsScreen.classList.add("hidden");
+  staffHoursScreen.classList.add("hidden");
+  teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
+  timesheetsScreen.classList.add("hidden");
+  devicesScreen?.classList.add("hidden");
+  timeOffScreen.classList.remove("hidden");
+  setManagerNavActive("more");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  await loadManagerTimeOff();
+}
+
+document.getElementById("timeOffCard")?.addEventListener("click", openTimeOffScreen);
+document.getElementById("moreTimeOffBtn")?.addEventListener("click", openTimeOffScreen);
+document.getElementById("backTimeOffBtn")?.addEventListener("click", async () => {
+  timeOffScreen.classList.add("hidden");
+  managerScreen.classList.remove("hidden");
+  setManagerNavActive("home");
+  await loadManagerDashboard();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+timeOffScreen?.addEventListener("click", async e => {
+  const b = e.target.closest("[data-timeoff-decide]");
+  if (!b) return;
+  const decision = b.dataset.timeoffDecide;
+  if (decision === "CANCEL" && !confirm("Cancel this approved time off?")) return;
+  b.disabled = true;
+  try {
+    await managerApi("manager_leave_decide", { leave_id: b.dataset.id, decision });
+    await loadManagerTimeOff();
+    timeOffMessage(document.getElementById("timeOffMessage"),
+      decision === "APPROVE" ? "Approved. It now shows on the roster." : decision === "DECLINE" ? "Declined." : "Cancelled.", true);
+  } catch (error) {
+    timeOffMessage(document.getElementById("timeOffMessage"), error.message || "Unable to update.", false);
+    b.disabled = false;
+  }
+});
+document.getElementById("timeOffAddBtn")?.addEventListener("click", async () => {
+  const msg = document.getElementById("timeOffAddMessage");
+  const req = managerTimeOffForm.read();
+  const staffId = document.getElementById("timeOffPerson").value;
+  if (!staffId) { timeOffMessage(msg, "Choose the person.", false); return; }
+  if (!req.start_date) { timeOffMessage(msg, "Choose the date.", false); return; }
+  if (req.end_date < req.start_date) { timeOffMessage(msg, "The end date is before the start.", false); return; }
+  const button = document.getElementById("timeOffAddBtn");
+  button.disabled = true;
+  try {
+    await managerApi("manager_leave_create", { staff_id: staffId, ...req, note: document.getElementById("timeOffNote").value });
+    document.getElementById("timeOffNote").value = "";
+    managerTimeOffForm.reset(false);
+    timeOffMessage(msg, "Added and approved.", true);
+    await loadManagerTimeOff();
+  } catch (error) {
+    timeOffMessage(msg, error.message || "Unable to add.", false);
+  } finally {
+    button.disabled = false;
+  }
+});
+// Any other manager navigation leaves the time-off screen.
+document.addEventListener("click", event => {
+  if (!timeOffScreen || timeOffScreen.classList.contains("hidden")) return;
+  const nav = event.target.closest("[data-manager-nav], .manager-quick-card, .more-v2-item, #managerLogoutBtn, #moreSignOutBtn");
+  if (nav && nav.id !== "timeOffCard" && nav.id !== "moreTimeOffBtn") timeOffScreen.classList.add("hidden");
+}, true);
+
 /* MANAGER V2 NAVIGATION */
 function setManagerNavActive(target = "home") {
   if (!managerBottomNav) return;
@@ -5592,6 +6014,7 @@ managerBottomNav?.addEventListener("click",event=>{
     approvalsScreen.classList.add("hidden");
     teamScreen.classList.add("hidden");
   rosterScreen?.classList.add("hidden");
+  timeOffScreen?.classList.add("hidden");
     staffHoursScreen.classList.add("hidden");
     timesheetsScreen.classList.add("hidden");
     managerMoreScreen?.classList.add("hidden");
@@ -5607,6 +6030,7 @@ managerBottomNav?.addEventListener("click",event=>{
     managerScreen.classList.add("hidden");
     teamScreen.classList.add("hidden");
   rosterScreen?.classList.add("hidden");
+  timeOffScreen?.classList.add("hidden");
     staffHoursScreen.classList.add("hidden");
     timesheetsScreen.classList.add("hidden");
     managerMoreScreen?.classList.add("hidden");
@@ -5767,6 +6191,10 @@ async function signOutAll() {
   .add("hidden");
 
   rosterScreen
+  ?.classList
+  .add("hidden");
+
+  timeOffScreen
   ?.classList
   .add("hidden");
 
