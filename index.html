@@ -6409,7 +6409,8 @@ function stockRenderEdit() {
       </div>`).join("")}`).join("");
   }
   const groups = [...new Set(items.map(i => i.group_name))];
-  const suppliers = [...new Set([...(stockState.data?.suppliers || []).map(s => s.name), ...items.map(i => i.supplier).filter(Boolean)])].sort();
+  // Suppliers with items, plus any with a minimum order (an unused name with no minimum is hidden).
+  const suppliers = [...new Set([...(stockState.data?.suppliers || []).filter(s => s.min_order != null).map(s => s.name), ...items.map(i => i.supplier).filter(Boolean)])].sort();
   document.getElementById("stockGroupList").innerHTML = groups.map(g => `<option value="${escapeHtml(g)}">`).join("");
   document.getElementById("stockSupplierList").innerHTML = suppliers.map(s => `<option value="${escapeHtml(s)}">`).join("");
   const mins = Object.fromEntries((stockState.data?.suppliers || []).map(s => [s.name, s.min_order]));
