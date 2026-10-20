@@ -117,14 +117,14 @@ try {
     }
     return "anon / authenticated cannot read or change stock, or run its functions";
   });
-  await check("Hawthorne Floor list loaded from the par sheet (61 items, 3 suppliers)", async () => {
-    assert.equal(Number(await one(db, "select count(*) from public.stock_items where location='Hawthorne' and department='Floor'")), 61);
+  await check("Hawthorne Floor list loaded from the par sheet (232 items, 3 suppliers)", async () => {
+    assert.equal(Number(await one(db, "select count(*) from public.stock_items where location='Hawthorne' and department='Floor'")), 232);
     assert.equal(Number(await one(db, "select count(*) from public.stock_suppliers")), 3);
     assert.equal(await one(db, "select min_order from public.stock_suppliers where name like 'Tom San%'"), "9");
     // Applying it again adds nothing (never overwrites changes made in the app).
     const r = db.psqlFile(STOCK); assert.ok(r.ok, r.stderr);
-    assert.equal(Number(await one(db, "select count(*) from public.stock_items")), 61);
-    return "61 items; Tom San Pellegrino min 9; re-run adds nothing";
+    assert.equal(Number(await one(db, "select count(*) from public.stock_items")), 232);
+    return "232 items; Tom San Pellegrino min 9; re-run adds nothing";
   });
 
   // ------------------------------------------------------------ B
@@ -174,10 +174,10 @@ try {
   await check("list: floor manager and administrator see the Floor list; kitchen manager only Kitchen", async () => {
     const f = await api(vNew, 3, fm, { action: "manager_stock_list" });
     assert.equal(f.status, 200, JSON.stringify(f.body));
-    assert.equal(f.body.data.department, "Floor"); assert.equal(f.body.data.items.length, 61);
+    assert.equal(f.body.data.department, "Floor"); assert.equal(f.body.data.items.length, 232);
     assert.equal(f.body.data.can_choose_department, false);
     const g = await api(vNew, 1, gm, { action: "manager_stock_list" });
-    assert.equal(g.body.data.items.length, 61); assert.equal(g.body.data.can_choose_department, true);
+    assert.equal(g.body.data.items.length, 232); assert.equal(g.body.data.can_choose_department, true);
     const k = await api(vNew, 2, km, { action: "manager_stock_list" });
     assert.equal(k.body.data.department, "Kitchen"); assert.equal(k.body.data.items.length, 0);
     const kf = await api(vNew, 2, km, { action: "manager_stock_list", department: "Floor" });
@@ -186,7 +186,7 @@ try {
     const s = await api(vNew, 7, st, { action: "manager_stock_list" });
     assert.ok(s.status === 401 || s.status === 403, String(s.status));
     list = f.body.data;
-    return `floor 61 items; admin 61 (can switch); kitchen 0 and Floor refused 403; staff ${s.status}`;
+    return `floor 232 items; admin 232 (can switch); kitchen 0 and Floor refused 403; staff ${s.status}`;
   });
 
   const byName = (n) => list.items.find((i) => i.name === n);
@@ -207,7 +207,7 @@ try {
       "Fantini Chardonnay": "1 box", "Ten Rocks": "0 box", "Don Camillo Sangio Cab": "3 box",
       "Torre Mora Etna Bianco": "4 unit", "Pure Blonde": "1 unit", "S. Pellegrino": "4 unit", "Panna": "0 unit",
     });
-    assert.equal(r.body.data.count.lines.length, 61);
+    assert.equal(r.body.data.count.lines.length, 232);
     assert.equal(r.body.data.count.lines.filter((l) => !l.counted).every((l) => l.order_qty === 0), true);
     const again = await api(vNew, 1, gm, { action: "manager_stock_list" });
     assert.equal(again.body.data.last_count.counted_by, "Test Floor Manager");
@@ -243,7 +243,7 @@ try {
     r = await api(vNew, 3, fm, { action: "manager_stock_item_remove", item_id: aperol.id });
     assert.equal(r.status, 200, JSON.stringify(r.body));
     const l = await api(vNew, 3, fm, { action: "manager_stock_list" });
-    assert.equal(l.body.data.items.length, 61);
+    assert.equal(l.body.data.items.length, 232);
     assert.equal(Number(l.body.data.items.find((i) => i.id === fc.id).par), 24);
     const audit = Number(await one(db, "select count(*) from public.stock_audit"));
     assert.equal(audit, 3);

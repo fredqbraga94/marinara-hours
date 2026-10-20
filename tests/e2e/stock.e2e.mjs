@@ -97,9 +97,9 @@ try {
     const deptHidden = await fm.page.locator("#stockDept").evaluate((e) => e.classList.contains("hidden"));
     const fc = await fm.row("Fantini Chardonnay").locator("small").textContent();
     await fm.shot("stock_count_empty");
-    assert.equal(rows, 61); assert.equal(deptHidden, true); assert.match(place, /Floor \/ Bar/);
+    assert.equal(rows, 232); assert.equal(deptHidden, true); assert.match(place, /Floor \/ Bar/);
     assert.equal(fc, "Par 16 bot · box of 12");
-    return `${place}; 61 rows; "${fc}"; no Floor/Kitchen switch`;
+    return `${place}; 232 rows; "${fc}"; no Floor/Kitchen switch`;
   });
 
   await check("count: live 'order' hint per item, bar counted apart, progress line", async () => {
@@ -121,8 +121,20 @@ try {
       await fm.row("S. Pellegrino").screenshot({ path: `${SHOTS}/row_soft.png` });
     }
     assert.deepEqual(got, ["Order 1 box (12)", "At par · nothing to order", "Order 4 bot", "Order 4", ""]);
-    assert.equal(progress, "4 of 61 counted · 3 to order");
+    assert.equal(progress, "4 of 232 counted · 3 to order");
     return got.join(" | ") + " | " + progress;
+  });
+
+  await check("group chips: show one group at a time, with counted / total", async () => {
+    await fm.page.click('#stockGroupChips [data-stock-group="Spirits"], #stockGroupChips [data-stock-group="Gin"]');
+    const groups = await fm.page.$$eval("#stockCountList .stock-group-title", (e) => e.map((x) => x.textContent));
+    const rows = await fm.page.locator(".stock-row").count();
+    const white = (await fm.page.locator('#stockGroupChips [data-stock-group="White"]').textContent()).trim();
+    if (SHOTS) await fm.page.screenshot({ path: `${SHOTS}/stock_chips.png` });
+    await fm.page.click('#stockGroupChips [data-stock-group=""]');
+    const all = await fm.page.locator(".stock-row").count();
+    assert.deepEqual(groups, ["Gin"]); assert.equal(rows, 4); assert.equal(white, "White2/13"); assert.equal(all, 232);
+    return `Gin only: ${rows} rows; chip "${white}"; All: ${all}`;
   });
 
   await check("count in progress survives closing the app (kept on the phone)", async () => {
@@ -153,7 +165,7 @@ try {
   await check("edit list: add an item, change a par, set a supplier minimum", async () => {
     await fm.page.click('[data-stock-tab="edit"]');
     await fm.page.click("#stockAddBtn");
-    await fm.page.fill("#stockFName", "Aperol");
+    await fm.page.fill("#stockFName", "Test Spritz Mix");
     await fm.page.fill("#stockFGroup", "Spirits");
     await fm.page.fill("#stockFPar", "2");
     await fm.shot("stock_edit_new");
@@ -170,10 +182,10 @@ try {
     await fm.page.waitForFunction(() => /RiverCity: minimum 5/.test(document.getElementById("stockMessage").textContent));
     await fm.shot("stock_edit_list");
     const par = await db.admin.query("select par from public.stock_items where name = 'Fantini Chardonnay'").then((r) => r.rows[0][0]);
-    const ap = await db.admin.query("select group_name, department from public.stock_items where name = 'Aperol'").then((r) => r.rows[0]);
+    const ap = await db.admin.query("select group_name, department from public.stock_items where name = 'Test Spritz Mix'").then((r) => r.rows[0]);
     const min = await db.admin.query("select min_order from public.stock_suppliers where name = 'RiverCity'").then((r) => r.rows[0][0]);
     assert.equal(String(par), "24.0"); assert.deepEqual(ap, ["Spirits", "Floor"]); assert.equal(String(min), "5");
-    return "Aperol added to Spirits; Fantini Chardonnay par 24; RiverCity minimum 5";
+    return "Test Spritz Mix added to Spirits; Fantini Chardonnay par 24; RiverCity minimum 5";
   });
 
   await check("move an item up inside its group", async () => {
@@ -210,7 +222,7 @@ try {
     await gm.shot("stock_admin");
     const errs = gm.errors;
     await gm.close();
-    assert.equal(rowsFloor, 62); assert.equal(rowsKitchen, 0); assert.deepEqual(errs, []);
+    assert.equal(rowsFloor, 233); assert.equal(rowsKitchen, 0); assert.deepEqual(errs, []);
     return `Floor ${rowsFloor} items, Kitchen ${rowsKitchen}`;
   });
 
