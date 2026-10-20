@@ -46,7 +46,9 @@ const handler = await loadHandler(resolve(root, "supabase/functions/marinara-api
 const server = await new Promise((ok) => {
   const s = createServer((req, res) => {
     if (req.url.endsWith("/index.html") || req.url.endsWith("/")) { res.writeHead(200, { "content-type": "text/html; charset=utf-8" }); res.end(HTML); }
-    else { res.writeHead(404); res.end(); }
+    else if (/^\/(stock-pdf|timesheet-pdf)\.js$|^\/vendor\/[\w.-]+\.js$/.test(req.url)) {
+      res.writeHead(200, { "content-type": "text/javascript" }); res.end(readFileSync(resolve(root, "." + req.url)));
+    } else { res.writeHead(404); res.end(); }
   });
   s.listen(0, "127.0.0.1", () => ok(s));
 });
@@ -160,6 +162,25 @@ try {
     const v = await fm.row("Fantini Chardonnay").locator('[data-stock-qty="qty"]').inputValue();
     assert.equal(v, "");
     return blocks.join(" // ");
+  });
+
+  await check("Export PDF: order list by supplier, made on the phone", async () => {
+    await fm.page.click('[data-stock-tab="order"]');
+    await fm.page.click("#stockPdfBtn");
+    await fm.page.waitForSelector("#stockPdfDialog[open]");
+    const b64 = await fm.page.evaluate(async () => {
+      const blob = window.MarinaraStockPdf.generate(stockPdfReport());
+      const buf = new Uint8Array(await blob.arrayBuffer());
+      let s = ""; for (const x of buf) s += String.fromCharCode(x); return btoa(s);
+    });
+    const pdf = Buffer.from(b64, "base64");
+    if (SHOTS) (await import("node:fs")).writeFileSync(`${SHOTS}/stock_order.pdf`, pdf);
+    await fm.page.click("#closeStockPdf");
+    await fm.page.click('[data-stock-tab="count"]');
+    assert.equal(pdf.subarray(0, 5).toString(), "%PDF-");
+    assert.ok(pdf.length > 3000, String(pdf.length));
+    assert.deepEqual(fm.errors, []);
+    return `PDF ${pdf.length} bytes; share dialog shown and closed`;
   });
 
   await check("open list: saved items show as 'Saved'; a second save adds to the order; Start new count clears it", async () => {
