@@ -104,7 +104,9 @@ try {
 
   await check("count: live 'order' hint per item, bar counted apart, progress line", async () => {
     await fm.row("Fantini Chardonnay").locator('[data-stock-qty="qty"]').fill("5");
-    await fm.row("Ten Rocks").locator('[data-stock-qty="qty"]').fill("20");
+    // 1 full box of 12 + 8 loose bottles = 20 = par
+    await fm.row("Ten Rocks").locator('[data-stock-qty="qty_box"]').fill("1");
+    await fm.row("Ten Rocks").locator('[data-stock-qty="qty"]').fill("8");
     await fm.row("Torre Mora Etna Bianco").locator('[data-stock-qty="qty"]').fill("2");
     await fm.row("Torre Mora Etna Bianco").locator('[data-stock-qty="qty_extra"]').fill("1");
     await fm.row("S. Pellegrino").locator('[data-stock-qty="qty"]').fill("3");
@@ -113,6 +115,11 @@ try {
     const progress = await fm.page.textContent("#stockProgress");
     await fm.row("Fantini Chardonnay").scrollIntoViewIfNeeded();
     await fm.shot("stock_count_filled");
+    if (SHOTS) {
+      await fm.row("Ten Rocks").screenshot({ path: `${SHOTS}/row_box.png` });
+      await fm.row("Torre Mora Etna Bianco").screenshot({ path: `${SHOTS}/row_reserve.png` });
+      await fm.row("S. Pellegrino").screenshot({ path: `${SHOTS}/row_soft.png` });
+    }
     assert.deepEqual(got, ["Order 1 box (12)", "At par · nothing to order", "Order 4 bot", "Order 4", ""]);
     assert.equal(progress, "4 of 61 counted · 3 to order");
     return got.join(" | ") + " | " + progress;
@@ -135,6 +142,8 @@ try {
     assert.ok(blocks.some((b) => b.startsWith("Tom San Pellegrino (SMS)") && b.includes("S. Pellegrino 4") && b.includes("Below the minimum order of 9 (now 4)")), blocks.join(" // "));
     assert.ok(blocks.some((b) => b.startsWith("No supplier set") && b.includes("Fantini Chardonnay 1 box (12)") && b.includes("Torre Mora Etna Bianco 4 bot")), blocks.join(" // "));
     assert.equal(Number(await db.admin.query("select count(*) from public.stock_counts").then((r) => r.rows[0][0])), 1);
+    const tr = await db.admin.query("select l->>'qty' from public.stock_counts, jsonb_array_elements(lines) l where l->>'name' = 'Ten Rocks'").then((r) => r.rows[0][0]);
+    assert.equal(Number(tr), 20, "1 box + 8 bottles saved as 20");
     await fm.page.click('[data-stock-tab="count"]');
     const v = await fm.row("Fantini Chardonnay").locator('[data-stock-qty="qty"]').inputValue();
     assert.equal(v, "");
