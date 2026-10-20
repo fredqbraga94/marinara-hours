@@ -17,7 +17,10 @@
     "test:features": "node tests/integration/features.mjs",
     "test:stock": "node tests/integration/stock.mjs",
     "test:e2e:stock": "node tests/e2e/stock.e2e.mjs",
-    "test:e2e:stock:webkit": "E2E_BROWSER=webkit node tests/e2e/stock.e2e.mjs"
+    "test:e2e:stock:webkit": "E2E_BROWSER=webkit node tests/e2e/stock.e2e.mjs",
+    "test:roles": "node tests/integration/roles.mjs",
+    "test:e2e:roles": "node tests/e2e/roles.e2e.mjs",
+    "test:e2e:roles:webkit": "E2E_BROWSER=webkit node tests/e2e/roles.e2e.mjs"
   },
   "devDependencies": {
     "jspdf": "4.2.1",
