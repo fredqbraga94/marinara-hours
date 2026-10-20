@@ -1005,6 +1005,10 @@ button{cursor:pointer}
 .device-row:first-child{border-top:0}
 .device-row .person-meta{line-height:1.45}
 .device-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.device-row > div:first-child{flex:1 1 auto;min-width:0}
+.device-name-form{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0 2px}
+.device-name-form input{flex:1 1 160px;min-width:0;min-height:42px;border:1.5px solid var(--border);border-radius:12px;padding:8px 10px;font-size:16px}
+.device-name-form button{min-height:42px}
 .device-actions .back-btn{padding:8px 10px;min-height:36px;border-radius:11px;font-size:11px}
 .team-pin-conflict{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:9px;background:#fff1e6;color:#9a4a00;font-size:11px;font-weight:800}
 .team-visa{display:block;margin-top:6px;padding:4px 10px;border-radius:9px;font-size:12px;font-weight:700;line-height:1.35}
@@ -6427,6 +6431,8 @@ function deviceWhen(value) {
 }
 
 const deviceRevokeArmed = new Set();
+// The device whose name is being edited (inline field, no browser dialogs).
+let deviceNaming = null;
 
 async function loadDevices() {
   clearMessage(devicesMessage);
@@ -6453,6 +6459,12 @@ async function loadDevices() {
       <div class="device-row">
         <div>
           <div class="person-name">${escapeHtml(d.label || "Device")}${d.is_current ? " · this device" : ""}</div>
+          ${deviceNaming === d.id ? `
+            <div class="device-name-form">
+              <input type="text" maxlength="60" data-device-name-input="${escapeHtml(d.id)}" value="${escapeHtml(d.label || "")}" placeholder="e.g. Restaurant tablet, Chris's phone">
+              <button class="back-btn" type="button" data-device-name-save="${escapeHtml(d.id)}">Save</button>
+              <button class="back-btn" type="button" data-device-name-cancel>Cancel</button>
+            </div>` : ""}
           <div class="person-meta">
             ${d.status === "revoked" ? "Removed " + escapeHtml(deviceWhen(d.revoked_at)) : "Authorised " + escapeHtml(deviceWhen(d.approved_at))}
             ${d.approved_via === "pairing" ? " · device code" : d.approved_via === "session" ? " · open session" : " · first sign-in"}
@@ -6462,7 +6474,8 @@ async function loadDevices() {
         </div>
         <div class="device-actions">
           ${d.status === "approved" && d.locked_until ? `<button class="back-btn" type="button" data-device-unlock="${escapeHtml(d.id)}">Unlock</button>` : ""}
-          ${d.status === "approved" ? `<button class="back-btn" type="button" data-device-revoke="${escapeHtml(d.id)}">${deviceRevokeArmed.has(d.id) ? "Tap again to remove" : "Remove"}</button>` : ""}
+          ${d.status === "approved" && deviceNaming !== d.id ? `<button class="back-btn" type="button" data-device-name="${escapeHtml(d.id)}">Name</button>` : ""}
+          ${d.status === "approved" && deviceNaming !== d.id ? `<button class="back-btn" type="button" data-device-revoke="${escapeHtml(d.id)}">${deviceRevokeArmed.has(d.id) ? "Tap again to remove" : "Remove"}</button>` : ""}
         </div>
       </div>`).join("");
   } catch (error) {
@@ -6503,6 +6516,47 @@ newDeviceCodeBtn?.addEventListener("click", async () => {
     deviceCodeBusy = false;
     newDeviceCodeBtn.disabled = false;
   }
+});
+
+// Name a device ("Restaurant tablet", "Chris's phone") so managers can tell them apart.
+devicesScreen?.addEventListener("click", async event => {
+  const open = event.target.closest("[data-device-name]");
+  const save = event.target.closest("[data-device-name-save]");
+  const cancel = event.target.closest("[data-device-name-cancel]");
+  if (open) {
+    deviceNaming = open.dataset.deviceName;
+    await loadDevices();
+    const input = devicesScreen.querySelector(`[data-device-name-input="${deviceNaming}"]`);
+    if (input) { input.focus(); input.select(); }
+    return;
+  }
+  if (cancel) {
+    deviceNaming = null;
+    await loadDevices();
+    return;
+  }
+  if (!save || save.disabled) return;
+  const id = save.dataset.deviceNameSave;
+  const input = devicesScreen.querySelector(`[data-device-name-input="${id}"]`);
+  const label = (input?.value || "").trim().slice(0, 60);
+  save.disabled = true;
+  clearMessage(devicesMessage);
+  try {
+    await managerApi("manager_device_rename", { device_id: id, label });
+    deviceNaming = null;
+    await loadDevices();
+    showMessage(devicesMessage, label ? `Device named "${label}".` : "Name removed.", "ok");
+  } catch (error) {
+    if (error.sessionEnded) { handleSessionEnded(); return; }
+    showMessage(devicesMessage, error.message || "Unable to name the device.", "error");
+    save.disabled = false;
+  }
+});
+devicesScreen?.addEventListener("keydown", event => {
+  const input = event.target.closest?.("[data-device-name-input]");
+  if (!input) return;
+  if (event.key === "Enter") devicesScreen.querySelector(`[data-device-name-save="${input.dataset.deviceNameInput}"]`)?.click();
+  if (event.key === "Escape") devicesScreen.querySelector("[data-device-name-cancel]")?.click();
 });
 
 devicesScreen?.addEventListener("click", async event => {
