@@ -55,6 +55,14 @@ const quietConsole = { log: console.log };
 let silence = 0;
 const db = await startProdLikeDb({ poolSize: 10 });
 db.psqlFile(MIGRATION_A); db.psqlFile(MIGRATION_B);
+// The server in this branch reads the student-visa columns, so the database it
+// runs against needs the 2026-10-20 migrations (release order: database first).
+for (const f of [
+  "supabase/migrations/20261020000000_student_visa.sql",
+  "supabase/migrations/20261020010000_roster.sql",
+  "supabase/migrations/20261020020000_leave.sql",
+  "supabase/migrations/20261020030000_public_holidays.sql",
+]) { const r = db.psqlFile(f); if (!r.ok) throw new Error(`${f}: ${r.stderr}`); }
 useDatabase(db.svc);
 const h37 = await loadHandler(resolve(root, "tests/edge/baseline-v37.ts"));
 const h38 = await loadHandler(resolve(root, "supabase/functions/marinara-api-v2/Index.ts"));
