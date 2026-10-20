@@ -17,6 +17,10 @@ create table if not exists public.public_holidays (
 
 alter table public.public_holidays enable row level security;
 revoke all on public.public_holidays from anon, authenticated;
+-- The Edge Function reads this table directly. In production, tables created by
+-- postgres give service_role no SELECT by default (default ACL: service_role=m),
+-- so it is granted explicitly. Read-only: the app never writes holidays.
+grant select on public.public_holidays to service_role;
 
 insert into public.public_holidays (holiday_date, name, region, part_day) values
   ('2026-01-01', 'New Year''s Day', 'QLD', null),

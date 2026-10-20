@@ -13,7 +13,8 @@
     "test:e2e:v38:webkit": "E2E_BROWSER=webkit node tests/e2e/v38.e2e.mjs",
     "test:pdf": "node --test tests/e2e/pdf-regression.test.mjs && node tests/e2e/pdf.e2e.mjs && node tests/e2e/pdf-seven.e2e.mjs",
     "test:pdf:webkit": "E2E_BROWSER=webkit node tests/e2e/pdf.e2e.mjs && E2E_BROWSER=webkit node tests/e2e/pdf-seven.e2e.mjs",
-    "test:visa": "node --test --test-reporter=spec tests/edge/visa-hours.test.mjs tests/edge/roster-hours.test.mjs"
+    "test:visa": "node --test --test-reporter=spec tests/edge/visa-hours.test.mjs tests/edge/roster-hours.test.mjs",
+    "test:features": "node tests/integration/features.mjs"
   },
   "devDependencies": {
     "jspdf": "4.2.1",
