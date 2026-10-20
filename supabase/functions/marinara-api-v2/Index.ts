@@ -2818,6 +2818,47 @@ Deno.serve(async (req) => {
           p_current_device_hash: deviceHash,
         });
         if (error) return managerDbError(error, "Unable to load devices", 500);
+
+        // Who signed in on each device in the last 30 days (newest first), so the
+        // Administrator can tell a shared tablet (many names) from a phone (one).
+        // Read-only and best-effort: if it fails, the list still loads without it.
+        try {
+          const ids = (data?.devices || []).map((d: any) => d.id).filter(Boolean);
+          if (ids.length) {
+            const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+            const { data: rows, error: usedError } = await supabase
+              .from("staff_sessions")
+              .select("device_id, staff_id, created_at")
+              .in("device_id", ids)
+              .gte("created_at", since)
+              .order("created_at", { ascending: false });
+            if (usedError) throw usedError;
+            const staffIds = [...new Set((rows || []).map((r: any) => r.staff_id))];
+            const names: Record<string, string> = {};
+            if (staffIds.length) {
+              const { data: people, error: peopleError } = await supabase
+                .from("staff")
+                .select("id, name")
+                .in("id", staffIds);
+              if (peopleError) throw peopleError;
+              for (const p of people || []) names[p.id] = p.name;
+            }
+            const usedBy: Record<string, string[]> = {};
+            const seen: Record<string, Set<string>> = {};
+            for (const r of rows || []) {
+              const list = (usedBy[r.device_id] ||= []);
+              const ids2 = (seen[r.device_id] ||= new Set());
+              if (ids2.has(r.staff_id)) continue;
+              ids2.add(r.staff_id);
+              list.push(names[r.staff_id] || "Staff");
+            }
+            for (const d of data.devices) {
+              d.used_by = usedBy[d.id] || [];
+            }
+          }
+        } catch (usedErr) {
+          console.error("Device users unavailable:", (usedErr as any)?.code || "");
+        }
         return json({ success: true, action, data });
       }
 

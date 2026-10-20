@@ -6435,6 +6435,13 @@ function deviceWhen(value) {
 const deviceRevokeArmed = new Set();
 // The device whose name is being edited (inline field, no browser dialogs).
 let deviceNaming = null;
+// A ready-made name: one person in 30 days = their phone; several = shared.
+function deviceNameSuggestion(d) {
+  const used = Array.isArray(d.used_by) ? d.used_by : [];
+  if (used.length === 1) return `${String(used[0]).trim().split(/\s+/)[0]}'s phone`;
+  if (used.length > 1) return "Shared device";
+  return "";
+}
 
 async function loadDevices() {
   clearMessage(devicesMessage);
@@ -6463,7 +6470,7 @@ async function loadDevices() {
           <div class="person-name">${escapeHtml(d.label || "Device")}${d.is_current ? " · this device" : ""}</div>
           ${deviceNaming === d.id ? `
             <div class="device-name-form">
-              <input type="text" maxlength="60" data-device-name-input="${escapeHtml(d.id)}" value="${escapeHtml(d.label || "")}" placeholder="e.g. Restaurant tablet, Chris's phone">
+              <input type="text" maxlength="60" data-device-name-input="${escapeHtml(d.id)}" value="${escapeHtml(d.label || deviceNameSuggestion(d))}" placeholder="e.g. Restaurant tablet, Chris's phone">
               <button class="back-btn" type="button" data-device-name-save="${escapeHtml(d.id)}">Save</button>
               <button class="back-btn" type="button" data-device-name-cancel>Cancel</button>
             </div>` : ""}
@@ -6471,6 +6478,9 @@ async function loadDevices() {
             ${d.status === "revoked" ? "Removed " + escapeHtml(deviceWhen(d.revoked_at)) : "Authorised " + escapeHtml(deviceWhen(d.approved_at))}
             ${d.approved_via === "pairing" ? " · device code" : d.approved_via === "session" ? " · open session" : " · first sign-in"}
             <br>Last used ${escapeHtml(deviceWhen(d.last_seen_at))}${d.last_staff ? " by " + escapeHtml(d.last_staff) : ""}
+            ${Array.isArray(d.used_by) && d.used_by.length
+              ? `<br><strong>${d.used_by.length > 1 ? "Shared" : "One person"}</strong> · used by ${escapeHtml(d.used_by.slice(0, 4).join(", "))}${d.used_by.length > 4 ? ` +${d.used_by.length - 4}` : ""} (last 30 days)`
+              : ""}
             ${d.locked_until ? "<br>Locked after wrong PINs until " + escapeHtml(deviceWhen(d.locked_until)) : ""}
           </div>
         </div>
