@@ -1068,6 +1068,13 @@ button{cursor:pointer}
 .roster-grid th.roster-ph{color:#b45309}
 .roster-grid th.roster-ph .ph-tag{display:inline-block;margin-top:2px;padding:0 4px;border-radius:5px;background:#fde7c7;color:#8a4b00;font-size:9px;font-weight:900}
 .roster-grid td.roster-ph-col{background:#fffaf2}
+/* ROSTER ROLES */
+.roster-pdf-btn{display:block;margin:0 0 10px auto;min-height:34px;padding:0 12px;border-radius:10px;border:1.5px solid var(--border);background:#fff;color:var(--green);font-weight:850;font-size:13px}
+.team-roster-only{display:inline-block;margin-top:6px;padding:3px 8px;border-radius:8px;background:#eef1f8;color:#3b4a7a;font-size:11px;font-weight:800}
+.team-add-only{display:flex;gap:8px;align-items:flex-start;font-size:13px;font-weight:600;margin:4px 0 12px;color:var(--text)}
+.team-add-only input{margin-top:3px}
+.roster-role-row td{border-top:0 !important;padding:10px 2px 2px !important;font-size:10px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--green)}
+.roster-name .roster-only-tag{display:inline-block;margin-left:3px;padding:0 4px;border-radius:5px;background:#eef1f8;color:#3b4a7a;font-size:8px;font-weight:900;vertical-align:middle}
 /* TIME OFF */
 .staff-bottom-nav.has-timeoff{grid-template-columns:repeat(4,1fr)}
 .timeoff-kind{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
@@ -1167,6 +1174,7 @@ button:disabled{opacity:.6}
 </style>
 <script defer src="./timesheet-pdf.js"></script>
 <script defer src="./stock-pdf.js"></script>
+<script defer src="./roster-pdf.js"></script>
 </head>
 
 <body>
@@ -1457,8 +1465,15 @@ button:disabled{opacity:.6}
         <option value="Floor">Floor</option>
       </select>
 
+      <label class="field-label" for="newStaffPosition">Role on the roster</label>
+      <select id="newStaffPosition" class="input"></select>
+
+      <label class="team-add-only"><input id="newStaffRosterOnly" type="checkbox"> <span>Roster only — on salary (full or part time). No PIN and no time clock.</span></label>
+
+      <div id="newStaffPinWrap">
       <label class="field-label" for="newStaffPin">PIN</label>
       <input id="newStaffPin" class="input" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="4–6 numbers">
+      </div>
 
       <button id="addStaffBtn" class="btn primary">Add Staff</button>
     </div>
@@ -1492,6 +1507,7 @@ button:disabled{opacity:.6}
       <button id="rosterNextBtn" type="button" aria-label="Next week">›</button>
     </div>
     <div id="rosterTabs" class="roster-tabs"></div>
+    <button id="rosterPdfBtn" class="roster-pdf-btn" type="button">Export PDF</button>
     <div id="rosterMessage" class="message"></div>
     <div id="rosterHolidayNotice"></div>
     <div id="rosterGridBox" class="empty-state">Loading roster...</div>
@@ -5032,6 +5048,13 @@ function renderVisaBadge(person, visa) {
   return `<div class="team-visa team-visa-${level}">${escapeHtml(text)}</div>`;
 }
 
+const TEAM_POSITIONS = { Kitchen: ["Chef", "Dishwasher"], Floor: ["Floor", "Bar"] };
+function teamPositionOptions(department, current) {
+  const list = TEAM_POSITIONS[department] || [];
+  return `<option value="">Not set</option>` +
+    list.map(p => `<option value="${p}" ${p === current ? "selected" : ""}>${p}</option>`).join("");
+}
+
 function renderTeamMember(person, visa) {
   const isManager =
     ["manager", "kitchen_manager", "floor_manager"].includes(person.role);
@@ -5058,8 +5081,10 @@ function renderTeamMember(person, visa) {
           ${person.role === "manager"
             ? `${escapeHtml(roleLabel)} · Hawthorne`
             : `${escapeHtml(person.department || "")} · ${escapeHtml(roleLabel)}`}
+          ${person.position ? ` · ${escapeHtml(person.position)}` : ""}
           · <span class="team-status-dot ${statusDotClass}"></span>${statusText}
         </div>
+        ${person.roster_only ? `<div class="team-roster-only">Roster only · no time clock</div>` : ""}
         ${person.pin_conflict_at && person.active
           ? `<div class="team-pin-conflict">PIN shared with someone else — set a new PIN</div>`
           : ""}
@@ -5132,8 +5157,24 @@ function renderTeamMember(person, visa) {
               maxlength="6" placeholder="Leave blank to keep current PIN"
               style="width:100%;box-sizing:border-box;margin-bottom:6px;">
             <div style="font-size:12px;color:#777;margin-bottom:14px;">
-              Optional · 4–6 numbers
+              ${person.roster_only ? "Roster only: give a PIN here (and untick below) to use the time clock" : "Optional · 4–6 numbers"}
             </div>
+
+            ${
+              "position" in person
+                ? `
+                  <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:600;">Role on the roster</label>
+                  <select class="team-edit-position" style="width:100%;box-sizing:border-box;margin-bottom:12px;">
+                    ${teamPositionOptions(person.department, person.position)}
+                  </select>
+                  ${person.role === "staff" ? `
+                  <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:14px;font-size:13px;font-weight:600;">
+                    <input class="team-edit-roster-only" type="checkbox" ${person.roster_only ? "checked" : ""} style="margin-top:2px">
+                    <span>Roster only — on salary (full or part time). No PIN and no time clock; not in hours or timesheets.</span>
+                  </label>` : ""}
+                `
+                : ""
+            }
 
             ${
               "student_visa" in person
@@ -5295,6 +5336,20 @@ async function loadTeamScreen() {
           return;
         }
 
+        const posSelectCheck = panel.querySelector(".team-edit-position");
+        const onlyBoxCheck = panel.querySelector(".team-edit-roster-only");
+        if (posSelectCheck && posSelectCheck.value && !(TEAM_POSITIONS[department] || []).includes(posSelectCheck.value)) {
+          message.textContent = `${posSelectCheck.value} is not a ${department} role. Choose the role again.`;
+          return;
+        }
+        {
+          const person = team.find(p => p.id === staffId) || {};
+          if (onlyBoxCheck && person.roster_only && !onlyBoxCheck.checked && !newPin) {
+            message.textContent = "To use the time clock, give this person a PIN (New PIN).";
+            return;
+          }
+        }
+
         button.disabled = true;
         button.textContent = "Saving...";
 
@@ -5321,6 +5376,19 @@ async function loadTeamScreen() {
                 staff_id: staffId,
                 student_visa: wantVisa,
                 course_break: wantBreak
+              });
+            }
+          }
+
+          const posSelect = panel.querySelector(".team-edit-position");
+          const onlyBox = panel.querySelector(".team-edit-roster-only");
+          if (posSelect) {
+            const person = team.find(p => p.id === staffId) || {};
+            const wantPos = posSelect.value || null;
+            const wantOnly = onlyBox ? onlyBox.checked : !!person.roster_only;
+            if (wantPos !== (person.position || null) || wantOnly !== !!person.roster_only) {
+              await managerApi("manager_set_roster_info", {
+                staff_id: staffId, position: wantPos, roster_only: wantOnly
               });
             }
           }
@@ -5400,15 +5468,52 @@ backTeamBtn.addEventListener("click", async () => {
   window.scrollTo({top:0,behavior:"smooth"});
 });
 
+function refreshNewStaffPosition() {
+  const sel = document.getElementById("newStaffPosition");
+  if (!sel) return;
+  const keep = sel.value;
+  sel.innerHTML = teamPositionOptions(newStaffDepartment.value, keep);
+}
+newStaffDepartment?.addEventListener("change", refreshNewStaffPosition);
+document.getElementById("newStaffRosterOnly")?.addEventListener("change", e => {
+  document.getElementById("newStaffPinWrap")?.classList.toggle("hidden", e.target.checked);
+});
+document.getElementById("showAddStaffBtn")?.addEventListener("click", refreshNewStaffPosition);
+refreshNewStaffPosition();
+
 addStaffBtn.addEventListener("click", async () => {
   const name = newStaffName.value.trim();
   const department = newStaffDepartment.value;
   const staffPin = newStaffPin.value.trim();
+  const position = document.getElementById("newStaffPosition")?.value || null;
+  const rosterOnly = !!document.getElementById("newStaffRosterOnly")?.checked;
 
   teamMessage.textContent = "";
 
   if (!name) {
     teamMessage.textContent = "Enter the staff name.";
+    return;
+  }
+
+  if (rosterOnly) {
+    addStaffBtn.disabled = true;
+    addStaffBtn.textContent = "Adding...";
+    try {
+      await managerApi("manager_create_roster_person", { name, department, position });
+      newStaffName.value = "";
+      document.getElementById("newStaffRosterOnly").checked = false;
+      document.getElementById("newStaffPinWrap")?.classList.remove("hidden");
+      teamMessage.textContent = "Added to the roster (no time clock).";
+      addStaffPanel?.classList.add("hidden");
+      if (showAddStaffBtn) showAddStaffBtn.textContent = "+ Add New Staff";
+      await loadTeamScreen();
+      await loadManagerDashboard();
+    } catch (error) {
+      teamMessage.textContent = error.message || "Unable to add.";
+    } finally {
+      addStaffBtn.disabled = false;
+      addStaffBtn.textContent = "Add Staff";
+    }
     return;
   }
 
@@ -5421,11 +5526,16 @@ addStaffBtn.addEventListener("click", async () => {
   addStaffBtn.textContent = "Adding...";
 
   try {
-    await managerApi("manager_create_staff", {
+    const created = await managerApi("manager_create_staff", {
       name,
       staff_pin: staffPin,
       department
     });
+    const newId = created?.staff?.id;
+    if (position && newId) {
+      try { await managerApi("manager_set_roster_info", { staff_id: newId, position, roster_only: false }); }
+      catch (_) { /* the person is added; the role can be set in Edit */ }
+    }
 
     newStaffName.value = "";
     newStaffPin.value = "";
@@ -5667,6 +5777,15 @@ function rosterVisaLevel(v) {
   return "ok";
 }
 
+// Chefs on top and dishwashers last (Kitchen); Floor then Bar (Floor).
+// People without a role go at the end, then by name.
+const ROSTER_ROLE_ORDER = { Chef: 1, Dishwasher: 2, Floor: 1, Bar: 2 };
+function rosterSortByRole(list) {
+  return list.slice().sort((a, b) =>
+    (ROSTER_ROLE_ORDER[a.position] || 9) - (ROSTER_ROLE_ORDER[b.position] || 9) ||
+    String(a.name || "").localeCompare(String(b.name || "")));
+}
+
 function renderRoster() {
   const data = rosterState.data;
   if (!data) return;
@@ -5691,7 +5810,7 @@ function renderRoster() {
     `${escapeHtml(rosterShortDate(week))} – ${escapeHtml(rosterShortDate(rosterAddDays(week, 6)))}` +
     `<small>${week === rosterMonday(today) ? "This week" : week > today ? "Upcoming" : "Past week"}</small>`;
 
-  const people = (data.team || []).filter(m => m.department === rosterState.dept);
+  const people = rosterSortByRole((data.team || []).filter(m => m.department === rosterState.dept));
   const cells = {};
   (data.entries || []).forEach(e => { cells[`${e.staff_id}|${e.work_date}`] = e; });
   const leaveCells = rosterLeaveByCell(data.leave || [], week);
@@ -5714,11 +5833,15 @@ function renderRoster() {
         <thead><tr><th></th>${days.map((d, i) =>
           `<th class="${d === today ? "roster-today" : ""} ${holidayByDate[d] ? "roster-ph" : ""}" ${holidayByDate[d] ? `title="${escapeHtml(holidayByDate[d].map(h => h.name).join(", "))}"` : ""}>${ROSTER_DAYS[i]}<br>${escapeHtml(rosterShortDate(d))}${holidayByDate[d] ? `<br><span class="ph-tag">PH</span>` : ""}</th>`
         ).join("")}</tr></thead>
-        <tbody>${people.map(m => {
+        <tbody>${people.map((m, idx) => {
           const v = visaById[m.id];
           const dot = v ? `<span class="roster-visa-dot ${rosterVisaLevel(v)}"></span>` : "";
-          return `<tr>
-            <td><div class="roster-name">${dot}${escapeHtml(m.name)}<small>${escapeHtml(rosterHours(data.planned_hours?.[m.id]))}</small></div></td>
+          const group = m.position || "";
+          const prevGroup = idx ? (people[idx - 1].position || "") : null;
+          const header = group !== prevGroup && people.some(p => p.position)
+            ? `<tr class="roster-role-row"><td colspan="8">${escapeHtml(group || "No role set")}</td></tr>` : "";
+          return `${header}<tr>
+            <td><div class="roster-name">${dot}${escapeHtml(m.name)}${m.roster_only ? `<span class="roster-only-tag" title="Roster only">R</span>` : ""}<small>${escapeHtml(rosterHours(data.planned_hours?.[m.id]))}</small></div></td>
             ${days.map(d => `<td class="${holidayByDate[d] ? "roster-ph-col" : ""}">${rosterCellHtml(cells[`${m.id}|${d}`], m.id, d, leaveCells[`${m.id}|${d}`])}</td>`).join("")}
           </tr>`;
         }).join("")}</tbody>
@@ -5746,6 +5869,84 @@ function renderRoster() {
   }).join("") +
   `<div class="person-meta" style="margin-top:10px">Past days use clocked hours; today and later use the roster. Hours at other jobs also count.</div>`;
 }
+
+// PDF of the week on screen (current department), grouped by role.
+function rosterPdfReport() {
+  const data = rosterState.data;
+  if (!data) return null;
+  const week = data.week_start;
+  const dept = rosterState.dept || "Kitchen";
+  const people = rosterSortByRole((data.team || []).filter(m => m.department === dept));
+  const cells = {};
+  (data.entries || []).forEach(e => { cells[`${e.staff_id}|${e.work_date}`] = e; });
+  const leaveCells = rosterLeaveByCell(data.leave || [], week);
+  const days = ROSTER_DAYS.map((_, i) => rosterAddDays(week, i));
+  const holidays = {};
+  (data.holidays || []).forEach(h => { holidays[h.holiday_date] = h.name; });
+  const t12 = (t) => {
+    const [h, m] = String(t || "").split(":").map(Number);
+    if (Number.isNaN(h)) return "";
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}${m ? ":" + String(m).padStart(2, "0") : ""}${h >= 12 ? "pm" : "am"}`;
+  };
+  const cellText = (e, l) => {
+    if (l && l.status === "APPROVED") return { text: l.kind === "HOLIDAY" ? "Holiday" : "Day off", kind: "leave" };
+    if (!e) return { text: "", kind: "" };
+    if (e.code === "OFF") return { text: "Off", kind: "off" };
+    if (e.code === "SHIFT") return { text: `${t12(e.start_time)}-${t12(e.end_time)}`, kind: "work" };
+    return { text: e.code === "LD" ? "L/D" : e.code, kind: "work" };
+  };
+  const groups = [];
+  for (const m of people) {
+    const name = people.some(p => p.position) ? (m.position || "No role set") : "";
+    let g = groups[groups.length - 1];
+    if (!g || g.name !== name) { g = { name, rows: [] }; groups.push(g); }
+    g.rows.push({
+      name: m.name,
+      cells: days.map(d => cellText(cells[`${m.id}|${d}`], leaveCells[`${m.id}|${d}`])),
+      hours: rosterHours(data.planned_hours?.[m.id]),
+    });
+  }
+  const svc = data.services || [];
+  const span = (s) => s ? `${t12(s.start_time)}-${t12(s.end_time)}` : "";
+  const roles = [...new Set(people.map(p => p.position).filter(Boolean))];
+  const legendParts = [];
+  if (dept === "Kitchen") {
+    for (const r of roles) {
+      const l = svc.find(x => x.position === r && x.service === "L"), d = svc.find(x => x.position === r && x.service === "D");
+      if (l || d) legendParts.push(`${r}: L ${span(l)}, D ${span(d)}`);
+    }
+    const l = svc.find(x => !x.position && x.department === "Kitchen" && x.service === "L");
+    const d = svc.find(x => !x.position && x.department === "Kitchen" && x.service === "D");
+    if (!legendParts.length && (l || d)) legendParts.push(`L ${span(l)}, D ${span(d)}`);
+  }
+  const fmtDay = (d) => new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${d}T00:00:00Z`));
+  return {
+    place: `${data.location || "Hawthorne"} · ${dept}`,
+    week: `${fmtDay(days[0])} - ${fmtDay(days[6])}`,
+    fileName: `${dept}-${week}`,
+    legend: (legendParts.length ? `L = lunch, D = dinner, L/D = both. ${legendParts.join(" · ")}. ` : "") +
+      "Hours are planned hours.",
+    logo: document.querySelector(".login-original-logo")?.src,
+    days: days.map(d => ({ label: fmtDay(d), holiday: holidays[d] || "" })),
+    groups,
+  };
+}
+document.getElementById("rosterPdfBtn")?.addEventListener("click", async () => {
+  const btn = document.getElementById("rosterPdfBtn");
+  const report = rosterPdfReport();
+  if (!report) return;
+  btn.disabled = true; btn.textContent = "Generating…";
+  try {
+    await window.MarinaraRosterPdf.open(report);
+  } catch (error) {
+    const msg = document.getElementById("rosterMessage");
+    msg.className = "message show error";
+    msg.textContent = "Unable to make the PDF. " + (error.message || "");
+  } finally {
+    btn.disabled = false; btn.textContent = "Export PDF";
+  }
+});
 
 async function loadRoster(week) {
   const msg = document.getElementById("rosterMessage");

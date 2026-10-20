@@ -163,7 +163,7 @@ try {
     for (const action of ["manager_team", "manager_hours", "manager_working", "manager_roster_week", "manager_leave_list"]) {
       const a = await api(v41, 1, t41, { action });
       const b = await api(vNew, 1, gm, { action });
-      const strip = (x) => JSON.parse(JSON.stringify(x, (k, v) => (["generated_at", "manager", "today"].includes(k) ? undefined : v)));
+      const strip = (x) => JSON.parse(JSON.stringify(x, (k, v) => (["generated_at", "manager", "today", "position", "roster_only"].includes(k) ? undefined : v)));
       assert.equal(b.status, 200, action);
       assert.deepEqual(strip(b.body.data), strip(a.body.data), action);
     }
