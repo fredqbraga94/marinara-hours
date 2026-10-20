@@ -1099,6 +1099,12 @@ button{cursor:pointer}
 .timeoff-actions .approve{background:var(--green);border-color:var(--green);color:#fff}
 .timeoff-actions .decline{color:var(--danger)}
 /* STOCK PAR LEVEL */
+.stock-chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;margin-bottom:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.stock-chips::-webkit-scrollbar{display:none}
+.stock-chips button{flex:0 0 auto;min-height:36px;padding:0 12px;border-radius:18px;border:1.5px solid var(--border);background:#fff;font-weight:800;font-size:13px;color:var(--text);white-space:nowrap}
+.stock-chips button.selected{background:var(--green);border-color:var(--green);color:#fff}
+.stock-chips button small{font-weight:700;opacity:.75;margin-left:4px}
+.stock-chips button.done:not(.selected){border-color:var(--green);color:var(--green)}
 .stock-dept{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
 .stock-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#eef1ee;padding:4px;border-radius:14px;margin-bottom:12px}
 .stock-tabs button,.stock-dept button,.stock-toggle button{min-height:42px;border-radius:11px;border:0;background:transparent;font-weight:850;font-size:14px;color:var(--muted)}
@@ -1119,9 +1125,9 @@ button{cursor:pointer}
 .stock-need{grid-column:1 / -1;font-size:12px;font-weight:800;color:var(--muted)}
 .stock-need.order{color:#8a4b00}
 .stock-need.ok{color:var(--green)}
-.stock-footer{position:sticky;bottom:calc(76px + env(safe-area-inset-bottom));z-index:5;background:#fff;border:1px solid var(--border);border-radius:18px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.08);margin-bottom:14px}
+.stock-footer{position:sticky;bottom:calc(76px + env(safe-area-inset-bottom));z-index:5;background:#fff;border:1px solid var(--border);border-radius:18px;padding:8px 10px;box-shadow:0 6px 18px rgba(0,0,0,.08);margin-bottom:14px}
 .stock-footer .stock-progress{font-size:13px;font-weight:800;color:var(--muted);text-align:center}
-.stock-footer .btn{margin-top:8px}
+.stock-footer .btn{margin-top:6px;min-height:0;padding:12px 14px;font-size:15px}
 .stock-supplier{padding:12px 0;border-top:1px solid var(--border)}
 .stock-supplier:first-child{border-top:0}
 .stock-supplier-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
@@ -1544,6 +1550,7 @@ button:disabled{opacity:.6}
   </div>
   <div id="stockMessage" class="message"></div>
   <div id="stockCountView">
+    <div id="stockGroupChips" class="stock-chips"></div>
     <div class="card"><div id="stockCountList" class="empty-state">Loading…</div></div>
     <div class="stock-footer">
       <div id="stockProgress" class="stock-progress">0 counted</div>
@@ -6173,7 +6180,7 @@ document.addEventListener("click", event => {
 
 /* STOCK PAR LEVEL (MANAGER) */
 const stockScreen = document.getElementById("stockScreen");
-const stockState = { data: null, dept: null, tab: "count", draft: {}, editingId: null, orderBy: "unit" };
+const stockState = { data: null, dept: null, tab: "count", draft: {}, editingId: null, orderBy: "unit", group: null };
 
 function stockMsg(el, text, ok) {
   if (!el) return;
@@ -6248,6 +6255,22 @@ function stockNeedHtml(item) {
   if (o.order_qty <= 0) return { cls: "ok", text: "At par · nothing to order" };
   return { cls: "order", text: `Order ${stockQtyText({ ...item, order_unit: o.order_unit }, o.order_qty)}` };
 }
+function stockIsCounted(it) {
+  const d = stockState.draft[it.id] || {};
+  return ["qty", "qty_box", "qty_extra"].some(k => String(d[k] ?? "").trim() !== "");
+}
+function stockRenderChips() {
+  const box = document.getElementById("stockGroupChips");
+  if (!box) return;
+  const groups = stockGroups(stockState.data?.items || []);
+  if (stockState.group && !groups.some(g => g.name === stockState.group)) stockState.group = null;
+  if (groups.length < 2) { box.innerHTML = ""; return; }
+  box.innerHTML = `<button type="button" data-stock-group="" class="${stockState.group ? "" : "selected"}">All</button>` +
+    groups.map(g => {
+      const done = g.items.filter(stockIsCounted).length;
+      return `<button type="button" data-stock-group="${escapeHtml(g.name)}" class="${stockState.group === g.name ? "selected" : ""} ${done === g.items.length ? "done" : ""}">${escapeHtml(g.name)}<small>${done}/${g.items.length}</small></button>`;
+    }).join("");
+}
 function stockRenderProgress() {
   const items = stockState.data?.items || [];
   let counted = 0, toOrder = 0;
@@ -6260,10 +6283,20 @@ function stockRenderProgress() {
   }
   const el = document.getElementById("stockProgress");
   if (el) el.textContent = `${counted} of ${items.length} counted · ${toOrder} to order`;
+  // Refresh the per-group numbers without rebuilding the chips (keeps their scroll position).
+  document.querySelectorAll("#stockGroupChips [data-stock-group]").forEach(b => {
+    const g = stockGroups(items).find(x => x.name === b.dataset.stockGroup);
+    if (!g) return;
+    const done = g.items.filter(stockIsCounted).length;
+    const small = b.querySelector("small");
+    if (small) small.textContent = `${done}/${g.items.length}`;
+    b.classList.toggle("done", done === g.items.length);
+  });
 }
 function stockRenderCount() {
   const box = document.getElementById("stockCountList");
   const items = stockState.data?.items || [];
+  stockRenderChips();
   if (!items.length) {
     box.className = "empty-state";
     box.textContent = "No items yet. Add them in Edit list.";
@@ -6271,7 +6304,7 @@ function stockRenderCount() {
     return;
   }
   box.className = "";
-  box.innerHTML = stockGroups(items).map(g => `
+  box.innerHTML = stockGroups(items).filter(g => !stockState.group || g.name === stockState.group).map(g => `
     <div class="stock-group-title">${escapeHtml(g.name)}</div>
     ${g.items.map(it => {
       const d = stockState.draft[it.id] || {};
@@ -6459,6 +6492,16 @@ stockScreen?.addEventListener("input", e => {
 stockScreen?.addEventListener("click", async e => {
   const tab = e.target.closest("[data-stock-tab]");
   if (tab) { stockShowTab(tab.dataset.stockTab); return; }
+
+  const grp = e.target.closest("[data-stock-group]");
+  if (grp) {
+    stockState.group = grp.dataset.stockGroup || null;
+    document.querySelectorAll("#stockGroupChips [data-stock-group]").forEach(b => b.classList.toggle("selected", (b.dataset.stockGroup || null) === stockState.group));
+    const keep = document.getElementById("stockGroupChips").scrollLeft;
+    stockRenderCount();
+    document.getElementById("stockGroupChips").scrollLeft = keep;
+    return;
+  }
 
   const dept = e.target.closest("[data-stock-dept]");
   if (dept) {
