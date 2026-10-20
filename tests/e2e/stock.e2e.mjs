@@ -217,13 +217,14 @@ try {
     await fm.page.fill("#stockFPar", "2");
     await fm.shot("stock_edit_new");
     await fm.page.click("#stockFSave");
-    await fm.page.waitForSelector("#stockFormCard.hidden", { state: "attached" });
+    // Wait for the list to reload (the message comes after it), not just the form closing.
+    await fm.page.waitForFunction(() => /Saved: Test Spritz Mix/.test(document.getElementById("stockMessage").textContent));
     await fm.page.locator(".stock-edit-row", { hasText: "Fantini Chardonnay" }).locator("[data-stock-edit]").click();
     assert.equal(await fm.page.inputValue("#stockFCase"), "12");
     assert.equal(await fm.page.locator('#stockFOrderBy [data-order-by="box"]').evaluate((e) => e.classList.contains("selected")), true);
     await fm.page.fill("#stockFPar", "24");
     await fm.page.click("#stockFSave");
-    await fm.page.waitForSelector("#stockFormCard.hidden", { state: "attached" });
+    await fm.page.waitForFunction(() => /Saved: Fantini Chardonnay/.test(document.getElementById("stockMessage").textContent));
     await fm.page.fill('[data-stock-min="RiverCity"]', "5");
     await fm.page.click('[data-stock-min-save="RiverCity"]');
     await fm.page.waitForFunction(() => /RiverCity: minimum 5/.test(document.getElementById("stockMessage").textContent));
