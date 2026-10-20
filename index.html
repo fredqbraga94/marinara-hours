@@ -1007,6 +1007,93 @@ button{cursor:pointer}
 .device-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .device-actions .back-btn{padding:8px 10px;min-height:36px;border-radius:11px;font-size:11px}
 .team-pin-conflict{display:inline-block;margin-top:4px;padding:2px 8px;border-radius:9px;background:#fff1e6;color:#9a4a00;font-size:11px;font-weight:800}
+.team-visa{display:block;margin-top:6px;padding:4px 10px;border-radius:9px;font-size:12px;font-weight:700;line-height:1.35}
+.team-visa-ok{background:#eaf6ec;color:#21633a}
+.team-visa-near{background:#fff6dc;color:#8a5a00}
+.team-visa-over{background:#fde8e8;color:#a11d1d}
+.team-visa-break{background:#eef0f3;color:#4b5563}
+/* ROSTER */
+#rosterScreen{padding-bottom:96px}
+.roster-weekbar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.roster-weekbar button{border:1px solid var(--border);background:#fff;border-radius:12px;min-width:44px;min-height:40px;font-size:18px;font-weight:800;color:var(--green)}
+.roster-weeklabel{font-weight:850;font-size:14px;text-align:center}
+.roster-weeklabel small{display:block;color:var(--muted);font-weight:600;font-size:11px;margin-top:2px}
+.roster-tabs{display:flex;gap:8px;margin-bottom:12px}
+.roster-tabs button{flex:1;min-height:40px;border-radius:12px;border:1px solid var(--border);background:#fff;font-weight:800;font-size:13px;color:var(--muted)}
+.roster-tabs button.active{background:var(--green);border-color:var(--green);color:#fff}
+.roster-grid{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:11px}
+.roster-grid th{font-size:10px;color:var(--muted);font-weight:800;padding:4px 0 6px;text-align:center}
+.roster-grid th.roster-today{color:var(--green)}
+.roster-grid th:first-child{width:86px;text-align:left}
+.roster-grid td{border-top:1px solid var(--border);padding:4px 1px;vertical-align:middle}
+.roster-name{font-weight:800;font-size:12px;line-height:1.2;word-break:break-word}
+.roster-name small{display:block;color:var(--muted);font-weight:600;font-size:10px;margin-top:2px}
+.roster-cell{width:100%;min-height:42px;border-radius:9px;border:1px dashed #d6dbd6;background:#fff;color:var(--muted);font-weight:850;font-size:12px;padding:2px 0;line-height:1.15}
+.roster-cell.filled{border-style:solid;border-color:#cfe3d7;background:var(--green-light);color:var(--green)}
+.roster-cell.off{border-style:solid;border-color:#e5e8e5;background:#f3f4f3;color:#8a918b}
+.roster-cell.time{font-size:10px}
+.roster-visa-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px;vertical-align:1px}
+.roster-visa-dot.ok{background:#2e8b57}.roster-visa-dot.near{background:#d99a00}.roster-visa-dot.over{background:#c62828}.roster-visa-dot.break{background:#9aa1a9}
+.roster-visa-list .team-visa{margin:8px 0 0}
+.roster-sheet-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:60}
+.roster-sheet{position:fixed;left:50%;bottom:0;transform:translateX(-50%);width:min(480px,100%);box-sizing:border-box;background:#fff;border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));z-index:61;box-shadow:0 -8px 30px rgba(0,0,0,.12)}
+.roster-sheet h3{margin:0 0 4px;font-size:17px}
+.roster-sheet p{margin:0 0 14px;color:var(--muted);font-size:12px}
+.roster-choice{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+.roster-choice button,.roster-sheet-actions button{min-height:48px;border-radius:13px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:15px;color:var(--text)}
+.roster-choice button.selected{background:var(--green);border-color:var(--green);color:#fff}
+.roster-times{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-bottom:10px}
+.roster-times input{min-width:0;max-width:100%}
+.roster-times label{font-size:12px;font-weight:700;color:var(--muted)}
+.roster-times input{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 10px;font-size:16px;margin-top:4px}
+.roster-sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.roster-sheet-actions .primary{background:var(--green);border-color:var(--green);color:#fff}
+.roster-sheet-msg{min-height:18px;font-size:13px;margin-top:10px;color:var(--danger)}
+.roster-cell.leave{border-style:solid;border-color:#d7d2f0;background:#f1eefb;color:#5b4ba8}
+.roster-cell.pending{box-shadow:inset 0 -3px 0 #e0a800}
+.roster-cell.conflict{border-style:solid;border-color:#e6a3a3;background:#fdecec;color:#a11d1d}
+.roster-legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:11px;color:var(--muted)}
+.roster-legend span{display:inline-flex;align-items:center;gap:5px}
+.roster-legend i{display:inline-block;width:12px;height:12px;border-radius:4px}
+.roster-sheet-note{padding:10px 12px;border-radius:12px;background:#f1eefb;color:#5b4ba8;font-size:13px;font-weight:700;margin-bottom:12px}
+.roster-sheet-note.pending{background:#fff6dc;color:#8a5a00}
+/* PUBLIC HOLIDAYS */
+.ph-notice{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:16px;background:#fff4e5;border:1px solid #f3d3a6;color:#7a4b00;font-size:13px;line-height:1.4;margin-bottom:12px}
+.ph-notice strong{display:block;font-size:14px;color:#5e3a00}
+.ph-notice .ph-icon{flex:0 0 auto;padding:2px 6px;border-radius:7px;background:#fde7c7;color:#8a4b00;font-size:11px;font-weight:900;line-height:1.4;margin-top:1px}
+.roster-grid th.roster-ph{color:#b45309}
+.roster-grid th.roster-ph .ph-tag{display:inline-block;margin-top:2px;padding:0 4px;border-radius:5px;background:#fde7c7;color:#8a4b00;font-size:9px;font-weight:900}
+.roster-grid td.roster-ph-col{background:#fffaf2}
+/* TIME OFF */
+.staff-bottom-nav.has-timeoff{grid-template-columns:repeat(4,1fr)}
+.timeoff-kind{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.timeoff-kind button{min-height:46px;border-radius:13px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:14px;color:var(--text)}
+.timeoff-kind button.selected{background:var(--green);border-color:var(--green);color:#fff}
+.timeoff-dates{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.timeoff-dates label{min-width:0}
+.date-wrap{position:relative;display:block}
+.date-hint{display:none}
+@supports (-webkit-touch-callout: none) {
+  .date-hint{display:block;position:absolute;left:12px;top:50%;transform:translateY(-35%);color:#9aa39c;font-size:15px;font-weight:600;pointer-events:none}
+  .date-wrap input:valid + .date-hint{display:none}
+}
+.timeoff-form input[type=date]{min-width:0;max-width:100%;-webkit-appearance:none;appearance:none;display:block}
+.timeoff-form label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px}
+.timeoff-form input,.timeoff-form select,.timeoff-form textarea{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 10px;font-size:16px;margin-top:4px;background:#fff;font-family:inherit}
+.timeoff-form textarea{min-height:64px;resize:vertical}
+.timeoff-item{padding:12px 0;border-top:1px solid var(--border)}
+.timeoff-item:first-child{border-top:0}
+.timeoff-item-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.timeoff-item strong{font-size:14px}
+.timeoff-item .person-meta{margin-top:3px}
+.timeoff-status{font-size:10px;font-weight:900;letter-spacing:.4px;padding:3px 8px;border-radius:8px;white-space:nowrap}
+.timeoff-status.PENDING{background:#fff6dc;color:#8a5a00}
+.timeoff-status.APPROVED{background:#eaf6ec;color:#21633a}
+.timeoff-status.DECLINED,.timeoff-status.CANCELLED{background:#eef0f3;color:#6b7280}
+.timeoff-actions{display:flex;gap:8px;margin-top:10px}
+.timeoff-actions button{flex:1;min-height:40px;border-radius:12px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:13px}
+.timeoff-actions .approve{background:var(--green);border-color:var(--green);color:#fff}
+.timeoff-actions .decline{color:var(--danger)}
 button:disabled{opacity:.6}
 </style>
 <script defer src="./timesheet-pdf.js"></script>
@@ -1145,9 +1232,31 @@ button:disabled{opacity:.6}
     </div>
     <button id="profileLogoutBtn" class="btn staff-profile-signout">Sign Out</button>
   </div>
+  <div id="staffTimeOffView" class="staff-secondary-view hidden">
+    <div class="staff-secondary-head"><div class="staff-home-eyebrow">Marinara Hours</div><h2>Time off</h2></div>
+    <div class="card timeoff-form">
+      <div class="section-title">Ask for time off</div>
+      <div class="timeoff-kind" id="staffTimeOffKind">
+        <button type="button" data-kind="HOLIDAY" class="selected">Holiday</button>
+        <button type="button" data-kind="DAY_OFF">Day off</button>
+      </div>
+      <div class="timeoff-dates">
+        <label><span id="staffTimeOffStartLabel">From</span><span class="date-wrap"><input id="staffTimeOffStart" type="date" required><span class="date-hint">Tap to choose</span></span></label>
+        <label id="staffTimeOffEndWrap">Until<span class="date-wrap"><input id="staffTimeOffEnd" type="date" required><span class="date-hint">Tap to choose</span></span></label>
+      </div>
+      <label>Note for your manager (optional)<textarea id="staffTimeOffNote" maxlength="200" placeholder="e.g. Trip to Sydney"></textarea></label>
+      <button id="staffTimeOffSend" class="btn primary" type="button">Send request</button>
+      <div id="staffTimeOffMessage" class="message"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">My requests</div>
+      <div id="staffTimeOffList" class="empty-state">Loading…</div>
+    </div>
+  </div>
   <nav id="staffBottomNav" class="staff-bottom-nav">
     <button type="button" class="staff-nav-item active" data-staff-view="home"><span class="staff-nav-icon">⌂</span><span>Home</span></button>
     <button type="button" class="staff-nav-item" data-staff-view="hours"><span class="staff-nav-icon">◷</span><span>My Hours</span></button>
+    <button type="button" class="staff-nav-item hidden" data-staff-view="timeoff"><span class="staff-nav-icon">✈</span><span>Time off</span></button>
     <button type="button" class="staff-nav-item" data-staff-view="profile"><span class="staff-nav-icon">○</span><span>Profile</span></button>
   </nav>
 </section>
@@ -1162,6 +1271,7 @@ button:disabled{opacity:.6}
     </div><p id="managerLocation" class="hidden">Hawthorne</p>
   </div>
   <div id="managerMessage" class="message"></div>
+  <div id="managerHolidayNotice"></div>
   <div class="summary-grid">
     <div class="summary-card"><div id="workingNowCount" class="summary-number">0</div><div class="summary-label">Working Now</div><div class="manager-summary-sub">Currently on shift</div></div>
     <div class="summary-card"><div id="pendingCount" class="summary-number">0</div><div class="summary-label">Pending Approvals</div><div class="manager-summary-sub">Needs your review</div></div>
@@ -1173,6 +1283,8 @@ button:disabled{opacity:.6}
     <button id="staffHoursCard" class="manager-quick-card"><div class="manager-quick-icon">◷</div><strong>Staff Hours</strong><span>Weekly hours and shifts</span></button>
     <button id="teamCard" class="manager-quick-card"><div class="manager-quick-icon">◎</div><strong>Team</strong><span id="teamText">Active Hawthorne staff</span></button>
     <button id="timesheetsCard" class="manager-quick-card"><div class="manager-quick-icon">▤</div><strong>Timesheets</strong><span>Weekly timesheets & PDF</span></button>
+    <button id="rosterCard" class="manager-quick-card"><div class="manager-quick-icon">▦</div><strong>Roster</strong><span>Plan the week · L / D or times</span></button>
+    <button id="timeOffCard" class="manager-quick-card"><div class="manager-quick-icon">✈</div><strong>Time off</strong><span id="timeOffCardText">Holidays and days off</span></button>
     <button id="myClockCard" class="manager-quick-card"><div class="manager-quick-icon">◉</div><strong>My Time Clock</strong><span>Clock in, break and clock out</span></button>
   </div></div>
   <div id="managerClockSection" class="hidden"><div class="card"><div class="section-title">My Time Clock</div><div class="status"><div class="status-label">Current status</div><div id="managerStatusValue" class="status-value">Off shift</div></div><button id="managerClockInBtn" class="btn primary hidden">Clock In</button><button id="managerStartBreakBtn" class="btn secondary hidden">Start Break</button><button id="managerEndBreakBtn" class="btn primary hidden">End Break</button><button id="managerClockOutBtn" class="btn danger hidden">Clock Out</button><div id="managerActionMessage" class="message"></div></div></div>
@@ -1292,6 +1404,69 @@ button:disabled{opacity:.6}
 </section>
 
 
+<!-- ROSTER SCREEN -->
+<section id="rosterScreen" class="hidden">
+  <div class="manager-top">
+    <div>
+      <div class="team-v2-kicker">MANAGER</div>
+      <h2>Roster</h2>
+      <p id="rosterLocation" class="team-v2-sub">Hawthorne</p>
+    </div>
+    <button id="backRosterBtn" class="back-btn">Back</button>
+  </div>
+  <div class="card">
+    <div class="roster-weekbar">
+      <button id="rosterPrevBtn" type="button" aria-label="Previous week">‹</button>
+      <div id="rosterWeekLabel" class="roster-weeklabel">Week</div>
+      <button id="rosterNextBtn" type="button" aria-label="Next week">›</button>
+    </div>
+    <div id="rosterTabs" class="roster-tabs"></div>
+    <div id="rosterMessage" class="message"></div>
+    <div id="rosterHolidayNotice"></div>
+    <div id="rosterGridBox" class="empty-state">Loading roster...</div>
+  </div>
+  <div id="rosterVisaCard" class="card hidden">
+    <div class="section-title">Student visa · last week + this week</div>
+    <div id="rosterVisaList" class="roster-visa-list"></div>
+  </div>
+</section>
+
+<!-- TIME OFF SCREEN (MANAGER) -->
+<section id="timeOffScreen" class="hidden">
+  <div class="manager-top">
+    <div>
+      <div class="team-v2-kicker">MANAGER</div>
+      <h2>Time off</h2>
+      <p id="timeOffLocation" class="team-v2-sub">Hawthorne</p>
+    </div>
+    <button id="backTimeOffBtn" class="back-btn">Back</button>
+  </div>
+  <div id="timeOffMessage" class="message"></div>
+  <div class="card">
+    <div class="section-title">Waiting for you</div>
+    <div id="timeOffPending" class="empty-state">Loading…</div>
+  </div>
+  <div class="card">
+    <div class="section-title">Coming up · approved</div>
+    <div id="timeOffUpcoming" class="empty-state">Loading…</div>
+  </div>
+  <div class="card timeoff-form">
+    <div class="section-title">Add time off</div>
+    <label>Person<select id="timeOffPerson"></select></label>
+    <div class="timeoff-kind" id="timeOffKind">
+      <button type="button" data-kind="HOLIDAY" class="selected">Holiday</button>
+      <button type="button" data-kind="DAY_OFF">Day off</button>
+    </div>
+    <div class="timeoff-dates">
+      <label><span id="timeOffStartLabel">From</span><span class="date-wrap"><input id="timeOffStart" type="date" required><span class="date-hint">Tap to choose</span></span></label>
+      <label id="timeOffEndWrap">Until<span class="date-wrap"><input id="timeOffEnd" type="date" required><span class="date-hint">Tap to choose</span></span></label>
+    </div>
+    <label>Note (optional)<textarea id="timeOffNote" maxlength="200"></textarea></label>
+    <button id="timeOffAddBtn" class="btn primary" type="button">Add (approved)</button>
+    <div id="timeOffAddMessage" class="message"></div>
+  </div>
+</section>
+
 <!-- MORE SCREEN -->
 <section id="devicesScreen" class="hidden">
   <div class="manager-top">
@@ -1340,6 +1515,16 @@ button:disabled{opacity:.6}
     <button id="moreTimesheetsBtn" class="more-v2-item" type="button">
       <span class="more-v2-icon">▤</span>
       <span><strong>Timesheets & PDF</strong><small>View weekly timesheets and export the approved PDF</small></span>
+      <span class="more-v2-chevron">›</span>
+    </button>
+    <button id="moreRosterBtn" class="more-v2-item" type="button">
+      <span class="more-v2-icon">▦</span>
+      <span><strong>Roster</strong><small>Plan the week for Kitchen and Floor</small></span>
+      <span class="more-v2-chevron">›</span>
+    </button>
+    <button id="moreTimeOffBtn" class="more-v2-item" type="button">
+      <span class="more-v2-icon">✈</span>
+      <span><strong>Time off</strong><small>Approve holidays and days off</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
     <button id="moreMyClockBtn" class="more-v2-item" type="button">
@@ -1601,6 +1786,12 @@ document.getElementById("teamCard");
 
 const teamScreen =
 document.getElementById("teamScreen");
+const rosterScreen =
+document.getElementById("rosterScreen");
+const timeOffScreen =
+document.getElementById("timeOffScreen");
+const staffTimeOffView =
+document.getElementById("staffTimeOffView");
 
 const backTeamBtn =
 document.getElementById("backTeamBtn");
@@ -2248,8 +2439,10 @@ function setStaffView(view){
   staffHomeView.classList.toggle("hidden",view!=="home");
   staffMyHoursView.classList.toggle("hidden",view!=="hours");
   staffProfileView.classList.toggle("hidden",view!=="profile");
+  staffTimeOffView?.classList.toggle("hidden",view!=="timeoff");
   staffBottomNav?.querySelectorAll(".staff-nav-item").forEach(b=>b.classList.toggle("active",b.dataset.staffView===view));
   if(view==="hours")loadStaffMyHours();
+  if(view==="timeoff")loadStaffTimeOff();
 }
 
 
@@ -2560,6 +2753,11 @@ async function loadManagerDashboard() {
     if (managerGreeting) managerGreeting.textContent = greeting + ", " + firstName;
     const roleLabel = currentManagerRole === "kitchen_manager" ? "Kitchen Manager" : currentManagerRole === "floor_manager" ? "Floor Manager" : "Administrator";
     if (managerRoleLine) managerRoleLine.textContent = roleLabel + " · " + (dashboard.location || "Hawthorne");
+    const holidayNotice = document.getElementById("managerHolidayNotice");
+    if (holidayNotice) {
+      const upcoming = dashboard.upcoming_holidays || [];
+      holidayNotice.innerHTML = holidayNoticeHtml(upcoming, upcoming.length > 1 ? "Public holidays coming up" : "Public holiday coming up");
+    }
 
     const counts =
       dashboard.counts || {};
@@ -4491,6 +4689,8 @@ timesheetsCard.addEventListener("click", async () => {
   approvalsScreen.classList.add("hidden");
   staffHoursScreen.classList.add("hidden");
   teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
+  timeOffScreen?.classList.add("hidden");
   timesheetsScreen.classList.remove("hidden");
 
   selectedTimesheetsWeek = null;
@@ -4656,7 +4856,32 @@ exportTimesheetsPdfBtn.addEventListener("click", async () => {
 
 /* TEAM */
 
-function renderTeamMember(person) {
+// Student visa (subclass 500): 48 worked hours per fortnight while the course
+// is in session. A fortnight starts on a Monday and every Monday starts one,
+// so the server sends last week + this week so far (from Monday, Brisbane).
+// Only hours worked here are known; hours at other jobs also count.
+function renderVisaBadge(person, visa) {
+  if (!person.student_visa || !person.active) return "";
+  if (person.visa_course_break) {
+    return `<div class="team-visa team-visa-break">Student visa · course break — no hour limit</div>`;
+  }
+  if (!visa) return "";
+  const used = Number(visa.hours_14d) || 0;
+  const limit = Number(visa.limit_hours) || 48;
+  const left = Math.max(0, limit - used);
+  // Whole minutes, so "used" and "left" always add up to the limit.
+  const fmt = n => {
+    const m = Math.round(n * 60);
+    return m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h`;
+  };
+  const level = used >= limit ? "over" : used >= limit - 8 ? "near" : "ok";
+  const text = used >= limit
+    ? `Student visa · ${fmt(used)} last week + this week — over the ${fmt(limit)} limit. Do not roster more this week.`
+    : `Student visa · ${fmt(used)} of ${fmt(limit)} (last week + this week) · ${fmt(left)} left until Sunday`;
+  return `<div class="team-visa team-visa-${level}">${escapeHtml(text)}</div>`;
+}
+
+function renderTeamMember(person, visa) {
   const isManager =
     ["manager", "kitchen_manager", "floor_manager"].includes(person.role);
   const isGeneralManager = currentManagerRole === "manager";
@@ -4687,6 +4912,7 @@ function renderTeamMember(person) {
         ${person.pin_conflict_at && person.active
           ? `<div class="team-pin-conflict">PIN shared with someone else — set a new PIN</div>`
           : ""}
+        ${renderVisaBadge(person, visa)}
       </div>
 
       <div class="team-person-actions">
@@ -4757,6 +4983,21 @@ function renderTeamMember(person) {
             <div style="font-size:12px;color:#777;margin-bottom:14px;">
               Optional · 4–6 numbers
             </div>
+
+            ${
+              "student_visa" in person
+                ? `
+                  <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px;font-weight:600;">
+                    <input class="team-edit-visa" type="checkbox" ${person.student_visa ? "checked" : ""}>
+                    Student visa (max 48h per fortnight)
+                  </label>
+                  <label style="display:flex;gap:8px;align-items:center;margin-bottom:14px;font-size:13px;">
+                    <input class="team-edit-visa-break" type="checkbox" ${person.visa_course_break ? "checked" : ""}>
+                    Course on an official break (no limit for now)
+                  </label>
+                `
+                : ""
+            }
 
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
               <button class="primary-btn team-save-edit-btn"
@@ -4834,7 +5075,11 @@ async function loadTeamScreen() {
     }
 
     teamList.className = "";
-    teamList.innerHTML = team.map(renderTeamMember).join("");
+    const visaById = {};
+    (data?.visa_hours || []).forEach(v => { visaById[v.staff_id] = v; });
+    teamList.innerHTML = team
+      .map(person => renderTeamMember(person, visaById[person.id]))
+      .join("");
 
     teamList.querySelectorAll(".team-edit-btn").forEach(button => {
       button.addEventListener("click", () => {
@@ -4913,6 +5158,22 @@ async function loadTeamScreen() {
             }
           );
 
+          const visaBox = panel.querySelector(".team-edit-visa");
+          const breakBox = panel.querySelector(".team-edit-visa-break");
+          if (visaBox) {
+            const person = team.find(p => p.id === staffId) || {};
+            const wantVisa = visaBox.checked;
+            const wantBreak = wantVisa && !!(breakBox && breakBox.checked);
+            if (wantVisa !== !!person.student_visa ||
+                wantBreak !== !!person.visa_course_break) {
+              await managerApi("manager_set_student_visa", {
+                staff_id: staffId,
+                student_visa: wantVisa,
+                course_break: wantBreak
+              });
+            }
+          }
+
           teamMessage.textContent = "Staff updated successfully.";
           await loadTeamScreen();
           await loadManagerDashboard();
@@ -4980,6 +5241,8 @@ teamCard.addEventListener("click", async () => {
 
 backTeamBtn.addEventListener("click", async () => {
   teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
+  timeOffScreen?.classList.add("hidden");
   managerScreen.classList.remove("hidden");
   setManagerNavActive("home");
   await loadManagerDashboard();
@@ -5118,6 +5381,8 @@ function openManagerMore() {
   managerScreen.classList.add("hidden");
   approvalsScreen.classList.add("hidden");
   teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
+  timeOffScreen?.classList.add("hidden");
   staffHoursScreen.classList.add("hidden");
   timesheetsScreen.classList.add("hidden");
   devicesScreen?.classList.add("hidden");
@@ -5143,6 +5408,632 @@ function openManagerMore() {
   window.scrollTo({top:0,behavior:"smooth"});
 }
 
+/* PUBLIC HOLIDAYS */
+// Queensland public holidays (and Brisbane's Ekka) come from the server.
+function holidayDayLabel(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  return new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(d);
+}
+
+function holidayNoticeHtml(holidays, title) {
+  if (!holidays || !holidays.length) return "";
+  const today = brisbaneTodayInput();
+  const lines = holidays.map(h => {
+    const days = Math.round((Date.parse(h.holiday_date) - Date.parse(today)) / 86400000);
+    const when = days === 0 ? "today" : days === 1 ? "tomorrow" : days > 1 ? `in ${days} days` : "";
+    return `${escapeHtml(holidayDayLabel(h.holiday_date))} — ${escapeHtml(h.name)}` +
+      (h.part_day ? ` (${escapeHtml(h.part_day)})` : "") +
+      (h.region === "BRISBANE" ? " · Brisbane only" : "") +
+      (when ? ` · ${when}` : "");
+  });
+  return `<div class="ph-notice"><span class="ph-icon">PH</span><div><strong>${escapeHtml(title)}</strong>${lines.join("<br>")}<br><span style="opacity:.8">Public holiday pay rates apply. Plan the roster for it.</span></div></div>`;
+}
+
+/* ROSTER */
+// Paper-style weekly roster. Kitchen cells: L, D, L/D, Off. Floor cells: a
+// start and finish time (e.g. 17:00-21:00), or Off. The server checks every
+// change (department/unit access) and returns the student-visa fortnight
+// (last week + this week) so the warning shows while the week is planned.
+const ROSTER_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const rosterState = { week: null, dept: null, data: null };
+
+function rosterAddDays(dateStr, days) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function rosterMonday(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  return rosterAddDays(dateStr, -((d.getUTCDay() + 6) % 7));
+}
+
+function rosterShortDate(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  return `${d.getUTCDate()}/${d.getUTCMonth() + 1}`;
+}
+
+function rosterHours(n) {
+  const m = Math.round((Number(n) || 0) * 60);
+  return m % 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m / 60}h`;
+}
+
+function rosterTimeLabel(t) {
+  // "17:00" -> "5p", "16:30" -> "4:30p", "10:30" -> "10:30a"
+  const [h, m] = String(t || "").split(":").map(Number);
+  if (Number.isNaN(h)) return "";
+  const suffix = h >= 12 ? "p" : "a";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return m ? `${h12}:${String(m).padStart(2, "0")}${suffix}` : `${h12}${suffix}`;
+}
+
+function rosterLeaveByCell(leave, week) {
+  const out = {};
+  for (const l of leave) {
+    for (let i = 0; i < 7; i++) {
+      const d = rosterAddDays(week, i);
+      if (d >= l.start_date && d <= l.end_date) {
+        const key = `${l.staff_id}|${d}`;
+        // approved wins over pending when both exist
+        if (!out[key] || l.status === "APPROVED") out[key] = l;
+      }
+    }
+  }
+  return out;
+}
+
+function rosterCellHtml(entry, staffId, date, leave) {
+  const attrs = `data-roster-staff="${escapeHtml(staffId)}" data-roster-date="${escapeHtml(date)}"`;
+  if (leave) {
+    const short = leave.kind === "HOLIDAY" ? "Hol" : "D/O";
+    const working = entry && entry.code !== "OFF";
+    if (leave.status === "APPROVED" && working) {
+      return `<button class="roster-cell conflict" ${attrs} aria-label="Conflict">⚠<br>${short}</button>`;
+    }
+    if (leave.status === "APPROVED") {
+      return `<button class="roster-cell leave" ${attrs}>${short}</button>`;
+    }
+    // pending: show the planned cell with a yellow line underneath
+    const inner = rosterCellHtml(entry, staffId, date, null);
+    return inner.replace('class="roster-cell', 'class="roster-cell pending').replace(">+<", `>${short}?<`);
+  }
+  if (!entry) return `<button class="roster-cell" ${attrs} aria-label="Empty">+</button>`;
+  if (entry.code === "OFF") return `<button class="roster-cell off" ${attrs}>Off</button>`;
+  if (entry.code === "SHIFT") {
+    return `<button class="roster-cell filled time" ${attrs}>${escapeHtml(rosterTimeLabel(entry.start_time))}<br>${escapeHtml(rosterTimeLabel(entry.end_time))}</button>`;
+  }
+  const label = entry.code === "LD" ? "L/D" : entry.code;
+  return `<button class="roster-cell filled" ${attrs}>${escapeHtml(label)}</button>`;
+}
+
+function rosterVisaLevel(v) {
+  if (!v) return "";
+  if (v.course_break) return "break";
+  if (v.fortnight_hours > v.limit_hours) return "over";
+  if (v.fortnight_hours >= v.limit_hours - 8) return "near";
+  return "ok";
+}
+
+function renderRoster() {
+  const data = rosterState.data;
+  if (!data) return;
+  const role = data.manager?.role || currentManagerRole;
+  const ownDept = role === "kitchen_manager" ? "Kitchen" : role === "floor_manager" ? "Floor" : null;
+  if (ownDept) rosterState.dept = ownDept;
+  if (!rosterState.dept) rosterState.dept = "Kitchen";
+
+  const tabs = document.getElementById("rosterTabs");
+  tabs.innerHTML = ownDept
+    ? ""
+    : ["Kitchen", "Floor"].map(d =>
+        `<button type="button" data-roster-dept="${d}" class="${d === rosterState.dept ? "active" : ""}">${d}</button>`
+      ).join("");
+
+  document.getElementById("rosterLocation").textContent =
+    `${data.location || "Hawthorne"} · ${rosterState.dept}`;
+
+  const week = data.week_start;
+  const today = brisbaneTodayInput();
+  document.getElementById("rosterWeekLabel").innerHTML =
+    `${escapeHtml(rosterShortDate(week))} – ${escapeHtml(rosterShortDate(rosterAddDays(week, 6)))}` +
+    `<small>${week === rosterMonday(today) ? "This week" : week > today ? "Upcoming" : "Past week"}</small>`;
+
+  const people = (data.team || []).filter(m => m.department === rosterState.dept);
+  const cells = {};
+  (data.entries || []).forEach(e => { cells[`${e.staff_id}|${e.work_date}`] = e; });
+  const leaveCells = rosterLeaveByCell(data.leave || [], week);
+  const visaById = {};
+  (data.visa || []).forEach(v => { visaById[v.staff_id] = v; });
+  const days = ROSTER_DAYS.map((_, i) => rosterAddDays(week, i));
+  const holidayByDate = {};
+  (data.holidays || []).forEach(h => { (holidayByDate[h.holiday_date] = holidayByDate[h.holiday_date] || []).push(h); });
+  const holidayBox = document.getElementById("rosterHolidayNotice");
+  if (holidayBox) holidayBox.innerHTML = holidayNoticeHtml(data.holidays || [], (data.holidays || []).length > 1 ? "Public holidays this week" : "Public holiday this week");
+
+  const box = document.getElementById("rosterGridBox");
+  if (!people.length) {
+    box.className = "empty-state";
+    box.textContent = `No active ${rosterState.dept} staff.`;
+  } else {
+    box.className = "";
+    box.innerHTML = `
+      <table class="roster-grid">
+        <thead><tr><th></th>${days.map((d, i) =>
+          `<th class="${d === today ? "roster-today" : ""} ${holidayByDate[d] ? "roster-ph" : ""}" ${holidayByDate[d] ? `title="${escapeHtml(holidayByDate[d].map(h => h.name).join(", "))}"` : ""}>${ROSTER_DAYS[i]}<br>${escapeHtml(rosterShortDate(d))}${holidayByDate[d] ? `<br><span class="ph-tag">PH</span>` : ""}</th>`
+        ).join("")}</tr></thead>
+        <tbody>${people.map(m => {
+          const v = visaById[m.id];
+          const dot = v ? `<span class="roster-visa-dot ${rosterVisaLevel(v)}"></span>` : "";
+          return `<tr>
+            <td><div class="roster-name">${dot}${escapeHtml(m.name)}<small>${escapeHtml(rosterHours(data.planned_hours?.[m.id]))}</small></div></td>
+            ${days.map(d => `<td class="${holidayByDate[d] ? "roster-ph-col" : ""}">${rosterCellHtml(cells[`${m.id}|${d}`], m.id, d, leaveCells[`${m.id}|${d}`])}</td>`).join("")}
+          </tr>`;
+        }).join("")}</tbody>
+      </table>
+      ${(data.leave || []).length ? `<div class="roster-legend">
+        <span><i style="background:#f1eefb;border:1px solid #d7d2f0"></i>Hol = holiday · D/O = day off</span>
+        <span><i style="background:#fff;box-shadow:inset 0 -3px 0 #e0a800;border:1px solid #d6dbd6"></i>waiting approval</span>
+        <span><i style="background:#fdecec;border:1px solid #e6a3a3"></i>rostered on approved leave</span>
+      </div>` : ""}`;
+  }
+
+  const visaPeople = people.filter(m => visaById[m.id]);
+  const visaCard = document.getElementById("rosterVisaCard");
+  visaCard.classList.toggle("hidden", !visaPeople.length);
+  document.getElementById("rosterVisaList").innerHTML = visaPeople.map(m => {
+    const v = visaById[m.id];
+    const level = rosterVisaLevel(v);
+    const detail = `last week ${rosterHours(v.prev_week_hours)} + this week ${rosterHours(v.week_hours)}`;
+    const text = level === "break"
+      ? `${m.name} · course break — no limit (${rosterHours(v.fortnight_hours)})`
+      : level === "over"
+        ? `${m.name} · ${rosterHours(v.fortnight_hours)} of ${rosterHours(v.limit_hours)} — over the limit (${detail})`
+        : `${m.name} · ${rosterHours(v.fortnight_hours)} of ${rosterHours(v.limit_hours)} (${detail})`;
+    return `<div class="team-visa team-visa-${level}">${escapeHtml(text)}</div>`;
+  }).join("") +
+  `<div class="person-meta" style="margin-top:10px">Past days use clocked hours; today and later use the roster. Hours at other jobs also count.</div>`;
+}
+
+async function loadRoster(week) {
+  const msg = document.getElementById("rosterMessage");
+  msg.className = "message";
+  msg.textContent = "";
+  try {
+    const data = await managerApi("manager_roster_week", week ? { week_start: week } : {});
+    rosterState.data = data;
+    rosterState.week = data.week_start;
+    renderRoster();
+    return data;
+  } catch (error) {
+    document.getElementById("rosterGridBox").className = "empty-state";
+    document.getElementById("rosterGridBox").textContent = "Unable to load the roster.";
+    msg.className = "message show error";
+    msg.textContent = error.message || "Unable to load the roster.";
+    return null;
+  }
+}
+
+function closeRosterSheet() {
+  document.querySelectorAll(".roster-sheet, .roster-sheet-backdrop").forEach(el => el.remove());
+}
+
+function openRosterSheet(staffId, date) {
+  const data = rosterState.data;
+  const person = (data?.team || []).find(m => m.id === staffId);
+  if (!person) return;
+  const entry = (data.entries || []).find(e => e.staff_id === staffId && e.work_date === date);
+  const leave = rosterLeaveByCell(data.leave || [], data.week_start)[`${staffId}|${date}`];
+  const leaveNote = leave
+    ? `<div class="roster-sheet-note ${leave.status === "PENDING" ? "pending" : ""}">${
+        leave.status === "APPROVED"
+          ? `${escapeHtml(TIMEOFF_LABEL[leave.kind])} approved (${escapeHtml(timeOffRange(leave))}). Only Off or Clear can be set.`
+          : `${escapeHtml(TIMEOFF_LABEL[leave.kind])} requested (${escapeHtml(timeOffRange(leave))}) — waiting for approval.`
+      }</div>`
+    : "";
+  const isFloor = person.department === "Floor";
+  const d = new Date(`${date}T00:00:00Z`);
+  const dayName = ROSTER_DAYS[(d.getUTCDay() + 6) % 7];
+
+  closeRosterSheet();
+  const backdrop = document.createElement("div");
+  backdrop.className = "roster-sheet-backdrop";
+  const sheet = document.createElement("div");
+  sheet.className = "roster-sheet";
+  sheet.setAttribute("role", "dialog");
+  sheet.innerHTML = `
+    <h3>${escapeHtml(person.name)}</h3>
+    <p>${escapeHtml(dayName)} ${escapeHtml(rosterShortDate(date))} · ${escapeHtml(person.department)}</p>
+    ${leaveNote}
+    ${isFloor ? `
+      <div class="roster-times">
+        <label>Start<input type="time" class="roster-start" step="900" value="${escapeHtml(entry?.code === "SHIFT" ? entry.start_time : "17:00")}"></label>
+        <label>Finish<input type="time" class="roster-end" step="900" value="${escapeHtml(entry?.code === "SHIFT" ? entry.end_time : "21:00")}"></label>
+      </div>
+      <div class="roster-sheet-actions" style="margin-bottom:8px">
+        <button type="button" class="primary" data-roster-save="SHIFT">Save time</button>
+        <button type="button" data-roster-save="OFF">Off</button>
+      </div>
+    ` : `
+      <div class="roster-choice">
+        ${[["L", "L"], ["D", "D"], ["LD", "L/D"], ["OFF", "Off"]].map(([code, label]) =>
+          `<button type="button" data-roster-save="${code}" class="${entry?.code === code ? "selected" : ""}">${label}</button>`
+        ).join("")}
+      </div>
+    `}
+    <div class="roster-sheet-actions">
+      <button type="button" data-roster-save="">Clear</button>
+      <button type="button" data-roster-cancel>Cancel</button>
+    </div>
+    <div class="roster-sheet-msg"></div>`;
+  document.body.appendChild(backdrop);
+  document.body.appendChild(sheet);
+  backdrop.addEventListener("click", closeRosterSheet);
+  sheet.querySelector("[data-roster-cancel]").addEventListener("click", closeRosterSheet);
+
+  sheet.querySelectorAll("[data-roster-save]").forEach(button => {
+    button.addEventListener("click", async () => {
+      const code = button.dataset.rosterSave;
+      const message = sheet.querySelector(".roster-sheet-msg");
+      const payload = { staff_id: staffId, work_date: date, code };
+      if (code === "SHIFT") {
+        payload.start_time = sheet.querySelector(".roster-start").value;
+        payload.end_time = sheet.querySelector(".roster-end").value;
+        if (!payload.start_time || !payload.end_time || payload.start_time === payload.end_time) {
+          message.textContent = "Enter a start and finish time.";
+          return;
+        }
+      }
+      const before = (rosterState.data.visa || []).find(v => v.staff_id === staffId);
+      sheet.querySelectorAll("button").forEach(b => { b.disabled = true; });
+      try {
+        await managerApi("manager_roster_set", payload);
+        closeRosterSheet();
+        const fresh = await loadRoster(rosterState.week);
+        const after = (fresh?.visa || []).find(v => v.staff_id === staffId);
+        if (after && !after.course_break && after.fortnight_hours > after.limit_hours &&
+            !(before && before.fortnight_hours > before.limit_hours && after.fortnight_hours <= before.fortnight_hours)) {
+          const msg = document.getElementById("rosterMessage");
+          msg.className = "message show error";
+          msg.textContent =
+            `⚠ ${person.name} now has ${rosterHours(after.fortnight_hours)} in this fortnight — over the ${rosterHours(after.limit_hours)} student visa limit.`;
+          msg.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      } catch (error) {
+        sheet.querySelectorAll("button").forEach(b => { b.disabled = false; });
+        message.textContent = error.message || "Unable to save.";
+      }
+    });
+  });
+}
+
+async function openRosterScreen() {
+  managerMoreScreen?.classList.add("hidden");
+  managerScreen.classList.add("hidden");
+  approvalsScreen.classList.add("hidden");
+  staffHoursScreen.classList.add("hidden");
+  teamScreen.classList.add("hidden");
+  timesheetsScreen.classList.add("hidden");
+  devicesScreen?.classList.add("hidden");
+  rosterScreen.classList.remove("hidden");
+  setManagerNavActive("more");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  document.getElementById("rosterGridBox").className = "empty-state";
+  document.getElementById("rosterGridBox").textContent = "Loading roster...";
+  await loadRoster(rosterState.week);
+}
+
+document.getElementById("rosterCard")?.addEventListener("click", openRosterScreen);
+document.getElementById("moreRosterBtn")?.addEventListener("click", openRosterScreen);
+document.getElementById("backRosterBtn")?.addEventListener("click", async () => {
+  closeRosterSheet();
+  rosterScreen.classList.add("hidden");
+  managerScreen.classList.remove("hidden");
+  setManagerNavActive("home");
+  await loadManagerDashboard();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+document.getElementById("rosterPrevBtn")?.addEventListener("click", () =>
+  rosterState.week && loadRoster(rosterAddDays(rosterState.week, -7)));
+document.getElementById("rosterNextBtn")?.addEventListener("click", () =>
+  rosterState.week && loadRoster(rosterAddDays(rosterState.week, 7)));
+document.getElementById("rosterTabs")?.addEventListener("click", event => {
+  const button = event.target.closest("[data-roster-dept]");
+  if (!button) return;
+  rosterState.dept = button.dataset.rosterDept;
+  const msg = document.getElementById("rosterMessage");
+  msg.className = "message";
+  msg.textContent = "";
+  renderRoster();
+});
+document.getElementById("rosterGridBox")?.addEventListener("click", event => {
+  const cell = event.target.closest("[data-roster-staff]");
+  if (cell) openRosterSheet(cell.dataset.rosterStaff, cell.dataset.rosterDate);
+});
+// Any other manager navigation leaves the roster.
+document.addEventListener("click", event => {
+  if (rosterScreen.classList.contains("hidden")) return;
+  const nav = event.target.closest("[data-manager-nav], .manager-quick-card, .more-v2-item, #managerLogoutBtn, #moreSignOutBtn");
+  if (nav && nav.id !== "rosterCard" && nav.id !== "moreRosterBtn") {
+    closeRosterSheet();
+    rosterScreen.classList.add("hidden");
+  }
+}, true);
+
+/* TIME OFF */
+// Holidays (a date range) and days off (one day). Staff ask from their app;
+// the manager of their department approves or declines; managers can also
+// add time off directly (already approved). Approved days block rostering.
+const TIMEOFF_LABEL = { HOLIDAY: "Holiday", DAY_OFF: "Day off" };
+const TIMEOFF_STATUS = { PENDING: "Waiting", APPROVED: "Approved", DECLINED: "Declined", CANCELLED: "Cancelled" };
+
+function timeOffDate(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  return new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(d);
+}
+
+function timeOffRange(r) {
+  if (r.start_date === r.end_date) return timeOffDate(r.start_date);
+  const days = Math.round((Date.parse(r.end_date) - Date.parse(r.start_date)) / 86400000) + 1;
+  return `${timeOffDate(r.start_date)} – ${timeOffDate(r.end_date)} · ${days} days`;
+}
+
+function setupTimeOffForm(kindBoxId, startId, endId, endWrapId, startLabelId) {
+  const box = document.getElementById(kindBoxId);
+  const start = document.getElementById(startId);
+  const end = document.getElementById(endId);
+  const endWrap = document.getElementById(endWrapId);
+  const startLabel = document.getElementById(startLabelId);
+  const today = brisbaneTodayInput();
+  const state = { kind: "HOLIDAY" };
+  const apply = () => {
+    box.querySelectorAll("[data-kind]").forEach(b => b.classList.toggle("selected", b.dataset.kind === state.kind));
+    const dayOff = state.kind === "DAY_OFF";
+    endWrap.style.visibility = dayOff ? "hidden" : "visible";
+    startLabel.textContent = dayOff ? "Day" : "From";
+  };
+  box.addEventListener("click", e => {
+    const b = e.target.closest("[data-kind]");
+    if (!b) return;
+    state.kind = b.dataset.kind;
+    apply();
+  });
+  start.addEventListener("change", () => {
+    if (!end.value || end.value < start.value) end.value = start.value;
+  });
+  state.reset = (minToday) => {
+    start.value = "";
+    end.value = "";
+    if (minToday) { start.min = today; end.min = today; }
+  };
+  state.read = () => ({
+    kind: state.kind,
+    start_date: start.value,
+    end_date: state.kind === "DAY_OFF" ? start.value : (end.value || start.value),
+  });
+  apply();
+  return state;
+}
+
+function timeOffMessage(el, text, ok) {
+  el.className = `message show ${ok ? "success" : "error"}`;
+  el.textContent = text;
+}
+
+/* staff side */
+let staffTimeOffForm = null;
+let staffTimeOffProbed = false;
+
+function renderStaffTimeOff(requests) {
+  const list = document.getElementById("staffTimeOffList");
+  if (!requests.length) {
+    list.className = "empty-state";
+    list.textContent = "No requests yet.";
+    return;
+  }
+  const today = brisbaneTodayInput();
+  list.className = "";
+  list.innerHTML = requests.map(r => {
+    const canCancel = r.status === "PENDING" || (r.status === "APPROVED" && r.start_date > today);
+    return `<div class="timeoff-item">
+      <div class="timeoff-item-top">
+        <div><strong>${escapeHtml(TIMEOFF_LABEL[r.kind] || r.kind)}</strong>
+          <div class="person-meta">${escapeHtml(timeOffRange(r))}${r.note ? " · " + escapeHtml(r.note) : ""}</div></div>
+        <span class="timeoff-status ${escapeHtml(r.status)}">${escapeHtml(TIMEOFF_STATUS[r.status] || r.status)}</span>
+      </div>
+      ${canCancel ? `<div class="timeoff-actions"><button type="button" class="decline" data-timeoff-cancel="${escapeHtml(r.id)}">Cancel request</button></div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+async function loadStaffTimeOff() {
+  if (!staffTimeOffForm) {
+    staffTimeOffForm = setupTimeOffForm("staffTimeOffKind", "staffTimeOffStart", "staffTimeOffEnd", "staffTimeOffEndWrap", "staffTimeOffStartLabel");
+  }
+  staffTimeOffForm.reset(true);
+  const list = document.getElementById("staffTimeOffList");
+  try {
+    const data = await managerApi("session_leave_list");
+    renderStaffTimeOff(data.requests || []);
+  } catch (error) {
+    list.className = "empty-state";
+    list.textContent = error.message || "Unable to load your requests.";
+  }
+}
+
+document.getElementById("staffTimeOffSend")?.addEventListener("click", async () => {
+  const msg = document.getElementById("staffTimeOffMessage");
+  const button = document.getElementById("staffTimeOffSend");
+  const req = staffTimeOffForm.read();
+  if (!req.start_date) { timeOffMessage(msg, "Choose the date.", false); return; }
+  if (req.end_date < req.start_date) { timeOffMessage(msg, "The end date is before the start.", false); return; }
+  button.disabled = true;
+  try {
+    await managerApi("session_leave_request", { ...req, note: document.getElementById("staffTimeOffNote").value });
+    document.getElementById("staffTimeOffNote").value = "";
+    timeOffMessage(msg, "Request sent. Your manager will approve or decline it.", true);
+    await loadStaffTimeOff();
+  } catch (error) {
+    timeOffMessage(msg, error.message || "Unable to send the request.", false);
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.getElementById("staffTimeOffList")?.addEventListener("click", async e => {
+  const b = e.target.closest("[data-timeoff-cancel]");
+  if (!b) return;
+  b.disabled = true;
+  try {
+    await managerApi("session_leave_cancel", { leave_id: b.dataset.timeoffCancel });
+    await loadStaffTimeOff();
+  } catch (error) {
+    timeOffMessage(document.getElementById("staffTimeOffMessage"), error.message || "Unable to cancel.", false);
+    b.disabled = false;
+  }
+});
+
+// Show the "Time off" tab only when this server supports it (checked once per sign-in).
+async function probeStaffTimeOff() {
+  if (staffTimeOffProbed || !currentSessionToken) return;
+  staffTimeOffProbed = true;
+  try {
+    await managerApi("session_leave_list");
+    staffBottomNav?.querySelector('[data-staff-view="timeoff"]')?.classList.remove("hidden");
+    staffBottomNav?.classList.add("has-timeoff");
+  } catch (_) {
+    staffTimeOffProbed = false;
+  }
+}
+const homeScreenEl = document.getElementById("homeScreen");
+if (homeScreenEl) {
+  new MutationObserver(() => {
+    if (!homeScreenEl.classList.contains("hidden")) probeStaffTimeOff();
+    else staffTimeOffProbed = false;
+  }).observe(homeScreenEl, { attributes: true, attributeFilter: ["class"] });
+}
+
+/* manager side */
+let managerTimeOffForm = null;
+
+function timeOffItemHtml(r, buttons) {
+  return `<div class="timeoff-item">
+    <div class="timeoff-item-top">
+      <div><strong>${escapeHtml(r.name || "Staff")}</strong>
+        <div class="person-meta">${escapeHtml(TIMEOFF_LABEL[r.kind] || r.kind)} · ${escapeHtml(timeOffRange(r))}</div>
+        <div class="person-meta">${escapeHtml(r.department || "")}${r.note ? " · “" + escapeHtml(r.note) + "”" : ""}${r.requested_by_manager ? " · added by a manager" : ""}</div></div>
+      <span class="timeoff-status ${escapeHtml(r.status)}">${escapeHtml(TIMEOFF_STATUS[r.status] || r.status)}</span>
+    </div>
+    <div class="timeoff-actions">${buttons}</div>
+  </div>`;
+}
+
+async function loadManagerTimeOff() {
+  const msg = document.getElementById("timeOffMessage");
+  msg.className = "message";
+  msg.textContent = "";
+  if (!managerTimeOffForm) {
+    managerTimeOffForm = setupTimeOffForm("timeOffKind", "timeOffStart", "timeOffEnd", "timeOffEndWrap", "timeOffStartLabel");
+  }
+  try {
+    const data = await managerApi("manager_leave_list");
+    document.getElementById("timeOffLocation").textContent = data.location || "Hawthorne";
+    const pendingBox = document.getElementById("timeOffPending");
+    const upcomingBox = document.getElementById("timeOffUpcoming");
+    const pending = data.pending || [];
+    const upcoming = data.upcoming || [];
+    pendingBox.className = pending.length ? "" : "empty-state";
+    pendingBox.innerHTML = pending.length
+      ? pending.map(r => timeOffItemHtml(r,
+          `<button type="button" class="approve" data-timeoff-decide="APPROVE" data-id="${escapeHtml(r.id)}">Approve</button>
+           <button type="button" class="decline" data-timeoff-decide="DECLINE" data-id="${escapeHtml(r.id)}">Decline</button>`)).join("")
+      : "No requests waiting.";
+    upcomingBox.className = upcoming.length ? "" : "empty-state";
+    upcomingBox.innerHTML = upcoming.length
+      ? upcoming.map(r => timeOffItemHtml(r,
+          `<button type="button" class="decline" data-timeoff-decide="CANCEL" data-id="${escapeHtml(r.id)}">Cancel</button>`)).join("")
+      : "Nothing approved in the next months.";
+    const select = document.getElementById("timeOffPerson");
+    const keep = select.value;
+    select.innerHTML = `<option value="" disabled>Choose a person…</option>` +
+      (data.team || []).map(m =>
+        `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)} · ${escapeHtml(m.department)}</option>`).join("");
+    select.value = keep && (data.team || []).some(m => m.id === keep) ? keep : "";
+    const cardText = document.getElementById("timeOffCardText");
+    if (cardText) cardText.textContent = pending.length ? `${pending.length} waiting for you` : "Holidays and days off";
+  } catch (error) {
+    timeOffMessage(msg, error.message || "Unable to load time off.", false);
+  }
+}
+
+async function openTimeOffScreen() {
+  managerMoreScreen?.classList.add("hidden");
+  managerScreen.classList.add("hidden");
+  approvalsScreen.classList.add("hidden");
+  staffHoursScreen.classList.add("hidden");
+  teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
+  timesheetsScreen.classList.add("hidden");
+  devicesScreen?.classList.add("hidden");
+  timeOffScreen.classList.remove("hidden");
+  setManagerNavActive("more");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  await loadManagerTimeOff();
+}
+
+document.getElementById("timeOffCard")?.addEventListener("click", openTimeOffScreen);
+document.getElementById("moreTimeOffBtn")?.addEventListener("click", openTimeOffScreen);
+document.getElementById("backTimeOffBtn")?.addEventListener("click", async () => {
+  timeOffScreen.classList.add("hidden");
+  managerScreen.classList.remove("hidden");
+  setManagerNavActive("home");
+  await loadManagerDashboard();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+timeOffScreen?.addEventListener("click", async e => {
+  const b = e.target.closest("[data-timeoff-decide]");
+  if (!b) return;
+  const decision = b.dataset.timeoffDecide;
+  if (decision === "CANCEL" && !confirm("Cancel this approved time off?")) return;
+  b.disabled = true;
+  try {
+    await managerApi("manager_leave_decide", { leave_id: b.dataset.id, decision });
+    await loadManagerTimeOff();
+    timeOffMessage(document.getElementById("timeOffMessage"),
+      decision === "APPROVE" ? "Approved. It now shows on the roster." : decision === "DECLINE" ? "Declined." : "Cancelled.", true);
+  } catch (error) {
+    timeOffMessage(document.getElementById("timeOffMessage"), error.message || "Unable to update.", false);
+    b.disabled = false;
+  }
+});
+document.getElementById("timeOffAddBtn")?.addEventListener("click", async () => {
+  const msg = document.getElementById("timeOffAddMessage");
+  const req = managerTimeOffForm.read();
+  const staffId = document.getElementById("timeOffPerson").value;
+  if (!staffId) { timeOffMessage(msg, "Choose the person.", false); return; }
+  if (!req.start_date) { timeOffMessage(msg, "Choose the date.", false); return; }
+  if (req.end_date < req.start_date) { timeOffMessage(msg, "The end date is before the start.", false); return; }
+  const button = document.getElementById("timeOffAddBtn");
+  button.disabled = true;
+  try {
+    await managerApi("manager_leave_create", { staff_id: staffId, ...req, note: document.getElementById("timeOffNote").value });
+    document.getElementById("timeOffNote").value = "";
+    managerTimeOffForm.reset(false);
+    document.getElementById("timeOffPerson").value = "";
+    timeOffMessage(msg, "Added and approved.", true);
+    await loadManagerTimeOff();
+  } catch (error) {
+    timeOffMessage(msg, error.message || "Unable to add.", false);
+  } finally {
+    button.disabled = false;
+  }
+});
+// Any other manager navigation leaves the time-off screen.
+document.addEventListener("click", event => {
+  if (!timeOffScreen || timeOffScreen.classList.contains("hidden")) return;
+  const nav = event.target.closest("[data-manager-nav], .manager-quick-card, .more-v2-item, #managerLogoutBtn, #moreSignOutBtn");
+  if (nav && nav.id !== "timeOffCard" && nav.id !== "moreTimeOffBtn") timeOffScreen.classList.add("hidden");
+}, true);
+
 /* MANAGER V2 NAVIGATION */
 function setManagerNavActive(target = "home") {
   if (!managerBottomNav) return;
@@ -5167,6 +6058,8 @@ managerBottomNav?.addEventListener("click",event=>{
   if(target==="home"){
     approvalsScreen.classList.add("hidden");
     teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
+  timeOffScreen?.classList.add("hidden");
     staffHoursScreen.classList.add("hidden");
     timesheetsScreen.classList.add("hidden");
     managerMoreScreen?.classList.add("hidden");
@@ -5181,6 +6074,8 @@ managerBottomNav?.addEventListener("click",event=>{
     // Direct navigation fixes the Team → Approvals transition.
     managerScreen.classList.add("hidden");
     teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
+  timeOffScreen?.classList.add("hidden");
     staffHoursScreen.classList.add("hidden");
     timesheetsScreen.classList.add("hidden");
     managerMoreScreen?.classList.add("hidden");
@@ -5338,6 +6233,14 @@ async function signOutAll() {
 
   teamScreen
   .classList
+  .add("hidden");
+
+  rosterScreen
+  ?.classList
+  .add("hidden");
+
+  timeOffScreen
+  ?.classList
   .add("hidden");
 
   timesheetsScreen

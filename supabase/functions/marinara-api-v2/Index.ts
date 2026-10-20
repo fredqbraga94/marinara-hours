@@ -326,9 +326,182 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   CANNOT_DEACTIVATE_SELF: [400, "You cannot deactivate your own manager account"],
   INVALID_ROLE: [400, "Invalid account role"],
   DEVICE_NOT_FOUND: [404, "Device not found"],
+  ON_LEAVE: [409, "This person is on approved leave that day."],
+  LEAVE_OVERLAP: [409, "There is already a request for some of these days."],
+  LEAVE_NOT_FOUND: [404, "Request not found"],
+  LEAVE_NOT_PENDING: [409, "This request was already decided."],
+  LEAVE_IN_PAST: [400, "Choose a date from today onwards."],
+  LEAVE_NOT_CANCELLABLE: [409, "This request can no longer be cancelled."],
   TOO_MANY_ACTIVE_CODES: [429, "Too many unused device codes. Wait for them to expire."],
   INVALID_INPUT: [400, "Invalid request"],
 };
+
+// VISA-HOURS-START
+// Student visa (subclass 500, condition 8105): at most 48 worked hours per
+// fortnight while the course is in session. A fortnight is 14 days starting
+// on a Monday, and every Monday starts one, so any two consecutive Mon-Sun
+// weeks must stay within 48h. This counts worked time (breaks removed) from
+// Monday 00:00 of LAST week (Brisbane time) up to `now`, i.e. last week +
+// this week so far, including a shift still in progress. Only this
+// workplace's hours are known; other jobs also count toward the limit.
+const VISA_LIMIT_HOURS = 48;
+const VISA_WINDOW_DAYS = 14;
+const BRISBANE_OFFSET_MS = 10 * 60 * 60 * 1000; // UTC+10, no daylight saving
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function visaFortnightStart(now: number) {
+  const local = now + BRISBANE_OFFSET_MS;
+  const localMidnight = Math.floor(local / DAY_MS) * DAY_MS;
+  const daysSinceMonday = (new Date(localMidnight).getUTCDay() + 6) % 7;
+  const thisMonday = localMidnight - daysSinceMonday * DAY_MS;
+  return thisMonday - 7 * DAY_MS - BRISBANE_OFFSET_MS;
+}
+
+function computeVisaHours(visaStaff: any[], shifts: any[], now: number) {
+  const windowStart = visaFortnightStart(now);
+  const windowEnd = windowStart + VISA_WINDOW_DAYS * DAY_MS;
+  const overlap = (start: number, end: number) =>
+    Math.max(0, Math.min(end, now) - Math.max(start, windowStart));
+
+  const minutesByStaff: Record<string, number> = {};
+  for (const shift of shifts || []) {
+    if (!shift || !shift.clock_in) continue;
+    const start = new Date(shift.clock_in).getTime();
+    const end = shift.clock_out ? new Date(shift.clock_out).getTime() : now;
+    let worked = overlap(start, end);
+    for (const b of shift.breaks || []) {
+      if (!b || !b.break_start) continue;
+      const bs = Math.max(new Date(b.break_start).getTime(), start);
+      const be = Math.min(b.break_end ? new Date(b.break_end).getTime() : now, end);
+      if (be > bs) worked -= overlap(bs, be);
+    }
+    minutesByStaff[shift.staff_id] =
+      (minutesByStaff[shift.staff_id] || 0) + Math.max(0, worked) / 60000;
+  }
+
+  return (visaStaff || []).map((m: any) => {
+    const hours = Math.round(((minutesByStaff[m.id] || 0) / 60) * 100) / 100;
+    return {
+      staff_id: m.id,
+      hours_14d: hours,
+      limit_hours: VISA_LIMIT_HOURS,
+      remaining_hours: Math.max(0, Math.round((VISA_LIMIT_HOURS - hours) * 100) / 100),
+      course_break: !!m.visa_course_break,
+      window_start: new Date(windowStart).toISOString(),
+      window_end: new Date(windowEnd).toISOString(),
+    };
+  });
+}
+// VISA-HOURS-END
+
+// ROSTER-HOURS-START
+// Planned hours from the roster. Kitchen cells are L / D / LD, turned into
+// hours with the unit's usual service times; Floor cells are SHIFT with a
+// start and end (an end not after the start finishes the next day). OFF = 0.
+function hmToMinutes(hm: string | null | undefined) {
+  const m = /^(\d{1,2}):(\d{2})/.exec(String(hm || ""));
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+function spanMinutes(start: string | null | undefined, end: string | null | undefined) {
+  const s = hmToMinutes(start);
+  const e = hmToMinutes(end);
+  if (s === null || e === null || s === e) return 0;
+  return e > s ? e - s : e + 24 * 60 - s;
+}
+
+function plannedMinutes(entry: any, department: string, services: any[]) {
+  if (!entry || !entry.code || entry.code === "OFF") return 0;
+  if (entry.code === "SHIFT") return spanMinutes(entry.start_time, entry.end_time);
+  const svc = (name: string) => {
+    const s = (services || []).find((x: any) => x.department === department && x.service === name);
+    return s ? spanMinutes(s.start_time, s.end_time) : 0;
+  };
+  if (entry.code === "L") return svc("L");
+  if (entry.code === "D") return svc("D");
+  if (entry.code === "LD") return svc("L") + svc("D");
+  return 0;
+}
+
+function brisbaneDayStart(dateStr: string) {
+  return Date.parse(`${dateStr}T00:00:00+10:00`);
+}
+
+function addDays(dateStr: string, days: number) {
+  return new Date(brisbaneDayStart(dateStr) + days * DAY_MS + BRISBANE_OFFSET_MS)
+    .toISOString().slice(0, 10);
+}
+
+// Hours per person for the roster week starting `weekStart` (a Monday):
+// planned hours for everyone, and for student-visa staff the fortnight
+// "previous week + this week" against 48h. Days already over use the hours
+// actually worked (time clock, breaks removed); today and later use the
+// roster (today: whichever is higher).
+function computeRosterHours(
+  team: any[], entries: any[], shifts: any[], services: any[], weekStart: string, now: number
+) {
+  const byCell: Record<string, any> = {};
+  for (const e of entries || []) byCell[`${e.staff_id}|${e.work_date}`] = e;
+
+  const workedByDay = (staffId: string, dayStart: number) => {
+    const dayEnd = dayStart + DAY_MS;
+    const clip = (a: number, b: number) =>
+      Math.max(0, Math.min(b, dayEnd, now) - Math.max(a, dayStart));
+    let ms = 0;
+    for (const s of shifts || []) {
+      if (s.staff_id !== staffId || !s.clock_in) continue;
+      const a = new Date(s.clock_in).getTime();
+      const b = s.clock_out ? new Date(s.clock_out).getTime() : now;
+      let w = clip(a, b);
+      for (const br of s.breaks || []) {
+        if (!br || !br.break_start) continue;
+        const ba = Math.max(new Date(br.break_start).getTime(), a);
+        const bb = Math.min(br.break_end ? new Date(br.break_end).getTime() : now, b);
+        if (bb > ba) w -= clip(ba, bb);
+      }
+      ms += Math.max(0, w);
+    }
+    return ms / 60000;
+  };
+
+  const r2 = (minutes: number) => Math.round((minutes / 60) * 100) / 100;
+  const planned: Record<string, number> = {};
+  const visa: any[] = [];
+
+  for (const m of team || []) {
+    let weekPlanned = 0;
+    for (let i = 0; i < 7; i++) {
+      weekPlanned += plannedMinutes(byCell[`${m.id}|${addDays(weekStart, i)}`], m.department, services);
+    }
+    planned[m.id] = r2(weekPlanned);
+
+    if (!m.student_visa) continue;
+    let prev = 0;
+    let cur = 0;
+    for (let i = -7; i < 7; i++) {
+      const date = addDays(weekStart, i);
+      const dayStart = brisbaneDayStart(date);
+      const plan = plannedMinutes(byCell[`${m.id}|${date}`], m.department, services);
+      let minutes: number;
+      if (dayStart + DAY_MS <= now) minutes = workedByDay(m.id, dayStart);
+      else if (dayStart > now) minutes = plan;
+      else minutes = Math.max(plan, workedByDay(m.id, dayStart));
+      if (i < 0) prev += minutes; else cur += minutes;
+    }
+    const total = r2(prev + cur);
+    visa.push({
+      staff_id: m.id,
+      prev_week_hours: r2(prev),
+      week_hours: r2(cur),
+      fortnight_hours: total,
+      limit_hours: VISA_LIMIT_HOURS,
+      over: !m.visa_course_break && total > VISA_LIMIT_HOURS,
+      course_break: !!m.visa_course_break,
+    });
+  }
+  return { planned_hours: planned, visa };
+}
+// ROSTER-HOURS-END
 
 function managerDbError(error: any, fallback: string, fallbackStatus = 400) {
   const code = dbErrorCode(error);
@@ -613,6 +786,60 @@ Deno.serve(async (req) => {
 
     // STAFF MY HOURS:
     // Secure weekly history for the currently signed-in staff member only.
+    // STAFF TIME OFF: own holiday / day-off requests (session required).
+    if (
+      action === "session_leave_list" ||
+      action === "session_leave_request" ||
+      action === "session_leave_cancel"
+    ) {
+      try {
+        const token =
+          typeof body.token === "string" ? body.token.trim() : "";
+        const sessionResult =
+          await validateStaffSession(supabase, token, deviceHash);
+        if (!sessionResult.ok) {
+          return json({ success: false, action, error: sessionResult.error }, 401);
+        }
+        const staffId = sessionResult.staff.id;
+        const isDate = (v: unknown) =>
+          typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.trim());
+
+        if (action === "session_leave_request") {
+          const kind = typeof body.kind === "string" ? body.kind.trim().toUpperCase() : "";
+          const start = typeof body.start_date === "string" ? body.start_date.trim() : "";
+          const end = typeof body.end_date === "string" && body.end_date.trim() ? body.end_date.trim() : start;
+          const note = typeof body.note === "string" ? body.note.trim().slice(0, 200) : "";
+          if (!["HOLIDAY", "DAY_OFF"].includes(kind) || !isDate(start) || !isDate(end)) {
+            return json({ error: "Choose the type and the dates.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("staff_leave_request", {
+            p_staff_id: staffId, p_kind: kind, p_start: start, p_end: end, p_note: note || null,
+          });
+          if (error) return managerDbError(error, "Unable to send the request");
+          return json({ success: true, action, data: { request: data } });
+        }
+
+        if (action === "session_leave_cancel") {
+          const leaveId = typeof body.leave_id === "string" ? body.leave_id.trim() : "";
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leaveId)) {
+            return json({ error: "Request not found", code: "LEAVE_NOT_FOUND" }, 404);
+          }
+          const { data, error } = await supabase.rpc("staff_leave_cancel", {
+            p_staff_id: staffId, p_leave_id: leaveId,
+          });
+          if (error) return managerDbError(error, "Unable to cancel the request");
+          return json({ success: true, action, data: { request: data } });
+        }
+
+        const { data, error } = await supabase.rpc("staff_leave_list", { p_staff_id: staffId });
+        if (error) return managerDbError(error, "Unable to load your requests", 500);
+        return json({ success: true, action, data: { requests: data || [] } });
+      } catch (error) {
+        console.error("Staff leave error:", (error as any)?.code || "");
+        return json({ error: "Unable to complete the request" }, 500);
+      }
+    }
+
     if (action === "session_my_hours") {
       try {
         const token =
@@ -972,6 +1199,12 @@ Deno.serve(async (req) => {
         "manager_device_unlock",
         "manager_device_rename",
         "manager_auth_mode",
+        "manager_set_student_visa",
+        "manager_roster_week",
+        "manager_roster_set",
+        "manager_leave_list",
+        "manager_leave_decide",
+        "manager_leave_create",
       ]);
 
     if (!managerActions.has(action)) {
@@ -1112,7 +1345,9 @@ Deno.serve(async (req) => {
             role,
             active,
             created_at,
-            pin_conflict_at
+            pin_conflict_at,
+            student_visa,
+            visa_course_break
           `)
           .eq(
             "location",
@@ -1147,6 +1382,61 @@ Deno.serve(async (req) => {
 
       // General Manager keeps the full Hawthorne team view.
       return team;
+    }
+
+
+    // =========================
+    // PUBLIC HOLIDAYS
+    // =========================
+    // Queensland holidays from the public_holidays table. Every unit is in the
+    // Brisbane area, so Brisbane-only days (Ekka) count too. If the table is
+    // missing (older database), the app simply shows no holidays.
+    async function loadPublicHolidays(fromDate: string, toDate: string) {
+      const { data, error } = await supabase
+        .from("public_holidays")
+        .select("holiday_date, name, region, part_day")
+        .gte("holiday_date", fromDate)
+        .lte("holiday_date", toDate)
+        .order("holiday_date", { ascending: true });
+      if (error) {
+        console.error("Public holidays error:", error.code || "");
+        return [];
+      }
+      return data || [];
+    }
+
+    // =========================
+    // STUDENT VISA HOURS
+    // =========================
+
+    async function loadVisaHours(team: any[]) {
+      const visaStaff = (team || []).filter((m: any) => m.student_visa && m.active);
+      if (!visaStaff.length) return [];
+
+      const now = Date.now();
+      // One extra day back so a shift that started before the fortnight and
+      // finished inside it is still counted (only the part inside).
+      const fetchFrom = new Date(visaFortnightStart(now) - DAY_MS).toISOString();
+
+      const { data, error } = await supabase
+        .from("shifts")
+        .select(`
+          staff_id,
+          clock_in,
+          clock_out,
+          breaks (
+            break_start,
+            break_end
+          )
+        `)
+        .in("staff_id", visaStaff.map((m: any) => m.id))
+        .gte("clock_in", fetchFrom);
+
+      if (error) {
+        throw error;
+      }
+
+      return computeVisaHours(visaStaff, data || [], now);
     }
 
 
@@ -2241,6 +2531,238 @@ Deno.serve(async (req) => {
 
       if (
         action ===
+        "manager_set_student_visa"
+      ) {
+        const staffId =
+          typeof body.staff_id === "string" ? body.staff_id.trim() : "";
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(staffId)) {
+          return json({ error: "Staff member not found" }, 404);
+        }
+        if (typeof body.student_visa !== "boolean") {
+          return json({ error: "student_visa must be true or false" }, 400);
+        }
+        const { data: visa, error: visaError } = await supabase.rpc(
+          "manager_set_student_visa_audited",
+          {
+            p_manager_id: managerStatus.id,
+            p_staff_id: staffId,
+            p_student_visa: body.student_visa,
+            p_course_break: body.course_break === true,
+          }
+        );
+        if (visaError) {
+          const code = dbErrorCode(visaError);
+          if (["DEPARTMENT_DENIED", "STAFF_NOT_FOUND"].includes(code)) {
+            return managerDbError(visaError, "Unable to update visa details");
+          }
+          console.error("Student visa error:", visaError.code || "");
+          return json({ error: "Unable to update visa details" }, 400);
+        }
+        return json({ success: true, action, data: { staff: visa } });
+      }
+
+      if (
+        action ===
+        "manager_roster_week"
+      ) {
+        const requested =
+          typeof body.week_start === "string" ? body.week_start.trim() : "";
+        const weekStart = requested || getBrisbaneWeekRange().week_start_date;
+        if (
+          !/^\d{4}-\d{2}-\d{2}$/.test(weekStart) ||
+          new Date(`${weekStart}T00:00:00Z`).getUTCDay() !== 1
+        ) {
+          return json({ error: "Week must start on a Monday", code: "INVALID_INPUT" }, 400);
+        }
+        const prevStart = addDays(weekStart, -7);
+
+        const [thisWeek, prevWeek] = await Promise.all([
+          supabase.rpc("manager_roster_week", {
+            p_manager_id: managerStatus.id, p_location: location, p_week_start: weekStart,
+          }),
+          supabase.rpc("manager_roster_week", {
+            p_manager_id: managerStatus.id, p_location: location, p_week_start: prevStart,
+          }),
+        ]);
+        if (thisWeek.error || prevWeek.error) {
+          return managerDbError(thisWeek.error || prevWeek.error, "Unable to load the roster", 500);
+        }
+
+        const team = (await loadTeam()).filter((m: any) => m.active);
+        const visaIds = team.filter((m: any) => m.student_visa).map((m: any) => m.id);
+
+        let shifts: any[] = [];
+        if (visaIds.length) {
+          const { data: shiftRows, error: shiftError } = await supabase
+            .from("shifts")
+            .select(`
+              staff_id,
+              clock_in,
+              clock_out,
+              breaks (
+                break_start,
+                break_end
+              )
+            `)
+            .in("staff_id", visaIds)
+            .gte("clock_in", new Date(brisbaneDayStart(prevStart) - DAY_MS).toISOString())
+            .lt("clock_in", new Date(brisbaneDayStart(weekStart) + 7 * DAY_MS).toISOString());
+          if (shiftError) throw shiftError;
+          shifts = shiftRows || [];
+        }
+
+        const services = thisWeek.data?.services || [];
+        const holidays = await loadPublicHolidays(weekStart, addDays(weekStart, 6));
+        const entries = thisWeek.data?.entries || [];
+        const hours = computeRosterHours(
+          team,
+          [...(prevWeek.data?.entries || []), ...entries],
+          shifts,
+          services,
+          weekStart,
+          Date.now()
+        );
+
+        return json({
+          success: true,
+          action,
+          data: {
+            manager: managerStatus,
+            location: thisWeek.data?.location || location,
+            week_start: weekStart,
+            team: team.map((m: any) => ({
+              id: m.id,
+              name: m.name,
+              department: m.department,
+              role: m.role,
+              student_visa: !!m.student_visa,
+              visa_course_break: !!m.visa_course_break,
+            })),
+            entries,
+            services,
+            leave: thisWeek.data?.leave || [],
+            holidays,
+            planned_hours: hours.planned_hours,
+            visa: hours.visa,
+          },
+        });
+      }
+
+      if (
+        action ===
+        "manager_roster_set"
+      ) {
+        const staffId =
+          typeof body.staff_id === "string" ? body.staff_id.trim() : "";
+        const workDate =
+          typeof body.work_date === "string" ? body.work_date.trim() : "";
+        const code =
+          typeof body.code === "string" ? body.code.trim().toUpperCase() : "";
+        const startTime =
+          typeof body.start_time === "string" ? body.start_time.trim() : "";
+        const endTime =
+          typeof body.end_time === "string" ? body.end_time.trim() : "";
+
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(staffId)) {
+          return json({ error: "Staff member not found" }, 404);
+        }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate)) {
+          return json({ error: "Invalid date", code: "INVALID_INPUT" }, 400);
+        }
+        if (code && !["L", "D", "LD", "OFF", "SHIFT"].includes(code)) {
+          return json({ error: "Invalid roster code", code: "INVALID_INPUT" }, 400);
+        }
+        const timeOk = (t: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+        if (code === "SHIFT" && (!timeOk(startTime) || !timeOk(endTime) || startTime === endTime)) {
+          return json({ error: "Enter a start and finish time", code: "INVALID_INPUT" }, 400);
+        }
+
+        const { data: cell, error: cellError } = await supabase.rpc("manager_roster_set", {
+          p_manager_id: managerStatus.id,
+          p_staff_id: staffId,
+          p_work_date: workDate,
+          p_code: code || null,
+          p_start: code === "SHIFT" ? startTime : null,
+          p_end: code === "SHIFT" ? endTime : null,
+        });
+        if (cellError) {
+          return managerDbError(cellError, "Unable to save the roster");
+        }
+        return json({ success: true, action, data: { cell } });
+      }
+
+      if (
+        action === "manager_leave_list" ||
+        action === "manager_leave_decide" ||
+        action === "manager_leave_create"
+      ) {
+        const isUuid = (v: string) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+        if (action === "manager_leave_decide") {
+          const leaveId = typeof body.leave_id === "string" ? body.leave_id.trim() : "";
+          const decision = typeof body.decision === "string" ? body.decision.trim().toUpperCase() : "";
+          if (!isUuid(leaveId) || !["APPROVE", "DECLINE", "CANCEL"].includes(decision)) {
+            return json({ error: "Invalid request", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_leave_decide", {
+            p_manager_id: managerStatus.id, p_leave_id: leaveId, p_decision: decision,
+          });
+          if (error) return managerDbError(error, "Unable to update the request");
+          return json({ success: true, action, data: { request: data } });
+        }
+
+        if (action === "manager_leave_create") {
+          const staffId = typeof body.staff_id === "string" ? body.staff_id.trim() : "";
+          const kind = typeof body.kind === "string" ? body.kind.trim().toUpperCase() : "";
+          const start = typeof body.start_date === "string" ? body.start_date.trim() : "";
+          const end = typeof body.end_date === "string" && body.end_date.trim() ? body.end_date.trim() : start;
+          const note = typeof body.note === "string" ? body.note.trim().slice(0, 200) : "";
+          if (!isUuid(staffId) || !["HOLIDAY", "DAY_OFF"].includes(kind) || !isDate(start) || !isDate(end)) {
+            return json({ error: "Choose the person, the type and the dates.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_leave_create", {
+            p_manager_id: managerStatus.id, p_staff_id: staffId, p_kind: kind,
+            p_start: start, p_end: end, p_note: note || null,
+          });
+          if (error) return managerDbError(error, "Unable to add the time off");
+          return json({ success: true, action, data: { request: data } });
+        }
+
+        // List: everything pending, plus pending/approved from today for 120 days.
+        const today = new Date(Date.now() + BRISBANE_OFFSET_MS).toISOString().slice(0, 10);
+        const until = new Date(Date.parse(`${today}T00:00:00Z`) + 120 * DAY_MS).toISOString().slice(0, 10);
+        const [pending, upcoming] = await Promise.all([
+          supabase.rpc("manager_leave_list", {
+            p_manager_id: managerStatus.id, p_location: location, p_from: null, p_to: null,
+          }),
+          supabase.rpc("manager_leave_list", {
+            p_manager_id: managerStatus.id, p_location: location, p_from: today, p_to: until,
+          }),
+        ]);
+        if (pending.error || upcoming.error) {
+          return managerDbError(pending.error || upcoming.error, "Unable to load time off", 500);
+        }
+        const team = (await loadTeam())
+          .filter((m: any) => m.active)
+          .map((m: any) => ({ id: m.id, name: m.name, department: m.department, role: m.role }));
+        return json({
+          success: true,
+          action,
+          data: {
+            manager: managerStatus,
+            location,
+            today,
+            pending: pending.data || [],
+            upcoming: (upcoming.data || []).filter((r: any) => r.status === "APPROVED"),
+            team,
+          },
+        });
+      }
+
+      if (
+        action ===
         "manager_toggle_staff"
       ) {
         const staffId =
@@ -2369,8 +2891,10 @@ Deno.serve(async (req) => {
             manager:
               managerStatus,
 
-            team:
-              await loadTeam(),
+            ...(await (async () => {
+              const team = await loadTeam();
+              return { team, visa_hours: await loadVisaHours(team) };
+            })()),
           },
         });
       }
@@ -2465,6 +2989,15 @@ Deno.serve(async (req) => {
           working,
 
           hours,
+
+          visa_hours:
+            await loadVisaHours(team),
+
+          upcoming_holidays:
+            await (async () => {
+              const today = new Date(Date.now() + BRISBANE_OFFSET_MS).toISOString().slice(0, 10);
+              return loadPublicHolidays(today, addDays(today, 14));
+            })(),
 
           counts: {
 

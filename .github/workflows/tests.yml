@@ -32,6 +32,17 @@ jobs:
           node-version: 22
       - run: npm install --no-audit --no-fund
       - run: npm run test:integration
+  features:
+    # Student visa, roster, time off, public holidays: migrations, both servers, rollback.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --no-audit --no-fund
+      - run: npm run test:visa
+      - run: npm run test:features
   browser:
     runs-on: ubuntu-latest
     steps:
