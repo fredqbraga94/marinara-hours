@@ -1057,6 +1057,13 @@ button{cursor:pointer}
 .roster-legend i{display:inline-block;width:12px;height:12px;border-radius:4px}
 .roster-sheet-note{padding:10px 12px;border-radius:12px;background:#f1eefb;color:#5b4ba8;font-size:13px;font-weight:700;margin-bottom:12px}
 .roster-sheet-note.pending{background:#fff6dc;color:#8a5a00}
+/* PUBLIC HOLIDAYS */
+.ph-notice{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:16px;background:#fff4e5;border:1px solid #f3d3a6;color:#7a4b00;font-size:13px;line-height:1.4;margin-bottom:12px}
+.ph-notice strong{display:block;font-size:14px;color:#5e3a00}
+.ph-notice .ph-icon{flex:0 0 auto;padding:2px 6px;border-radius:7px;background:#fde7c7;color:#8a4b00;font-size:11px;font-weight:900;line-height:1.4;margin-top:1px}
+.roster-grid th.roster-ph{color:#b45309}
+.roster-grid th.roster-ph .ph-tag{display:inline-block;margin-top:2px;padding:0 4px;border-radius:5px;background:#fde7c7;color:#8a4b00;font-size:9px;font-weight:900}
+.roster-grid td.roster-ph-col{background:#fffaf2}
 /* TIME OFF */
 .staff-bottom-nav.has-timeoff{grid-template-columns:repeat(4,1fr)}
 .timeoff-kind{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
@@ -1266,6 +1273,7 @@ button:disabled{opacity:.6}
     </div><p id="managerLocation" class="hidden">Hawthorne</p>
   </div>
   <div id="managerMessage" class="message"></div>
+  <div id="managerHolidayNotice"></div>
   <div class="summary-grid">
     <div class="summary-card"><div id="workingNowCount" class="summary-number">0</div><div class="summary-label">Working Now</div><div class="manager-summary-sub">Currently on shift</div></div>
     <div class="summary-card"><div id="pendingCount" class="summary-number">0</div><div class="summary-label">Pending Approvals</div><div class="manager-summary-sub">Needs your review</div></div>
@@ -1416,6 +1424,7 @@ button:disabled{opacity:.6}
     </div>
     <div id="rosterTabs" class="roster-tabs"></div>
     <div id="rosterMessage" class="message"></div>
+    <div id="rosterHolidayNotice"></div>
     <div id="rosterGridBox" class="empty-state">Loading roster...</div>
   </div>
   <div id="rosterVisaCard" class="card hidden">
@@ -2746,6 +2755,11 @@ async function loadManagerDashboard() {
     if (managerGreeting) managerGreeting.textContent = greeting + ", " + firstName;
     const roleLabel = currentManagerRole === "kitchen_manager" ? "Kitchen Manager" : currentManagerRole === "floor_manager" ? "Floor Manager" : "Administrator";
     if (managerRoleLine) managerRoleLine.textContent = roleLabel + " · " + (dashboard.location || "Hawthorne");
+    const holidayNotice = document.getElementById("managerHolidayNotice");
+    if (holidayNotice) {
+      const upcoming = dashboard.upcoming_holidays || [];
+      holidayNotice.innerHTML = holidayNoticeHtml(upcoming, upcoming.length > 1 ? "Public holidays coming up" : "Public holiday coming up");
+    }
 
     const counts =
       dashboard.counts || {};
@@ -5396,6 +5410,27 @@ function openManagerMore() {
   window.scrollTo({top:0,behavior:"smooth"});
 }
 
+/* PUBLIC HOLIDAYS */
+// Queensland public holidays (and Brisbane's Ekka) come from the server.
+function holidayDayLabel(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  return new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(d);
+}
+
+function holidayNoticeHtml(holidays, title) {
+  if (!holidays || !holidays.length) return "";
+  const today = brisbaneTodayInput();
+  const lines = holidays.map(h => {
+    const days = Math.round((Date.parse(h.holiday_date) - Date.parse(today)) / 86400000);
+    const when = days === 0 ? "today" : days === 1 ? "tomorrow" : days > 1 ? `in ${days} days` : "";
+    return `${escapeHtml(holidayDayLabel(h.holiday_date))} — ${escapeHtml(h.name)}` +
+      (h.part_day ? ` (${escapeHtml(h.part_day)})` : "") +
+      (h.region === "BRISBANE" ? " · Brisbane only" : "") +
+      (when ? ` · ${when}` : "");
+  });
+  return `<div class="ph-notice"><span class="ph-icon">PH</span><div><strong>${escapeHtml(title)}</strong>${lines.join("<br>")}<br><span style="opacity:.8">Public holiday pay rates apply. Plan the roster for it.</span></div></div>`;
+}
+
 /* ROSTER */
 // Paper-style weekly roster. Kitchen cells: L, D, L/D, Off. Floor cells: a
 // start and finish time (e.g. 17:00-21:00), or Off. The server checks every
@@ -5512,6 +5547,10 @@ function renderRoster() {
   const visaById = {};
   (data.visa || []).forEach(v => { visaById[v.staff_id] = v; });
   const days = ROSTER_DAYS.map((_, i) => rosterAddDays(week, i));
+  const holidayByDate = {};
+  (data.holidays || []).forEach(h => { (holidayByDate[h.holiday_date] = holidayByDate[h.holiday_date] || []).push(h); });
+  const holidayBox = document.getElementById("rosterHolidayNotice");
+  if (holidayBox) holidayBox.innerHTML = holidayNoticeHtml(data.holidays || [], (data.holidays || []).length > 1 ? "Public holidays this week" : "Public holiday this week");
 
   const box = document.getElementById("rosterGridBox");
   if (!people.length) {
@@ -5522,14 +5561,14 @@ function renderRoster() {
     box.innerHTML = `
       <table class="roster-grid">
         <thead><tr><th></th>${days.map((d, i) =>
-          `<th class="${d === today ? "roster-today" : ""}">${ROSTER_DAYS[i]}<br>${escapeHtml(rosterShortDate(d))}</th>`
+          `<th class="${d === today ? "roster-today" : ""} ${holidayByDate[d] ? "roster-ph" : ""}" ${holidayByDate[d] ? `title="${escapeHtml(holidayByDate[d].map(h => h.name).join(", "))}"` : ""}>${ROSTER_DAYS[i]}<br>${escapeHtml(rosterShortDate(d))}${holidayByDate[d] ? `<br><span class="ph-tag">PH</span>` : ""}</th>`
         ).join("")}</tr></thead>
         <tbody>${people.map(m => {
           const v = visaById[m.id];
           const dot = v ? `<span class="roster-visa-dot ${rosterVisaLevel(v)}"></span>` : "";
           return `<tr>
             <td><div class="roster-name">${dot}${escapeHtml(m.name)}<small>${escapeHtml(rosterHours(data.planned_hours?.[m.id]))}</small></div></td>
-            ${days.map(d => `<td>${rosterCellHtml(cells[`${m.id}|${d}`], m.id, d, leaveCells[`${m.id}|${d}`])}</td>`).join("")}
+            ${days.map(d => `<td class="${holidayByDate[d] ? "roster-ph-col" : ""}">${rosterCellHtml(cells[`${m.id}|${d}`], m.id, d, leaveCells[`${m.id}|${d}`])}</td>`).join("")}
           </tr>`;
         }).join("")}</tbody>
       </table>
