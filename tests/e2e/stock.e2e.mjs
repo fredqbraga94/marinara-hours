@@ -21,12 +21,17 @@ const STOCK = "supabase/migrations/20261021000000_stock_par.sql";
 
 let failures = 0;
 const log = (...a) => console.log(...a);
+// In GitHub Actions, failures are also written as annotations (readable without the raw log).
+const gha = (level, title, msg) => {
+  if (process.env.GITHUB_ACTIONS) console.log(`::${level} title=${title.replace(/[:,\n]/g, " ").slice(0, 120)}::${String(msg).replace(/\r?\n/g, " | ").slice(0, 900)}`);
+};
 async function check(name, fn) {
   try {
     const note = await fn();
     log(`  ✔ ${name}${note ? `\n      ${note}` : ""}`);
   } catch (e) {
     failures++;
+    gha("error", `${ENGINE}: ${name}`, e?.stack || e);
     log(`  ✖ ${name}\n      ${String(e?.stack || e).split("\n").slice(0, 6).join("\n      ")}`);
   }
 }
