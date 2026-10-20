@@ -2798,8 +2798,19 @@ Deno.serve(async (req) => {
       }
 
       // =========================
-      // AUTHORISED DEVICES (managers)
+      // AUTHORISED DEVICES (Administrator only, owner's decision 2026-10-20)
       // =========================
+
+      if (
+        (action === "manager_devices" ||
+          action === "manager_device_code" ||
+          action === "manager_device_revoke" ||
+          action === "manager_device_unlock" ||
+          action === "manager_device_rename") &&
+        !isGeneralManager
+      ) {
+        return json({ error: "Only the Administrator can manage devices", code: "GM_REQUIRED" }, 403);
+      }
 
       if (action === "manager_devices") {
         const { data, error } = await supabase.rpc("auth_list_devices", {

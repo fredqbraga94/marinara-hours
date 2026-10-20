@@ -5407,6 +5407,8 @@ function openManagerMore() {
   if (moreManagerAvatar) moreManagerAvatar.textContent = String(name).trim().charAt(0).toUpperCase() || "M";
   if (moreManagerRole) moreManagerRole.textContent = roleLabel + " · Hawthorne";
   moreManagersBtn?.classList.toggle("hidden", currentManagerRole !== "manager");
+  // Devices: Administrator only (the server refuses everyone else too).
+  document.getElementById("moreDevicesBtn")?.classList.toggle("hidden", currentManagerRole !== "manager");
 
   setManagerNavActive("more");
   window.scrollTo({top:0,behavior:"smooth"});
@@ -6486,6 +6488,7 @@ async function loadDevices() {
 }
 
 function openDevices() {
+  if (currentManagerRole !== "manager") return;
   managerMoreScreen?.classList.add("hidden");
   managerScreen.classList.add("hidden");
   deviceCodeBox.classList.add("hidden");

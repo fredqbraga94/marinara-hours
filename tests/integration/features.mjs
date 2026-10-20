@@ -253,6 +253,28 @@ try {
     return "request 200; overlap 409; kitchen manager sees 0 and gets 403; floor manager approves; roster ON_LEAVE 409";
   });
 
+  await check("devices: Administrator only (list, code, name, remove); others get 403", async () => {
+    const g = await api(vNew, 1, gm, { action: "manager_devices" });
+    assert.equal(g.status, 200, JSON.stringify(g.body));
+    const tablet = g.body.data.devices.find((d) => !d.is_current);
+    const named = await api(vNew, 1, gm, { action: "manager_device_rename", device_id: tablet.id, label: "Restaurant tablet" });
+    assert.equal(named.status, 200, JSON.stringify(named.body));
+    const statuses = [];
+    for (const [n, t] of [[2, km], [3, fm]]) {
+      for (const body of [{ action: "manager_devices" }, { action: "manager_device_code" },
+        { action: "manager_device_rename", device_id: tablet.id, label: "x" },
+        { action: "manager_device_revoke", device_id: tablet.id }, { action: "manager_device_unlock", device_id: tablet.id }]) {
+        const r = await api(vNew, n, t, body);
+        statuses.push(r.status);
+        assert.equal(r.status, 403, `${n} ${body.action}: ${JSON.stringify(r.body)}`);
+      }
+    }
+    const label = await one(db, `select label from public.auth_devices where id = '${tablet.id}'`);
+    const revoked = await one(db, `select count(*) from public.auth_devices where status = 'revoked'`);
+    assert.equal(label, "Restaurant tablet"); assert.equal(Number(revoked), 0);
+    return `administrator 200 (named "${label}"); kitchen/floor managers: ${statuses.length} calls, all 403; nothing changed by them`;
+  });
+
   await check("public holidays: Christmas week on the roster", async () => {
     const r = await api(vNew, 1, gm, { action: "manager_roster_week", week_start: "2026-12-21" });
     assert.deepEqual(r.body.data.holidays.map((h) => h.holiday_date), ["2026-12-24", "2026-12-25", "2026-12-26"]);
