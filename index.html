@@ -1160,6 +1160,7 @@ button{cursor:pointer}
 button:disabled{opacity:.6}
 </style>
 <script defer src="./timesheet-pdf.js"></script>
+<script defer src="./stock-pdf.js"></script>
 </head>
 
 <body>
@@ -1562,7 +1563,7 @@ button:disabled{opacity:.6}
     </div>
   </div>
   <div id="stockOrderView" class="hidden">
-    <div class="card"><div class="section-title">To order</div><div id="stockOrderList" class="empty-state">No count saved yet.</div></div>
+    <div class="card"><div class="manager-v2-section-head"><div class="section-title">To order</div><button id="stockPdfBtn" class="manager-v2-link hidden" type="button">Export PDF</button></div><div id="stockOrderList" class="empty-state">No count saved yet.</div></div>
   </div>
   <div id="stockEditView" class="hidden">
     <div id="stockFormCard" class="card stock-form hidden">
@@ -6354,6 +6355,7 @@ function stockOrderText(supplier, lines) {
 function stockRenderOrder() {
   const box = document.getElementById("stockOrderList");
   const last = stockState.data?.last_count;
+  document.getElementById("stockPdfBtn")?.classList.toggle("hidden", !last);
   if (!last) { box.className = "empty-state"; box.textContent = "No count saved yet. Count first, then save."; return; }
   const when = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Brisbane", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(last.counted_at));
   const lines = last.lines || [];
@@ -6637,6 +6639,54 @@ document.getElementById("stockSaveBtn")?.addEventListener("click", async () => {
   } catch (error) {
     stockMsg(msg, error.message || "Unable to save the count.", false);
   } finally { button.disabled = false; }
+});
+
+// PDF of the current order list, grouped by supplier (made on the phone).
+function stockPdfReport() {
+  const data = stockState.data, last = data?.last_count;
+  if (!last) return null;
+  const fmt = (o) => new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Brisbane", ...o }).format(new Date(last.counted_at));
+  const lines = last.lines || [];
+  const order = lines.filter(l => l.counted && Number(l.order_qty) > 0);
+  const mins = Object.fromEntries((data.suppliers || []).map(s => [s.name, s.min_order]));
+  const by = {};
+  for (const l of order) (by[l.supplier || ""] ||= []).push(l);
+  const names = Object.keys(by).sort((a, b) => (a === "") - (b === "") || a.localeCompare(b));
+  const u = (l) => (l.unit ? " " + l.unit : "");
+  const counted = (l) => (l.qty != null ? stockFmt(l.qty) + u(l) : "-") + (l.par_extra != null ? ` + ${l.qty_extra != null ? stockFmt(l.qty_extra) : "-"} ${l.extra_label || "extra"}` : "");
+  const par = (l) => stockFmt(l.par) + u(l) + (l.par_extra != null ? ` + ${stockFmt(l.par_extra)} ${l.extra_label || "extra"}` : "");
+  const notCounted = lines.filter(l => !l.counted).length;
+  return {
+    place: `${data.location} · ${data.department === "Floor" ? "Floor / Bar" : "Kitchen"}`,
+    when: fmt({ weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }),
+    fileDate: fmt({ year: "numeric", month: "2-digit", day: "2-digit" }),
+    status: last.open ? `Open list · last update by ${last.counted_by || "-"}` : "Closed list",
+    summary: `${order.length} item${order.length === 1 ? "" : "s"} to order · ${names.length} supplier${names.length === 1 ? "" : "s"}`,
+    logo: document.querySelector(".login-original-logo")?.src,
+    suppliers: names.map(n => {
+      const ls = by[n];
+      const total = ls.reduce((t, l) => t + Number(l.order_qty), 0);
+      return {
+        name: n || "No supplier set",
+        warn: mins[n] && total < mins[n] ? `Below the minimum order of ${mins[n]} (now ${total}).` : "",
+        lines: ls.map(l => [l.name, counted(l), par(l), stockQtyText(l, Number(l.order_qty))]),
+      };
+    }),
+    notCounted: notCounted ? `${notCounted} item${notCounted === 1 ? " is" : "s are"} not counted yet and not in this order.` : "",
+  };
+}
+document.getElementById("stockPdfBtn")?.addEventListener("click", async () => {
+  const btn = document.getElementById("stockPdfBtn");
+  const report = stockPdfReport();
+  if (!report) return;
+  btn.disabled = true; btn.textContent = "Generating…";
+  try {
+    await window.MarinaraStockPdf.open(report);
+  } catch (error) {
+    stockMsg(document.getElementById("stockMessage"), "Unable to make the PDF. " + (error.message || ""), false);
+  } finally {
+    btn.disabled = false; btn.textContent = "Export PDF";
+  }
 });
 
 document.getElementById("stockAddBtn")?.addEventListener("click", () => stockOpenForm(null));
