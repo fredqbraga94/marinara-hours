@@ -1098,6 +1098,57 @@ button{cursor:pointer}
 .timeoff-actions button{flex:1;min-height:40px;border-radius:12px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:13px}
 .timeoff-actions .approve{background:var(--green);border-color:var(--green);color:#fff}
 .timeoff-actions .decline{color:var(--danger)}
+/* STOCK PAR LEVEL */
+.stock-dept{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.stock-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#eef1ee;padding:4px;border-radius:14px;margin-bottom:12px}
+.stock-tabs button,.stock-dept button,.stock-toggle button{min-height:42px;border-radius:11px;border:0;background:transparent;font-weight:850;font-size:14px;color:var(--muted)}
+.stock-dept button,.stock-toggle button{border:1.5px solid var(--border);background:#fff;color:var(--text)}
+.stock-tabs button.selected{background:#fff;color:var(--green);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.stock-dept button.selected,.stock-toggle button.selected{background:var(--green);border-color:var(--green);color:#fff}
+.stock-group-title{font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--green);margin:4px 0 2px}
+.stock-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:8px 0;border-top:1px solid var(--border)}
+.stock-group-title + .stock-row,.stock-group-title + .stock-edit-row{border-top:0}
+.stock-group-title{margin-top:12px}
+.stock-need:empty{display:none}
+.stock-row strong{font-size:14px;display:block;overflow-wrap:anywhere}
+.stock-row small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.stock-inputs{display:flex;gap:6px}
+.stock-inputs label{display:flex;flex-direction:column;align-items:center;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.stock-inputs input{width:58px;min-height:44px;box-sizing:border-box;border:1.5px solid var(--border);border-radius:12px;text-align:center;font-size:17px;font-weight:800;background:#fff;font-family:inherit;margin-bottom:3px}
+.stock-inputs input:focus{outline:none;border-color:var(--green)}
+.stock-need{grid-column:1 / -1;font-size:12px;font-weight:800;color:var(--muted)}
+.stock-need.order{color:#8a4b00}
+.stock-need.ok{color:var(--green)}
+.stock-footer{position:sticky;bottom:calc(76px + env(safe-area-inset-bottom));z-index:5;background:#fff;border:1px solid var(--border);border-radius:18px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,.08);margin-bottom:14px}
+.stock-footer .stock-progress{font-size:13px;font-weight:800;color:var(--muted);text-align:center}
+.stock-footer .btn{margin-top:8px}
+.stock-supplier{padding:12px 0;border-top:1px solid var(--border)}
+.stock-supplier:first-child{border-top:0}
+.stock-supplier-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+.stock-supplier-head strong{font-size:15px}
+.stock-copy{min-height:36px;padding:0 12px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:13px;color:var(--green)}
+.stock-line{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:4px 0}
+.stock-line span:last-child{font-weight:900;white-space:nowrap}
+.stock-warn{margin-top:6px;padding:8px 10px;border-radius:10px;background:#fff4e5;color:#7a4b00;font-size:12px;font-weight:800}
+.stock-edit-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--border)}
+.stock-edit-row > div{min-width:0}
+.stock-edit-row strong{font-size:14px;display:block;overflow-wrap:anywhere}
+.stock-edit-row small{color:var(--muted);font-size:12px}
+.stock-edit-btns{display:flex;gap:4px;flex:0 0 auto}
+.stock-edit-btns button{min-width:38px;min-height:38px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:13px;color:var(--text);padding:0 8px}
+.stock-edit-btns button[data-stock-edit]{color:var(--green)}
+.stock-form label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px}
+.stock-form input,.stock-form select{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 10px;font-size:16px;margin-top:4px;background:#fff;font-family:inherit}
+.stock-form .stock-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.stock-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 10px}
+.stock-form .stock-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stock-form .stock-actions .btn{margin-top:4px}
+.stock-remove{margin-top:10px;width:100%;min-height:42px;border-radius:12px;border:1.5px solid #f3c4c4;background:#fff;color:var(--danger);font-weight:850}
+.stock-min-row{display:grid;grid-template-columns:minmax(0,1fr) 84px auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--border)}
+.stock-min-row:first-child{border-top:0}
+.stock-min-row strong{font-size:14px;overflow-wrap:anywhere}
+.stock-min-row input{min-height:42px;border:1.5px solid var(--border);border-radius:11px;text-align:center;font-size:16px;width:100%;box-sizing:border-box}
+.stock-min-row button{min-height:42px;border-radius:11px;border:0;background:var(--green-light);color:var(--green);font-weight:850;padding:0 12px}
 button:disabled{opacity:.6}
 </style>
 <script defer src="./timesheet-pdf.js"></script>
@@ -1289,6 +1340,7 @@ button:disabled{opacity:.6}
     <button id="timesheetsCard" class="manager-quick-card"><div class="manager-quick-icon">▤</div><strong>Timesheets</strong><span>Weekly timesheets & PDF</span></button>
     <button id="rosterCard" class="manager-quick-card"><div class="manager-quick-icon">▦</div><strong>Roster</strong><span>Plan the week · L / D or times</span></button>
     <button id="timeOffCard" class="manager-quick-card"><div class="manager-quick-icon">✈</div><strong>Time off</strong><span id="timeOffCardText">Holidays and days off</span></button>
+    <button id="stockCard" class="manager-quick-card"><div class="manager-quick-icon">▥</div><strong>Stock</strong><span>Count and see what to order</span></button>
     <button id="myClockCard" class="manager-quick-card"><div class="manager-quick-icon">◉</div><strong>My Time Clock</strong><span>Clock in, break and clock out</span></button>
   </div></div>
   <div id="managerClockSection" class="hidden"><div class="card"><div class="section-title">My Time Clock</div><div class="status"><div class="status-label">Current status</div><div id="managerStatusValue" class="status-value">Off shift</div></div><button id="managerClockInBtn" class="btn primary hidden">Clock In</button><button id="managerStartBreakBtn" class="btn secondary hidden">Start Break</button><button id="managerEndBreakBtn" class="btn primary hidden">End Break</button><button id="managerClockOutBtn" class="btn danger hidden">Clock Out</button><div id="managerActionMessage" class="message"></div></div></div>
@@ -1471,6 +1523,80 @@ button:disabled{opacity:.6}
   </div>
 </section>
 
+<!-- STOCK SCREEN (MANAGER) -->
+<section id="stockScreen" class="hidden">
+  <div class="manager-top">
+    <div>
+      <div class="team-v2-kicker">MANAGER</div>
+      <h2>Stock</h2>
+      <p id="stockPlace" class="team-v2-sub">Hawthorne</p>
+    </div>
+    <button id="backStockBtn" class="back-btn">Back</button>
+  </div>
+  <div id="stockDept" class="stock-dept hidden">
+    <button type="button" data-stock-dept="Floor">Floor / Bar</button>
+    <button type="button" data-stock-dept="Kitchen">Kitchen</button>
+  </div>
+  <div class="stock-tabs" id="stockTabs">
+    <button type="button" data-stock-tab="count" class="selected">Count</button>
+    <button type="button" data-stock-tab="order">Order</button>
+    <button type="button" data-stock-tab="edit">Edit list</button>
+  </div>
+  <div id="stockMessage" class="message"></div>
+  <div id="stockCountView">
+    <div class="card"><div id="stockCountList" class="empty-state">Loading…</div></div>
+    <div class="stock-footer">
+      <div id="stockProgress" class="stock-progress">0 counted</div>
+      <button id="stockSaveBtn" class="btn primary" type="button">Save count &amp; see order</button>
+    </div>
+  </div>
+  <div id="stockOrderView" class="hidden">
+    <div class="card"><div class="section-title">To order</div><div id="stockOrderList" class="empty-state">No count saved yet.</div></div>
+  </div>
+  <div id="stockEditView" class="hidden">
+    <div id="stockFormCard" class="card stock-form hidden">
+      <div id="stockFormTitle" class="section-title">Edit item</div>
+      <label>Name<input id="stockFName" maxlength="80" autocomplete="off"></label>
+      <div class="stock-two">
+        <label>Group<input id="stockFGroup" maxlength="40" list="stockGroupList" autocomplete="off" placeholder="e.g. Red"></label>
+        <label>Supplier<input id="stockFSupplier" maxlength="60" list="stockSupplierList" autocomplete="off" placeholder="optional"></label>
+      </div>
+      <div class="stock-two">
+        <label>Par (keep in stock)<input id="stockFPar" type="number" inputmode="decimal" min="0" step="any"></label>
+        <label>Unit<input id="stockFUnit" maxlength="20" placeholder="e.g. bot" autocomplete="off"></label>
+      </div>
+      <div class="person-meta">Order in</div>
+      <div class="stock-toggle" id="stockFOrderBy">
+        <button type="button" data-order-by="unit" class="selected">Units</button>
+        <button type="button" data-order-by="box">Boxes</button>
+      </div>
+      <label>Box size (how many in a box)<input id="stockFCase" type="number" inputmode="numeric" min="1" step="1" placeholder="e.g. 12"></label>
+      <div class="stock-two">
+        <label>Also keep (2nd place)<input id="stockFParExtra" type="number" inputmode="decimal" min="0" step="any" placeholder="none"></label>
+        <label>Where<input id="stockFExtraLabel" maxlength="20" list="stockExtraList" placeholder="bar / open" autocomplete="off"></label>
+      </div>
+      <label>Note<input id="stockFNote" maxlength="200" placeholder="optional" autocomplete="off"></label>
+      <div class="stock-actions">
+        <button id="stockFCancel" class="btn secondary" type="button">Cancel</button>
+        <button id="stockFSave" class="btn primary" type="button">Save</button>
+      </div>
+      <button id="stockFRemove" class="stock-remove hidden" type="button">Remove from the list</button>
+      <div id="stockFormMessage" class="message"></div>
+    </div>
+    <div class="card">
+      <div class="manager-v2-section-head"><div class="section-title">Items</div><button id="stockAddBtn" class="manager-v2-link" type="button">+ Add item</button></div>
+      <div id="stockEditList" class="empty-state">Loading…</div>
+    </div>
+    <div class="card">
+      <div class="section-title">Suppliers · minimum order</div>
+      <div id="stockSuppliers" class="empty-state">No suppliers yet. Type one in an item's Supplier field.</div>
+    </div>
+    <datalist id="stockGroupList"></datalist>
+    <datalist id="stockSupplierList"></datalist>
+    <datalist id="stockExtraList"><option value="bar"><option value="open"></datalist>
+  </div>
+</section>
+
 <!-- MORE SCREEN -->
 <section id="devicesScreen" class="hidden">
   <div class="manager-top">
@@ -1529,6 +1655,11 @@ button:disabled{opacity:.6}
     <button id="moreTimeOffBtn" class="more-v2-item" type="button">
       <span class="more-v2-icon">✈</span>
       <span><strong>Time off</strong><small>Approve holidays and days off</small></span>
+      <span class="more-v2-chevron">›</span>
+    </button>
+    <button id="moreStockBtn" class="more-v2-item" type="button">
+      <span class="more-v2-icon">▥</span>
+      <span><strong>Stock</strong><small>Count against the par level and see what to order</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
     <button id="moreMyClockBtn" class="more-v2-item" type="button">
@@ -6039,6 +6170,419 @@ document.addEventListener("click", event => {
   const nav = event.target.closest("[data-manager-nav], .manager-quick-card, .more-v2-item, #managerLogoutBtn, #moreSignOutBtn");
   if (nav && nav.id !== "timeOffCard" && nav.id !== "moreTimeOffBtn") timeOffScreen.classList.add("hidden");
 }, true);
+
+/* STOCK PAR LEVEL (MANAGER) */
+const stockScreen = document.getElementById("stockScreen");
+const stockState = { data: null, dept: null, tab: "count", draft: {}, editingId: null, orderBy: "unit" };
+
+function stockMsg(el, text, ok) {
+  if (!el) return;
+  el.className = `message show ${ok ? "ok" : "error"}`;
+  el.textContent = text;
+}
+function stockClearMsg(el) { if (el) { el.className = "message"; el.textContent = ""; } }
+function stockNum(v) { const n = Number(v); return Number.isFinite(n) ? Math.round(n * 10) / 10 : 0; }
+function stockFmt(v) { const n = stockNum(v); return Number.isInteger(n) ? String(n) : n.toFixed(1); }
+function stockParsed(v) {
+  const s = String(v ?? "").trim().replace(",", ".");
+  if (s === "") return null;
+  const n = Number(s);
+  return Number.isFinite(n) && n >= 0 ? n : NaN;
+}
+// Same rule as the database (mh_stock_order): what is missing, rounded up to
+// whole boxes when the item is ordered in boxes.
+function stockOrder(item, qty, qtyExtra) {
+  const missing = Math.max(stockNum(item.par) - (qty || 0), 0) +
+    (item.par_extra == null ? 0 : Math.max(stockNum(item.par_extra) - (qtyExtra || 0), 0));
+  const box = item.order_by === "box" && Number(item.case_size) > 0;
+  return { missing, order_qty: box ? Math.ceil(missing / Number(item.case_size)) : Math.ceil(missing), order_unit: box ? "box" : "unit" };
+}
+function stockQtyText(line, qty) {
+  if (line.order_unit === "box") return `${qty} box${qty === 1 ? "" : "es"}${line.case_size ? ` (${line.case_size})` : ""}`;
+  return `${qty}${line.unit ? " " + line.unit : ""}`;
+}
+function stockParText(item, withNote = true) {
+  let t = `Par ${stockFmt(item.par)}${item.unit ? " " + item.unit : ""}`;
+  if (item.par_extra != null) t += ` + ${stockFmt(item.par_extra)} ${item.extra_label || "extra"}`;
+  if (item.case_size) t += ` · box of ${item.case_size}`;
+  if (withNote && item.note) t += ` · ${item.note}`;
+  return t;
+}
+function stockDraftKey() {
+  return `marinara_stock_draft_${stockState.data?.location || ""}_${stockState.data?.department || ""}`;
+}
+function stockLoadDraft() {
+  try { stockState.draft = JSON.parse(localStorage.getItem(stockDraftKey()) || "{}") || {}; } catch (_) { stockState.draft = {}; }
+}
+function stockSaveDraft() {
+  try { localStorage.setItem(stockDraftKey(), JSON.stringify(stockState.draft)); } catch (_) {}
+}
+function stockClearDraft() {
+  stockState.draft = {};
+  try { localStorage.removeItem(stockDraftKey()); } catch (_) {}
+}
+function stockGroups(items) {
+  const groups = [];
+  const at = {};
+  for (const it of items) {
+    if (!(it.group_name in at)) { at[it.group_name] = groups.length; groups.push({ name: it.group_name, items: [] }); }
+    groups[at[it.group_name]].items.push(it);
+  }
+  return groups;
+}
+
+function stockNeedHtml(item) {
+  const d = stockState.draft[item.id] || {};
+  const qty = stockParsed(d.qty), extra = stockParsed(d.qty_extra);
+  if (qty === null && extra === null) return { cls: "", text: "" };
+  if (Number.isNaN(qty) || Number.isNaN(extra)) return { cls: "order", text: "Check the number" };
+  const o = stockOrder(item, qty || 0, extra || 0);
+  if (o.order_qty <= 0) return { cls: "ok", text: "At par · nothing to order" };
+  return { cls: "order", text: `Order ${stockQtyText({ ...item, order_unit: o.order_unit }, o.order_qty)}` };
+}
+function stockRenderProgress() {
+  const items = stockState.data?.items || [];
+  let counted = 0, toOrder = 0;
+  for (const it of items) {
+    const d = stockState.draft[it.id] || {};
+    const q = stockParsed(d.qty), e = stockParsed(d.qty_extra);
+    if (q === null && e === null) continue;
+    counted++;
+    if (!Number.isNaN(q) && !Number.isNaN(e) && stockOrder(it, q || 0, e || 0).order_qty > 0) toOrder++;
+  }
+  const el = document.getElementById("stockProgress");
+  if (el) el.textContent = `${counted} of ${items.length} counted · ${toOrder} to order`;
+}
+function stockRenderCount() {
+  const box = document.getElementById("stockCountList");
+  const items = stockState.data?.items || [];
+  if (!items.length) {
+    box.className = "empty-state";
+    box.textContent = "No items yet. Add them in Edit list.";
+    stockRenderProgress();
+    return;
+  }
+  box.className = "";
+  box.innerHTML = stockGroups(items).map(g => `
+    <div class="stock-group-title">${escapeHtml(g.name)}</div>
+    ${g.items.map(it => {
+      const d = stockState.draft[it.id] || {};
+      const need = stockNeedHtml(it);
+      return `<div class="stock-row" data-stock-row="${escapeHtml(it.id)}">
+        <div><strong>${escapeHtml(it.name)}</strong><small>${escapeHtml(stockParText(it, false))}</small></div>
+        <div class="stock-inputs">
+          <label><input inputmode="decimal" autocomplete="off" data-stock-qty="qty" data-id="${escapeHtml(it.id)}" value="${escapeHtml(d.qty ?? "")}" aria-label="${escapeHtml(it.name)} in stock">stock</label>
+          ${it.par_extra != null ? `<label><input inputmode="decimal" autocomplete="off" data-stock-qty="qty_extra" data-id="${escapeHtml(it.id)}" value="${escapeHtml(d.qty_extra ?? "")}" aria-label="${escapeHtml(it.name)} ${escapeHtml(it.extra_label || "extra")}">${escapeHtml(it.extra_label || "extra")}</label>` : ""}
+        </div>
+        <div class="stock-need ${need.cls}" data-stock-need="${escapeHtml(it.id)}">${escapeHtml(need.text)}</div>
+      </div>`;
+    }).join("")}`).join("");
+  stockRenderProgress();
+}
+
+function stockOrderText(supplier, lines) {
+  return `${supplier}\n` + lines.map(l => `- ${l.name}: ${stockQtyText(l, l.order_qty)}`).join("\n");
+}
+function stockRenderOrder() {
+  const box = document.getElementById("stockOrderList");
+  const last = stockState.data?.last_count;
+  if (!last) { box.className = "empty-state"; box.textContent = "No count saved yet. Count first, then save."; return; }
+  const when = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Brisbane", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(last.counted_at));
+  const lines = last.lines || [];
+  const order = lines.filter(l => l.counted && Number(l.order_qty) > 0);
+  const notCounted = lines.filter(l => !l.counted);
+  const mins = Object.fromEntries((stockState.data.suppliers || []).map(s => [s.name, s.min_order]));
+  const bySupplier = {};
+  for (const l of order) (bySupplier[l.supplier || ""] ||= []).push(l);
+  const names = Object.keys(bySupplier).sort((a, b) => (a === "") - (b === "") || a.localeCompare(b));
+  box.className = "";
+  box.innerHTML = `<div class="person-meta" style="margin-bottom:8px">Count of ${escapeHtml(when)} by ${escapeHtml(last.counted_by || "—")}</div>` +
+    (names.length ? names.map(name => {
+      const ls = bySupplier[name];
+      const total = ls.reduce((s, l) => s + Number(l.order_qty), 0);
+      const min = mins[name];
+      return `<div class="stock-supplier">
+        <div class="stock-supplier-head"><strong>${escapeHtml(name || "No supplier set")}</strong>
+          <button type="button" class="stock-copy" data-stock-copy="${escapeHtml(name)}">Copy</button></div>
+        ${ls.map(l => `<div class="stock-line"><span>${escapeHtml(l.name)}</span><span>${escapeHtml(stockQtyText(l, Number(l.order_qty)))}</span></div>`).join("")}
+        ${min && total < min ? `<div class="stock-warn">Below the minimum order of ${min} (now ${total}).</div>` : ""}
+      </div>`;
+    }).join("") : `<div class="empty-state">Everything counted is at par. Nothing to order.</div>`) +
+    (notCounted.length ? `<div class="stock-warn" style="background:#eef1ee;color:var(--muted)">${notCounted.length} item${notCounted.length === 1 ? " was" : "s were"} not counted, so ${notCounted.length === 1 ? "it is" : "they are"} not in the order.</div>` : "");
+}
+
+function stockRenderEdit() {
+  const items = stockState.data?.items || [];
+  const list = document.getElementById("stockEditList");
+  if (!items.length) { list.className = "empty-state"; list.textContent = "No items yet. Tap + Add item."; }
+  else {
+    list.className = "";
+    list.innerHTML = stockGroups(items).map(g => `
+      <div class="stock-group-title">${escapeHtml(g.name)}</div>
+      ${g.items.map(it => `<div class="stock-edit-row">
+        <div><strong>${escapeHtml(it.name)}</strong><small>${escapeHtml(stockParText(it))}${it.supplier ? " · " + escapeHtml(it.supplier) : ""}</small></div>
+        <div class="stock-edit-btns">
+          <button type="button" data-stock-move="-1" data-id="${escapeHtml(it.id)}" aria-label="Move up">↑</button>
+          <button type="button" data-stock-move="1" data-id="${escapeHtml(it.id)}" aria-label="Move down">↓</button>
+          <button type="button" data-stock-edit="${escapeHtml(it.id)}">Edit</button>
+        </div>
+      </div>`).join("")}`).join("");
+  }
+  const groups = [...new Set(items.map(i => i.group_name))];
+  const suppliers = [...new Set([...(stockState.data?.suppliers || []).map(s => s.name), ...items.map(i => i.supplier).filter(Boolean)])].sort();
+  document.getElementById("stockGroupList").innerHTML = groups.map(g => `<option value="${escapeHtml(g)}">`).join("");
+  document.getElementById("stockSupplierList").innerHTML = suppliers.map(s => `<option value="${escapeHtml(s)}">`).join("");
+  const mins = Object.fromEntries((stockState.data?.suppliers || []).map(s => [s.name, s.min_order]));
+  const sup = document.getElementById("stockSuppliers");
+  if (!suppliers.length) { sup.className = "empty-state"; sup.textContent = "No suppliers yet. Type one in an item's Supplier field."; }
+  else {
+    sup.className = "";
+    sup.innerHTML = suppliers.map(s => `<div class="stock-min-row">
+      <strong>${escapeHtml(s)}</strong>
+      <input inputmode="numeric" placeholder="none" value="${escapeHtml(mins[s] ?? "")}" data-stock-min="${escapeHtml(s)}" aria-label="Minimum order for ${escapeHtml(s)}">
+      <button type="button" data-stock-min-save="${escapeHtml(s)}">Save</button>
+    </div>`).join("");
+  }
+}
+
+function stockSetOrderBy(v) {
+  stockState.orderBy = v === "box" ? "box" : "unit";
+  document.querySelectorAll("#stockFOrderBy [data-order-by]").forEach(b => b.classList.toggle("selected", b.dataset.orderBy === stockState.orderBy));
+}
+function stockOpenForm(item) {
+  stockState.editingId = item?.id || null;
+  const v = (id, val) => { document.getElementById(id).value = val ?? ""; };
+  document.getElementById("stockFormTitle").textContent = item ? "Edit item" : "New item";
+  v("stockFName", item?.name); v("stockFGroup", item?.group_name); v("stockFSupplier", item?.supplier);
+  v("stockFPar", item ? stockFmt(item.par) : ""); v("stockFUnit", item ? item.unit : "bot");
+  v("stockFCase", item?.case_size); v("stockFParExtra", item?.par_extra == null ? "" : stockFmt(item.par_extra));
+  v("stockFExtraLabel", item?.extra_label); v("stockFNote", item?.note);
+  stockSetOrderBy(item?.order_by || "unit");
+  document.getElementById("stockFRemove").classList.toggle("hidden", !item);
+  stockClearMsg(document.getElementById("stockFormMessage"));
+  const card = document.getElementById("stockFormCard");
+  card.classList.remove("hidden");
+  card.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function stockCloseForm() {
+  stockState.editingId = null;
+  document.getElementById("stockFormCard").classList.add("hidden");
+}
+
+function stockShowTab(tab) {
+  stockState.tab = tab;
+  document.querySelectorAll("#stockTabs [data-stock-tab]").forEach(b => b.classList.toggle("selected", b.dataset.stockTab === tab));
+  document.getElementById("stockCountView").classList.toggle("hidden", tab !== "count");
+  document.getElementById("stockOrderView").classList.toggle("hidden", tab !== "order");
+  document.getElementById("stockEditView").classList.toggle("hidden", tab !== "edit");
+  if (tab === "count") stockRenderCount();
+  if (tab === "order") stockRenderOrder();
+  if (tab === "edit") stockRenderEdit();
+}
+
+async function loadStock() {
+  const msg = document.getElementById("stockMessage");
+  stockClearMsg(msg);
+  try {
+    const data = await managerApi("manager_stock_list", stockState.dept ? { department: stockState.dept } : {});
+    stockState.data = data;
+    stockState.dept = data.department;
+    stockLoadDraft();
+    document.getElementById("stockPlace").textContent = `${data.location} · ${data.department === "Floor" ? "Floor / Bar" : "Kitchen"}`;
+    const deptBox = document.getElementById("stockDept");
+    deptBox.classList.toggle("hidden", !data.can_choose_department);
+    deptBox.querySelectorAll("[data-stock-dept]").forEach(b => b.classList.toggle("selected", b.dataset.stockDept === data.department));
+    stockShowTab(stockState.tab);
+  } catch (error) {
+    stockMsg(msg, error.message || "Unable to load the stock list.", false);
+  }
+}
+
+async function openStockScreen() {
+  managerMoreScreen?.classList.add("hidden");
+  managerScreen.classList.add("hidden");
+  approvalsScreen.classList.add("hidden");
+  staffHoursScreen.classList.add("hidden");
+  teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
+  timeOffScreen?.classList.add("hidden");
+  timesheetsScreen.classList.add("hidden");
+  devicesScreen?.classList.add("hidden");
+  stockCloseForm();
+  stockScreen.classList.remove("hidden");
+  setManagerNavActive("more");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  stockState.tab = "count";
+  await loadStock();
+}
+
+document.getElementById("stockCard")?.addEventListener("click", openStockScreen);
+document.getElementById("moreStockBtn")?.addEventListener("click", openStockScreen);
+document.getElementById("backStockBtn")?.addEventListener("click", async () => {
+  stockScreen.classList.add("hidden");
+  managerScreen.classList.remove("hidden");
+  setManagerNavActive("home");
+  await loadManagerDashboard();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+// Any other manager navigation leaves the stock screen.
+document.addEventListener("click", event => {
+  if (!stockScreen || stockScreen.classList.contains("hidden")) return;
+  const nav = event.target.closest("[data-manager-nav], .manager-quick-card, .more-v2-item, #managerLogoutBtn, #moreSignOutBtn");
+  if (nav && nav.id !== "stockCard" && nav.id !== "moreStockBtn") stockScreen.classList.add("hidden");
+}, true);
+
+stockScreen?.addEventListener("input", e => {
+  const input = e.target.closest("[data-stock-qty]");
+  if (!input) return;
+  const id = input.dataset.id;
+  const d = (stockState.draft[id] ||= {});
+  d[input.dataset.stockQty] = input.value;
+  if (d.qty === "" && (d.qty_extra ?? "") === "") delete stockState.draft[id];
+  stockSaveDraft();
+  const item = (stockState.data?.items || []).find(i => i.id === id);
+  const need = item && stockNeedHtml(item);
+  const el = stockScreen.querySelector(`[data-stock-need="${CSS.escape(id)}"]`);
+  if (el && need) { el.className = `stock-need ${need.cls}`; el.textContent = need.text; }
+  stockRenderProgress();
+});
+
+stockScreen?.addEventListener("click", async e => {
+  const tab = e.target.closest("[data-stock-tab]");
+  if (tab) { stockShowTab(tab.dataset.stockTab); return; }
+
+  const dept = e.target.closest("[data-stock-dept]");
+  if (dept) {
+    if (dept.dataset.stockDept !== stockState.dept) { stockState.dept = dept.dataset.stockDept; stockCloseForm(); await loadStock(); }
+    return;
+  }
+
+  const ob = e.target.closest("[data-order-by]");
+  if (ob) { stockSetOrderBy(ob.dataset.orderBy); return; }
+
+  const copy = e.target.closest("[data-stock-copy]");
+  if (copy) {
+    const name = copy.dataset.stockCopy;
+    const lines = (stockState.data?.last_count?.lines || []).filter(l => l.counted && Number(l.order_qty) > 0 && (l.supplier || "") === name);
+    const text = stockOrderText(name || "Order", lines.map(l => ({ ...l, order_qty: Number(l.order_qty) })));
+    try { await navigator.clipboard.writeText(text); copy.textContent = "Copied"; }
+    catch (_) { window.prompt("Copy the order:", text); }
+    setTimeout(() => { copy.textContent = "Copy"; }, 1500);
+    return;
+  }
+
+  const edit = e.target.closest("[data-stock-edit]");
+  if (edit) { stockOpenForm((stockState.data?.items || []).find(i => i.id === edit.dataset.stockEdit)); return; }
+
+  const move = e.target.closest("[data-stock-move]");
+  if (move) {
+    const items = stockState.data?.items || [];
+    const i = items.findIndex(x => x.id === move.dataset.id);
+    const j = i + Number(move.dataset.stockMove);
+    if (i < 0 || j < 0 || j >= items.length) return;
+    // Keep each item inside its group: only swap with a neighbour of the same group.
+    if (items[i].group_name !== items[j].group_name) return;
+    const a = items[i], b = items[j];
+    const sa = a.sort_order === b.sort_order ? a.sort_order + (j > i ? 1 : -1) : b.sort_order;
+    const sb = a.sort_order;
+    move.disabled = true;
+    try {
+      await managerApi("manager_stock_item_save", { item: { ...a, sort_order: sa } });
+      await managerApi("manager_stock_item_save", { item: { ...b, sort_order: sb } });
+      await loadStock();
+    } catch (error) {
+      stockMsg(document.getElementById("stockMessage"), error.message || "Unable to move the item.", false);
+      move.disabled = false;
+    }
+    return;
+  }
+
+  const minSave = e.target.closest("[data-stock-min-save]");
+  if (minSave) {
+    const name = minSave.dataset.stockMinSave;
+    const input = stockScreen.querySelector(`[data-stock-min="${CSS.escape(name)}"]`);
+    const raw = (input?.value || "").trim();
+    minSave.disabled = true;
+    try {
+      await managerApi("manager_stock_supplier_save", { department: stockState.dept, name, min_order: raw === "" ? null : raw });
+      await loadStock();
+      stockMsg(document.getElementById("stockMessage"), raw === "" ? `${name}: no minimum.` : `${name}: minimum ${raw}.`, true);
+    } catch (error) {
+      stockMsg(document.getElementById("stockMessage"), error.message || "Unable to save.", false);
+    } finally { minSave.disabled = false; }
+    return;
+  }
+});
+
+document.getElementById("stockSaveBtn")?.addEventListener("click", async () => {
+  const msg = document.getElementById("stockMessage");
+  const lines = [];
+  for (const [item_id, d] of Object.entries(stockState.draft)) {
+    const qty = stockParsed(d.qty), qty_extra = stockParsed(d.qty_extra);
+    if (Number.isNaN(qty) || Number.isNaN(qty_extra)) { stockMsg(msg, "One of the numbers is not valid. Check the items marked “Check the number”.", false); return; }
+    if (qty === null && qty_extra === null) continue;
+    lines.push({ item_id, qty, qty_extra });
+  }
+  if (!lines.length) { stockMsg(msg, "Count at least one item first.", false); return; }
+  const total = (stockState.data?.items || []).length;
+  if (lines.length < total && !confirm(`${total - lines.length} item(s) not counted. They will not be ordered. Save anyway?`)) return;
+  const button = document.getElementById("stockSaveBtn");
+  button.disabled = true;
+  try {
+    const data = await managerApi("manager_stock_count_save", { department: stockState.dept, lines });
+    stockState.data.last_count = data.count;
+    stockClearDraft();
+    stockShowTab("order");
+    stockMsg(msg, "Count saved.", true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } catch (error) {
+    stockMsg(msg, error.message || "Unable to save the count.", false);
+  } finally { button.disabled = false; }
+});
+
+document.getElementById("stockAddBtn")?.addEventListener("click", () => stockOpenForm(null));
+document.getElementById("stockFCancel")?.addEventListener("click", stockCloseForm);
+document.getElementById("stockFSave")?.addEventListener("click", async () => {
+  const msg = document.getElementById("stockFormMessage");
+  const val = id => document.getElementById(id).value.trim();
+  const item = {
+    id: stockState.editingId, department: stockState.dept,
+    name: val("stockFName"), group_name: val("stockFGroup"), supplier: val("stockFSupplier"),
+    par: val("stockFPar"), unit: val("stockFUnit"), order_by: stockState.orderBy,
+    case_size: val("stockFCase"), par_extra: val("stockFParExtra"), extra_label: val("stockFExtraLabel"),
+    note: val("stockFNote"),
+  };
+  if (stockState.editingId) {
+    const old = (stockState.data?.items || []).find(i => i.id === stockState.editingId);
+    if (old) item.sort_order = old.sort_order;
+  }
+  if (!item.name || !item.group_name || item.par === "") { stockMsg(msg, "Name, group and par are needed.", false); return; }
+  if (item.order_by === "box" && !item.case_size) { stockMsg(msg, "To order in boxes, enter the box size.", false); return; }
+  const button = document.getElementById("stockFSave");
+  button.disabled = true;
+  try {
+    await managerApi("manager_stock_item_save", { department: stockState.dept, item });
+    stockCloseForm();
+    await loadStock();
+    stockMsg(document.getElementById("stockMessage"), `Saved: ${item.name}.`, true);
+  } catch (error) {
+    stockMsg(msg, error.message || "Unable to save.", false);
+  } finally { button.disabled = false; }
+});
+document.getElementById("stockFRemove")?.addEventListener("click", async () => {
+  const id = stockState.editingId;
+  const item = (stockState.data?.items || []).find(i => i.id === id);
+  if (!id || !confirm(`Remove ${item?.name || "this item"} from the list?`)) return;
+  try {
+    await managerApi("manager_stock_item_remove", { item_id: id });
+    if (stockState.draft[id]) { delete stockState.draft[id]; stockSaveDraft(); }
+    stockCloseForm();
+    await loadStock();
+    stockMsg(document.getElementById("stockMessage"), `Removed: ${item?.name || "item"}.`, true);
+  } catch (error) {
+    stockMsg(document.getElementById("stockFormMessage"), error.message || "Unable to remove.", false);
+  }
+});
 
 /* MANAGER V2 NAVIGATION */
 function setManagerNavActive(target = "home") {
