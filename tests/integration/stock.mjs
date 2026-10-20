@@ -224,6 +224,27 @@ try {
     return "4 bad requests 400; still 1 count saved";
   });
 
+  await check("open list: a second save adds to it; a new count starts a fresh list", async () => {
+    let r = await api(vNew, 1, gm, { action: "manager_stock_count_save", lines: [{ item_id: byName("Moscato").id, qty: 4 }] });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const got = Object.fromEntries(r.body.data.count.lines.filter((l) => l.counted).map((l) => [l.name, l.order_qty]));
+    assert.equal(got["Moscato"], 1); assert.equal(got["Fantini Chardonnay"], 1); assert.equal(got["Don Camillo Sangio Cab"], 3);
+    assert.equal(Number(await one(db, "select count(*) from public.stock_counts")), 1, "same list updated");
+    // Recount one item: the new number replaces the old one.
+    r = await api(vNew, 3, fm, { action: "manager_stock_count_save", lines: [{ item_id: byName("Fantini Chardonnay").id, qty: 16 }] });
+    assert.equal(r.body.data.count.lines.find((l) => l.name === "Fantini Chardonnay").order_qty, 0);
+    const kc = await api(vNew, 2, km, { action: "manager_stock_count_close", department: "Floor" });
+    assert.equal(kc.status, 403);
+    const c = await api(vNew, 3, fm, { action: "manager_stock_count_close" });
+    assert.equal(c.status, 200); assert.equal(c.body.data.closed, 1);
+    const l = await api(vNew, 3, fm, { action: "manager_stock_list" });
+    assert.equal(l.body.data.last_count.open, false);
+    r = await api(vNew, 3, fm, { action: "manager_stock_count_save", lines: [{ item_id: byName("Panna").id, qty: 1 }] });
+    assert.equal(r.body.data.count.lines.filter((x) => x.counted).length, 1);
+    assert.equal(Number(await one(db, "select count(*) from public.stock_counts")), 2);
+    return "2nd save merged (Moscato added, earlier lines kept); recount replaced; kitchen manager cannot close Floor; after closing, a new list starts";
+  });
+
   await check("edit the list: add, change par, remove; every change audited", async () => {
     let r = await api(vNew, 3, fm, { action: "manager_stock_item_save", item: { name: "Aperol", group_name: "Spirits", par: 2, unit: "bot" } });
     assert.equal(r.status, 200, JSON.stringify(r.body));
@@ -248,8 +269,8 @@ try {
     const audit = Number(await one(db, "select count(*) from public.stock_audit"));
     assert.equal(audit, 3);
     // The saved count keeps the par it was made with.
-    const old = l.body.data.last_count.lines.find((x) => x.item_id === fc.id);
-    assert.equal(Number(old.par), 16);
+    const old = (await one(db, `select l->>'par' from public.stock_counts, jsonb_array_elements(lines) l where closed_at is not null and l->>'item_id' = '${fc.id}'`));
+    assert.equal(Number(old), 16);
     return "add 200, par 16->24, box without size 400, empty name 400, kitchen manager 403 x2, remove 200; 3 audit rows; old count keeps par 16";
   });
 
