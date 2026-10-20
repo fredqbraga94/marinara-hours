@@ -275,6 +275,21 @@ try {
     return `administrator 200 (named "${label}"); kitchen/floor managers: ${statuses.length} calls, all 403; nothing changed by them`;
   });
 
+  await check("devices: shows who used each device in the last 30 days (shared vs one person)", async () => {
+    // Two staff sign in on the same device (a shared tablet); staff 6 has their own phone.
+    const tablet = newDeviceSecret();
+    for (const n of [4, 5]) {
+      const r = await quiet(() => call(vNew, { action: "login", pin: PIN[ID(n)], device: tablet }));
+      assert.equal(r.status, 200, JSON.stringify(r.body));
+    }
+    const g = await api(vNew, 1, gm, { action: "manager_devices" });
+    assert.equal(g.status, 200, JSON.stringify(g.body));
+    const used = g.body.data.devices.map((d) => (d.used_by || []).slice().sort().join("+")).filter(Boolean);
+    assert.ok(used.includes("Test Kitchen A+Test Kitchen B"), JSON.stringify(used));
+    assert.ok(used.some((u) => u === "Test Floor A"), JSON.stringify(used));
+    return `devices with users: ${used.join(" | ")}`;
+  });
+
   await check("public holidays: Christmas week on the roster", async () => {
     const r = await api(vNew, 1, gm, { action: "manager_roster_week", week_start: "2026-12-21" });
     assert.deepEqual(r.body.data.holidays.map((h) => h.holiday_date), ["2026-12-24", "2026-12-25", "2026-12-26"]);
