@@ -1154,7 +1154,13 @@ button{cursor:pointer}
 .stock-remove{margin-top:10px;width:100%;min-height:42px;border-radius:12px;border:1.5px solid #f3c4c4;background:#fff;color:var(--danger);font-weight:850}
 .stock-min-row{display:grid;grid-template-columns:minmax(0,1fr) 84px auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--border)}
 .stock-min-row:first-child{border-top:0}
-.stock-min-row strong{font-size:14px;overflow-wrap:anywhere}
+.stock-min-row strong{font-size:14px;overflow-wrap:anywhere;display:block}
+.stock-min-row small{color:var(--muted);font-size:12px}
+.stock-min-row .stock-rename-link{border:0;background:none;padding:0;min-height:0;border-radius:0;color:var(--green);font-weight:850;font-size:12px;text-decoration:underline}
+.stock-rename-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center;padding:8px 0;border-top:1px solid var(--border)}
+.stock-rename-row input{min-height:42px;border:1.5px solid var(--green);border-radius:11px;padding:0 10px;font-size:16px;width:100%;box-sizing:border-box;min-width:0}
+.stock-rename-row button{min-height:42px;border-radius:11px;border:0;background:var(--green);color:#fff;font-weight:850;padding:0 12px}
+.stock-rename-row button.ghost{background:var(--green-light);color:var(--green)}
 .stock-min-row input{min-height:42px;border:1.5px solid var(--border);border-radius:11px;text-align:center;font-size:16px;width:100%;box-sizing:border-box}
 .stock-min-row button{min-height:42px;border-radius:11px;border:0;background:var(--green-light);color:var(--green);font-weight:850;padding:0 12px}
 button:disabled{opacity:.6}
@@ -6409,11 +6415,19 @@ function stockRenderEdit() {
   if (!suppliers.length) { sup.className = "empty-state"; sup.textContent = "No suppliers yet. Type one in an item's Supplier field."; }
   else {
     sup.className = "";
-    sup.innerHTML = suppliers.map(s => `<div class="stock-min-row">
-      <strong>${escapeHtml(s)}</strong>
-      <input inputmode="numeric" placeholder="none" value="${escapeHtml(mins[s] ?? "")}" data-stock-min="${escapeHtml(s)}" aria-label="Minimum order for ${escapeHtml(s)}">
-      <button type="button" data-stock-min-save="${escapeHtml(s)}">Save</button>
-    </div>`).join("");
+    const itemsOf = (s) => items.filter(i => i.supplier === s).length;
+    sup.innerHTML = `<div class="person-meta" style="margin-bottom:4px">Min order · then Save. Tap Rename to change a name on all its items.</div>` +
+      suppliers.map(s => stockState.renaming === s
+      ? `<div class="stock-rename-row">
+          <input maxlength="60" value="${escapeHtml(s)}" data-stock-rename-input aria-label="New name for ${escapeHtml(s)}" autocomplete="off">
+          <button type="button" data-stock-rename-save="${escapeHtml(s)}">Save</button>
+          <button type="button" class="ghost" data-stock-rename-cancel>Cancel</button>
+        </div>`
+      : `<div class="stock-min-row">
+          <div><strong>${escapeHtml(s)}</strong><small>${itemsOf(s)} item${itemsOf(s) === 1 ? "" : "s"} · <button type="button" class="stock-rename-link" data-stock-rename="${escapeHtml(s)}">Rename</button></small></div>
+          <input inputmode="numeric" placeholder="none" value="${escapeHtml(mins[s] ?? "")}" data-stock-min="${escapeHtml(s)}" aria-label="Minimum order for ${escapeHtml(s)}">
+          <button type="button" data-stock-min-save="${escapeHtml(s)}">Save</button>
+        </div>`).join("");
   }
 }
 
@@ -6592,6 +6606,36 @@ stockScreen?.addEventListener("click", async e => {
     } catch (error) {
       stockMsg(document.getElementById("stockMessage"), error.message || "Unable to move the item.", false);
       move.disabled = false;
+    }
+    return;
+  }
+
+  const ren = e.target.closest("[data-stock-rename]");
+  if (ren) {
+    stockState.renaming = ren.dataset.stockRename;
+    stockRenderEdit();
+    const input = stockScreen.querySelector("[data-stock-rename-input]");
+    input?.focus(); input?.select();
+    return;
+  }
+  if (e.target.closest("[data-stock-rename-cancel]")) { stockState.renaming = null; stockRenderEdit(); return; }
+  const renSave = e.target.closest("[data-stock-rename-save]");
+  if (renSave) {
+    const from = renSave.dataset.stockRenameSave;
+    const to = (stockScreen.querySelector("[data-stock-rename-input]")?.value || "").trim();
+    if (!to) { stockMsg(document.getElementById("stockMessage"), "Enter the new name.", false); return; }
+    if (to === from) { stockState.renaming = null; stockRenderEdit(); return; }
+    const exists = (stockState.data?.items || []).some(i => i.supplier === to) || (stockState.data?.suppliers || []).some(x => x.name === to);
+    if (exists && !confirm(`${to} already exists. Put all items of ${from} under ${to}?`)) return;
+    renSave.disabled = true;
+    try {
+      const data = await managerApi("manager_stock_supplier_rename", { department: stockState.dept, from, to });
+      stockState.renaming = null;
+      await loadStock();
+      stockMsg(document.getElementById("stockMessage"), `${from} is now ${to} (${data.supplier.items} item${data.supplier.items === 1 ? "" : "s"}).`, true);
+    } catch (error) {
+      stockMsg(document.getElementById("stockMessage"), error.message || "Unable to rename.", false);
+      renSave.disabled = false;
     }
     return;
   }

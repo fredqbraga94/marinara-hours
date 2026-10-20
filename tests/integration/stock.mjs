@@ -289,6 +289,27 @@ try {
     return "min 5 then cleared; 0 refused; kitchen manager 403 on Floor, own Kitchen supplier ok";
   });
 
+  await check("suppliers: rename on every item at once; renaming into an existing one merges them", async () => {
+    let r = await api(vNew, 3, fm, { action: "manager_stock_supplier_rename", from: "Abrisca (email)", to: "Abrisca Coffee" });
+    assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal(r.body.data.supplier.items, 16);
+    assert.equal(Number(await one(db, "select count(*) from public.stock_items where supplier = 'Abrisca (email)'")), 0);
+    // Tom San Pellegrino has min 9; rename it into a new name keeps the minimum.
+    r = await api(vNew, 3, fm, { action: "manager_stock_supplier_rename", from: "Tom San Pellegrino (SMS)", to: "SMS" });
+    assert.equal(r.status, 200);
+    assert.equal(await one(db, "select min_order from public.stock_suppliers where name = 'SMS'"), "9");
+    // Merge Global into RiverCity (RiverCity has no minimum now) .
+    r = await api(vNew, 3, fm, { action: "manager_stock_supplier_rename", from: "Global", to: "RiverCity" });
+    assert.equal(r.status, 200);
+    assert.equal(Number(await one(db, "select count(*) from public.stock_suppliers where name = 'Global'")), 0);
+    r = await api(vNew, 2, km, { action: "manager_stock_supplier_rename", department: "Floor", from: "RiverCity", to: "X" });
+    assert.equal(r.status, 403);
+    r = await api(vNew, 3, fm, { action: "manager_stock_supplier_rename", from: "RiverCity", to: "" });
+    assert.equal(r.status, 400);
+    const audit = Number(await one(db, "select count(*) from public.stock_audit where kind = 'supplier_rename'"));
+    assert.equal(audit, 3);
+    return "Abrisca renamed on 16 items; SMS keeps min 9; Global merged into RiverCity; kitchen manager 403; empty name 400; 3 audit rows";
+  });
+
   await check("administrator can switch to Kitchen", async () => {
     const r = await api(vNew, 1, gm, { action: "manager_stock_item_save", item: { department: "Kitchen", name: "Flour 00", group_name: "Dry", par: 4, unit: "bag" } });
     assert.equal(r.status, 200, JSON.stringify(r.body));
