@@ -6756,8 +6756,8 @@ document.getElementById("stockFSave")?.addEventListener("click", async () => {
   button.disabled = true;
   try {
     await managerApi("manager_stock_item_save", { department: stockState.dept, item });
-    stockCloseForm();
     await loadStock();
+    stockCloseForm();
     stockMsg(document.getElementById("stockMessage"), `Saved: ${item.name}.`, true);
   } catch (error) {
     stockMsg(msg, error.message || "Unable to save.", false);
