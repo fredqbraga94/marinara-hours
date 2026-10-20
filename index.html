@@ -6208,6 +6208,14 @@ function stockParText(item, withNote = true) {
   if (withNote && item.note) t += ` · ${item.note}`;
   return t;
 }
+// Main count in units: whole boxes x box size + loose units. null = not counted.
+function stockMainQty(item, d) {
+  const loose = stockParsed(d.qty);
+  const boxes = item.case_size ? stockParsed(d.qty_box) : null;
+  if (Number.isNaN(loose) || Number.isNaN(boxes)) return NaN;
+  if (loose === null && boxes === null) return null;
+  return (boxes || 0) * Number(item.case_size || 0) + (loose || 0);
+}
 function stockDraftKey() {
   return `marinara_stock_draft_${stockState.data?.location || ""}_${stockState.data?.department || ""}`;
 }
@@ -6233,7 +6241,7 @@ function stockGroups(items) {
 
 function stockNeedHtml(item) {
   const d = stockState.draft[item.id] || {};
-  const qty = stockParsed(d.qty), extra = stockParsed(d.qty_extra);
+  const qty = stockMainQty(item, d), extra = stockParsed(d.qty_extra);
   if (qty === null && extra === null) return { cls: "", text: "" };
   if (Number.isNaN(qty) || Number.isNaN(extra)) return { cls: "order", text: "Check the number" };
   const o = stockOrder(item, qty || 0, extra || 0);
@@ -6245,7 +6253,7 @@ function stockRenderProgress() {
   let counted = 0, toOrder = 0;
   for (const it of items) {
     const d = stockState.draft[it.id] || {};
-    const q = stockParsed(d.qty), e = stockParsed(d.qty_extra);
+    const q = stockMainQty(it, d), e = stockParsed(d.qty_extra);
     if (q === null && e === null) continue;
     counted++;
     if (!Number.isNaN(q) && !Number.isNaN(e) && stockOrder(it, q || 0, e || 0).order_qty > 0) toOrder++;
@@ -6271,7 +6279,8 @@ function stockRenderCount() {
       return `<div class="stock-row" data-stock-row="${escapeHtml(it.id)}">
         <div><strong>${escapeHtml(it.name)}</strong><small>${escapeHtml(stockParText(it, false))}</small></div>
         <div class="stock-inputs">
-          <label><input inputmode="decimal" autocomplete="off" data-stock-qty="qty" data-id="${escapeHtml(it.id)}" value="${escapeHtml(d.qty ?? "")}" aria-label="${escapeHtml(it.name)} in stock">stock</label>
+          ${it.case_size ? `<label><input inputmode="numeric" autocomplete="off" data-stock-qty="qty_box" data-id="${escapeHtml(it.id)}" value="${escapeHtml(d.qty_box ?? "")}" aria-label="${escapeHtml(it.name)} full boxes">box</label>` : ""}
+          <label><input inputmode="decimal" autocomplete="off" data-stock-qty="qty" data-id="${escapeHtml(it.id)}" value="${escapeHtml(d.qty ?? "")}" aria-label="${escapeHtml(it.name)} ${it.case_size ? "loose" : "in stock"}">${escapeHtml(it.unit || "qty")}</label>
           ${it.par_extra != null ? `<label><input inputmode="decimal" autocomplete="off" data-stock-qty="qty_extra" data-id="${escapeHtml(it.id)}" value="${escapeHtml(d.qty_extra ?? "")}" aria-label="${escapeHtml(it.name)} ${escapeHtml(it.extra_label || "extra")}">${escapeHtml(it.extra_label || "extra")}</label>` : ""}
         </div>
         <div class="stock-need ${need.cls}" data-stock-need="${escapeHtml(it.id)}">${escapeHtml(need.text)}</div>
@@ -6438,7 +6447,7 @@ stockScreen?.addEventListener("input", e => {
   const id = input.dataset.id;
   const d = (stockState.draft[id] ||= {});
   d[input.dataset.stockQty] = input.value;
-  if (d.qty === "" && (d.qty_extra ?? "") === "") delete stockState.draft[id];
+  if ((d.qty ?? "") === "" && (d.qty_box ?? "") === "" && (d.qty_extra ?? "") === "") delete stockState.draft[id];
   stockSaveDraft();
   const item = (stockState.data?.items || []).find(i => i.id === id);
   const need = item && stockNeedHtml(item);
@@ -6518,7 +6527,9 @@ document.getElementById("stockSaveBtn")?.addEventListener("click", async () => {
   const msg = document.getElementById("stockMessage");
   const lines = [];
   for (const [item_id, d] of Object.entries(stockState.draft)) {
-    const qty = stockParsed(d.qty), qty_extra = stockParsed(d.qty_extra);
+    const item = (stockState.data?.items || []).find(i => i.id === item_id);
+    if (!item) continue;
+    const qty = stockMainQty(item, d), qty_extra = stockParsed(d.qty_extra);
     if (Number.isNaN(qty) || Number.isNaN(qty_extra)) { stockMsg(msg, "One of the numbers is not valid. Check the items marked “Check the number”.", false); return; }
     if (qty === null && qty_extra === null) continue;
     lines.push({ item_id, qty, qty_extra });
