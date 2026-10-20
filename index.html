@@ -1068,6 +1068,13 @@ button{cursor:pointer}
 .roster-grid th.roster-ph{color:#b45309}
 .roster-grid th.roster-ph .ph-tag{display:inline-block;margin-top:2px;padding:0 4px;border-radius:5px;background:#fde7c7;color:#8a4b00;font-size:9px;font-weight:900}
 .roster-grid td.roster-ph-col{background:#fffaf2}
+/* ROSTER ROLES */
+.roster-pdf-btn{display:block;margin:0 0 10px auto;min-height:34px;padding:0 12px;border-radius:10px;border:1.5px solid var(--border);background:#fff;color:var(--green);font-weight:850;font-size:13px}
+.team-roster-only{display:inline-block;margin-top:6px;padding:3px 8px;border-radius:8px;background:#eef1f8;color:#3b4a7a;font-size:11px;font-weight:800}
+.team-add-only{display:flex;gap:8px;align-items:flex-start;font-size:13px;font-weight:600;margin:4px 0 12px;color:var(--text)}
+.team-add-only input{margin-top:3px}
+.roster-role-row td{border-top:0 !important;padding:10px 2px 2px !important;font-size:10px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--green)}
+.roster-name .roster-only-tag{display:inline-block;margin-left:3px;padding:0 4px;border-radius:5px;background:#eef1f8;color:#3b4a7a;font-size:8px;font-weight:900;vertical-align:middle}
 /* TIME OFF */
 .staff-bottom-nav.has-timeoff{grid-template-columns:repeat(4,1fr)}
 .timeoff-kind{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
@@ -1098,9 +1105,76 @@ button{cursor:pointer}
 .timeoff-actions button{flex:1;min-height:40px;border-radius:12px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:13px}
 .timeoff-actions .approve{background:var(--green);border-color:var(--green);color:#fff}
 .timeoff-actions .decline{color:var(--danger)}
+/* STOCK PAR LEVEL */
+.stock-chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;margin-bottom:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.stock-chips::-webkit-scrollbar{display:none}
+.stock-chips button{flex:0 0 auto;min-height:36px;padding:0 12px;border-radius:18px;border:1.5px solid var(--border);background:#fff;font-weight:800;font-size:13px;color:var(--text);white-space:nowrap}
+.stock-chips button.selected{background:var(--green);border-color:var(--green);color:#fff}
+.stock-chips button small{font-weight:700;opacity:.75;margin-left:4px}
+.stock-chips button.done:not(.selected){border-color:var(--green);color:var(--green)}
+.stock-dept{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.stock-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#eef1ee;padding:4px;border-radius:14px;margin-bottom:12px}
+.stock-tabs button,.stock-dept button,.stock-toggle button{min-height:42px;border-radius:11px;border:0;background:transparent;font-weight:850;font-size:14px;color:var(--muted)}
+.stock-dept button,.stock-toggle button{border:1.5px solid var(--border);background:#fff;color:var(--text)}
+.stock-tabs button.selected{background:#fff;color:var(--green);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.stock-dept button.selected,.stock-toggle button.selected{background:var(--green);border-color:var(--green);color:#fff}
+.stock-group-title{font-size:12px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--green);margin:4px 0 2px}
+.stock-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:8px 0;border-top:1px solid var(--border)}
+.stock-group-title + .stock-row,.stock-group-title + .stock-edit-row{border-top:0}
+.stock-group-title{margin-top:12px}
+.stock-need:empty{display:none}
+.stock-row strong{font-size:14px;display:block;overflow-wrap:anywhere}
+.stock-row small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.stock-inputs{display:flex;gap:6px}
+.stock-inputs label{display:flex;flex-direction:column;align-items:center;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.stock-inputs input{width:58px;min-height:44px;box-sizing:border-box;border:1.5px solid var(--border);border-radius:12px;text-align:center;font-size:17px;font-weight:800;background:#fff;font-family:inherit;margin-bottom:3px}
+.stock-inputs input:focus{outline:none;border-color:var(--green)}
+.stock-need{grid-column:1 / -1;font-size:12px;font-weight:800;color:var(--muted)}
+.stock-need.order{color:#8a4b00}
+.stock-need.ok{color:var(--green)}
+.stock-footer{position:sticky;bottom:calc(76px + env(safe-area-inset-bottom));z-index:5;background:#fff;border:1px solid var(--border);border-radius:18px;padding:8px 10px;box-shadow:0 6px 18px rgba(0,0,0,.08);margin-bottom:14px}
+.stock-footer .stock-progress{font-size:13px;font-weight:800;color:var(--muted);text-align:center}
+.stock-footer .btn{margin-top:6px;min-height:0;padding:12px 14px;font-size:15px}
+.stock-supplier{padding:12px 0;border-top:1px solid var(--border)}
+.stock-supplier:first-child{border-top:0}
+.stock-supplier-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:6px}
+.stock-supplier-head strong{font-size:15px}
+.stock-copy{min-height:36px;padding:0 12px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:13px;color:var(--green)}
+.stock-line{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:4px 0}
+.stock-line span:last-child{font-weight:900;white-space:nowrap}
+.stock-open-head{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.stock-new-count{flex:0 0 auto;min-height:36px;padding:0 12px;border-radius:10px;border:1.5px solid #f3c4c4;background:#fff;color:var(--danger);font-weight:850;font-size:13px}
+.stock-warn{margin-top:6px;padding:8px 10px;border-radius:10px;background:#fff4e5;color:#7a4b00;font-size:12px;font-weight:800}
+.stock-edit-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--border)}
+.stock-edit-row > div{min-width:0}
+.stock-edit-row strong{font-size:14px;display:block;overflow-wrap:anywhere}
+.stock-edit-row small{color:var(--muted);font-size:12px}
+.stock-edit-btns{display:flex;gap:4px;flex:0 0 auto}
+.stock-edit-btns button{min-width:38px;min-height:38px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:13px;color:var(--text);padding:0 8px}
+.stock-edit-btns button[data-stock-edit]{color:var(--green)}
+.stock-form label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px}
+.stock-form input,.stock-form select{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 10px;font-size:16px;margin-top:4px;background:#fff;font-family:inherit}
+.stock-form .stock-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.stock-toggle{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:4px 0 10px}
+.stock-form .stock-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stock-form .stock-actions .btn{margin-top:4px}
+.stock-remove{margin-top:10px;width:100%;min-height:42px;border-radius:12px;border:1.5px solid #f3c4c4;background:#fff;color:var(--danger);font-weight:850}
+.stock-min-row{display:grid;grid-template-columns:minmax(0,1fr) 84px auto;gap:8px;align-items:center;padding:8px 0;border-top:1px solid var(--border)}
+.stock-min-row:first-child{border-top:0}
+.stock-min-row strong{font-size:14px;overflow-wrap:anywhere;display:block}
+.stock-min-row small{color:var(--muted);font-size:12px}
+.stock-min-row .stock-rename-link{border:0;background:none;padding:0;min-height:0;border-radius:0;color:var(--green);font-weight:850;font-size:12px;text-decoration:underline}
+.stock-rename-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center;padding:8px 0;border-top:1px solid var(--border)}
+.stock-rename-row input{min-height:42px;border:1.5px solid var(--green);border-radius:11px;padding:0 10px;font-size:16px;width:100%;box-sizing:border-box;min-width:0}
+.stock-rename-row button{min-height:42px;border-radius:11px;border:0;background:var(--green);color:#fff;font-weight:850;padding:0 12px}
+.stock-rename-row button.ghost{background:var(--green-light);color:var(--green)}
+.stock-min-row input{min-height:42px;border:1.5px solid var(--border);border-radius:11px;text-align:center;font-size:16px;width:100%;box-sizing:border-box}
+.stock-min-row button{min-height:42px;border-radius:11px;border:0;background:var(--green-light);color:var(--green);font-weight:850;padding:0 12px}
 button:disabled{opacity:.6}
 </style>
 <script defer src="./timesheet-pdf.js"></script>
+<script defer src="./stock-pdf.js"></script>
+<script defer src="./roster-pdf.js"></script>
 </head>
 
 <body>
@@ -1289,6 +1363,7 @@ button:disabled{opacity:.6}
     <button id="timesheetsCard" class="manager-quick-card"><div class="manager-quick-icon">▤</div><strong>Timesheets</strong><span>Weekly timesheets & PDF</span></button>
     <button id="rosterCard" class="manager-quick-card"><div class="manager-quick-icon">▦</div><strong>Roster</strong><span>Plan the week · L / D or times</span></button>
     <button id="timeOffCard" class="manager-quick-card"><div class="manager-quick-icon">✈</div><strong>Time off</strong><span id="timeOffCardText">Holidays and days off</span></button>
+    <button id="stockCard" class="manager-quick-card"><div class="manager-quick-icon">▥</div><strong>Stock</strong><span>Count and see what to order</span></button>
     <button id="myClockCard" class="manager-quick-card"><div class="manager-quick-icon">◉</div><strong>My Time Clock</strong><span>Clock in, break and clock out</span></button>
   </div></div>
   <div id="managerClockSection" class="hidden"><div class="card"><div class="section-title">My Time Clock</div><div class="status"><div class="status-label">Current status</div><div id="managerStatusValue" class="status-value">Off shift</div></div><button id="managerClockInBtn" class="btn primary hidden">Clock In</button><button id="managerStartBreakBtn" class="btn secondary hidden">Start Break</button><button id="managerEndBreakBtn" class="btn primary hidden">End Break</button><button id="managerClockOutBtn" class="btn danger hidden">Clock Out</button><div id="managerActionMessage" class="message"></div></div></div>
@@ -1390,8 +1465,15 @@ button:disabled{opacity:.6}
         <option value="Floor">Floor</option>
       </select>
 
+      <label class="field-label" for="newStaffPosition">Role on the roster</label>
+      <select id="newStaffPosition" class="input"></select>
+
+      <label class="team-add-only"><input id="newStaffRosterOnly" type="checkbox"> <span>Roster only — on salary (full or part time). No PIN and no time clock.</span></label>
+
+      <div id="newStaffPinWrap">
       <label class="field-label" for="newStaffPin">PIN</label>
       <input id="newStaffPin" class="input" type="password" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="4–6 numbers">
+      </div>
 
       <button id="addStaffBtn" class="btn primary">Add Staff</button>
     </div>
@@ -1425,6 +1507,7 @@ button:disabled{opacity:.6}
       <button id="rosterNextBtn" type="button" aria-label="Next week">›</button>
     </div>
     <div id="rosterTabs" class="roster-tabs"></div>
+    <button id="rosterPdfBtn" class="roster-pdf-btn" type="button">Export PDF</button>
     <div id="rosterMessage" class="message"></div>
     <div id="rosterHolidayNotice"></div>
     <div id="rosterGridBox" class="empty-state">Loading roster...</div>
@@ -1468,6 +1551,81 @@ button:disabled{opacity:.6}
     <label>Note (optional)<textarea id="timeOffNote" maxlength="200"></textarea></label>
     <button id="timeOffAddBtn" class="btn primary" type="button">Add (approved)</button>
     <div id="timeOffAddMessage" class="message"></div>
+  </div>
+</section>
+
+<!-- STOCK SCREEN (MANAGER) -->
+<section id="stockScreen" class="hidden">
+  <div class="manager-top">
+    <div>
+      <div class="team-v2-kicker">MANAGER</div>
+      <h2>Stock</h2>
+      <p id="stockPlace" class="team-v2-sub">Hawthorne</p>
+    </div>
+    <button id="backStockBtn" class="back-btn">Back</button>
+  </div>
+  <div id="stockDept" class="stock-dept hidden">
+    <button type="button" data-stock-dept="Floor">Floor / Bar</button>
+    <button type="button" data-stock-dept="Kitchen">Kitchen</button>
+  </div>
+  <div class="stock-tabs" id="stockTabs">
+    <button type="button" data-stock-tab="count" class="selected">Count</button>
+    <button type="button" data-stock-tab="order">Order</button>
+    <button type="button" data-stock-tab="edit">Edit list</button>
+  </div>
+  <div id="stockMessage" class="message"></div>
+  <div id="stockCountView">
+    <div id="stockGroupChips" class="stock-chips"></div>
+    <div class="card"><div id="stockCountList" class="empty-state">Loading…</div></div>
+    <div class="stock-footer">
+      <div id="stockProgress" class="stock-progress">0 counted</div>
+      <button id="stockSaveBtn" class="btn primary" type="button">Save &amp; update order</button>
+    </div>
+  </div>
+  <div id="stockOrderView" class="hidden">
+    <div class="card"><div class="manager-v2-section-head"><div class="section-title">To order</div><button id="stockPdfBtn" class="manager-v2-link hidden" type="button">Export PDF</button></div><div id="stockOrderList" class="empty-state">No count saved yet.</div></div>
+  </div>
+  <div id="stockEditView" class="hidden">
+    <div id="stockFormCard" class="card stock-form hidden">
+      <div id="stockFormTitle" class="section-title">Edit item</div>
+      <label>Name<input id="stockFName" maxlength="80" autocomplete="off"></label>
+      <div class="stock-two">
+        <label>Group<input id="stockFGroup" maxlength="40" list="stockGroupList" autocomplete="off" placeholder="e.g. Red"></label>
+        <label>Supplier<input id="stockFSupplier" maxlength="60" list="stockSupplierList" autocomplete="off" placeholder="optional"></label>
+      </div>
+      <div class="stock-two">
+        <label>Par (keep in stock)<input id="stockFPar" type="number" inputmode="decimal" min="0" step="any"></label>
+        <label>Unit<input id="stockFUnit" maxlength="20" placeholder="e.g. bot" autocomplete="off"></label>
+      </div>
+      <div class="person-meta">Order in</div>
+      <div class="stock-toggle" id="stockFOrderBy">
+        <button type="button" data-order-by="unit" class="selected">Units</button>
+        <button type="button" data-order-by="box">Boxes</button>
+      </div>
+      <label>Box size (how many in a box)<input id="stockFCase" type="number" inputmode="numeric" min="1" step="1" placeholder="e.g. 12"></label>
+      <div class="stock-two">
+        <label>Also keep (2nd place)<input id="stockFParExtra" type="number" inputmode="decimal" min="0" step="any" placeholder="none"></label>
+        <label>Where<input id="stockFExtraLabel" maxlength="20" list="stockExtraList" placeholder="bar / open" autocomplete="off"></label>
+      </div>
+      <label>Note<input id="stockFNote" maxlength="200" placeholder="optional" autocomplete="off"></label>
+      <div class="stock-actions">
+        <button id="stockFCancel" class="btn secondary" type="button">Cancel</button>
+        <button id="stockFSave" class="btn primary" type="button">Save</button>
+      </div>
+      <button id="stockFRemove" class="stock-remove hidden" type="button">Remove from the list</button>
+      <div id="stockFormMessage" class="message"></div>
+    </div>
+    <div class="card">
+      <div class="manager-v2-section-head"><div class="section-title">Items</div><button id="stockAddBtn" class="manager-v2-link" type="button">+ Add item</button></div>
+      <div id="stockEditList" class="empty-state">Loading…</div>
+    </div>
+    <div class="card">
+      <div class="section-title">Suppliers · minimum order</div>
+      <div id="stockSuppliers" class="empty-state">No suppliers yet. Type one in an item's Supplier field.</div>
+    </div>
+    <datalist id="stockGroupList"></datalist>
+    <datalist id="stockSupplierList"></datalist>
+    <datalist id="stockExtraList"><option value="bar"><option value="open"></datalist>
   </div>
 </section>
 
@@ -1529,6 +1687,11 @@ button:disabled{opacity:.6}
     <button id="moreTimeOffBtn" class="more-v2-item" type="button">
       <span class="more-v2-icon">✈</span>
       <span><strong>Time off</strong><small>Approve holidays and days off</small></span>
+      <span class="more-v2-chevron">›</span>
+    </button>
+    <button id="moreStockBtn" class="more-v2-item" type="button">
+      <span class="more-v2-icon">▥</span>
+      <span><strong>Stock</strong><small>Count against the par level and see what to order</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
     <button id="moreMyClockBtn" class="more-v2-item" type="button">
@@ -4885,6 +5048,13 @@ function renderVisaBadge(person, visa) {
   return `<div class="team-visa team-visa-${level}">${escapeHtml(text)}</div>`;
 }
 
+const TEAM_POSITIONS = { Kitchen: ["Chef", "Dishwasher"], Floor: ["Floor", "Bar"] };
+function teamPositionOptions(department, current) {
+  const list = TEAM_POSITIONS[department] || [];
+  return `<option value="">Not set</option>` +
+    list.map(p => `<option value="${p}" ${p === current ? "selected" : ""}>${p}</option>`).join("");
+}
+
 function renderTeamMember(person, visa) {
   const isManager =
     ["manager", "kitchen_manager", "floor_manager"].includes(person.role);
@@ -4911,8 +5081,10 @@ function renderTeamMember(person, visa) {
           ${person.role === "manager"
             ? `${escapeHtml(roleLabel)} · Hawthorne`
             : `${escapeHtml(person.department || "")} · ${escapeHtml(roleLabel)}`}
+          ${person.position ? ` · ${escapeHtml(person.position)}` : ""}
           · <span class="team-status-dot ${statusDotClass}"></span>${statusText}
         </div>
+        ${person.roster_only ? `<div class="team-roster-only">Roster only · no time clock</div>` : ""}
         ${person.pin_conflict_at && person.active
           ? `<div class="team-pin-conflict">PIN shared with someone else — set a new PIN</div>`
           : ""}
@@ -4985,8 +5157,24 @@ function renderTeamMember(person, visa) {
               maxlength="6" placeholder="Leave blank to keep current PIN"
               style="width:100%;box-sizing:border-box;margin-bottom:6px;">
             <div style="font-size:12px;color:#777;margin-bottom:14px;">
-              Optional · 4–6 numbers
+              ${person.roster_only ? "Roster only: give a PIN here (and untick below) to use the time clock" : "Optional · 4–6 numbers"}
             </div>
+
+            ${
+              "position" in person
+                ? `
+                  <label style="display:block;margin-bottom:6px;font-size:13px;font-weight:600;">Role on the roster</label>
+                  <select class="team-edit-position" style="width:100%;box-sizing:border-box;margin-bottom:12px;">
+                    ${teamPositionOptions(person.department, person.position)}
+                  </select>
+                  ${person.role === "staff" ? `
+                  <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:14px;font-size:13px;font-weight:600;">
+                    <input class="team-edit-roster-only" type="checkbox" ${person.roster_only ? "checked" : ""} style="margin-top:2px">
+                    <span>Roster only — on salary (full or part time). No PIN and no time clock; not in hours or timesheets.</span>
+                  </label>` : ""}
+                `
+                : ""
+            }
 
             ${
               "student_visa" in person
@@ -5148,6 +5336,20 @@ async function loadTeamScreen() {
           return;
         }
 
+        const posSelectCheck = panel.querySelector(".team-edit-position");
+        const onlyBoxCheck = panel.querySelector(".team-edit-roster-only");
+        if (posSelectCheck && posSelectCheck.value && !(TEAM_POSITIONS[department] || []).includes(posSelectCheck.value)) {
+          message.textContent = `${posSelectCheck.value} is not a ${department} role. Choose the role again.`;
+          return;
+        }
+        {
+          const person = team.find(p => p.id === staffId) || {};
+          if (onlyBoxCheck && person.roster_only && !onlyBoxCheck.checked && !newPin) {
+            message.textContent = "To use the time clock, give this person a PIN (New PIN).";
+            return;
+          }
+        }
+
         button.disabled = true;
         button.textContent = "Saving...";
 
@@ -5174,6 +5376,19 @@ async function loadTeamScreen() {
                 staff_id: staffId,
                 student_visa: wantVisa,
                 course_break: wantBreak
+              });
+            }
+          }
+
+          const posSelect = panel.querySelector(".team-edit-position");
+          const onlyBox = panel.querySelector(".team-edit-roster-only");
+          if (posSelect) {
+            const person = team.find(p => p.id === staffId) || {};
+            const wantPos = posSelect.value || null;
+            const wantOnly = onlyBox ? onlyBox.checked : !!person.roster_only;
+            if (wantPos !== (person.position || null) || wantOnly !== !!person.roster_only) {
+              await managerApi("manager_set_roster_info", {
+                staff_id: staffId, position: wantPos, roster_only: wantOnly
               });
             }
           }
@@ -5253,15 +5468,52 @@ backTeamBtn.addEventListener("click", async () => {
   window.scrollTo({top:0,behavior:"smooth"});
 });
 
+function refreshNewStaffPosition() {
+  const sel = document.getElementById("newStaffPosition");
+  if (!sel) return;
+  const keep = sel.value;
+  sel.innerHTML = teamPositionOptions(newStaffDepartment.value, keep);
+}
+newStaffDepartment?.addEventListener("change", refreshNewStaffPosition);
+document.getElementById("newStaffRosterOnly")?.addEventListener("change", e => {
+  document.getElementById("newStaffPinWrap")?.classList.toggle("hidden", e.target.checked);
+});
+document.getElementById("showAddStaffBtn")?.addEventListener("click", refreshNewStaffPosition);
+refreshNewStaffPosition();
+
 addStaffBtn.addEventListener("click", async () => {
   const name = newStaffName.value.trim();
   const department = newStaffDepartment.value;
   const staffPin = newStaffPin.value.trim();
+  const position = document.getElementById("newStaffPosition")?.value || null;
+  const rosterOnly = !!document.getElementById("newStaffRosterOnly")?.checked;
 
   teamMessage.textContent = "";
 
   if (!name) {
     teamMessage.textContent = "Enter the staff name.";
+    return;
+  }
+
+  if (rosterOnly) {
+    addStaffBtn.disabled = true;
+    addStaffBtn.textContent = "Adding...";
+    try {
+      await managerApi("manager_create_roster_person", { name, department, position });
+      newStaffName.value = "";
+      document.getElementById("newStaffRosterOnly").checked = false;
+      document.getElementById("newStaffPinWrap")?.classList.remove("hidden");
+      teamMessage.textContent = "Added to the roster (no time clock).";
+      addStaffPanel?.classList.add("hidden");
+      if (showAddStaffBtn) showAddStaffBtn.textContent = "+ Add New Staff";
+      await loadTeamScreen();
+      await loadManagerDashboard();
+    } catch (error) {
+      teamMessage.textContent = error.message || "Unable to add.";
+    } finally {
+      addStaffBtn.disabled = false;
+      addStaffBtn.textContent = "Add Staff";
+    }
     return;
   }
 
@@ -5274,11 +5526,16 @@ addStaffBtn.addEventListener("click", async () => {
   addStaffBtn.textContent = "Adding...";
 
   try {
-    await managerApi("manager_create_staff", {
+    const created = await managerApi("manager_create_staff", {
       name,
       staff_pin: staffPin,
       department
     });
+    const newId = created?.staff?.id;
+    if (position && newId) {
+      try { await managerApi("manager_set_roster_info", { staff_id: newId, position, roster_only: false }); }
+      catch (_) { /* the person is added; the role can be set in Edit */ }
+    }
 
     newStaffName.value = "";
     newStaffPin.value = "";
@@ -5520,6 +5777,15 @@ function rosterVisaLevel(v) {
   return "ok";
 }
 
+// Chefs on top and dishwashers last (Kitchen); Floor then Bar (Floor).
+// People without a role go at the end, then by name.
+const ROSTER_ROLE_ORDER = { Chef: 1, Dishwasher: 2, Floor: 1, Bar: 2 };
+function rosterSortByRole(list) {
+  return list.slice().sort((a, b) =>
+    (ROSTER_ROLE_ORDER[a.position] || 9) - (ROSTER_ROLE_ORDER[b.position] || 9) ||
+    String(a.name || "").localeCompare(String(b.name || "")));
+}
+
 function renderRoster() {
   const data = rosterState.data;
   if (!data) return;
@@ -5544,7 +5810,7 @@ function renderRoster() {
     `${escapeHtml(rosterShortDate(week))} – ${escapeHtml(rosterShortDate(rosterAddDays(week, 6)))}` +
     `<small>${week === rosterMonday(today) ? "This week" : week > today ? "Upcoming" : "Past week"}</small>`;
 
-  const people = (data.team || []).filter(m => m.department === rosterState.dept);
+  const people = rosterSortByRole((data.team || []).filter(m => m.department === rosterState.dept));
   const cells = {};
   (data.entries || []).forEach(e => { cells[`${e.staff_id}|${e.work_date}`] = e; });
   const leaveCells = rosterLeaveByCell(data.leave || [], week);
@@ -5567,11 +5833,15 @@ function renderRoster() {
         <thead><tr><th></th>${days.map((d, i) =>
           `<th class="${d === today ? "roster-today" : ""} ${holidayByDate[d] ? "roster-ph" : ""}" ${holidayByDate[d] ? `title="${escapeHtml(holidayByDate[d].map(h => h.name).join(", "))}"` : ""}>${ROSTER_DAYS[i]}<br>${escapeHtml(rosterShortDate(d))}${holidayByDate[d] ? `<br><span class="ph-tag">PH</span>` : ""}</th>`
         ).join("")}</tr></thead>
-        <tbody>${people.map(m => {
+        <tbody>${people.map((m, idx) => {
           const v = visaById[m.id];
           const dot = v ? `<span class="roster-visa-dot ${rosterVisaLevel(v)}"></span>` : "";
-          return `<tr>
-            <td><div class="roster-name">${dot}${escapeHtml(m.name)}<small>${escapeHtml(rosterHours(data.planned_hours?.[m.id]))}</small></div></td>
+          const group = m.position || "";
+          const prevGroup = idx ? (people[idx - 1].position || "") : null;
+          const header = group !== prevGroup && people.some(p => p.position)
+            ? `<tr class="roster-role-row"><td colspan="8">${escapeHtml(group || "No role set")}</td></tr>` : "";
+          return `${header}<tr>
+            <td><div class="roster-name">${dot}${escapeHtml(m.name)}${m.roster_only ? `<span class="roster-only-tag" title="Roster only">R</span>` : ""}<small>${escapeHtml(rosterHours(data.planned_hours?.[m.id]))}</small></div></td>
             ${days.map(d => `<td class="${holidayByDate[d] ? "roster-ph-col" : ""}">${rosterCellHtml(cells[`${m.id}|${d}`], m.id, d, leaveCells[`${m.id}|${d}`])}</td>`).join("")}
           </tr>`;
         }).join("")}</tbody>
@@ -5599,6 +5869,84 @@ function renderRoster() {
   }).join("") +
   `<div class="person-meta" style="margin-top:10px">Past days use clocked hours; today and later use the roster. Hours at other jobs also count.</div>`;
 }
+
+// PDF of the week on screen (current department), grouped by role.
+function rosterPdfReport() {
+  const data = rosterState.data;
+  if (!data) return null;
+  const week = data.week_start;
+  const dept = rosterState.dept || "Kitchen";
+  const people = rosterSortByRole((data.team || []).filter(m => m.department === dept));
+  const cells = {};
+  (data.entries || []).forEach(e => { cells[`${e.staff_id}|${e.work_date}`] = e; });
+  const leaveCells = rosterLeaveByCell(data.leave || [], week);
+  const days = ROSTER_DAYS.map((_, i) => rosterAddDays(week, i));
+  const holidays = {};
+  (data.holidays || []).forEach(h => { holidays[h.holiday_date] = h.name; });
+  const t12 = (t) => {
+    const [h, m] = String(t || "").split(":").map(Number);
+    if (Number.isNaN(h)) return "";
+    const h12 = h % 12 === 0 ? 12 : h % 12;
+    return `${h12}${m ? ":" + String(m).padStart(2, "0") : ""}${h >= 12 ? "pm" : "am"}`;
+  };
+  const cellText = (e, l) => {
+    if (l && l.status === "APPROVED") return { text: l.kind === "HOLIDAY" ? "Holiday" : "Day off", kind: "leave" };
+    if (!e) return { text: "", kind: "" };
+    if (e.code === "OFF") return { text: "Off", kind: "off" };
+    if (e.code === "SHIFT") return { text: `${t12(e.start_time)}-${t12(e.end_time)}`, kind: "work" };
+    return { text: e.code === "LD" ? "L/D" : e.code, kind: "work" };
+  };
+  const groups = [];
+  for (const m of people) {
+    const name = people.some(p => p.position) ? (m.position || "No role set") : "";
+    let g = groups[groups.length - 1];
+    if (!g || g.name !== name) { g = { name, rows: [] }; groups.push(g); }
+    g.rows.push({
+      name: m.name,
+      cells: days.map(d => cellText(cells[`${m.id}|${d}`], leaveCells[`${m.id}|${d}`])),
+      hours: rosterHours(data.planned_hours?.[m.id]),
+    });
+  }
+  const svc = data.services || [];
+  const span = (s) => s ? `${t12(s.start_time)}-${t12(s.end_time)}` : "";
+  const roles = [...new Set(people.map(p => p.position).filter(Boolean))];
+  const legendParts = [];
+  if (dept === "Kitchen") {
+    for (const r of roles) {
+      const l = svc.find(x => x.position === r && x.service === "L"), d = svc.find(x => x.position === r && x.service === "D");
+      if (l || d) legendParts.push(`${r}: L ${span(l)}, D ${span(d)}`);
+    }
+    const l = svc.find(x => !x.position && x.department === "Kitchen" && x.service === "L");
+    const d = svc.find(x => !x.position && x.department === "Kitchen" && x.service === "D");
+    if (!legendParts.length && (l || d)) legendParts.push(`L ${span(l)}, D ${span(d)}`);
+  }
+  const fmtDay = (d) => new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${d}T00:00:00Z`));
+  return {
+    place: `${data.location || "Hawthorne"} · ${dept}`,
+    week: `${fmtDay(days[0])} - ${fmtDay(days[6])}`,
+    fileName: `${dept}-${week}`,
+    legend: (legendParts.length ? `L = lunch, D = dinner, L/D = both. ${legendParts.join(" · ")}. ` : "") +
+      "Hours are planned hours.",
+    logo: document.querySelector(".login-original-logo")?.src,
+    days: days.map(d => ({ label: fmtDay(d), holiday: holidays[d] || "" })),
+    groups,
+  };
+}
+document.getElementById("rosterPdfBtn")?.addEventListener("click", async () => {
+  const btn = document.getElementById("rosterPdfBtn");
+  const report = rosterPdfReport();
+  if (!report) return;
+  btn.disabled = true; btn.textContent = "Generating…";
+  try {
+    await window.MarinaraRosterPdf.open(report);
+  } catch (error) {
+    const msg = document.getElementById("rosterMessage");
+    msg.className = "message show error";
+    msg.textContent = "Unable to make the PDF. " + (error.message || "");
+  } finally {
+    btn.disabled = false; btn.textContent = "Export PDF";
+  }
+});
 
 async function loadRoster(week) {
   const msg = document.getElementById("rosterMessage");
@@ -6039,6 +6387,595 @@ document.addEventListener("click", event => {
   const nav = event.target.closest("[data-manager-nav], .manager-quick-card, .more-v2-item, #managerLogoutBtn, #moreSignOutBtn");
   if (nav && nav.id !== "timeOffCard" && nav.id !== "moreTimeOffBtn") timeOffScreen.classList.add("hidden");
 }, true);
+
+/* STOCK PAR LEVEL (MANAGER) */
+const stockScreen = document.getElementById("stockScreen");
+const stockState = { data: null, dept: null, tab: "count", draft: {}, editingId: null, orderBy: "unit", group: null };
+
+function stockMsg(el, text, ok) {
+  if (!el) return;
+  el.className = `message show ${ok ? "ok" : "error"}`;
+  el.textContent = text;
+}
+function stockClearMsg(el) { if (el) { el.className = "message"; el.textContent = ""; } }
+function stockNum(v) { const n = Number(v); return Number.isFinite(n) ? Math.round(n * 10) / 10 : 0; }
+function stockFmt(v) { const n = stockNum(v); return Number.isInteger(n) ? String(n) : n.toFixed(1); }
+function stockParsed(v) {
+  const s = String(v ?? "").trim().replace(",", ".");
+  if (s === "") return null;
+  const n = Number(s);
+  return Number.isFinite(n) && n >= 0 ? n : NaN;
+}
+// Same rule as the database (mh_stock_order): what is missing, rounded up to
+// whole boxes when the item is ordered in boxes.
+function stockOrder(item, qty, qtyExtra) {
+  const missing = Math.max(stockNum(item.par) - (qty || 0), 0) +
+    (item.par_extra == null ? 0 : Math.max(stockNum(item.par_extra) - (qtyExtra || 0), 0));
+  const box = item.order_by === "box" && Number(item.case_size) > 0;
+  return { missing, order_qty: box ? Math.ceil(missing / Number(item.case_size)) : Math.ceil(missing), order_unit: box ? "box" : "unit" };
+}
+function stockQtyText(line, qty) {
+  if (line.order_unit === "box") return `${qty} box${qty === 1 ? "" : "es"}${line.case_size ? ` (${line.case_size})` : ""}`;
+  return `${qty}${line.unit ? " " + line.unit : ""}`;
+}
+function stockParText(item, withNote = true) {
+  let t = `Par ${stockFmt(item.par)}${item.unit ? " " + item.unit : ""}`;
+  if (item.par_extra != null) t += ` + ${stockFmt(item.par_extra)} ${item.extra_label || "extra"}`;
+  if (item.case_size) t += ` · box of ${item.case_size}`;
+  if (withNote && item.note) t += ` · ${item.note}`;
+  return t;
+}
+// Main count in units: whole boxes x box size + loose units. null = not counted.
+function stockMainQty(item, d) {
+  const loose = stockParsed(d.qty);
+  const boxes = item.case_size ? stockParsed(d.qty_box) : null;
+  if (Number.isNaN(loose) || Number.isNaN(boxes)) return NaN;
+  if (loose === null && boxes === null) return null;
+  return (boxes || 0) * Number(item.case_size || 0) + (loose || 0);
+}
+function stockDraftKey() {
+  return `marinara_stock_draft_${stockState.data?.location || ""}_${stockState.data?.department || ""}`;
+}
+function stockLoadDraft() {
+  try { stockState.draft = JSON.parse(localStorage.getItem(stockDraftKey()) || "{}") || {}; } catch (_) { stockState.draft = {}; }
+}
+function stockSaveDraft() {
+  try { localStorage.setItem(stockDraftKey(), JSON.stringify(stockState.draft)); } catch (_) {}
+}
+function stockClearDraft() {
+  stockState.draft = {};
+  try { localStorage.removeItem(stockDraftKey()); } catch (_) {}
+}
+function stockGroups(items) {
+  const groups = [];
+  const at = {};
+  for (const it of items) {
+    if (!(it.group_name in at)) { at[it.group_name] = groups.length; groups.push({ name: it.group_name, items: [] }); }
+    groups[at[it.group_name]].items.push(it);
+  }
+  return groups;
+}
+
+// The open order list builds up across saves until someone starts a new count.
+function stockSavedLine(id) {
+  const lc = stockState.data?.last_count;
+  if (!lc || !lc.open) return null;
+  return (lc.lines || []).find(l => l.item_id === id && l.counted) || null;
+}
+function stockHasDraft(it) {
+  const d = stockState.draft[it.id] || {};
+  return ["qty", "qty_box", "qty_extra"].some(k => String(d[k] ?? "").trim() !== "");
+}
+function stockNeedHtml(item) {
+  const d = stockState.draft[item.id] || {};
+  const qty = stockMainQty(item, d), extra = stockParsed(d.qty_extra);
+  if (qty === null && extra === null) {
+    const saved = stockSavedLine(item.id);
+    if (!saved) return { cls: "", text: "" };
+    const n = Number(saved.order_qty);
+    return n > 0
+      ? { cls: "order", text: `Saved · order ${stockQtyText({ ...item, order_unit: saved.order_unit }, n)}` }
+      : { cls: "ok", text: "Saved · at par" };
+  }
+  if (Number.isNaN(qty) || Number.isNaN(extra)) return { cls: "order", text: "Check the number" };
+  const o = stockOrder(item, qty || 0, extra || 0);
+  if (o.order_qty <= 0) return { cls: "ok", text: "At par · nothing to order" };
+  return { cls: "order", text: `Order ${stockQtyText({ ...item, order_unit: o.order_unit }, o.order_qty)}` };
+}
+function stockIsCounted(it) {
+  return stockHasDraft(it) || !!stockSavedLine(it.id);
+}
+function stockRenderChips() {
+  const box = document.getElementById("stockGroupChips");
+  if (!box) return;
+  const groups = stockGroups(stockState.data?.items || []);
+  if (stockState.group && !groups.some(g => g.name === stockState.group)) stockState.group = null;
+  if (groups.length < 2) { box.innerHTML = ""; return; }
+  box.innerHTML = `<button type="button" data-stock-group="" class="${stockState.group ? "" : "selected"}">All</button>` +
+    groups.map(g => {
+      const done = g.items.filter(stockIsCounted).length;
+      return `<button type="button" data-stock-group="${escapeHtml(g.name)}" class="${stockState.group === g.name ? "selected" : ""} ${done === g.items.length ? "done" : ""}">${escapeHtml(g.name)}<small>${done}/${g.items.length}</small></button>`;
+    }).join("");
+}
+function stockRenderProgress() {
+  const items = stockState.data?.items || [];
+  let counted = 0, toOrder = 0;
+  for (const it of items) {
+    const d = stockState.draft[it.id] || {};
+    const q = stockMainQty(it, d), e = stockParsed(d.qty_extra);
+    if (q === null && e === null) {
+      const saved = stockSavedLine(it.id);
+      if (saved) { counted++; if (Number(saved.order_qty) > 0) toOrder++; }
+      continue;
+    }
+    counted++;
+    if (!Number.isNaN(q) && !Number.isNaN(e) && stockOrder(it, q || 0, e || 0).order_qty > 0) toOrder++;
+  }
+  const el = document.getElementById("stockProgress");
+  if (el) el.textContent = `${counted} of ${items.length} counted · ${toOrder} to order`;
+  // Refresh the per-group numbers without rebuilding the chips (keeps their scroll position).
+  document.querySelectorAll("#stockGroupChips [data-stock-group]").forEach(b => {
+    const g = stockGroups(items).find(x => x.name === b.dataset.stockGroup);
+    if (!g) return;
+    const done = g.items.filter(stockIsCounted).length;
+    const small = b.querySelector("small");
+    if (small) small.textContent = `${done}/${g.items.length}`;
+    b.classList.toggle("done", done === g.items.length);
+  });
+}
+function stockRenderCount() {
+  const box = document.getElementById("stockCountList");
+  const items = stockState.data?.items || [];
+  stockRenderChips();
+  if (!items.length) {
+    box.className = "empty-state";
+    box.textContent = "No items yet. Add them in Edit list.";
+    stockRenderProgress();
+    return;
+  }
+  box.className = "";
+  box.innerHTML = stockGroups(items).filter(g => !stockState.group || g.name === stockState.group).map(g => `
+    <div class="stock-group-title">${escapeHtml(g.name)}</div>
+    ${g.items.map(it => {
+      const d = stockState.draft[it.id] || {};
+      const need = stockNeedHtml(it);
+      const saved = stockSavedLine(it.id);
+      const ph = (v) => (saved && v != null ? ` placeholder="${escapeHtml(stockFmt(v))}"` : "");
+      return `<div class="stock-row" data-stock-row="${escapeHtml(it.id)}">
+        <div><strong>${escapeHtml(it.name)}</strong><small>${escapeHtml(stockParText(it, false))}</small></div>
+        <div class="stock-inputs">
+          ${it.case_size ? `<label><input inputmode="numeric" autocomplete="off" data-stock-qty="qty_box" data-id="${escapeHtml(it.id)}" value="${escapeHtml(d.qty_box ?? "")}" aria-label="${escapeHtml(it.name)} full boxes">box</label>` : ""}
+          <label><input inputmode="decimal" autocomplete="off" data-stock-qty="qty" data-id="${escapeHtml(it.id)}" value="${escapeHtml(d.qty ?? "")}"${ph(saved?.qty)} aria-label="${escapeHtml(it.name)} ${it.case_size ? "loose" : "in stock"}">${escapeHtml(it.unit || "qty")}</label>
+          ${it.par_extra != null ? `<label><input inputmode="decimal" autocomplete="off" data-stock-qty="qty_extra" data-id="${escapeHtml(it.id)}" value="${escapeHtml(d.qty_extra ?? "")}"${ph(saved?.qty_extra)} aria-label="${escapeHtml(it.name)} ${escapeHtml(it.extra_label || "extra")}">${escapeHtml(it.extra_label || "extra")}</label>` : ""}
+        </div>
+        <div class="stock-need ${need.cls}" data-stock-need="${escapeHtml(it.id)}">${escapeHtml(need.text)}</div>
+      </div>`;
+    }).join("")}`).join("");
+  stockRenderProgress();
+}
+
+function stockOrderText(supplier, lines) {
+  return `${supplier}\n` + lines.map(l => `- ${l.name}: ${stockQtyText(l, l.order_qty)}`).join("\n");
+}
+function stockRenderOrder() {
+  const box = document.getElementById("stockOrderList");
+  const last = stockState.data?.last_count;
+  document.getElementById("stockPdfBtn")?.classList.toggle("hidden", !last);
+  if (!last) { box.className = "empty-state"; box.textContent = "No count saved yet. Count first, then save."; return; }
+  const when = new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Brisbane", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(last.counted_at));
+  const lines = last.lines || [];
+  const order = lines.filter(l => l.counted && Number(l.order_qty) > 0);
+  const notCounted = lines.filter(l => !l.counted);
+  const mins = Object.fromEntries((stockState.data.suppliers || []).map(s => [s.name, s.min_order]));
+  const bySupplier = {};
+  for (const l of order) (bySupplier[l.supplier || ""] ||= []).push(l);
+  const names = Object.keys(bySupplier).sort((a, b) => (a === "") - (b === "") || a.localeCompare(b));
+  box.className = "";
+  const closedWhen = last.closed_at ? new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Brisbane", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(last.closed_at)) : "";
+  box.innerHTML = (last.open
+      ? `<div class="stock-open-head"><div class="person-meta">Open list · last update ${escapeHtml(when)} by ${escapeHtml(last.counted_by || "—")}. Each save adds to it.</div>
+           <button type="button" class="stock-new-count" data-stock-close>Start new count</button></div>`
+      : `<div class="person-meta" style="margin-bottom:8px">Closed list (${escapeHtml(closedWhen)}). The next save starts a new list.</div>`) +
+    (names.length ? names.map(name => {
+      const ls = bySupplier[name];
+      const total = ls.reduce((s, l) => s + Number(l.order_qty), 0);
+      const min = mins[name];
+      return `<div class="stock-supplier">
+        <div class="stock-supplier-head"><strong>${escapeHtml(name || "No supplier set")}</strong>
+          <button type="button" class="stock-copy" data-stock-copy="${escapeHtml(name)}">Copy</button></div>
+        ${ls.map(l => `<div class="stock-line"><span>${escapeHtml(l.name)}</span><span>${escapeHtml(stockQtyText(l, Number(l.order_qty)))}</span></div>`).join("")}
+        ${min && total < min ? `<div class="stock-warn">Below the minimum order of ${min} (now ${total}).</div>` : ""}
+      </div>`;
+    }).join("") : `<div class="empty-state">Everything counted is at par. Nothing to order.</div>`) +
+    (notCounted.length ? `<div class="stock-warn" style="background:#eef1ee;color:var(--muted)">${notCounted.length} item${notCounted.length === 1 ? " is" : "s are"} not counted yet, so ${notCounted.length === 1 ? "it is" : "they are"} not in the order.</div>` : "");
+}
+
+function stockRenderEdit() {
+  const items = stockState.data?.items || [];
+  const list = document.getElementById("stockEditList");
+  if (!items.length) { list.className = "empty-state"; list.textContent = "No items yet. Tap + Add item."; }
+  else {
+    list.className = "";
+    list.innerHTML = stockGroups(items).map(g => `
+      <div class="stock-group-title">${escapeHtml(g.name)}</div>
+      ${g.items.map(it => `<div class="stock-edit-row">
+        <div><strong>${escapeHtml(it.name)}</strong><small>${escapeHtml(stockParText(it))}${it.supplier ? " · " + escapeHtml(it.supplier) : ""}</small></div>
+        <div class="stock-edit-btns">
+          <button type="button" data-stock-move="-1" data-id="${escapeHtml(it.id)}" aria-label="Move up">↑</button>
+          <button type="button" data-stock-move="1" data-id="${escapeHtml(it.id)}" aria-label="Move down">↓</button>
+          <button type="button" data-stock-edit="${escapeHtml(it.id)}">Edit</button>
+        </div>
+      </div>`).join("")}`).join("");
+  }
+  const groups = [...new Set(items.map(i => i.group_name))];
+  // Suppliers with items, plus any with a minimum order (an unused name with no minimum is hidden).
+  const suppliers = [...new Set([...(stockState.data?.suppliers || []).filter(s => s.min_order != null).map(s => s.name), ...items.map(i => i.supplier).filter(Boolean)])].sort();
+  document.getElementById("stockGroupList").innerHTML = groups.map(g => `<option value="${escapeHtml(g)}">`).join("");
+  document.getElementById("stockSupplierList").innerHTML = suppliers.map(s => `<option value="${escapeHtml(s)}">`).join("");
+  const mins = Object.fromEntries((stockState.data?.suppliers || []).map(s => [s.name, s.min_order]));
+  const sup = document.getElementById("stockSuppliers");
+  if (!suppliers.length) { sup.className = "empty-state"; sup.textContent = "No suppliers yet. Type one in an item's Supplier field."; }
+  else {
+    sup.className = "";
+    const itemsOf = (s) => items.filter(i => i.supplier === s).length;
+    sup.innerHTML = `<div class="person-meta" style="margin-bottom:4px">Min order · then Save. Tap Rename to change a name on all its items.</div>` +
+      suppliers.map(s => stockState.renaming === s
+      ? `<div class="stock-rename-row">
+          <input maxlength="60" value="${escapeHtml(s)}" data-stock-rename-input aria-label="New name for ${escapeHtml(s)}" autocomplete="off">
+          <button type="button" data-stock-rename-save="${escapeHtml(s)}">Save</button>
+          <button type="button" class="ghost" data-stock-rename-cancel>Cancel</button>
+        </div>`
+      : `<div class="stock-min-row">
+          <div><strong>${escapeHtml(s)}</strong><small>${itemsOf(s)} item${itemsOf(s) === 1 ? "" : "s"} · <button type="button" class="stock-rename-link" data-stock-rename="${escapeHtml(s)}">Rename</button></small></div>
+          <input inputmode="numeric" placeholder="none" value="${escapeHtml(mins[s] ?? "")}" data-stock-min="${escapeHtml(s)}" aria-label="Minimum order for ${escapeHtml(s)}">
+          <button type="button" data-stock-min-save="${escapeHtml(s)}">Save</button>
+        </div>`).join("");
+  }
+}
+
+function stockSetOrderBy(v) {
+  stockState.orderBy = v === "box" ? "box" : "unit";
+  document.querySelectorAll("#stockFOrderBy [data-order-by]").forEach(b => b.classList.toggle("selected", b.dataset.orderBy === stockState.orderBy));
+}
+function stockOpenForm(item) {
+  stockState.editingId = item?.id || null;
+  const v = (id, val) => { document.getElementById(id).value = val ?? ""; };
+  document.getElementById("stockFormTitle").textContent = item ? "Edit item" : "New item";
+  v("stockFName", item?.name); v("stockFGroup", item?.group_name); v("stockFSupplier", item?.supplier);
+  v("stockFPar", item ? stockFmt(item.par) : ""); v("stockFUnit", item ? item.unit : "bot");
+  v("stockFCase", item?.case_size); v("stockFParExtra", item?.par_extra == null ? "" : stockFmt(item.par_extra));
+  v("stockFExtraLabel", item?.extra_label); v("stockFNote", item?.note);
+  stockSetOrderBy(item?.order_by || "unit");
+  document.getElementById("stockFRemove").classList.toggle("hidden", !item);
+  stockClearMsg(document.getElementById("stockFormMessage"));
+  const card = document.getElementById("stockFormCard");
+  card.classList.remove("hidden");
+  card.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function stockCloseForm() {
+  stockState.editingId = null;
+  document.getElementById("stockFormCard").classList.add("hidden");
+}
+
+function stockShowTab(tab) {
+  stockState.tab = tab;
+  document.querySelectorAll("#stockTabs [data-stock-tab]").forEach(b => b.classList.toggle("selected", b.dataset.stockTab === tab));
+  document.getElementById("stockCountView").classList.toggle("hidden", tab !== "count");
+  document.getElementById("stockOrderView").classList.toggle("hidden", tab !== "order");
+  document.getElementById("stockEditView").classList.toggle("hidden", tab !== "edit");
+  if (tab === "count") stockRenderCount();
+  if (tab === "order") stockRenderOrder();
+  if (tab === "edit") stockRenderEdit();
+}
+
+async function loadStock() {
+  const msg = document.getElementById("stockMessage");
+  stockClearMsg(msg);
+  try {
+    const data = await managerApi("manager_stock_list", stockState.dept ? { department: stockState.dept } : {});
+    stockState.data = data;
+    stockState.dept = data.department;
+    stockLoadDraft();
+    document.getElementById("stockPlace").textContent = `${data.location} · ${data.department === "Floor" ? "Floor / Bar" : "Kitchen"}`;
+    const deptBox = document.getElementById("stockDept");
+    deptBox.classList.toggle("hidden", !data.can_choose_department);
+    deptBox.querySelectorAll("[data-stock-dept]").forEach(b => b.classList.toggle("selected", b.dataset.stockDept === data.department));
+    stockShowTab(stockState.tab);
+  } catch (error) {
+    stockMsg(msg, error.message || "Unable to load the stock list.", false);
+  }
+}
+
+async function openStockScreen() {
+  managerMoreScreen?.classList.add("hidden");
+  managerScreen.classList.add("hidden");
+  approvalsScreen.classList.add("hidden");
+  staffHoursScreen.classList.add("hidden");
+  teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
+  timeOffScreen?.classList.add("hidden");
+  timesheetsScreen.classList.add("hidden");
+  devicesScreen?.classList.add("hidden");
+  stockCloseForm();
+  stockScreen.classList.remove("hidden");
+  setManagerNavActive("more");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  stockState.tab = "count";
+  await loadStock();
+}
+
+document.getElementById("stockCard")?.addEventListener("click", openStockScreen);
+document.getElementById("moreStockBtn")?.addEventListener("click", openStockScreen);
+document.getElementById("backStockBtn")?.addEventListener("click", async () => {
+  stockScreen.classList.add("hidden");
+  managerScreen.classList.remove("hidden");
+  setManagerNavActive("home");
+  await loadManagerDashboard();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+// Any other manager navigation leaves the stock screen.
+document.addEventListener("click", event => {
+  if (!stockScreen || stockScreen.classList.contains("hidden")) return;
+  const nav = event.target.closest("[data-manager-nav], .manager-quick-card, .more-v2-item, #managerLogoutBtn, #moreSignOutBtn");
+  if (nav && nav.id !== "stockCard" && nav.id !== "moreStockBtn") stockScreen.classList.add("hidden");
+}, true);
+
+stockScreen?.addEventListener("input", e => {
+  const input = e.target.closest("[data-stock-qty]");
+  if (!input) return;
+  const id = input.dataset.id;
+  const d = (stockState.draft[id] ||= {});
+  d[input.dataset.stockQty] = input.value;
+  if ((d.qty ?? "") === "" && (d.qty_box ?? "") === "" && (d.qty_extra ?? "") === "") delete stockState.draft[id];
+  stockSaveDraft();
+  const item = (stockState.data?.items || []).find(i => i.id === id);
+  const need = item && stockNeedHtml(item);
+  const el = stockScreen.querySelector(`[data-stock-need="${CSS.escape(id)}"]`);
+  if (el && need) { el.className = `stock-need ${need.cls}`; el.textContent = need.text; }
+  stockRenderProgress();
+});
+
+stockScreen?.addEventListener("click", async e => {
+  const tab = e.target.closest("[data-stock-tab]");
+  if (tab) { stockShowTab(tab.dataset.stockTab); return; }
+
+  const grp = e.target.closest("[data-stock-group]");
+  if (grp) {
+    stockState.group = grp.dataset.stockGroup || null;
+    document.querySelectorAll("#stockGroupChips [data-stock-group]").forEach(b => b.classList.toggle("selected", (b.dataset.stockGroup || null) === stockState.group));
+    const keep = document.getElementById("stockGroupChips").scrollLeft;
+    stockRenderCount();
+    document.getElementById("stockGroupChips").scrollLeft = keep;
+    return;
+  }
+
+  const dept = e.target.closest("[data-stock-dept]");
+  if (dept) {
+    if (dept.dataset.stockDept !== stockState.dept) { stockState.dept = dept.dataset.stockDept; stockCloseForm(); await loadStock(); }
+    return;
+  }
+
+  const ob = e.target.closest("[data-order-by]");
+  if (ob) { stockSetOrderBy(ob.dataset.orderBy); return; }
+
+  const closeBtn = e.target.closest("[data-stock-close]");
+  if (closeBtn) {
+    if (!confirm("Start a new count? The current order list is closed and kept as history.")) return;
+    closeBtn.disabled = true;
+    try {
+      await managerApi("manager_stock_count_close", { department: stockState.dept });
+      stockClearDraft();
+      stockState.tab = "count";
+      await loadStock();
+      stockMsg(document.getElementById("stockMessage"), "New count started.", true);
+    } catch (error) {
+      stockMsg(document.getElementById("stockMessage"), error.message || "Unable to start a new count.", false);
+      closeBtn.disabled = false;
+    }
+    return;
+  }
+
+  const copy = e.target.closest("[data-stock-copy]");
+  if (copy) {
+    const name = copy.dataset.stockCopy;
+    const lines = (stockState.data?.last_count?.lines || []).filter(l => l.counted && Number(l.order_qty) > 0 && (l.supplier || "") === name);
+    const text = stockOrderText(name || "Order", lines.map(l => ({ ...l, order_qty: Number(l.order_qty) })));
+    try { await navigator.clipboard.writeText(text); copy.textContent = "Copied"; }
+    catch (_) { window.prompt("Copy the order:", text); }
+    setTimeout(() => { copy.textContent = "Copy"; }, 1500);
+    return;
+  }
+
+  const edit = e.target.closest("[data-stock-edit]");
+  if (edit) { stockOpenForm((stockState.data?.items || []).find(i => i.id === edit.dataset.stockEdit)); return; }
+
+  const move = e.target.closest("[data-stock-move]");
+  if (move) {
+    const items = stockState.data?.items || [];
+    const i = items.findIndex(x => x.id === move.dataset.id);
+    const j = i + Number(move.dataset.stockMove);
+    if (i < 0 || j < 0 || j >= items.length) return;
+    // Keep each item inside its group: only swap with a neighbour of the same group.
+    if (items[i].group_name !== items[j].group_name) return;
+    const a = items[i], b = items[j];
+    const sa = a.sort_order === b.sort_order ? a.sort_order + (j > i ? 1 : -1) : b.sort_order;
+    const sb = a.sort_order;
+    move.disabled = true;
+    try {
+      await managerApi("manager_stock_item_save", { item: { ...a, sort_order: sa } });
+      await managerApi("manager_stock_item_save", { item: { ...b, sort_order: sb } });
+      await loadStock();
+    } catch (error) {
+      stockMsg(document.getElementById("stockMessage"), error.message || "Unable to move the item.", false);
+      move.disabled = false;
+    }
+    return;
+  }
+
+  const ren = e.target.closest("[data-stock-rename]");
+  if (ren) {
+    stockState.renaming = ren.dataset.stockRename;
+    stockRenderEdit();
+    const input = stockScreen.querySelector("[data-stock-rename-input]");
+    input?.focus(); input?.select();
+    return;
+  }
+  if (e.target.closest("[data-stock-rename-cancel]")) { stockState.renaming = null; stockRenderEdit(); return; }
+  const renSave = e.target.closest("[data-stock-rename-save]");
+  if (renSave) {
+    const from = renSave.dataset.stockRenameSave;
+    const to = (stockScreen.querySelector("[data-stock-rename-input]")?.value || "").trim();
+    if (!to) { stockMsg(document.getElementById("stockMessage"), "Enter the new name.", false); return; }
+    if (to === from) { stockState.renaming = null; stockRenderEdit(); return; }
+    const exists = (stockState.data?.items || []).some(i => i.supplier === to) || (stockState.data?.suppliers || []).some(x => x.name === to);
+    if (exists && !confirm(`${to} already exists. Put all items of ${from} under ${to}?`)) return;
+    renSave.disabled = true;
+    try {
+      const data = await managerApi("manager_stock_supplier_rename", { department: stockState.dept, from, to });
+      stockState.renaming = null;
+      await loadStock();
+      stockMsg(document.getElementById("stockMessage"), `${from} is now ${to} (${data.supplier.items} item${data.supplier.items === 1 ? "" : "s"}).`, true);
+    } catch (error) {
+      stockMsg(document.getElementById("stockMessage"), error.message || "Unable to rename.", false);
+      renSave.disabled = false;
+    }
+    return;
+  }
+
+  const minSave = e.target.closest("[data-stock-min-save]");
+  if (minSave) {
+    const name = minSave.dataset.stockMinSave;
+    const input = stockScreen.querySelector(`[data-stock-min="${CSS.escape(name)}"]`);
+    const raw = (input?.value || "").trim();
+    minSave.disabled = true;
+    try {
+      await managerApi("manager_stock_supplier_save", { department: stockState.dept, name, min_order: raw === "" ? null : raw });
+      await loadStock();
+      stockMsg(document.getElementById("stockMessage"), raw === "" ? `${name}: no minimum.` : `${name}: minimum ${raw}.`, true);
+    } catch (error) {
+      stockMsg(document.getElementById("stockMessage"), error.message || "Unable to save.", false);
+    } finally { minSave.disabled = false; }
+    return;
+  }
+});
+
+document.getElementById("stockSaveBtn")?.addEventListener("click", async () => {
+  const msg = document.getElementById("stockMessage");
+  const lines = [];
+  for (const [item_id, d] of Object.entries(stockState.draft)) {
+    const item = (stockState.data?.items || []).find(i => i.id === item_id);
+    if (!item) continue;
+    const qty = stockMainQty(item, d), qty_extra = stockParsed(d.qty_extra);
+    if (Number.isNaN(qty) || Number.isNaN(qty_extra)) { stockMsg(msg, "One of the numbers is not valid. Check the items marked “Check the number”.", false); return; }
+    if (qty === null && qty_extra === null) continue;
+    lines.push({ item_id, qty, qty_extra });
+  }
+  if (!lines.length) { stockMsg(msg, "Count at least one item first.", false); return; }
+  const button = document.getElementById("stockSaveBtn");
+  button.disabled = true;
+  try {
+    const data = await managerApi("manager_stock_count_save", { department: stockState.dept, lines });
+    stockState.data.last_count = data.count;
+    stockClearDraft();
+    stockShowTab("order");
+    stockMsg(msg, "Saved. The order list is updated.", true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } catch (error) {
+    stockMsg(msg, error.message || "Unable to save the count.", false);
+  } finally { button.disabled = false; }
+});
+
+// PDF of the current order list, grouped by supplier (made on the phone).
+function stockPdfReport() {
+  const data = stockState.data, last = data?.last_count;
+  if (!last) return null;
+  const fmt = (o) => new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Brisbane", ...o }).format(new Date(last.counted_at));
+  const lines = last.lines || [];
+  const order = lines.filter(l => l.counted && Number(l.order_qty) > 0);
+  const mins = Object.fromEntries((data.suppliers || []).map(s => [s.name, s.min_order]));
+  const by = {};
+  for (const l of order) (by[l.supplier || ""] ||= []).push(l);
+  const names = Object.keys(by).sort((a, b) => (a === "") - (b === "") || a.localeCompare(b));
+  const u = (l) => (l.unit ? " " + l.unit : "");
+  const counted = (l) => (l.qty != null ? stockFmt(l.qty) + u(l) : "-") + (l.par_extra != null ? ` + ${l.qty_extra != null ? stockFmt(l.qty_extra) : "-"} ${l.extra_label || "extra"}` : "");
+  const par = (l) => stockFmt(l.par) + u(l) + (l.par_extra != null ? ` + ${stockFmt(l.par_extra)} ${l.extra_label || "extra"}` : "");
+  const notCounted = lines.filter(l => !l.counted).length;
+  return {
+    place: `${data.location} · ${data.department === "Floor" ? "Floor / Bar" : "Kitchen"}`,
+    when: fmt({ weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }),
+    fileDate: fmt({ year: "numeric", month: "2-digit", day: "2-digit" }),
+    status: last.open ? `Open list · last update by ${last.counted_by || "-"}` : "Closed list",
+    summary: `${order.length} item${order.length === 1 ? "" : "s"} to order · ${names.length} supplier${names.length === 1 ? "" : "s"}`,
+    logo: document.querySelector(".login-original-logo")?.src,
+    suppliers: names.map(n => {
+      const ls = by[n];
+      const total = ls.reduce((t, l) => t + Number(l.order_qty), 0);
+      return {
+        name: n || "No supplier set",
+        warn: mins[n] && total < mins[n] ? `Below the minimum order of ${mins[n]} (now ${total}).` : "",
+        lines: ls.map(l => [l.name, counted(l), par(l), stockQtyText(l, Number(l.order_qty))]),
+      };
+    }),
+    notCounted: notCounted ? `${notCounted} item${notCounted === 1 ? " is" : "s are"} not counted yet and not in this order.` : "",
+  };
+}
+document.getElementById("stockPdfBtn")?.addEventListener("click", async () => {
+  const btn = document.getElementById("stockPdfBtn");
+  const report = stockPdfReport();
+  if (!report) return;
+  btn.disabled = true; btn.textContent = "Generating…";
+  try {
+    await window.MarinaraStockPdf.open(report);
+  } catch (error) {
+    stockMsg(document.getElementById("stockMessage"), "Unable to make the PDF. " + (error.message || ""), false);
+  } finally {
+    btn.disabled = false; btn.textContent = "Export PDF";
+  }
+});
+
+document.getElementById("stockAddBtn")?.addEventListener("click", () => stockOpenForm(null));
+document.getElementById("stockFCancel")?.addEventListener("click", stockCloseForm);
+document.getElementById("stockFSave")?.addEventListener("click", async () => {
+  const msg = document.getElementById("stockFormMessage");
+  const val = id => document.getElementById(id).value.trim();
+  const item = {
+    id: stockState.editingId, department: stockState.dept,
+    name: val("stockFName"), group_name: val("stockFGroup"), supplier: val("stockFSupplier"),
+    par: val("stockFPar"), unit: val("stockFUnit"), order_by: stockState.orderBy,
+    case_size: val("stockFCase"), par_extra: val("stockFParExtra"), extra_label: val("stockFExtraLabel"),
+    note: val("stockFNote"),
+  };
+  if (stockState.editingId) {
+    const old = (stockState.data?.items || []).find(i => i.id === stockState.editingId);
+    if (old) item.sort_order = old.sort_order;
+  }
+  if (!item.name || !item.group_name || item.par === "") { stockMsg(msg, "Name, group and par are needed.", false); return; }
+  if (item.order_by === "box" && !item.case_size) { stockMsg(msg, "To order in boxes, enter the box size.", false); return; }
+  const button = document.getElementById("stockFSave");
+  button.disabled = true;
+  try {
+    await managerApi("manager_stock_item_save", { department: stockState.dept, item });
+    await loadStock();
+    stockCloseForm();
+    stockMsg(document.getElementById("stockMessage"), `Saved: ${item.name}.`, true);
+  } catch (error) {
+    stockMsg(msg, error.message || "Unable to save.", false);
+  } finally { button.disabled = false; }
+});
+document.getElementById("stockFRemove")?.addEventListener("click", async () => {
+  const id = stockState.editingId;
+  const item = (stockState.data?.items || []).find(i => i.id === id);
+  if (!id || !confirm(`Remove ${item?.name || "this item"} from the list?`)) return;
+  try {
+    await managerApi("manager_stock_item_remove", { item_id: id });
+    if (stockState.draft[id]) { delete stockState.draft[id]; stockSaveDraft(); }
+    stockCloseForm();
+    await loadStock();
+    stockMsg(document.getElementById("stockMessage"), `Removed: ${item?.name || "item"}.`, true);
+  } catch (error) {
+    stockMsg(document.getElementById("stockFormMessage"), error.message || "Unable to remove.", false);
+  }
+});
 
 /* MANAGER V2 NAVIGATION */
 function setManagerNavActive(target = "home") {

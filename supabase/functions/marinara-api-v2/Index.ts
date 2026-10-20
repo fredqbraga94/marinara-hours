@@ -334,6 +334,7 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   LEAVE_NOT_CANCELLABLE: [409, "This request can no longer be cancelled."],
   TOO_MANY_ACTIVE_CODES: [429, "Too many unused device codes. Wait for them to expire."],
   INVALID_INPUT: [400, "Invalid request"],
+  STOCK_ITEM_NOT_FOUND: [404, "Item not found"],
 };
 
 // VISA-HOURS-START
@@ -410,11 +411,14 @@ function spanMinutes(start: string | null | undefined, end: string | null | unde
   return e > s ? e - s : e + 24 * 60 - s;
 }
 
-function plannedMinutes(entry: any, department: string, services: any[]) {
+// A person's role (Chef, Dishwasher...) can have its own service times; they
+// win over the department's.
+function plannedMinutes(entry: any, department: string, services: any[], position?: string | null) {
   if (!entry || !entry.code || entry.code === "OFF") return 0;
   if (entry.code === "SHIFT") return spanMinutes(entry.start_time, entry.end_time);
   const svc = (name: string) => {
-    const s = (services || []).find((x: any) => x.department === department && x.service === name);
+    const s = (position && (services || []).find((x: any) => x.position === position && x.service === name)) ||
+      (services || []).find((x: any) => !x.position && x.department === department && x.service === name);
     return s ? spanMinutes(s.start_time, s.end_time) : 0;
   };
   if (entry.code === "L") return svc("L");
@@ -471,7 +475,7 @@ function computeRosterHours(
   for (const m of team || []) {
     let weekPlanned = 0;
     for (let i = 0; i < 7; i++) {
-      weekPlanned += plannedMinutes(byCell[`${m.id}|${addDays(weekStart, i)}`], m.department, services);
+      weekPlanned += plannedMinutes(byCell[`${m.id}|${addDays(weekStart, i)}`], m.department, services, m.position);
     }
     planned[m.id] = r2(weekPlanned);
 
@@ -481,7 +485,7 @@ function computeRosterHours(
     for (let i = -7; i < 7; i++) {
       const date = addDays(weekStart, i);
       const dayStart = brisbaneDayStart(date);
-      const plan = plannedMinutes(byCell[`${m.id}|${date}`], m.department, services);
+      const plan = plannedMinutes(byCell[`${m.id}|${date}`], m.department, services, m.position);
       let minutes: number;
       if (dayStart + DAY_MS <= now) minutes = workedByDay(m.id, dayStart);
       else if (dayStart > now) minutes = plan;
@@ -1205,6 +1209,15 @@ Deno.serve(async (req) => {
         "manager_leave_list",
         "manager_leave_decide",
         "manager_leave_create",
+        "manager_set_roster_info",
+        "manager_create_roster_person",
+        "manager_stock_list",
+        "manager_stock_item_save",
+        "manager_stock_item_remove",
+        "manager_stock_supplier_save",
+        "manager_stock_count_save",
+        "manager_stock_count_close",
+        "manager_stock_supplier_rename",
       ]);
 
     if (!managerActions.has(action)) {
@@ -1334,21 +1347,10 @@ Deno.serve(async (req) => {
 
     async function loadTeam() {
 
-      const { data, error } =
-        await supabase
+      const query = (columns: string) =>
+        supabase
           .from("staff")
-          .select(`
-            id,
-            name,
-            department,
-            location,
-            role,
-            active,
-            created_at,
-            pin_conflict_at,
-            student_visa,
-            visa_course_break
-          `)
+          .select(columns)
           .eq(
             "location",
             location
@@ -1361,6 +1363,24 @@ Deno.serve(async (req) => {
             "name",
             { ascending: true }
           );
+      const base = `
+            id,
+            name,
+            department,
+            location,
+            role,
+            active,
+            created_at,
+            pin_conflict_at,
+            student_visa,
+            visa_course_break`;
+
+      // Roster role and roster-only are read when the database has them; an
+      // older database (before 20261021010000) still gets the team.
+      let { data, error } = await query(base + ", position, roster_only");
+      if (error && (error as any).code === "42703") {
+        ({ data, error } = await query(base));
+      }
 
       if (error) {
         throw error;
@@ -2611,7 +2631,22 @@ Deno.serve(async (req) => {
           shifts = shiftRows || [];
         }
 
-        const services = thisWeek.data?.services || [];
+        // Role service times (Chef, Dishwasher...), best effort: without the
+        // table the department times are used, as before.
+        let roleServices: any[] = [];
+        {
+          const { data: rs, error: rsError } = await supabase
+            .from("roster_position_services")
+            .select("position, service, start_time, end_time")
+            .eq("location", thisWeek.data?.location || location);
+          if (!rsError) {
+            roleServices = (rs || []).map((r: any) => ({
+              position: r.position, service: r.service,
+              start_time: String(r.start_time || "").slice(0, 5), end_time: String(r.end_time || "").slice(0, 5),
+            }));
+          }
+        }
+        const services = [...(thisWeek.data?.services || []), ...roleServices];
         const holidays = await loadPublicHolidays(weekStart, addDays(weekStart, 6));
         const entries = thisWeek.data?.entries || [];
         const hours = computeRosterHours(
@@ -2637,6 +2672,8 @@ Deno.serve(async (req) => {
               role: m.role,
               student_visa: !!m.student_visa,
               visa_course_break: !!m.visa_course_break,
+              position: m.position ?? null,
+              roster_only: !!m.roster_only,
             })),
             entries,
             services,
@@ -2759,6 +2796,169 @@ Deno.serve(async (req) => {
             team,
           },
         });
+      }
+
+      // =========================
+      // ROSTER ROLE / ROSTER-ONLY PEOPLE
+      // =========================
+      if (action === "manager_set_roster_info" || action === "manager_create_roster_person") {
+        const positions: Record<string, string[]> = { Kitchen: ["Chef", "Dishwasher"], Floor: ["Floor", "Bar"] };
+        const position = typeof body.position === "string" && body.position.trim() ? body.position.trim() : null;
+        if (position && !["Chef", "Dishwasher", "Floor", "Bar"].includes(position)) {
+          return json({ error: "Choose Chef, Dishwasher, Floor or Bar.", code: "INVALID_INPUT" }, 400);
+        }
+        if (action === "manager_set_roster_info") {
+          const staffId = typeof body.staff_id === "string" ? body.staff_id.trim() : "";
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(staffId)) {
+            return json({ error: "Staff member not found" }, 404);
+          }
+          const { data, error } = await supabase.rpc("manager_set_roster_info_audited", {
+            p_manager_id: managerStatus.id, p_staff_id: staffId,
+            p_position: position, p_roster_only: body.roster_only === true,
+          });
+          if (error) return managerDbError(error, "Unable to save the roster details");
+          return json({ success: true, action, data: { staff: data } });
+        }
+        const name = typeof body.name === "string" ? body.name.trim().slice(0, 80) : "";
+        const department = managerDepartmentScope ||
+          (typeof body.department === "string" ? body.department.trim() : "");
+        if (!name || !positions[department] || (position && !positions[department].includes(position))) {
+          return json({ error: "Enter the name and choose the department and role.", code: "INVALID_INPUT" }, 400);
+        }
+        const { data, error } = await supabase.rpc("manager_create_roster_person_audited", {
+          p_manager_id: managerStatus.id, p_name: name, p_department: department, p_position: position,
+        });
+        if (error) return managerDbError(error, "Unable to add the person");
+        return json({ success: true, action, data: { staff: data } });
+      }
+
+      // =========================
+      // STOCK PAR LEVEL
+      // =========================
+      if (action.startsWith("manager_stock_")) {
+        const isUuid = (v: string) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const department =
+          typeof body.department === "string" && ["Floor", "Kitchen"].includes(body.department.trim())
+            ? body.department.trim() : null;
+        const num = (v: any) => {
+          if (v === null || v === undefined || v === "") return null;
+          const n = typeof v === "number" ? v : Number(String(v).trim());
+          return Number.isFinite(n) ? n : NaN;
+        };
+        const text = (v: any, max: number) =>
+          typeof v === "string" ? v.trim().slice(0, max) : "";
+
+        if (action === "manager_stock_list") {
+          const { data, error } = await supabase.rpc("manager_stock_list", {
+            p_manager_id: managerStatus.id, p_location: location, p_department: department,
+          });
+          if (error) return managerDbError(error, "Unable to load the stock list", 500);
+          return json({ success: true, action, data });
+        }
+
+        if (action === "manager_stock_item_save") {
+          const it = body.item && typeof body.item === "object" ? body.item : {};
+          const id = typeof it.id === "string" ? it.id.trim() : "";
+          if (id && !isUuid(id)) return json({ error: "Item not found", code: "STOCK_ITEM_NOT_FOUND" }, 404);
+          const par = num(it.par), parExtra = num(it.par_extra), caseSize = num(it.case_size), sortOrder = num(it.sort_order);
+          const orderBy = it.order_by === "box" ? "box" : "unit";
+          const name = text(it.name, 80), group = text(it.group_name, 40);
+          const bad = (n: number | null, max: number, whole = false) =>
+            n !== null && (Number.isNaN(n) || n < 0 || n > max || (whole && !Number.isInteger(n)));
+          if (!name || !group || par === null || bad(par, 9999) || bad(parExtra, 9999) ||
+              bad(caseSize, 999, true) || caseSize === 0 || bad(sortOrder, 1000000, true) ||
+              (orderBy === "box" && !caseSize)) {
+            return json({ error: "Check the item: name, group and par are needed; boxes need a box size.", code: "INVALID_INPUT" }, 400);
+          }
+          const item = {
+            id: id || null,
+            department: department ||
+              (typeof it.department === "string" && ["Floor", "Kitchen"].includes(it.department) ? it.department : null),
+            group_name: group, name,
+            supplier: text(it.supplier, 60) || null, unit: text(it.unit, 20) || null,
+            case_size: caseSize, order_by: orderBy, par, par_extra: parExtra,
+            extra_label: parExtra === null ? null : (text(it.extra_label, 20) || null),
+            note: text(it.note, 200) || null, sort_order: sortOrder,
+          };
+          const { data, error } = await supabase.rpc("manager_stock_item_save", {
+            p_manager_id: managerStatus.id, p_location: location, p_item: item,
+          });
+          if (error) return managerDbError(error, "Unable to save the item");
+          return json({ success: true, action, data: { item: data } });
+        }
+
+        if (action === "manager_stock_item_remove") {
+          const id = typeof body.item_id === "string" ? body.item_id.trim() : "";
+          if (!isUuid(id)) return json({ error: "Item not found", code: "STOCK_ITEM_NOT_FOUND" }, 404);
+          const { data, error } = await supabase.rpc("manager_stock_item_remove", {
+            p_manager_id: managerStatus.id, p_location: location, p_item_id: id,
+          });
+          if (error) return managerDbError(error, "Unable to remove the item");
+          return json({ success: true, action, data: { item: data } });
+        }
+
+        if (action === "manager_stock_supplier_save") {
+          const name = text(body.name, 60);
+          const minOrder = num(body.min_order);
+          if (!name || (minOrder !== null && (Number.isNaN(minOrder) || !Number.isInteger(minOrder) || minOrder < 1 || minOrder > 999))) {
+            return json({ error: "Enter the supplier name and a minimum order from 1 to 999 (or leave it empty).", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_stock_supplier_save", {
+            p_manager_id: managerStatus.id, p_location: location, p_department: department,
+            p_name: name, p_min_order: minOrder, p_note: text(body.note, 200) || null,
+          });
+          if (error) return managerDbError(error, "Unable to save the supplier");
+          return json({ success: true, action, data: { supplier: data } });
+        }
+
+        if (action === "manager_stock_supplier_rename") {
+          const from = text(body.from, 60), to = text(body.to, 60);
+          if (!from || !to) {
+            return json({ error: "Enter the new supplier name.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_stock_supplier_rename", {
+            p_manager_id: managerStatus.id, p_location: location, p_department: department,
+            p_old: from, p_new: to,
+          });
+          if (error) return managerDbError(error, "Unable to rename the supplier");
+          return json({ success: true, action, data: { supplier: data } });
+        }
+
+        if (action === "manager_stock_count_close") {
+          const { data, error } = await supabase.rpc("manager_stock_count_close", {
+            p_manager_id: managerStatus.id, p_location: location, p_department: department,
+          });
+          if (error) return managerDbError(error, "Unable to start a new count");
+          return json({ success: true, action, data });
+        }
+
+        // manager_stock_count_save
+        const raw = Array.isArray(body.lines) ? body.lines : null;
+        if (!raw || raw.length > 1000) {
+          return json({ error: "Nothing to save", code: "INVALID_INPUT" }, 400);
+        }
+        const lines: any[] = [];
+        for (const l of raw) {
+          const itemId = l && typeof l.item_id === "string" ? l.item_id.trim() : "";
+          const qty = num(l?.qty), qtyExtra = num(l?.qty_extra);
+          if (!isUuid(itemId)) continue;
+          for (const n of [qty, qtyExtra]) {
+            if (n !== null && (Number.isNaN(n) || n < 0 || n > 99999)) {
+              return json({ error: "Counts must be numbers from 0 up.", code: "INVALID_INPUT" }, 400);
+            }
+          }
+          if (qty === null && qtyExtra === null) continue;
+          lines.push({ item_id: itemId, qty, qty_extra: qtyExtra });
+        }
+        if (!lines.length) {
+          return json({ error: "Count at least one item before saving.", code: "INVALID_INPUT" }, 400);
+        }
+        const { data, error } = await supabase.rpc("manager_stock_count_save", {
+          p_manager_id: managerStatus.id, p_location: location, p_department: department, p_lines: lines,
+        });
+        if (error) return managerDbError(error, "Unable to save the count");
+        return json({ success: true, action, data: { count: data } });
       }
 
       if (

@@ -108,3 +108,18 @@ test("exactly 48h is allowed", () => {
   assert.equal(r.visa[0].fortnight_hours, 48);
   assert.equal(r.visa[0].over, false);
 });
+
+test("a role's own service times win over the department's", () => {
+  const withRoles = [
+    ...services,
+    { position: "Dishwasher", service: "L", start_time: "11:00", end_time: "15:00" },
+    { position: "Dishwasher", service: "D", start_time: "17:00", end_time: "22:30" },
+  ];
+  assert.equal(plannedMinutes({ code: "L" }, "Kitchen", withRoles, "Dishwasher"), 240);
+  assert.equal(plannedMinutes({ code: "LD" }, "Kitchen", withRoles, "Dishwasher"), 240 + 330);
+  // Chef has no own rows here: department times
+  assert.equal(plannedMinutes({ code: "L" }, "Kitchen", withRoles, "Chef"), 270);
+  assert.equal(plannedMinutes({ code: "L" }, "Kitchen", withRoles, null), 270);
+  // A role row never leaks into another department's plain lookup
+  assert.equal(plannedMinutes({ code: "D" }, "Kitchen", withRoles), 360);
+});
