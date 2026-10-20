@@ -17,7 +17,10 @@ import { writeFileSync } from "node:fs";
 const dump = (name, v) => { if (process.env.DUMP_DIR) writeFileSync(`${process.env.DUMP_DIR}/${name}.json`, JSON.stringify(v, null, 1)); };
 
 const V37 = resolve(root, "tests/edge/baseline-v37.ts");
-const V38 = resolve(root, "supabase/functions/marinara-api-v2/Index.ts");
+// v38 = the production server since the v38 release, frozen here (byte-identical
+// to production, checked 2026-10-20). This file is the v37 -> v38 release
+// evidence; newer servers are checked by tests/integration/features.mjs.
+const V38 = resolve(root, "tests/edge/baseline-v38.ts");
 
 // ---------------------------------------------------------------- reporting
 let failures = 0;

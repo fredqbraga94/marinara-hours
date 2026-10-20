@@ -15,10 +15,7 @@
 //     team, hours) and the new features work with the right access rules.
 //  D. The rollback files undo the migrations and v38 still works afterwards.
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { resolve } from "node:path";
 import { startProdLikeDb, MIGRATION_A, MIGRATION_B, root } from "./pgenv.mjs";
 import { loadHandler, useDatabase, call, newDeviceSecret } from "./edge-loader.mjs";
 import { ID, PIN, reseed } from "./seed.mjs";
@@ -48,14 +45,8 @@ const PROD_NOW = {
 };
 const NEW_SERVER = resolve(root, "supabase/functions/marinara-api-v2/Index.ts");
 
-// The production server today = Index.ts on main (verified byte-identical to v38).
-function productionServer() {
-  const ref = process.env.BASELINE_REF || "origin/main";
-  const src = execFileSync("git", ["show", `${ref}:supabase/functions/marinara-api-v2/Index.ts`], { cwd: root, encoding: "utf8" });
-  const file = join(mkdtempSync(join(tmpdir(), "marinara-v38-")), "Index.ts");
-  writeFileSync(file, src);
-  return file;
-}
+// The production server today (v38), frozen byte-identical in tests/edge/baseline-v38.ts.
+const productionServer = () => resolve(root, "tests/edge/baseline-v38.ts");
 
 let failures = 0;
 const log = (...a) => console.log(...a);
