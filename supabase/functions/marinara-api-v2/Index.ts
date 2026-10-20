@@ -1211,6 +1211,7 @@ Deno.serve(async (req) => {
         "manager_stock_item_remove",
         "manager_stock_supplier_save",
         "manager_stock_count_save",
+        "manager_stock_count_close",
       ]);
 
     if (!managerActions.has(action)) {
@@ -2845,6 +2846,14 @@ Deno.serve(async (req) => {
           });
           if (error) return managerDbError(error, "Unable to save the supplier");
           return json({ success: true, action, data: { supplier: data } });
+        }
+
+        if (action === "manager_stock_count_close") {
+          const { data, error } = await supabase.rpc("manager_stock_count_close", {
+            p_manager_id: managerStatus.id, p_location: location, p_department: department,
+          });
+          if (error) return managerDbError(error, "Unable to start a new count");
+          return json({ success: true, action, data });
         }
 
         // manager_stock_count_save

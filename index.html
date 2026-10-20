@@ -1135,6 +1135,8 @@ button{cursor:pointer}
 .stock-copy{min-height:36px;padding:0 12px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:13px;color:var(--green)}
 .stock-line{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:4px 0}
 .stock-line span:last-child{font-weight:900;white-space:nowrap}
+.stock-open-head{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+.stock-new-count{flex:0 0 auto;min-height:36px;padding:0 12px;border-radius:10px;border:1.5px solid #f3c4c4;background:#fff;color:var(--danger);font-weight:850;font-size:13px}
 .stock-warn{margin-top:6px;padding:8px 10px;border-radius:10px;background:#fff4e5;color:#7a4b00;font-size:12px;font-weight:800}
 .stock-edit-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--border)}
 .stock-edit-row > div{min-width:0}
@@ -1554,7 +1556,7 @@ button:disabled{opacity:.6}
     <div class="card"><div id="stockCountList" class="empty-state">Loading…</div></div>
     <div class="stock-footer">
       <div id="stockProgress" class="stock-progress">0 counted</div>
-      <button id="stockSaveBtn" class="btn primary" type="button">Save count &amp; see order</button>
+      <button id="stockSaveBtn" class="btn primary" type="button">Save &amp; update order</button>
     </div>
   </div>
   <div id="stockOrderView" class="hidden">
@@ -6246,18 +6248,34 @@ function stockGroups(items) {
   return groups;
 }
 
+// The open order list builds up across saves until someone starts a new count.
+function stockSavedLine(id) {
+  const lc = stockState.data?.last_count;
+  if (!lc || !lc.open) return null;
+  return (lc.lines || []).find(l => l.item_id === id && l.counted) || null;
+}
+function stockHasDraft(it) {
+  const d = stockState.draft[it.id] || {};
+  return ["qty", "qty_box", "qty_extra"].some(k => String(d[k] ?? "").trim() !== "");
+}
 function stockNeedHtml(item) {
   const d = stockState.draft[item.id] || {};
   const qty = stockMainQty(item, d), extra = stockParsed(d.qty_extra);
-  if (qty === null && extra === null) return { cls: "", text: "" };
+  if (qty === null && extra === null) {
+    const saved = stockSavedLine(item.id);
+    if (!saved) return { cls: "", text: "" };
+    const n = Number(saved.order_qty);
+    return n > 0
+      ? { cls: "order", text: `Saved · order ${stockQtyText({ ...item, order_unit: saved.order_unit }, n)}` }
+      : { cls: "ok", text: "Saved · at par" };
+  }
   if (Number.isNaN(qty) || Number.isNaN(extra)) return { cls: "order", text: "Check the number" };
   const o = stockOrder(item, qty || 0, extra || 0);
   if (o.order_qty <= 0) return { cls: "ok", text: "At par · nothing to order" };
   return { cls: "order", text: `Order ${stockQtyText({ ...item, order_unit: o.order_unit }, o.order_qty)}` };
 }
 function stockIsCounted(it) {
-  const d = stockState.draft[it.id] || {};
-  return ["qty", "qty_box", "qty_extra"].some(k => String(d[k] ?? "").trim() !== "");
+  return stockHasDraft(it) || !!stockSavedLine(it.id);
 }
 function stockRenderChips() {
   const box = document.getElementById("stockGroupChips");
@@ -6277,7 +6295,11 @@ function stockRenderProgress() {
   for (const it of items) {
     const d = stockState.draft[it.id] || {};
     const q = stockMainQty(it, d), e = stockParsed(d.qty_extra);
-    if (q === null && e === null) continue;
+    if (q === null && e === null) {
+      const saved = stockSavedLine(it.id);
+      if (saved) { counted++; if (Number(saved.order_qty) > 0) toOrder++; }
+      continue;
+    }
     counted++;
     if (!Number.isNaN(q) && !Number.isNaN(e) && stockOrder(it, q || 0, e || 0).order_qty > 0) toOrder++;
   }
@@ -6309,12 +6331,14 @@ function stockRenderCount() {
     ${g.items.map(it => {
       const d = stockState.draft[it.id] || {};
       const need = stockNeedHtml(it);
+      const saved = stockSavedLine(it.id);
+      const ph = (v) => (saved && v != null ? ` placeholder="${escapeHtml(stockFmt(v))}"` : "");
       return `<div class="stock-row" data-stock-row="${escapeHtml(it.id)}">
         <div><strong>${escapeHtml(it.name)}</strong><small>${escapeHtml(stockParText(it, false))}</small></div>
         <div class="stock-inputs">
           ${it.case_size ? `<label><input inputmode="numeric" autocomplete="off" data-stock-qty="qty_box" data-id="${escapeHtml(it.id)}" value="${escapeHtml(d.qty_box ?? "")}" aria-label="${escapeHtml(it.name)} full boxes">box</label>` : ""}
-          <label><input inputmode="decimal" autocomplete="off" data-stock-qty="qty" data-id="${escapeHtml(it.id)}" value="${escapeHtml(d.qty ?? "")}" aria-label="${escapeHtml(it.name)} ${it.case_size ? "loose" : "in stock"}">${escapeHtml(it.unit || "qty")}</label>
-          ${it.par_extra != null ? `<label><input inputmode="decimal" autocomplete="off" data-stock-qty="qty_extra" data-id="${escapeHtml(it.id)}" value="${escapeHtml(d.qty_extra ?? "")}" aria-label="${escapeHtml(it.name)} ${escapeHtml(it.extra_label || "extra")}">${escapeHtml(it.extra_label || "extra")}</label>` : ""}
+          <label><input inputmode="decimal" autocomplete="off" data-stock-qty="qty" data-id="${escapeHtml(it.id)}" value="${escapeHtml(d.qty ?? "")}"${ph(saved?.qty)} aria-label="${escapeHtml(it.name)} ${it.case_size ? "loose" : "in stock"}">${escapeHtml(it.unit || "qty")}</label>
+          ${it.par_extra != null ? `<label><input inputmode="decimal" autocomplete="off" data-stock-qty="qty_extra" data-id="${escapeHtml(it.id)}" value="${escapeHtml(d.qty_extra ?? "")}"${ph(saved?.qty_extra)} aria-label="${escapeHtml(it.name)} ${escapeHtml(it.extra_label || "extra")}">${escapeHtml(it.extra_label || "extra")}</label>` : ""}
         </div>
         <div class="stock-need ${need.cls}" data-stock-need="${escapeHtml(it.id)}">${escapeHtml(need.text)}</div>
       </div>`;
@@ -6338,7 +6362,11 @@ function stockRenderOrder() {
   for (const l of order) (bySupplier[l.supplier || ""] ||= []).push(l);
   const names = Object.keys(bySupplier).sort((a, b) => (a === "") - (b === "") || a.localeCompare(b));
   box.className = "";
-  box.innerHTML = `<div class="person-meta" style="margin-bottom:8px">Count of ${escapeHtml(when)} by ${escapeHtml(last.counted_by || "—")}</div>` +
+  const closedWhen = last.closed_at ? new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Brisbane", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(last.closed_at)) : "";
+  box.innerHTML = (last.open
+      ? `<div class="stock-open-head"><div class="person-meta">Open list · last update ${escapeHtml(when)} by ${escapeHtml(last.counted_by || "—")}. Each save adds to it.</div>
+           <button type="button" class="stock-new-count" data-stock-close>Start new count</button></div>`
+      : `<div class="person-meta" style="margin-bottom:8px">Closed list (${escapeHtml(closedWhen)}). The next save starts a new list.</div>`) +
     (names.length ? names.map(name => {
       const ls = bySupplier[name];
       const total = ls.reduce((s, l) => s + Number(l.order_qty), 0);
@@ -6350,7 +6378,7 @@ function stockRenderOrder() {
         ${min && total < min ? `<div class="stock-warn">Below the minimum order of ${min} (now ${total}).</div>` : ""}
       </div>`;
     }).join("") : `<div class="empty-state">Everything counted is at par. Nothing to order.</div>`) +
-    (notCounted.length ? `<div class="stock-warn" style="background:#eef1ee;color:var(--muted)">${notCounted.length} item${notCounted.length === 1 ? " was" : "s were"} not counted, so ${notCounted.length === 1 ? "it is" : "they are"} not in the order.</div>` : "");
+    (notCounted.length ? `<div class="stock-warn" style="background:#eef1ee;color:var(--muted)">${notCounted.length} item${notCounted.length === 1 ? " is" : "s are"} not counted yet, so ${notCounted.length === 1 ? "it is" : "they are"} not in the order.</div>` : "");
 }
 
 function stockRenderEdit() {
@@ -6512,6 +6540,23 @@ stockScreen?.addEventListener("click", async e => {
   const ob = e.target.closest("[data-order-by]");
   if (ob) { stockSetOrderBy(ob.dataset.orderBy); return; }
 
+  const closeBtn = e.target.closest("[data-stock-close]");
+  if (closeBtn) {
+    if (!confirm("Start a new count? The current order list is closed and kept as history.")) return;
+    closeBtn.disabled = true;
+    try {
+      await managerApi("manager_stock_count_close", { department: stockState.dept });
+      stockClearDraft();
+      stockState.tab = "count";
+      await loadStock();
+      stockMsg(document.getElementById("stockMessage"), "New count started.", true);
+    } catch (error) {
+      stockMsg(document.getElementById("stockMessage"), error.message || "Unable to start a new count.", false);
+      closeBtn.disabled = false;
+    }
+    return;
+  }
+
   const copy = e.target.closest("[data-stock-copy]");
   if (copy) {
     const name = copy.dataset.stockCopy;
@@ -6578,8 +6623,6 @@ document.getElementById("stockSaveBtn")?.addEventListener("click", async () => {
     lines.push({ item_id, qty, qty_extra });
   }
   if (!lines.length) { stockMsg(msg, "Count at least one item first.", false); return; }
-  const total = (stockState.data?.items || []).length;
-  if (lines.length < total && !confirm(`${total - lines.length} item(s) not counted. They will not be ordered. Save anyway?`)) return;
   const button = document.getElementById("stockSaveBtn");
   button.disabled = true;
   try {
@@ -6587,7 +6630,7 @@ document.getElementById("stockSaveBtn")?.addEventListener("click", async () => {
     stockState.data.last_count = data.count;
     stockClearDraft();
     stockShowTab("order");
-    stockMsg(msg, "Count saved.", true);
+    stockMsg(msg, "Saved. The order list is updated.", true);
     window.scrollTo({ top: 0, behavior: "smooth" });
   } catch (error) {
     stockMsg(msg, error.message || "Unable to save the count.", false);

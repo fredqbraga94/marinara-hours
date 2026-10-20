@@ -162,6 +162,27 @@ try {
     return blocks.join(" // ");
   });
 
+  await check("open list: saved items show as 'Saved'; a second save adds to the order; Start new count clears it", async () => {
+    const savedHint = (await fm.row("Fantini Chardonnay").locator(".stock-need").textContent()).trim();
+    const ph = await fm.row("Fantini Chardonnay").locator('[data-stock-qty="qty"]').getAttribute("placeholder");
+    await fm.row("Moscato").locator('[data-stock-qty="qty"]').fill("4");
+    await fm.page.click("#stockSaveBtn");
+    await fm.page.waitForFunction(() => /Moscato/.test(document.getElementById("stockOrderList").textContent));
+    const text = await fm.page.textContent("#stockOrderList");
+    await fm.shot("stock_order_open");
+    assert.ok(/Fantini Chardonnay/.test(text) && /Moscato/.test(text) && /S\. Pellegrino/.test(text), text);
+    assert.equal(Number(await db.admin.query("select count(*) from public.stock_counts").then((r) => r.rows[0][0])), 1);
+    await fm.page.click("[data-stock-close]");
+    await fm.page.waitForFunction(() => /New count started/.test(document.getElementById("stockMessage").textContent));
+    const hintAfter = (await fm.row("Fantini Chardonnay").locator(".stock-need").textContent()).trim();
+    await fm.page.click('[data-stock-tab="order"]');
+    const after = await fm.page.textContent("#stockOrderList");
+    await fm.page.click('[data-stock-tab="count"]');
+    assert.equal(savedHint, "Saved · order 1 box (12)"); assert.equal(ph, "5"); assert.equal(hintAfter, "");
+    assert.match(after, /Closed list/);
+    return `before: "${savedHint}" (placeholder ${ph}); after 2nd save Moscato added to the same list; Start new count → "${after.trim().slice(0, 40)}…"`;
+  });
+
   await check("edit list: add an item, change a par, set a supplier minimum", async () => {
     await fm.page.click('[data-stock-tab="edit"]');
     await fm.page.click("#stockAddBtn");

@@ -53,7 +53,9 @@ create table if not exists public.stock_counts (
   department text not null check (department in ('Kitchen', 'Floor')),
   counted_by uuid references public.staff(id),
   counted_at timestamptz not null default now(),
-  lines jsonb not null default '[]'::jsonb
+  lines jsonb not null default '[]'::jsonb,
+  closed_at timestamptz,
+  closed_by uuid references public.staff(id)
 );
 create index if not exists stock_counts_place_idx on public.stock_counts (location, department, counted_at desc);
 
@@ -170,6 +172,8 @@ begin
       'id', v_last.id,
       'counted_at', v_last.counted_at,
       'counted_by', (select name from public.staff where id = v_last.counted_by),
+      'open', v_last.closed_at is null,
+      'closed_at', v_last.closed_at,
       'lines', v_last.lines) end
   );
 end $function$;
@@ -323,9 +327,12 @@ begin
   return jsonb_build_object('name', v_name, 'min_order', p_min_order, 'note', nullif(trim(coalesce(p_note, '')), ''));
 end $function$;
 
--- Save a count. p_lines: [{item_id, qty, qty_extra}]. Items left blank are
--- saved as not counted and ordered as nothing. Each line keeps a copy of the
--- item's par at that moment, so old counts stay readable after edits.
+-- Save a count into the OPEN order list of this unit and department. The list
+-- builds up: each save updates the items counted now and keeps the items
+-- counted earlier, until a manager closes it (manager_stock_count_close).
+-- p_lines: [{item_id, qty, qty_extra}]. Items never counted are ordered as
+-- nothing. Each line keeps a copy of the item's par, so the list stays
+-- readable after edits; earlier lines are recalculated with today's par.
 create or replace function public.manager_stock_count_save(
   p_manager_id uuid,
   p_location text,
@@ -341,6 +348,8 @@ declare
   mgr public.staff%rowtype := public.mh_manager(p_manager_id);
   v_location text := case when mgr.role = 'admin' then coalesce(p_location, mgr.location) else mgr.location end;
   v_dep text := public.mh_stock_department(mgr.role, p_department);
+  v_open public.stock_counts%rowtype;
+  v_old jsonb := '[]'::jsonb;
   v_lines jsonb;
   v_row public.stock_counts%rowtype;
 begin
@@ -353,36 +362,83 @@ begin
     raise exception 'INVALID_INPUT';
   end if;
 
+  select * into v_open from public.stock_counts
+   where location = v_location and department = v_dep and closed_at is null
+   order by counted_at desc limit 1
+   for update;
+  if found then v_old := v_open.lines; end if;
+
+  with merged as (
+    select i.*,
+           case when l.v->>'qty' is not null or l.v->>'qty_extra' is not null then l.v else o.v end as src,
+           (l.v->>'qty' is not null or l.v->>'qty_extra' is not null) as fresh
+      from public.stock_items i
+      left join lateral (
+        select x as v from jsonb_array_elements(p_lines) x
+         where x->>'item_id' = i.id::text limit 1
+      ) l on true
+      left join lateral (
+        select x as v from jsonb_array_elements(v_old) x
+         where x->>'item_id' = i.id::text and coalesce((x->>'counted')::boolean, false) limit 1
+      ) o on true
+     where i.location = v_location and i.department = v_dep and i.active
+  )
   select coalesce(jsonb_agg(
            jsonb_build_object(
-             'item_id', i.id, 'name', i.name, 'group_name', i.group_name, 'supplier', i.supplier,
-             'unit', i.unit, 'case_size', i.case_size, 'order_by', i.order_by,
-             'par', i.par, 'par_extra', i.par_extra, 'extra_label', i.extra_label,
-             'qty', (l.v->>'qty')::numeric, 'qty_extra', (l.v->>'qty_extra')::numeric,
-             'counted', l.v->>'qty' is not null or l.v->>'qty_extra' is not null)
-           || case when l.v->>'qty' is null and l.v->>'qty_extra' is null
+             'item_id', m.id, 'name', m.name, 'group_name', m.group_name, 'supplier', m.supplier,
+             'unit', m.unit, 'case_size', m.case_size, 'order_by', m.order_by,
+             'par', m.par, 'par_extra', m.par_extra, 'extra_label', m.extra_label,
+             'qty', (m.src->>'qty')::numeric, 'qty_extra', (m.src->>'qty_extra')::numeric,
+             'counted', m.src is not null,
+             'counted_at', case when m.fresh then to_jsonb(now()) else m.src->'counted_at' end)
+           || case when m.src is null
                    then jsonb_build_object('missing', null, 'order_qty', 0,
-                          'order_unit', case when i.order_by = 'box' then 'box' else 'unit' end)
-                   else public.mh_stock_order(i.par, (l.v->>'qty')::numeric, i.par_extra,
-                                              (l.v->>'qty_extra')::numeric, i.case_size, i.order_by) end
-           order by i.sort_order, i.name), '[]'::jsonb)
+                          'order_unit', case when m.order_by = 'box' then 'box' else 'unit' end)
+                   else public.mh_stock_order(m.par, (m.src->>'qty')::numeric, m.par_extra,
+                                              (m.src->>'qty_extra')::numeric, m.case_size, m.order_by) end
+           order by m.sort_order, m.name), '[]'::jsonb)
     into v_lines
-    from public.stock_items i
-    left join lateral (
-      select x as v from jsonb_array_elements(p_lines) x
-       where x->>'item_id' = i.id::text limit 1
-    ) l on true
-   where i.location = v_location and i.department = v_dep and i.active;
+    from merged m;
 
-  insert into public.stock_counts (location, department, counted_by, lines)
-  values (v_location, v_dep, mgr.id, v_lines)
-  returning * into v_row;
+  if v_open.id is not null then
+    update public.stock_counts set lines = v_lines, counted_by = mgr.id, counted_at = now()
+     where id = v_open.id
+    returning * into v_row;
+  else
+    insert into public.stock_counts (location, department, counted_by, lines)
+    values (v_location, v_dep, mgr.id, v_lines)
+    returning * into v_row;
+  end if;
 
   return jsonb_build_object('id', v_row.id, 'counted_at', v_row.counted_at,
-                            'counted_by', mgr.name, 'lines', v_row.lines);
+                            'counted_by', mgr.name, 'open', true, 'closed_at', null,
+                            'lines', v_row.lines);
 exception
   when invalid_text_representation or numeric_value_out_of_range then
     raise exception 'INVALID_INPUT';
+end $function$;
+
+-- Close the open order list ("start a new count"). It stays as history.
+create or replace function public.manager_stock_count_close(
+  p_manager_id uuid,
+  p_location text,
+  p_department text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  mgr public.staff%rowtype := public.mh_manager(p_manager_id);
+  v_location text := case when mgr.role = 'admin' then coalesce(p_location, mgr.location) else mgr.location end;
+  v_dep text := public.mh_stock_department(mgr.role, p_department);
+  v_n integer;
+begin
+  update public.stock_counts set closed_at = now(), closed_by = mgr.id
+   where location = v_location and department = v_dep and closed_at is null;
+  get diagnostics v_n = row_count;
+  return jsonb_build_object('closed', v_n);
 end $function$;
 
 revoke all on function public.mh_stock_order(numeric, numeric, numeric, numeric, integer, text) from public, anon, authenticated;
@@ -393,11 +449,13 @@ revoke all on function public.manager_stock_item_save(uuid, text, jsonb) from pu
 revoke all on function public.manager_stock_item_remove(uuid, text, uuid) from public, anon, authenticated;
 revoke all on function public.manager_stock_supplier_save(uuid, text, text, text, integer, text) from public, anon, authenticated;
 revoke all on function public.manager_stock_count_save(uuid, text, text, jsonb) from public, anon, authenticated;
+revoke all on function public.manager_stock_count_close(uuid, text, text) from public, anon, authenticated;
 grant execute on function public.manager_stock_list(uuid, text, text) to service_role;
 grant execute on function public.manager_stock_item_save(uuid, text, jsonb) to service_role;
 grant execute on function public.manager_stock_item_remove(uuid, text, uuid) to service_role;
 grant execute on function public.manager_stock_supplier_save(uuid, text, text, text, integer, text) to service_role;
 grant execute on function public.manager_stock_count_save(uuid, text, text, jsonb) to service_role;
+grant execute on function public.manager_stock_count_close(uuid, text, text) to service_role;
 
 -- Starting list for Hawthorne Floor/Bar, copied from the par sheet
 -- (Marinara_par_level: tabs Wine + Beer + Global, Spirits, Others, Others-1;
