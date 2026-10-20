@@ -300,7 +300,8 @@ try {
     // Merge Global into RiverCity (RiverCity has no minimum now) .
     r = await api(vNew, 3, fm, { action: "manager_stock_supplier_rename", from: "Global", to: "RiverCity" });
     assert.equal(r.status, 200);
-    assert.equal(Number(await one(db, "select count(*) from public.stock_suppliers where name = 'Global'")), 0);
+    assert.equal(await one(db, "select min_order from public.stock_suppliers where name = 'Global'"), null);
+    assert.equal(Number(await one(db, "select count(*) from public.stock_items where supplier = 'Global'")), 0);
     r = await api(vNew, 2, km, { action: "manager_stock_supplier_rename", department: "Floor", from: "RiverCity", to: "X" });
     assert.equal(r.status, 403);
     r = await api(vNew, 3, fm, { action: "manager_stock_supplier_rename", from: "RiverCity", to: "" });

@@ -420,7 +420,7 @@ end $function$;
 
 -- Rename a supplier on every item of this unit and department (and on its
 -- minimum-order row and the open order list). If the new name already
--- exists, the two are merged into it.
+-- exists, the two are merged into it. Nothing is deleted.
 create or replace function public.manager_stock_supplier_rename(
   p_manager_id uuid,
   p_location text,
@@ -466,7 +466,8 @@ begin
              note = coalesce(v_to.note, v_from.note),
              updated_by = mgr.id, updated_at = now()
        where location = v_location and department = v_dep and name = v_new;
-      delete from public.stock_suppliers
+      -- The old name keeps no minimum; with no items left it is no longer listed.
+      update public.stock_suppliers set min_order = null, note = null, updated_by = mgr.id, updated_at = now()
        where location = v_location and department = v_dep and name = v_old;
     end if;
   end if;
