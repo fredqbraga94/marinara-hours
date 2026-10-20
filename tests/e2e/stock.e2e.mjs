@@ -230,6 +230,18 @@ try {
     return "Test Spritz Mix added to Spirits; Fantini Chardonnay par 24; RiverCity minimum 5";
   });
 
+  await check("rename a supplier from the Suppliers card", async () => {
+    await fm.page.click('[data-stock-rename="Woolies (app)"]');
+    await fm.page.fill("[data-stock-rename-input]", "Woolworths");
+    await fm.shot("stock_rename");
+    await fm.page.click('[data-stock-rename-save="Woolies (app)"]');
+    await fm.page.waitForFunction(() => /is now Woolworths/.test(document.getElementById("stockMessage").textContent));
+    const msg = (await fm.page.textContent("#stockMessage")).trim();
+    const n = Number(await db.admin.query("select count(*) from public.stock_items where supplier = 'Woolworths'").then((r) => r.rows[0][0]));
+    assert.equal(n, 32); assert.deepEqual(fm.errors, []);
+    return msg;
+  });
+
   await check("move an item up inside its group", async () => {
     const before = await fm.page.$$eval(".stock-edit-row strong", (e) => e.map((x) => x.textContent));
     const i = before.indexOf("Moscato");

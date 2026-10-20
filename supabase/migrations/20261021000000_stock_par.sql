@@ -418,6 +418,72 @@ exception
     raise exception 'INVALID_INPUT';
 end $function$;
 
+-- Rename a supplier on every item of this unit and department (and on its
+-- minimum-order row and the open order list). If the new name already
+-- exists, the two are merged into it.
+create or replace function public.manager_stock_supplier_rename(
+  p_manager_id uuid,
+  p_location text,
+  p_department text,
+  p_old text,
+  p_new text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  mgr public.staff%rowtype := public.mh_manager(p_manager_id);
+  v_location text := case when mgr.role = 'admin' then coalesce(p_location, mgr.location) else mgr.location end;
+  v_dep text := public.mh_stock_department(mgr.role, p_department);
+  v_old text := nullif(trim(coalesce(p_old, '')), '');
+  v_new text := nullif(trim(coalesce(p_new, '')), '');
+  v_items integer;
+  v_from public.stock_suppliers%rowtype;
+  v_to public.stock_suppliers%rowtype;
+begin
+  if v_old is null or v_new is null or length(v_new) > 60 then raise exception 'INVALID_INPUT'; end if;
+  if v_old = v_new then
+    return jsonb_build_object('name', v_new, 'items', 0);
+  end if;
+
+  update public.stock_items set supplier = v_new, updated_by = mgr.id, updated_at = now()
+   where location = v_location and department = v_dep and supplier = v_old;
+  get diagnostics v_items = row_count;
+
+  select * into v_from from public.stock_suppliers
+   where location = v_location and department = v_dep and name = v_old for update;
+  select * into v_to from public.stock_suppliers
+   where location = v_location and department = v_dep and name = v_new for update;
+  if v_from.name is not null then
+    if v_to.name is null then
+      update public.stock_suppliers set name = v_new, updated_by = mgr.id, updated_at = now()
+       where location = v_location and department = v_dep and name = v_old;
+    else
+      update public.stock_suppliers
+         set min_order = coalesce(v_to.min_order, v_from.min_order),
+             note = coalesce(v_to.note, v_from.note),
+             updated_by = mgr.id, updated_at = now()
+       where location = v_location and department = v_dep and name = v_new;
+      delete from public.stock_suppliers
+       where location = v_location and department = v_dep and name = v_old;
+    end if;
+  end if;
+
+  update public.stock_counts c
+     set lines = (select coalesce(jsonb_agg(case when x->>'supplier' = v_old
+                                                 then jsonb_set(x, '{supplier}', to_jsonb(v_new)) else x end order by e.n), '[]'::jsonb)
+                    from jsonb_array_elements(c.lines) with ordinality as e(x, n))
+   where c.location = v_location and c.department = v_dep and c.closed_at is null;
+
+  insert into public.stock_audit (kind, ref, changed_by, old_value, new_value)
+  values ('supplier_rename', v_location || '/' || v_dep, mgr.id,
+          jsonb_build_object('name', v_old), jsonb_build_object('name', v_new, 'items', v_items));
+
+  return jsonb_build_object('name', v_new, 'items', v_items);
+end $function$;
+
 -- Close the open order list ("start a new count"). It stays as history.
 create or replace function public.manager_stock_count_close(
   p_manager_id uuid,
@@ -450,12 +516,14 @@ revoke all on function public.manager_stock_item_remove(uuid, text, uuid) from p
 revoke all on function public.manager_stock_supplier_save(uuid, text, text, text, integer, text) from public, anon, authenticated;
 revoke all on function public.manager_stock_count_save(uuid, text, text, jsonb) from public, anon, authenticated;
 revoke all on function public.manager_stock_count_close(uuid, text, text) from public, anon, authenticated;
+revoke all on function public.manager_stock_supplier_rename(uuid, text, text, text, text) from public, anon, authenticated;
 grant execute on function public.manager_stock_list(uuid, text, text) to service_role;
 grant execute on function public.manager_stock_item_save(uuid, text, jsonb) to service_role;
 grant execute on function public.manager_stock_item_remove(uuid, text, uuid) to service_role;
 grant execute on function public.manager_stock_supplier_save(uuid, text, text, text, integer, text) to service_role;
 grant execute on function public.manager_stock_count_save(uuid, text, text, jsonb) to service_role;
 grant execute on function public.manager_stock_count_close(uuid, text, text) to service_role;
+grant execute on function public.manager_stock_supplier_rename(uuid, text, text, text, text) to service_role;
 
 -- Starting list for Hawthorne Floor/Bar, copied from the par sheet
 -- (Marinara_par_level: tabs Wine + Beer + Global, Spirits, Others, Others-1;

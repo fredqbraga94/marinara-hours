@@ -1,6 +1,7 @@
 -- Rollback of 20261021000000_stock_par.sql
 -- Removes the stock tables and functions (and the stock data in them).
 -- No staff, shift, break, roster, leave or other audit row is touched.
+drop function if exists public.manager_stock_supplier_rename(uuid, text, text, text, text);
 drop function if exists public.manager_stock_count_close(uuid, text, text);
 drop function if exists public.manager_stock_count_save(uuid, text, text, jsonb);
 drop function if exists public.manager_stock_supplier_save(uuid, text, text, text, integer, text);
