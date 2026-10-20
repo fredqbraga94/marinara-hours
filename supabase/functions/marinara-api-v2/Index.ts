@@ -1218,6 +1218,7 @@ Deno.serve(async (req) => {
         "manager_stock_supplier_save",
         "manager_stock_count_save",
         "manager_stock_count_close",
+        "manager_stock_supplier_rename",
       ]);
 
     if (!managerActions.has(action)) {
@@ -2866,6 +2867,19 @@ Deno.serve(async (req) => {
             p_name: name, p_min_order: minOrder, p_note: text(body.note, 200) || null,
           });
           if (error) return managerDbError(error, "Unable to save the supplier");
+          return json({ success: true, action, data: { supplier: data } });
+        }
+
+        if (action === "manager_stock_supplier_rename") {
+          const from = text(body.from, 60), to = text(body.to, 60);
+          if (!from || !to) {
+            return json({ error: "Enter the new supplier name.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_stock_supplier_rename", {
+            p_manager_id: managerStatus.id, p_location: location, p_department: department,
+            p_old: from, p_new: to,
+          });
+          if (error) return managerDbError(error, "Unable to rename the supplier");
           return json({ success: true, action, data: { supplier: data } });
         }
 
