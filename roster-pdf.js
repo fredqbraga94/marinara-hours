@@ -58,7 +58,7 @@
     const body = [];
     report.groups.forEach(g => {
       if (g.name) body.push([{ content: clean(g.name).toUpperCase(), colSpan: 9,
-        styles: { fontStyle: 'bold', textColor: [31, 107, 69], fillColor: [234, 244, 238], fontSize: 8 } }]);
+        styles: { fontStyle: 'bold', textColor: 40, fillColor: 232, fontSize: 8 } }]);
       g.rows.forEach(r => body.push([
         { content: clean(r.name), styles: { fontStyle: 'bold' } },
         ...r.cells.map(c => ({ content: clean(c.text),
@@ -75,7 +75,7 @@
       theme: 'grid',
       styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.8, halign: 'center', valign: 'middle',
                 lineColor: 205, lineWidth: 0.15, textColor: 30, minCellHeight: 8 },
-      headStyles: { fillColor: [31, 107, 69], textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
+      headStyles: { fillColor: 55, textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
       columnStyles: { 0: { cellWidth: 46, halign: 'left' }, 8: { cellWidth: 18 } },
       showHead: 'everyPage',
     });

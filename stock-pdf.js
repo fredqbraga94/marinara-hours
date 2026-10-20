@@ -63,12 +63,12 @@
       doc.autoTable({
         startY: y,
         margin: { left: L, right: R, top: 40, bottom: 18 },
-        head: [[{ content: clean(sup.name), colSpan: 4, styles: { halign: 'left', fontSize: 10.5, fillColor: [31, 107, 69], textColor: 255 } }],
+        head: [[{ content: clean(sup.name), colSpan: 4, styles: { halign: 'left', fontSize: 10.5, fillColor: 55, textColor: 255 } }],
                ['Item', 'Counted', 'Par', 'Order']],
         body: sup.lines.map(r => r.map(clean)),
         theme: 'grid',
         styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.6, lineColor: 215, lineWidth: 0.15, textColor: 30, overflow: 'linebreak' },
-        headStyles: { fillColor: [234, 244, 238], textColor: 30, fontStyle: 'bold' },
+        headStyles: { fillColor: 232, textColor: 30, fontStyle: 'bold' },
         columnStyles: { 0: { cellWidth: 92 }, 1: { cellWidth: 28, halign: 'center' }, 2: { cellWidth: 30, halign: 'center' }, 3: { cellWidth: 36, halign: 'right', fontStyle: 'bold' } },
         showHead: 'everyPage',
       });
