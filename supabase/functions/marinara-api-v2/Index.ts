@@ -1405,6 +1405,26 @@ Deno.serve(async (req) => {
 
 
     // =========================
+    // PUBLIC HOLIDAYS
+    // =========================
+    // Queensland holidays from the public_holidays table. Every unit is in the
+    // Brisbane area, so Brisbane-only days (Ekka) count too. If the table is
+    // missing (older database), the app simply shows no holidays.
+    async function loadPublicHolidays(fromDate: string, toDate: string) {
+      const { data, error } = await supabase
+        .from("public_holidays")
+        .select("holiday_date, name, region, part_day")
+        .gte("holiday_date", fromDate)
+        .lte("holiday_date", toDate)
+        .order("holiday_date", { ascending: true });
+      if (error) {
+        console.error("Public holidays error:", error.code || "");
+        return [];
+      }
+      return data || [];
+    }
+
+    // =========================
     // STUDENT VISA HOURS
     // =========================
 
@@ -2613,6 +2633,7 @@ Deno.serve(async (req) => {
         }
 
         const services = thisWeek.data?.services || [];
+        const holidays = await loadPublicHolidays(weekStart, addDays(weekStart, 6));
         const entries = thisWeek.data?.entries || [];
         const hours = computeRosterHours(
           team,
@@ -2641,6 +2662,7 @@ Deno.serve(async (req) => {
             entries,
             services,
             leave: thisWeek.data?.leave || [],
+            holidays,
             planned_hours: hours.planned_hours,
             visa: hours.visa,
           },
@@ -2991,6 +3013,12 @@ Deno.serve(async (req) => {
 
           visa_hours:
             await loadVisaHours(team),
+
+          upcoming_holidays:
+            await (async () => {
+              const today = new Date(Date.now() + BRISBANE_OFFSET_MS).toISOString().slice(0, 10);
+              return loadPublicHolidays(today, addDays(today, 14));
+            })(),
 
           counts: {
 
