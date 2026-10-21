@@ -3127,8 +3127,8 @@ Deno.serve(async (req) => {
         const isUuid = (v: string) =>
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
         const text = (v: any, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
-        const ALLERGENS = ["gluten", "wheat", "milk", "egg", "soy", "peanut", "tree_nuts", "sesame",
-          "fish", "crustacean", "mollusc", "lupin", "sulphites"];
+        const ALLERGENS = ["gluten", "wheat", "milk", "butter", "cream", "cheese", "yoghurt", "egg", "soy",
+          "peanut", "tree_nuts", "sesame", "fish", "crustacean", "mollusc", "lupin", "sulphites"];
 
         if (action === "manager_recipe_list") {
           const { data, error } = await supabase.rpc("manager_recipe_list", {

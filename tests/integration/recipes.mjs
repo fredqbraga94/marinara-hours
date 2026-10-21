@@ -242,6 +242,38 @@ try {
     return (await names()).join(", ");
   });
 
+  await check("Dairy kinds: cheeses/cream/butter marked exactly, hand-set values untouched, rollback back to milk", async () => {
+    const DAIRY = "supabase/migrations/20261022020000_recipes_dairy_kinds.sql";
+    const DAIRY_DOWN = "supabase/rollback/20261022020000_recipes_dairy_kinds.down.sql";
+    const ing = async () => Object.fromEntries((await api(vNew, 2, km, { action: "manager_recipe_list" })).body.data.ingredients.map((i) => [i.name, i]));
+    let list = await ing();
+    // Before: the new kinds are refused.
+    let r = await api(vNew, 2, km, { action: "manager_recipe_ingredient_save", id: list["Pizza dough"].id, allergens: ["gluten", "wheat", "butter"], checked: false });
+    assert.equal(r.status, 400);
+    // A value set by hand (like Fred's pizza dough "milk") must stay.
+    r = await api(vNew, 2, km, { action: "manager_recipe_ingredient_save", id: list["Pizza dough"].id, allergens: ["gluten", "milk", "wheat"], checked: false });
+    assert.equal(r.status, 200);
+    r = db.psqlFile(DAIRY); assert.ok(r.ok, r.stderr);
+    r = db.psqlFile(DAIRY); assert.ok(r.ok, r.stderr); // twice: no change
+    list = await ing();
+    assert.deepEqual(list["Mozzarella"].allergens, ["cheese"]);
+    assert.deepEqual(list["Cream"].allergens, ["cream"]);
+    assert.deepEqual(list["Garlic butter"].allergens, ["butter"]);
+    assert.deepEqual(list["Milk"].allergens, ["milk"]);
+    assert.deepEqual(list["Pizza dough"].allergens, ["gluten", "milk", "wheat"]);
+    r = await api(vNew, 2, km, { action: "manager_recipe_ingredient_save", id: list["Pizza dough"].id, allergens: ["gluten", "wheat", "butter"], checked: false });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const floor = (await api(vNew, 3, fm, { action: "manager_recipe_list" })).body.data.recipes;
+    const marg = floor.find((x) => x.name === "Margherita");
+    assert.deepEqual(marg.allergens, ["butter", "cheese", "gluten", "wheat"]);
+    r = db.psqlFile(DAIRY_DOWN); assert.ok(r.ok, r.stderr);
+    list = await ing();
+    assert.deepEqual(list["Pizza dough"].allergens, ["gluten", "milk", "wheat"]);
+    assert.deepEqual(list["Mozzarella"].allergens, ["milk"]);
+    r = db.psqlFile(DAIRY); assert.ok(r.ok, r.stderr);
+    return `Margherita: ${marg.allergens.join(", ")}; rollback turns kinds back into milk`;
+  });
+
   section("D. Rollback");
   await check("rollback removes recipes; both servers still work", async () => {
     const r = db.psqlFile(RECIPES_DOWN); assert.ok(r.ok, r.stderr);

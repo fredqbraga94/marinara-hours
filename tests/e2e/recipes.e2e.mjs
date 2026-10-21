@@ -46,7 +46,7 @@ for (const f of [MIGRATION_A, MIGRATION_B,
   STOCK, "supabase/migrations/20261021010000_roster_roles.sql", "supabase/migrations/20261021020000_roster_order.sql", "supabase/migrations/20261021030000_floor_services.sql", "supabase/migrations/20261021040000_push.sql", "supabase/migrations/20261021050000_push_badge.sql", RECIPES]) { const r = db.psqlFile(f); if (!r.ok) throw new Error(`${f}: ${r.stderr}`); }
 useDatabase(db.svc);
 await reseed(db);
-for (const f of [STOCK, RECIPES, "supabase/migrations/20261022010000_recipes_kids_pasta.sql"]) { const r = db.psqlFile(f); if (!r.ok) throw new Error(r.stderr); } // reseed's cascade emptied them
+for (const f of [STOCK, RECIPES, "supabase/migrations/20261022010000_recipes_kids_pasta.sql", "supabase/migrations/20261022020000_recipes_dairy_kinds.sql"]) { const r = db.psqlFile(f); if (!r.ok) throw new Error(r.stderr); } // reseed's cascade emptied them
 const handler = await loadHandler(resolve(root, "supabase/functions/marinara-api-v2/Index.ts"));
 
 const server = await new Promise((ok) => {
@@ -117,7 +117,7 @@ try {
     const groups = await km.page.locator("#rcpAllergenList .rcp-group").allTextContents();
     assert.equal(tabsShown, true); assert.ok(items >= 60, String(items)); assert.equal(warn, items);
     assert.deepEqual(groups.slice(0, 3), ["Pane", "Salad", "Entrée"]);
-    assert.match(creamy, /Dairy/);
+    assert.match(creamy, /Dairy \(milk, cream\)/);
     return creamy.trim().slice(0, 90);
   });
 
@@ -139,7 +139,7 @@ try {
     await km.page.fill("#rcpIngSearch", "");
     assert.ok(!/Fettuccine, penne or gnocchi/.test(await km.page.textContent("#rcpIngredientList")), "unused ingredient hidden");
     await km.page.locator("#rcpIngredientList .rcp-head", { hasText: "Corn flour" }).click();
-    assert.match(await km.page.textContent("#rcpIngAllergens"), /Milk \/ dairy/);
+    assert.match(await km.page.textContent("#rcpIngAllergens"), /MilkButterCreamCheeseYoghurt/);
     await km.page.click('[data-rcp-pick="gluten"]');
     await km.page.click('[data-rcp-pick="wheat"]');
     await km.page.check("#rcpIngChecked");
