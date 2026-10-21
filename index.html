@@ -1133,6 +1133,56 @@ button{cursor:pointer}
 .timeoff-actions button{flex:1;min-height:40px;border-radius:12px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:13px}
 .timeoff-actions .approve{background:var(--green);border-color:var(--green);color:#fff}
 .timeoff-actions .decline{color:var(--danger)}
+
+/* DESKTOP / LAPTOP (managers only): side menu, wide content. Phones and the
+   staff time clock are unchanged. */
+@media (min-width: 1000px) {
+  body.mgr-mode { padding-left: 232px; }
+  body.mgr-mode .app { max-width: 1120px; padding-bottom: 32px; }
+  body.mgr-mode .header { border-radius: 0 0 24px 24px; padding: 22px 32px 24px; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  body.mgr-mode .header h1 { margin: 0; font-size: 26px; }
+  body.mgr-mode .content { padding: 26px 32px; }
+  body.mgr-mode .manager-bottom-nav {
+    left: 0; top: 0; bottom: 0; transform: none; width: 232px;
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 28px 14px; border-top: 0; border-right: 1px solid var(--border);
+    background: #fff;
+  }
+  body.mgr-mode .manager-bottom-nav::before {
+    content: "MARINARA"; font-size: 13px; letter-spacing: 2px; font-weight: 900;
+    color: var(--green); padding: 4px 14px 22px;
+  }
+  body.mgr-mode .manager-nav-item {
+    flex-direction: row; justify-content: flex-start; gap: 12px; min-height: 48px;
+    padding: 0 14px; font-size: 14px; cursor: pointer;
+  }
+  body.mgr-mode .manager-nav-item:hover { background: #f3f6f4; }
+  body.mgr-mode .manager-nav-item.active { background: var(--green-light); }
+  body.mgr-mode .manager-nav-icon { width: 22px; text-align: center; }
+  body.mgr-mode .count-badge.nav { position: static; margin-left: auto; }
+  body.mgr-mode .manager-v2 { padding-bottom: 24px; }
+  body.mgr-mode #managerScreen { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); column-gap: 18px; }
+  body.mgr-mode #managerScreen.hidden { display: none; }
+  body.mgr-mode #managerScreen > * { grid-column: 1 / -1; }
+  body.mgr-mode #managerScreen > .card { grid-column: auto; align-self: start; }
+  body.mgr-mode .home-today { grid-template-columns: repeat(3, minmax(0, 220px)); }
+  body.mgr-mode .home-tiles { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+  body.mgr-mode .home-tile, body.mgr-mode .home-stat, body.mgr-mode .more-v2-item { cursor: pointer; }
+  body.mgr-mode .home-tile:hover, body.mgr-mode .home-stat:hover { border-color: rgba(31,107,69,.35); }
+  body.mgr-mode .header .brand { display: none; }
+  body.mgr-mode .roster-grid { font-size: 13px; }
+  body.mgr-mode .roster-grid th { font-size: 12px; }
+  body.mgr-mode .roster-grid th:first-child { width: 170px; }
+  body.mgr-mode .roster-name { font-size: 14px; }
+  body.mgr-mode .roster-cell { min-height: 46px; font-size: 13px; cursor: pointer; }
+  body.mgr-mode :is(#rcpAllergenList, #rcpRecipeList, #rcpIngredientList):not(.empty-state) {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 26px; align-items: start;
+  }
+  body.mgr-mode :is(#rcpAllergenList, #rcpRecipeList, #rcpIngredientList) > :is(.rcp-group, .rcp-warn) { grid-column: 1 / -1; }
+  body.mgr-mode .rcp-head { cursor: pointer; }
+  body.mgr-mode .rcp-group + .rcp-item { border-top: 1px solid var(--border); }
+  body.mgr-mode .rcp-search { max-width: 520px; }
+}
 /* RECIPES AND ALLERGENS */
 .rcp-search{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 12px;font-size:16px;margin-bottom:10px;background:#fff;font-family:inherit}
 .rcp-item{padding:13px 0;border-top:1px solid var(--border)}
@@ -7883,6 +7933,7 @@ recipesScreen?.addEventListener("click", async e => {
 /* MANAGER HOME: header and shortcuts */
 // Managers see the restaurant name in the top bar; staff keep "Hours".
 function setManagerHeader(place) {
+  document.body.classList.toggle("mgr-mode", !!place);
   const h1 = document.querySelector(".header h1");
   const p = document.querySelector(".header p");
   if (place) {
