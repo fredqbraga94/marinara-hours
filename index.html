@@ -10,6 +10,9 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Marinara Hours">
 <link rel="manifest" href="./manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&display=swap" rel="stylesheet">
 <title>Marinara Hours</title>
 
 <style>
@@ -1183,6 +1186,59 @@ button{cursor:pointer}
   body.mgr-mode .rcp-group + .rcp-item { border-top: 1px solid var(--border); }
   body.mgr-mode .rcp-search { max-width: 520px; }
 }
+
+/* MANAGER LOOK: Marinara's own identity (black logo band, menu-style red serif
+   titles, basil green). Only manager screens (body.mgr-mode). */
+:root { --basil:#1e5a3c; --pomodoro:#b3261e; --ink:#000; --paper:#f7f5f0; }
+.brand-serif { font-family: Cinzel, Georgia, "Times New Roman", serif; }
+body.mgr-mode { background: var(--paper); }
+body.mgr-mode .header {
+  background: var(--ink); position: relative; text-align: center;
+  padding: calc(14px + env(safe-area-inset-top)) 20px 20px; border-radius: 0 0 26px 26px;
+}
+body.mgr-mode .header::after {
+  content: ""; position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
+  width: 72px; height: 3px; border-radius: 2px;
+  background: linear-gradient(90deg, #1f8a4c 0 33.3%, #fff 33.3% 66.6%, #c8102e 66.6%);
+}
+body.mgr-mode .header .brand { display: none; }
+body.mgr-mode .header-logo { display: block; width: min(230px, 62vw); height: auto; margin: 2px auto 2px; }
+body.mgr-mode .header h1 {
+  font-family: Cinzel, Georgia, serif; font-weight: 600; font-size: 17px; letter-spacing: 3px;
+  margin: 4px 0 10px; color: #fff;
+}
+body.mgr-mode .header p { display: none; }
+.header-logo { display: none; }
+body.mgr-mode .manager-v2-eyebrow { color: var(--pomodoro); letter-spacing: .4px; text-transform: none; font-size: 13px; font-weight: 800; }
+body.mgr-mode .manager-v2-greeting { font-size: 28px; letter-spacing: -.6px; }
+body.mgr-mode .home-stat { border: 1px solid #e7e2d8; box-shadow: none; }
+body.mgr-mode .home-stat-n { font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 30px; color: var(--basil); }
+body.mgr-mode .home-stat.alert .home-stat-n { color: var(--pomodoro); }
+body.mgr-mode .home-group {
+  font-family: Cinzel, Georgia, serif; text-transform: none; letter-spacing: 1px;
+  font-size: 17px; font-weight: 700; color: var(--pomodoro); margin: 22px 2px 10px;
+}
+body.mgr-mode .home-tile.manager-quick-card { border: 1px solid #e7e2d8; background: #fff; }
+body.mgr-mode .home-tile .manager-quick-icon { background: transparent; width: 30px; height: 30px; margin-bottom: 12px; color: var(--basil); }
+body.mgr-mode .home-tile-k .manager-quick-icon { color: var(--pomodoro); background: transparent; }
+.manager-quick-icon svg, .manager-nav-icon svg {
+  width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.7;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.manager-nav-icon svg circle[r="1.3"] { fill: currentColor; }
+.manager-nav-icon:has(svg) { width: 22px; height: 22px; display: inline-block; }
+body.mgr-mode .home-tile strong { font-size: 14px; }
+body.mgr-mode .home-tile span:not(.count-badge) { font-size: 11px; }
+body.mgr-mode .manager-nav-item.active { color: var(--basil); }
+body.mgr-mode :is(.manager-v2-signout) { border-color: #e7e2d8; background: #fff; }
+@media (min-width: 1000px) {
+  body.mgr-mode .header { text-align: left; display: flex; align-items: center; gap: 18px; padding: 16px 28px 20px; }
+  body.mgr-mode .header-logo { width: 170px; margin: 0; }
+  body.mgr-mode .header::after { left: 28px; transform: none; }
+  body.mgr-mode .header h1 { margin: 0; }
+  body.mgr-mode .manager-bottom-nav::before { content: none; }
+  body.mgr-mode .manager-bottom-nav { padding-top: 110px; }
+}
 /* RECIPES AND ALLERGENS */
 .rcp-search{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 12px;font-size:16px;margin-bottom:10px;background:#fff;font-family:inherit}
 .rcp-item{padding:13px 0;border-top:1px solid var(--border)}
@@ -1295,6 +1351,7 @@ button:disabled{opacity:.6}
 <div class="app">
 
 <header class="header">
+  <img id="headerLogo" class="header-logo" alt="Marinara Ristorante Cafe" hidden>
   <div class="brand">MARINARA</div>
   <h1>Hours</h1>
   <p>Hawthorne · Staff Time Clock</p>
@@ -1471,19 +1528,19 @@ button:disabled{opacity:.6}
 
   <div class="home-group">Team &amp; hours</div>
   <div class="home-tiles">
-    <button id="approvalsCard" class="manager-quick-card home-tile"><div class="manager-quick-icon">✓</div><strong>Approvals</strong><span id="approvalsText">Review shifts</span></button>
-    <button id="rosterCard" class="manager-quick-card home-tile"><div class="manager-quick-icon">▦</div><strong>Roster</strong><span>Plan the week</span></button>
-    <button id="timeOffCard" class="manager-quick-card home-tile"><span id="homeTimeOffBadge" class="count-badge hidden"></span><div class="manager-quick-icon">✈</div><strong>Time off</strong><span id="timeOffCardText">Holidays, days off</span></button>
-    <button id="staffHoursCard" class="manager-quick-card home-tile"><div class="manager-quick-icon">◷</div><strong>Staff Hours</strong><span>Hours this week</span></button>
-    <button id="timesheetsCard" class="manager-quick-card home-tile"><div class="manager-quick-icon">▤</div><strong>Timesheets</strong><span>Weekly PDF</span></button>
-    <button id="teamCard" class="manager-quick-card home-tile"><div class="manager-quick-icon">◎</div><strong>Team</strong><span id="teamText">Staff list</span></button>
+    <button id="approvalsCard" class="manager-quick-card home-tile"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg></div><strong>Approvals</strong><span id="approvalsText">Review shifts</span></button>
+    <button id="rosterCard" class="manager-quick-card home-tile"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h2M12 14h2M16 14h0.5M8 17h2M12 17h2"/></svg></div><strong>Roster</strong><span>Plan the week</span></button>
+    <button id="timeOffCard" class="manager-quick-card home-tile"><span id="homeTimeOffBadge" class="count-badge hidden"></span><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 13.5L4 11l1.5-1.5 7 1 4-4c.8-.8 2.2-.8 3 0s.8 2.2 0 3l-4 4 1 7L16 21.5l-2.5-6.5-3 3V21l-1.5 1-1-4-4-1 1-1.5h3z"/></svg></div><strong>Time off</strong><span id="timeOffCardText">Holidays</span></button>
+    <button id="staffHoursCard" class="manager-quick-card home-tile"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></div><strong>Staff Hours</strong><span>Hours this week</span></button>
+    <button id="timesheetsCard" class="manager-quick-card home-tile"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5A.5.5 0 0 1 6.5 20V4a.5.5 0 0 1 .5-.5z"/><path d="M14 3.5V8h4M9.5 12h5M9.5 15h5M9.5 18h3"/></svg></div><strong>Timesheets</strong><span>Weekly PDF</span></button>
+    <button id="teamCard" class="manager-quick-card home-tile"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.8 14.6c2.3-.1 4.1 1.4 4.7 4.4"/></svg></div><strong>Team</strong><span id="teamText">Staff list</span></button>
   </div>
 
   <div class="home-group">Kitchen &amp; floor</div>
   <div class="home-tiles">
-    <button id="stockCard" class="manager-quick-card home-tile home-tile-k"><div class="manager-quick-icon">▥</div><strong>Stock</strong><span>Count &amp; order</span></button>
-    <button id="recipesCard" class="manager-quick-card home-tile home-tile-k"><div class="manager-quick-icon">❖</div><strong id="recipesCardLabel">Recipes</strong><span id="recipesCardSub">Allergens too</span></button>
-    <button id="myClockCard" class="manager-quick-card home-tile"><div class="manager-quick-icon">◉</div><strong>My Clock</strong><span>Clock in / out</span></button>
+    <button id="stockCard" class="manager-quick-card home-tile home-tile-k"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg></div><strong>Stock</strong><span>Count &amp; order</span></button>
+    <button id="recipesCard" class="manager-quick-card home-tile home-tile-k"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10.5a3.5 3.5 0 1 1 1.6-6.6A4 4 0 0 1 16.4 4a3.5 3.5 0 1 1 .6 6.5V14H7z"/><path d="M7 14h10v4.5a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1z"/></svg></div><strong id="recipesCardLabel">Recipes</strong><span id="recipesCardSub">Allergens too</span></button>
+    <button id="myClockCard" class="manager-quick-card home-tile"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13h3M9.5 3h5M12 3v2.5"/></svg></div><strong>My Clock</strong><span>Clock in / out</span></button>
   </div>
 
   <div class="card"><div class="manager-v2-section-head"><div class="section-title">Who's Working</div><button id="managerWorkingViewAll" class="manager-v2-link" type="button">View team</button></div><div id="workingList" class="empty-state">Loading...</div></div>
@@ -1492,10 +1549,10 @@ button:disabled{opacity:.6}
 </section>
 
 <nav id="managerBottomNav" class="manager-bottom-nav hidden">
-  <button type="button" class="manager-nav-item active" data-manager-nav="home"><span class="manager-nav-icon">⌂</span><span>Home</span></button>
-  <button type="button" class="manager-nav-item" data-manager-nav="approvals"><span class="manager-nav-icon">✓</span><span>Approvals</span></button>
-  <button type="button" class="manager-nav-item" data-manager-nav="team"><span class="manager-nav-icon">◎</span><span>Team</span></button>
-  <button type="button" class="manager-nav-item" data-manager-nav="more"><span class="manager-nav-icon">•••</span><span>More</span><span id="navMoreBadge" class="count-badge nav hidden"></span></button>
+  <button type="button" class="manager-nav-item active" data-manager-nav="home"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6.5 8 6.5V19.5a.5.5 0 0 1-.5.5H15v-5.5H9V20H4.5a.5.5 0 0 1-.5-.5z"/></svg></span><span>Home</span></button>
+  <button type="button" class="manager-nav-item" data-manager-nav="approvals"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span><span>Approvals</span></button>
+  <button type="button" class="manager-nav-item" data-manager-nav="team"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.8 14.6c2.3-.1 4.1 1.4 4.7 4.4"/></svg></span><span>Team</span></button>
+  <button type="button" class="manager-nav-item" data-manager-nav="more"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/></svg></span><span>More</span><span id="navMoreBadge" class="count-badge nav hidden"></span></button>
 </nav>
 
 <!-- STAFF HOURS SCREEN -->
@@ -6630,7 +6687,7 @@ async function loadManagerTimeOff() {
         `<option value="${escapeHtml(m.id)}">${escapeHtml(m.name)} · ${escapeHtml(m.department)}</option>`).join("");
     select.value = keep && (data.team || []).some(m => m.id === keep) ? keep : "";
     const cardText = document.getElementById("timeOffCardText");
-    if (cardText) cardText.textContent = pending.length ? `${pending.length} waiting for you` : "Holidays and days off";
+    if (cardText) cardText.textContent = pending.length ? `${pending.length} waiting` : "Holidays";
     showLeaveBadge(pending.length);
   } catch (error) {
     timeOffMessage(msg, error.message || "Unable to load time off.", false);
@@ -7933,6 +7990,11 @@ recipesScreen?.addEventListener("click", async e => {
 // Managers see the restaurant name in the top bar; staff keep "Hours".
 function setManagerHeader(place) {
   document.body.classList.toggle("mgr-mode", !!place);
+  const logo = document.getElementById("headerLogo");
+  if (logo) {
+    if (place && !logo.src) logo.src = document.querySelector(".login-original-logo")?.src || "";
+    logo.hidden = !place;
+  }
   const h1 = document.querySelector(".header h1");
   const p = document.querySelector(".header p");
   if (place) {
