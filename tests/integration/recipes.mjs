@@ -226,6 +226,22 @@ try {
     return `Mussel Napoletana now: ${mussel.allergens.join(", ")}; Kilpatrick Oysters still not checked`;
   });
 
+  await check("Kids Pasta: the three pastas become separate ingredients (and back on rollback)", async () => {
+    const KIDS = "supabase/migrations/20261022010000_recipes_kids_pasta.sql";
+    const KIDS_DOWN = "supabase/rollback/20261022010000_recipes_kids_pasta.down.sql";
+    const names = async () => (await api(vNew, 3, fm, { action: "manager_recipe_list" })).body.data.recipes
+      .find((x) => x.name.startsWith("Kids Pasta")).lines.map((l) => l.name);
+    assert.deepEqual(await names(), ["Fettuccine, penne or gnocchi", "Parmesan", "Butter"]);
+    let r = db.psqlFile(KIDS); assert.ok(r.ok, r.stderr);
+    r = db.psqlFile(KIDS); assert.ok(r.ok, r.stderr); // twice: no change
+    assert.deepEqual(await names(), ["Fettuccine", "Penne", "Gnocchi", "Parmesan", "Butter"]);
+    r = db.psqlFile(KIDS_DOWN); assert.ok(r.ok, r.stderr);
+    assert.deepEqual(await names(), ["Fettuccine, penne or gnocchi", "Parmesan", "Butter"]);
+    r = db.psqlFile(KIDS); assert.ok(r.ok, r.stderr);
+    assert.deepEqual(await names(), ["Fettuccine", "Penne", "Gnocchi", "Parmesan", "Butter"]);
+    return (await names()).join(", ");
+  });
+
   section("D. Rollback");
   await check("rollback removes recipes; both servers still work", async () => {
     const r = db.psqlFile(RECIPES_DOWN); assert.ok(r.ok, r.stderr);

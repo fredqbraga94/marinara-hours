@@ -1745,6 +1745,7 @@ button:disabled{opacity:.6}
     <div class="card"><div id="rcpRecipeList" class="empty-state">Loading…</div></div>
   </div>
   <div id="rcpIngredientsView" class="hidden">
+    <input id="rcpIngSearch" class="rcp-search" type="search" placeholder="Search an ingredient…" autocomplete="off">
     <div id="rcpIngFormCard" class="card rcp-form hidden">
       <div id="rcpIngTitle" class="section-title">Ingredient</div>
       <div class="rcp-sub">Contains</div>
@@ -7509,7 +7510,7 @@ const RCP_ALLERGENS = [
 ];
 const rcpLabel = code => (RCP_ALLERGENS.find(a => a[0] === code) || [code, code])[1];
 // When marking an ingredient the kitchen picks "Milk"; recipes show it as "Dairy".
-const rcpPickLabel = code => (code === "milk" ? "Milk" : rcpLabel(code));
+const rcpPickLabel = code => (code === "milk" ? "Milk / dairy" : rcpLabel(code));
 const rcpState = { data: null, tab: "allergens", open: {}, editing: null, ingEditing: null, ingPick: [] };
 
 function rcpMsg(text, ok) {
@@ -7612,10 +7613,12 @@ function rcpRenderRecipes() {
 
 function rcpRenderIngredients() {
   const box = document.getElementById("rcpIngredientList");
-  const list = rcpState.data?.ingredients || [];
+  const q = (document.getElementById("rcpIngSearch")?.value || "").trim().toLowerCase();
+  const all = (rcpState.data?.ingredients || []).filter(i => i.used_in > 0); // unused ones are hidden
+  const list = all.filter(i => !q || i.name.toLowerCase().includes(q) || (i.note || "").toLowerCase().includes(q));
   box.className = list.length ? "" : "empty-state";
-  if (!list.length) { box.innerHTML = "No ingredients yet."; return; }
-  const todo = list.filter(i => !i.checked).length;
+  if (!list.length) { box.innerHTML = q ? "Nothing found." : "No ingredients yet."; return; }
+  const todo = all.filter(i => !i.checked).length;
   box.innerHTML = (todo ? `<div class="rcp-warn" style="margin:0 0 6px">${todo} not checked on the label yet</div>` : "") +
     list.map(i => `<div class="rcp-item">
       <button type="button" class="rcp-head" data-rcp-ing="${escapeHtml(i.id)}">
@@ -7681,6 +7684,7 @@ async function openRecipesScreen() {
   rcpState.open = {};
   document.getElementById("rcpSearch").value = "";
   document.getElementById("rcpRecipeSearch").value = "";
+  document.getElementById("rcpIngSearch").value = "";
   for (const id of ["rcpAllergenList", "rcpRecipeList", "rcpIngredientList"]) {
     const box = document.getElementById(id);
     box.className = "empty-state"; box.textContent = "Loading…";
@@ -7702,6 +7706,7 @@ document.addEventListener("click", event => {
 
 document.getElementById("rcpSearch")?.addEventListener("input", rcpRenderAllergens);
 document.getElementById("rcpRecipeSearch")?.addEventListener("input", rcpRenderRecipes);
+document.getElementById("rcpIngSearch")?.addEventListener("input", rcpRenderIngredients);
 
 function rcpLineRow(name = "", quantity = "") {
   return `<div class="rcp-row">
