@@ -477,7 +477,8 @@ async function deliverPush(supabase: any, targets: any[], message: Record<string
   for (const t of targets) {
     let r: any;
     try {
-      r = await send({ endpoint: t.endpoint, p256dh: t.p256dh, auth: t.auth }, message, vapid);
+      const forPhone = typeof t.badge === "number" ? { ...message, badge: t.badge } : message;
+      r = await send({ endpoint: t.endpoint, p256dh: t.p256dh, auth: t.auth }, forPhone, vapid);
     } catch (e) {
       r = { ok: false, gone: false, status: 0, error: String((e as any)?.message || e).slice(0, 120) };
     }
@@ -494,8 +495,14 @@ async function deliverPush(supabase: any, targets: any[], message: Record<string
 async function notifyDepartment(supabase: any, location: string, department: string, message: Record<string, unknown>) {
   try {
     const { data, error } = await supabase.rpc("mh_push_targets", { p_location: location, p_department: department });
-    if (error) return;
-    await deliverPush(supabase, data || [], message);
+    if (error || !data?.length) return;
+    // Number for the app icon (optional: without it the notification still goes).
+    let badges: Record<string, number> = {};
+    try {
+      const b = await supabase.rpc("mh_push_badges", { p_location: location });
+      if (!b.error) for (const row of b.data || []) badges[row.id] = Number(row.pending) || 0;
+    } catch (_) { badges = {}; }
+    await deliverPush(supabase, data.map((t: any) => (t.id in badges ? { ...t, badge: badges[t.id] } : t)), message);
   } catch (e) {
     console.error("Push notify error:", (e as any)?.code || "");
   }
@@ -1399,6 +1406,7 @@ Deno.serve(async (req) => {
         "manager_leave_list",
         "manager_leave_decide",
         "manager_leave_create",
+        "manager_leave_count",
         "manager_set_roster_info",
         "manager_push_config",
         "manager_push_subscribe",
@@ -2927,6 +2935,15 @@ Deno.serve(async (req) => {
           return managerDbError(cellError, "Unable to save the roster");
         }
         return json({ success: true, action, data: { cell } });
+      }
+
+      // How many time-off requests are waiting (for the number on the app icon).
+      if (action === "manager_leave_count") {
+        const { data, error } = await supabase.rpc("manager_leave_list", {
+          p_manager_id: managerStatus.id, p_location: location, p_from: null, p_to: null,
+        });
+        if (error) return managerDbError(error, "Unable to load time off", 500);
+        return json({ success: true, action, data: { pending: (data || []).length } });
       }
 
       if (
