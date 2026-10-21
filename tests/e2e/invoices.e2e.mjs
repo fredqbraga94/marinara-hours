@@ -188,6 +188,26 @@ try {
     return t.trim().slice(0, 120);
   });
 
+  await check("weekly use: most bought products, per week, busiest week, filter and search", async () => {
+    await gm.page.click('[data-inv-tab="usage"]');
+    await gm.page.waitForSelector("#invUsage .inv-use");
+    const sum = (await gm.page.innerText("#invUsageSummary")).replace(/\s+/g, " ");
+    assert.match(sum, /1 Week of invoices/i); assert.match(sum, /2 Products/i); assert.match(sum, /\$84\.75/);
+    const rows = await gm.page.locator("#invUsage .inv-use").allInnerTexts();
+    assert.match(rows[0], /TEST NAPKINS/); assert.match(rows[0], /2\s*CTN/); assert.match(rows[0], /Busiest week 2 CTN/);
+    assert.match(rows[1], /TEST TOMATOES/); assert.match(rows[1], /5\s*kg/); assert.match(rows[1], /last price \$5\.50\/kg/);
+    assert.equal(await gm.page.locator("#invUsageSuppliers button").count(), 0, "one supplier: no filter chips");
+    await gm.page.fill("#invUsageSearch", "tomat");
+    assert.equal(await gm.page.locator("#invUsage .inv-use").count(), 1);
+    await gm.shot("invoices_usage");
+    await gm.page.fill("#invUsageSearch", "");
+    await gm.page.click('[data-inv-weeks="4"]');
+    await gm.page.waitForFunction(() => document.querySelectorAll("#invUsage .inv-use").length === 2);
+    await gm.page.click('[data-inv-tab="list"]');
+    await waitList(gm);
+    return sum.slice(0, 90);
+  });
+
   await check("open an invoice to see its lines; remove needs two taps", async () => {
     const head = gm.page.locator(".inv-head", { hasText: "T-5001" });
     await head.click();

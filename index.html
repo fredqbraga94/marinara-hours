@@ -1350,6 +1350,26 @@ body.mgr-mode #recipesTabs { background: #ece7dd; }
 body.mgr-mode #recipesTabs button.selected { color: var(--ink, #000); }
 
 /* SUPPLIER INVOICES */
+.inv-search { width: 100%; min-height: 44px; border: 1px solid #e7e2d8; border-radius: 12px; padding: 0 14px; font-size: 15px; background: #fff; margin: 0 0 12px; }
+.inv-use-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.inv-use-kpis div { background: #f7f5f0; border-radius: 12px; padding: 10px; }
+.inv-use-kpis strong { display: block; font-family: Cinzel, Georgia, serif; font-size: 20px; }
+.inv-use-kpis span { color: var(--muted); font-size: 12px; font-weight: 700; }
+.inv-use-note { color: var(--muted); font-size: 12px; margin-top: 10px; line-height: 1.4; }
+.inv-use { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 12px 0; border-top: 1px solid var(--border); }
+.inv-use:first-child { border-top: 0; }
+.inv-use .rank { color: var(--muted); font-weight: 800; margin-right: 4px; }
+.inv-use .name { font-weight: 800; font-size: 14px; line-height: 1.25; }
+.inv-use .per { text-align: right; white-space: nowrap; }
+.inv-use .per strong { font-size: 18px; font-weight: 900; color: var(--basil, #1e5a3c); }
+.inv-use .per small { display: block; color: var(--muted); font-size: 11px; }
+.inv-use .meta { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.inv-bars { grid-column: 1 / -1; display: flex; align-items: flex-end; gap: 3px; height: 30px; margin-top: 2px; }
+.inv-bars i { flex: 1; max-width: 26px; background: #cfe3d6; border-radius: 3px 3px 0 0; min-height: 2px; position: relative; }
+.inv-bars i.top { background: var(--basil, #1e5a3c); }
+.inv-bars i.zero { background: #eee9df; }
+.inv-use .facts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.inv-use .facts span { background: #f7f5f0; border-radius: 8px; padding: 3px 8px; font-size: 11px; font-weight: 700; color: #4b4b4b; }
 .inv-price .chg .chg-amt { display: block; font-size: 13px; font-weight: 800; text-align: right; margin-top: 2px; }
 .inv-add { display: block; text-align: center; cursor: pointer; margin-bottom: 6px; }
 .inv-hint { color: var(--muted); font-size: 12px; margin: 4px 4px 12px; line-height: 1.4; }
@@ -1969,9 +1989,10 @@ button:disabled{opacity:.6}
     </div>
     <button id="backInvoicesBtn" class="back-btn">Back</button>
   </div>
-  <div class="stock-tabs" id="invTabs" style="grid-template-columns:repeat(2,1fr)">
+  <div class="stock-tabs" id="invTabs" style="grid-template-columns:repeat(3,1fr)">
     <button type="button" data-inv-tab="list" class="selected">Invoices</button>
-    <button type="button" data-inv-tab="prices">Price changes</button>
+    <button type="button" data-inv-tab="usage">Weekly use</button>
+    <button type="button" data-inv-tab="prices">Prices</button>
   </div>
   <div id="invMessage" class="message"></div>
   <div id="invListView">
@@ -1986,6 +2007,17 @@ button:disabled{opacity:.6}
     </div>
     <div class="card"><div id="invSummary" class="empty-state">Loading…</div></div>
     <div class="card"><div id="invList" class="empty-state">Loading…</div></div>
+  </div>
+  <div id="invUsageView" class="hidden">
+    <div class="stock-chips" id="invWeeks">
+      <button type="button" data-inv-weeks="4">4 weeks</button>
+      <button type="button" data-inv-weeks="8" class="selected">8 weeks</button>
+      <button type="button" data-inv-weeks="12">12 weeks</button>
+    </div>
+    <div class="card"><div id="invUsageSummary" class="empty-state">Loading…</div></div>
+    <div class="stock-chips" id="invUsageSuppliers"></div>
+    <input id="invUsageSearch" class="inv-search" type="search" placeholder="Search a product" autocomplete="off">
+    <div class="card"><div id="invUsage" class="empty-state">Loading…</div></div>
   </div>
   <div id="invPricesView" class="hidden">
     <p class="inv-hint">Products whose latest price is different from the time before, biggest change first.</p>
@@ -7832,7 +7864,7 @@ window.addEventListener("focus", syncCurrentView);
 
 /* SUPPLIER INVOICES (Administrator) */
 const invoicesScreen = document.getElementById("invoicesScreen");
-const invState = { tab: "list", period: "week", review: [], open: {}, lines: {} };
+const invState = { tab: "list", period: "week", review: [], open: {}, lines: {}, weeks: 8, usage: null, usageSupplier: "", usageSearch: "" };
 const invMoney = n => (n == null || Number.isNaN(Number(n))) ? "—" :
   (Number(n) < 0 ? "-" : "") + "$" + Math.abs(Number(n)).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const invDate = d => d ? new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${d}T00:00:00Z`)) : "—";
@@ -7951,12 +7983,68 @@ async function loadInvoicePrices() {
   }
 }
 
+const invQty = n => { const v = Number(n) || 0; return Number.isInteger(v) ? String(v) : v.toFixed(v < 10 ? 2 : 1).replace(/\.?0+$/, ""); };
+const invShort = d => d ? new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", day: "numeric", month: "short" }).format(new Date(`${d}T00:00:00Z`)) : "";
+function invRenderUsage() {
+  const data = invState.usage;
+  const box = document.getElementById("invUsage");
+  const sum = document.getElementById("invUsageSummary");
+  const chips = document.getElementById("invUsageSuppliers");
+  if (!data) return;
+  const items = data.items || [];
+  if (!items.length) {
+    sum.className = "empty-state";
+    sum.textContent = "No invoices in these weeks yet. Save a few weeks of invoices and this shows what you buy most each week.";
+    chips.innerHTML = ""; box.className = "hidden"; box.innerHTML = "";
+    return;
+  }
+  const n = data.weeks_counted;
+  sum.className = "";
+  sum.innerHTML = `<div class="inv-use-kpis">
+      <div><strong>${escapeHtml(invMoney(Number(data.total_spend) / Math.max(n, 1)))}</strong><span>Spend a week</span></div>
+      <div><strong>${items.length}</strong><span>Products</span></div>
+      <div><strong>${n}</strong><span>${n === 1 ? "Week" : "Weeks"} of invoices</span></div>
+    </div>
+    <div class="inv-use-note">From ${escapeHtml(invShort(data.week_starts?.[0]))} to ${escapeHtml(invShort(data.to))}. Amounts ex GST. Averages count only the weeks since the first saved invoice.
+    <b>Busiest week</b> is a good starting point for how much to keep in stock.${n < 4 ? " With fewer than 4 weeks the numbers are still a rough guide." : ""}</div>`;
+  const suppliers = [...new Set(items.map(i => i.supplier))];
+  chips.innerHTML = suppliers.length > 1 ? [["", "All"], ...suppliers.map(x => [x, x])].map(([v, l]) =>
+    `<button type="button" data-inv-usage-supplier="${escapeHtml(v)}" class="${invState.usageSupplier === v ? "selected" : ""}">${escapeHtml(l)}</button>`).join("") : "";
+  const q = invState.usageSearch.trim().toLowerCase();
+  const shown = items.filter(i => (!invState.usageSupplier || i.supplier === invState.usageSupplier) &&
+    (!q || `${i.description} ${i.code || ""}`.toLowerCase().includes(q)));
+  box.className = shown.length ? "" : "empty-state";
+  box.innerHTML = shown.length ? shown.map((i, k) => {
+    const weeks = i.by_week || [];
+    const max = Math.max(...weeks.map(Number), 0.0001);
+    const unit = i.unit || "";
+    return `<div class="inv-use">
+      <div class="name"><span class="rank">${k + 1}.</span>${escapeHtml(i.description)}</div>
+      <div class="per"><strong>${escapeHtml(invQty(i.avg_per_week))}</strong> ${escapeHtml(unit)}<small>per week</small></div>
+      <div class="meta">${escapeHtml(i.supplier)}${i.code ? " · " + escapeHtml(i.code) : ""}${i.last_price != null ? " · last price " + escapeHtml(invMoney(i.last_price)) + (unit ? "/" + escapeHtml(unit) : "") : ""}</div>
+      ${weeks.length > 1 ? `<div class="inv-bars" title="Quantity each week">${weeks.map(w => `<i class="${Number(w) <= 0 ? "zero" : Number(w) === max ? "top" : ""}" style="height:${Math.max(6, Math.round(Number(w) / max * 100))}%"></i>`).join("")}</div>` : ""}
+      <div class="facts"><span>Busiest week ${escapeHtml(invQty(i.max_week))} ${escapeHtml(unit)}</span><span>Bought ${i.weeks_bought} of ${n} ${n === 1 ? "week" : "weeks"}</span><span>${escapeHtml(invMoney(i.spend_per_week))}/week</span></div>
+    </div>`;
+  }).join("") : "Nothing matches.";
+}
+async function loadInvoiceUsage() {
+  try {
+    invState.usage = await managerApi("manager_invoice_usage", { weeks: invState.weeks });
+    if (invState.usageSupplier && !(invState.usage.items || []).some(i => i.supplier === invState.usageSupplier)) invState.usageSupplier = "";
+    invRenderUsage();
+  } catch (error) {
+    const b = document.getElementById("invUsageSummary");
+    b.className = "empty-state"; b.textContent = error.message || "Unable to load weekly use.";
+  }
+}
+
 function invShowTab(tab) {
   invState.tab = tab;
   document.querySelectorAll("#invTabs [data-inv-tab]").forEach(b => b.classList.toggle("selected", b.dataset.invTab === tab));
   document.getElementById("invListView").classList.toggle("hidden", tab !== "list");
+  document.getElementById("invUsageView").classList.toggle("hidden", tab !== "usage");
   document.getElementById("invPricesView").classList.toggle("hidden", tab !== "prices");
-  if (tab === "list") loadInvoices(); else loadInvoicePrices();
+  if (tab === "list") loadInvoices(); else if (tab === "usage") loadInvoiceUsage(); else loadInvoicePrices();
 }
 
 async function openInvoicesScreen() {
@@ -7980,6 +8068,7 @@ document.addEventListener("click", event => {
   const nav = event.target.closest("[data-manager-nav], .manager-quick-card, .more-v2-item, #managerLogoutBtn, #moreSignOutBtn");
   if (nav && nav.id !== "moreInvoicesBtn" && nav.id !== "invoicesCard") invoicesScreen.classList.add("hidden");
 }, true);
+document.getElementById("invUsageSearch")?.addEventListener("input", e => { invState.usageSearch = e.target.value; invRenderUsage(); });
 document.getElementById("invFiles")?.addEventListener("change", e => {
   const files = [...(e.target.files || [])];
   e.target.value = "";
@@ -7994,6 +8083,14 @@ invoicesScreen?.addEventListener("click", async e => {
     document.querySelectorAll("#invPeriods [data-inv-period]").forEach(b => b.classList.toggle("selected", b === per));
     loadInvoices(); return;
   }
+  const wk = e.target.closest("[data-inv-weeks]");
+  if (wk) {
+    invState.weeks = Number(wk.dataset.invWeeks);
+    document.querySelectorAll("#invWeeks [data-inv-weeks]").forEach(b => b.classList.toggle("selected", b === wk));
+    loadInvoiceUsage(); return;
+  }
+  const sup = e.target.closest("[data-inv-usage-supplier]");
+  if (sup) { invState.usageSupplier = sup.dataset.invUsageSupplier; invRenderUsage(); return; }
   const dis = e.target.closest("[data-inv-dismiss]");
   if (dis) { invState.review.splice(Number(dis.dataset.invDismiss), 1); invRenderReview(); return; }
   const save = e.target.closest("[data-inv-save]");

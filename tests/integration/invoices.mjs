@@ -122,7 +122,7 @@ try {
 
   await check("only the Administrator can see or save invoices", async () => {
     for (const [n, t] of [[2, km], [3, fm]]) {
-      for (const action of ["manager_invoice_list", "manager_invoice_prices"]) {
+      for (const action of ["manager_invoice_list", "manager_invoice_prices", "manager_invoice_usage"]) {
         const r = await api(vNew, n, t, { action });
         assert.equal(r.status, 403, `${n} ${action} ${JSON.stringify(r.body)}`);
       }
@@ -198,6 +198,32 @@ try {
     assert.equal(Number(ch[0].latest_price), 4.5);
     assert.equal(Number(ch[0].change_pct), 12.5);
     return "tomatoes +12.5% (bags unchanged, credit note ignored)";
+  });
+
+  await check("weekly use: what is bought most, average per week, busiest week", async () => {
+    const monday = (d) => { const t = Date.parse(`${d}T00:00:00Z`); return t - ((new Date(t).getUTCDay() + 6) % 7) * 86400000; };
+    const counted = Math.round((monday(today) - monday(daysAgo(10))) / (7 * 86400000)) + 1;
+    const r = await api(vNew, 1, gm, { action: "manager_invoice_usage", weeks: 4 });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const d = r.body.data;
+    assert.equal(d.weeks, 4);
+    assert.equal(d.weeks_counted, counted);
+    assert.equal(d.week_starts.length, counted);
+    const names = d.items.map((i) => `${i.supplier}|${i.description}`);
+    assert.deepEqual(names, ["Test Produce Co|Test tomatoes", "Test Dairy Pty|Test tomatoes", "Test Produce Co|Test paper bags", "Test Dairy Pty|Test paper bags"]);
+    const tom = d.items[0];
+    assert.equal(Number(tom.qty), 18); // 10 + 10 - 2 (credit note)
+    assert.equal(Number(tom.spend), 76);
+    assert.equal(Number(tom.avg_per_week), Math.round(18 / counted * 100) / 100);
+    assert.equal(tom.by_week.length, counted);
+    assert.equal(tom.by_week.reduce((a, b) => a + Number(b), 0), 18);
+    assert.equal(Number(tom.max_week), Math.max(...tom.by_week.map(Number)));
+    assert.equal(Number(tom.last_price), 4.5);
+    assert.equal(tom.unit, "kg");
+    assert.equal(Number(d.total_spend), 52.5 + 57.5 - 9 + 42.5);
+    const bad = await api(vNew, 1, gm, { action: "manager_invoice_usage", weeks: 999 });
+    assert.equal(bad.body.data.weeks, 8);
+    return `${counted} week(s) counted; tomatoes ${tom.avg_per_week}/week, busiest ${tom.max_week}`;
   });
 
   await check("remove hides the invoice and allows saving it again", async () => {

@@ -1,4 +1,5 @@
 -- Rollback of 20261022030000_invoices.sql (removes supplier invoices).
+drop function if exists public.manager_invoice_usage(uuid, text, integer);
 drop function if exists public.manager_invoice_price_changes(uuid, text);
 drop function if exists public.manager_invoice_remove(uuid, text, uuid);
 drop function if exists public.manager_invoice_get(uuid, text, uuid);

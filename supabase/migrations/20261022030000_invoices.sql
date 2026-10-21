@@ -217,6 +217,73 @@ begin
   ), '[]'::jsonb);
 end $function$;
 
+-- Weekly use: what is bought most, over the last p_weeks weeks (Mon-Sun,
+-- Brisbane). Per product (same supplier + code, or same description when the
+-- supplier prints no code): total bought, average per week, busiest week, the
+-- quantity for each week, and spend. Credit notes subtract. The average only
+-- counts weeks since the first saved invoice, so a new start is not diluted.
+create or replace function public.manager_invoice_usage(p_manager_id uuid, p_location text, p_weeks integer)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_location text := public.mh_invoice_admin(p_manager_id, p_location);
+  v_weeks integer := least(greatest(coalesce(p_weeks, 8), 1), 26);
+  v_today date := (now() at time zone 'Australia/Brisbane')::date;
+  v_this_monday date := v_today - ((extract(isodow from v_today)::integer) - 1);
+  v_from date := v_this_monday - (v_weeks - 1) * 7;
+  v_first date;
+  v_counted integer;
+begin
+  select min(invoice_date) into v_first from public.supplier_invoices
+   where location = v_location and active and invoice_date between v_from and v_today;
+  v_counted := case when v_first is null then 0
+                    else ((v_this_monday - (v_first - ((extract(isodow from v_first)::integer) - 1))) / 7) + 1 end;
+  return jsonb_build_object(
+    'weeks', v_weeks, 'weeks_counted', v_counted, 'from', v_from, 'to', v_today,
+    'week_starts', (select jsonb_agg(to_char(v_this_monday - (v_counted - 1 - g) * 7, 'YYYY-MM-DD') order by g)
+                      from generate_series(0, greatest(v_counted - 1, 0)) g where v_counted > 0),
+    'total_spend', coalesce((select sum(subtotal) from public.supplier_invoices
+                              where location = v_location and active and invoice_date between v_from and v_today), 0),
+    'items', coalesce((
+      with l as (
+        select i.supplier, coalesce(l.code, lower(l.description)) as k, l.code, l.description, l.unit,
+               l.unit_price, l.line_total, i.invoice_date, i.created_at,
+               case when i.kind = 'credit' then -abs(coalesce(l.qty, 0)) else coalesce(l.qty, 0) end as q,
+               ((i.invoice_date - ((extract(isodow from i.invoice_date)::integer) - 1)) - (v_this_monday - (v_counted - 1) * 7)) / 7 as w
+          from public.supplier_invoice_lines l
+          join public.supplier_invoices i on i.id = l.invoice_id
+         where i.location = v_location and i.active and i.invoice_date between v_from and v_today
+           and l.description !~* '(fuel|freight|delivery)\s*(levy|charge|fee)'
+      ), latest as (
+        select distinct on (supplier, k) supplier, k, code, description, unit, unit_price
+          from l where unit_price is not null and q > 0
+         order by supplier, k, invoice_date desc, created_at desc
+      ), per_week as (
+        select supplier, k, w, sum(q) q from l group by supplier, k, w
+      ), agg as (
+        select supplier, k, sum(q) qty, sum(line_total) spend, count(distinct w) filter (where q > 0) weeks_bought
+          from l group by supplier, k
+      )
+      select jsonb_agg(jsonb_build_object(
+               'supplier', a.supplier, 'code', lt.code, 'description', lt.description, 'unit', lt.unit,
+               'last_price', lt.unit_price, 'qty', round(a.qty, 2), 'spend', round(a.spend, 2),
+               'weeks_bought', a.weeks_bought,
+               'avg_per_week', round(a.qty / greatest(v_counted, 1), 2),
+               'spend_per_week', round(a.spend / greatest(v_counted, 1), 2),
+               'max_week', (select round(max(q), 2) from per_week pw where pw.supplier = a.supplier and pw.k = a.k),
+               'by_week', (select jsonb_agg(coalesce((select round(pw.q, 2) from per_week pw
+                                                       where pw.supplier = a.supplier and pw.k = a.k and pw.w = g), 0) order by g)
+                             from generate_series(0, greatest(v_counted - 1, 0)) g))
+             order by a.spend desc)
+        from agg a join latest lt on lt.supplier = a.supplier and lt.k = a.k
+       where a.qty > 0
+    ), '[]'::jsonb));
+end $function$;
+
 revoke all on function public.mh_invoice_admin(uuid, text) from public, anon, authenticated;
 revoke all on function public.mh_invoice_json(public.supplier_invoices) from public, anon, authenticated;
 revoke all on function public.manager_invoice_save(uuid, text, jsonb) from public, anon, authenticated;
@@ -224,8 +291,10 @@ revoke all on function public.manager_invoice_list(uuid, text, date, date) from 
 revoke all on function public.manager_invoice_get(uuid, text, uuid) from public, anon, authenticated;
 revoke all on function public.manager_invoice_remove(uuid, text, uuid) from public, anon, authenticated;
 revoke all on function public.manager_invoice_price_changes(uuid, text) from public, anon, authenticated;
+revoke all on function public.manager_invoice_usage(uuid, text, integer) from public, anon, authenticated;
 grant execute on function public.manager_invoice_save(uuid, text, jsonb) to service_role;
 grant execute on function public.manager_invoice_list(uuid, text, date, date) to service_role;
 grant execute on function public.manager_invoice_get(uuid, text, uuid) to service_role;
 grant execute on function public.manager_invoice_remove(uuid, text, uuid) to service_role;
 grant execute on function public.manager_invoice_price_changes(uuid, text) to service_role;
+grant execute on function public.manager_invoice_usage(uuid, text, integer) to service_role;

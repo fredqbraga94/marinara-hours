@@ -1416,6 +1416,7 @@ Deno.serve(async (req) => {
         "manager_invoice_get",
         "manager_invoice_remove",
         "manager_invoice_prices",
+        "manager_invoice_usage",
         "manager_recipe_save",
         "manager_recipe_remove",
         "manager_recipe_ingredient_save",
@@ -3182,6 +3183,15 @@ Deno.serve(async (req) => {
           });
           if (error) return managerDbError(error, "Unable to load price changes", 500);
           return json({ success: true, action, data: { changes: data || [] } });
+        }
+
+        if (action === "manager_invoice_usage") {
+          const weeks = [4, 8, 12, 26].includes(Number(body.weeks)) ? Number(body.weeks) : 8;
+          const { data, error } = await supabase.rpc("manager_invoice_usage", {
+            p_manager_id: managerStatus.id, p_location: location, p_weeks: weeks,
+          });
+          if (error) return managerDbError(error, "Unable to load weekly use", 500);
+          return json({ success: true, action, data });
         }
 
         const id = typeof body.id === "string" ? body.id.trim() : "";
