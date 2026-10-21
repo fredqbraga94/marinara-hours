@@ -21,6 +21,8 @@ const ROLES = "supabase/migrations/20261021010000_roster_roles.sql";
 const ROLES_DOWN = "supabase/rollback/20261021010000_roster_roles.down.sql";
 const ORDER = "supabase/migrations/20261021020000_roster_order.sql";
 const ORDER_DOWN = "supabase/rollback/20261021020000_roster_order.down.sql";
+const FLOOR = "supabase/migrations/20261021030000_floor_services.sql";
+const FLOOR_DOWN = "supabase/rollback/20261021030000_floor_services.down.sql";
 const NEW_SERVER = resolve(root, "supabase/functions/marinara-api-v2/Index.ts");
 const PROD_SERVER = resolve(root, "tests/edge/baseline-v41.ts");
 
@@ -85,6 +87,7 @@ try {
   await check("the migrations apply cleanly; no existing function or row changed", async () => {
     const r = db.psqlFile(ROLES); assert.ok(r.ok, r.stderr);
     const r2 = db.psqlFile(ORDER); assert.ok(r2.ok, r2.stderr);
+    const r3 = db.psqlFile(FLOOR); assert.ok(r3.ok, r3.stderr);
     const fp = await db.fingerprints();
     assert.deepEqual(Object.keys(fpBefore).filter((k) => fp[k] !== fpBefore[k]), []);
     assert.equal(await one(db, DATA_SQL), dataBefore);
@@ -188,6 +191,20 @@ try {
     return `roster-only: old PIN ${tryLogin.status}; manager refused; new PIN + untick: sign-in 200`;
   });
 
+  await check("floor: L / D / L/D cells, 11-15 and 17-22 (Floor and Bar)", async () => {
+    const week = "2026-11-02";
+    let r = await api(vNew, 3, fm, { action: "manager_roster_set", staff_id: ID(6), work_date: week, code: "L" });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    r = await api(vNew, 3, fm, { action: "manager_roster_set", staff_id: ID(6), work_date: "2026-11-03", code: "LD" });
+    assert.equal(r.status, 200);
+    r = await api(vNew, 3, fm, { action: "manager_roster_set", staff_id: ID(10), work_date: week, code: "D" });
+    assert.equal(r.status, 200);
+    const w = await api(vNew, 3, fm, { action: "manager_roster_week", week_start: week });
+    assert.equal(w.body.data.planned_hours[ID(6)], 4 + 9, "Bar: L 4h + L/D 9h");
+    assert.equal(w.body.data.planned_hours[ID(10)], 5, "no role: Floor D 5h");
+    return "Bar L 4h + L/D 9h = 13h; Floor (no role) D = 5h";
+  });
+
   await check("roster order: saved order comes back; kitchen manager cannot order Floor people", async () => {
     let r = await api(vNew, 2, km, { action: "manager_set_roster_order", staff_ids: [ID(12), ID(4), ID(5)] });
     assert.equal(r.status, 200, JSON.stringify(r.body));
@@ -222,6 +239,7 @@ try {
 
   section("D. Rollback");
   await check("the rollback files remove the order and role columns, table and functions", async () => {
+    const rf = db.psqlFile(FLOOR_DOWN); assert.ok(rf.ok, rf.stderr);
     const r0 = db.psqlFile(ORDER_DOWN); assert.ok(r0.ok, r0.stderr);
     const r = db.psqlFile(ROLES_DOWN); assert.ok(r.ok, r.stderr);
     const fp = await db.fingerprints();

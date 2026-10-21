@@ -42,7 +42,7 @@ for (const f of [MIGRATION_A, MIGRATION_B,
   "supabase/migrations/20261020010000_roster.sql",
   "supabase/migrations/20261020020000_leave.sql",
   "supabase/migrations/20261020030000_public_holidays.sql",
-  STOCK, "supabase/migrations/20261021010000_roster_roles.sql", "supabase/migrations/20261021020000_roster_order.sql"]) { const r = db.psqlFile(f); if (!r.ok) throw new Error(`${f}: ${r.stderr}`); }
+  STOCK, "supabase/migrations/20261021010000_roster_roles.sql", "supabase/migrations/20261021020000_roster_order.sql", "supabase/migrations/20261021030000_floor_services.sql"]) { const r = db.psqlFile(f); if (!r.ok) throw new Error(`${f}: ${r.stderr}`); }
 useDatabase(db.svc);
 await reseed(db);
 { const r = db.psqlFile(STOCK); if (!r.ok) throw new Error(r.stderr); } // reseed's cascade emptied it
@@ -165,6 +165,24 @@ try {
     const after = await gm.page.$$eval("#rosterGridBox .roster-name", (e) => e.map((x) => x.firstChild.textContent.trim()));
     assert.ok(after.indexOf("Test Salary Chef") < after.indexOf("Test Kitchen A"), after.join(","));
     return `before: ${names.join(", ")} → after: ${after.join(", ")}`;
+  });
+
+  await check("Roster (Floor): the editor offers L, D, L/D, Off and times", async () => {
+    const floor = gm.page.locator('[data-roster-dept="Floor"]');
+    await floor.click();
+    await gm.page.waitForFunction(() => /Floor/.test(document.getElementById("rosterLocation").textContent));
+    await gm.page.locator("#rosterGridBox [data-roster-staff]").first().click();
+    await gm.page.waitForSelector(".roster-sheet");
+    const labels = await gm.page.$$eval(".roster-sheet .roster-choice button", (e) => e.map((x) => x.textContent.trim()));
+    const hasTimes = await gm.page.locator(".roster-sheet .roster-start").count();
+    await gm.shot("roster_floor_sheet");
+    await gm.page.click(".roster-sheet [data-roster-save=\"LD\"]");
+    await gm.page.waitForSelector(".roster-sheet", { state: "detached" });
+    await gm.page.waitForFunction(() => [...document.querySelectorAll("#rosterGridBox .roster-cell.filled")].some((b) => b.textContent.trim() === "L/D"));
+    await gm.page.locator('[data-roster-dept="Kitchen"]').click();
+    await gm.page.waitForFunction(() => /Kitchen/.test(document.getElementById("rosterLocation").textContent));
+    assert.deepEqual(labels, ["L", "D", "L/D", "Off"]); assert.equal(hasTimes, 1);
+    return `buttons ${labels.join(" ")} + times; L/D saved on Floor`;
   });
 
   await check("Roster: Export PDF of the week (Kitchen)", async () => {
