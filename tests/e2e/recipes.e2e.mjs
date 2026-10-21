@@ -116,6 +116,13 @@ try {
     assert.match(header, /Hawthorne Restaurant manager/);
     assert.deepEqual(groups, ["Team & hours", "Kitchen & floor"]);
     assert.deepEqual(stats, ["Working now", "To approve", "Time off requests"]);
+    // "Working now" scrolls to Who's Working on the same screen (no screen change).
+    await km.page.click('[data-home-scroll="workingList"]');
+    await km.page.waitForTimeout(700);
+    assert.equal(await km.page.locator("#managerScreen").isVisible(), true);
+    assert.equal(await km.page.locator("#teamScreen").isVisible(), false);
+    const top = await km.page.locator("#workingList").evaluate((e) => e.closest(".card").getBoundingClientRect().top);
+    assert.ok(top >= -2 && top < 200, String(top));
     // The time-off dot on the tile: white number on red, readable size.
     await km.page.evaluate(() => showLeaveBadge(3));
     const dot = await km.page.locator("#homeTimeOffBadge").evaluate((e) => { const c = getComputedStyle(e); return [e.textContent, c.color, c.backgroundColor, c.fontSize, c.display]; });
