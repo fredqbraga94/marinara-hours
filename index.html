@@ -5619,6 +5619,7 @@ async function loadTimesheets(weekDate) {
 }
 
 timesheetsCard.addEventListener("click", async () => {
+  showOnlyManagerScreen("timesheetsScreen");
   managerMoreScreen?.classList.add("hidden");
   managerScreen.classList.add("hidden");
   approvalsScreen.classList.add("hidden");
@@ -6232,7 +6233,16 @@ showAddStaffBtn?.addEventListener("click", () => {
   }
 });
 
+// Show one manager screen and hide every other one (screens opened from the
+// side menu on a laptop can be reached from anywhere, not only from Home).
+const MANAGER_SCREEN_IDS = ["managerScreen", "managerMoreScreen", "approvalsScreen", "teamScreen", "rosterScreen",
+  "timeOffScreen", "staffHoursScreen", "timesheetsScreen", "devicesScreen", "stockScreen", "recipesScreen", "invoicesScreen"];
+function showOnlyManagerScreen(keepId) {
+  for (const id of MANAGER_SCREEN_IDS) document.getElementById(id)?.classList.toggle("hidden", id !== keepId);
+}
+
 teamCard.addEventListener("click", async () => {
+  showOnlyManagerScreen("teamScreen");
   managerMoreScreen?.classList.add("hidden");
   managerScreen.classList.add("hidden");
   approvalsScreen.classList.add("hidden");
@@ -6348,6 +6358,7 @@ addStaffBtn.addEventListener("click", async () => {
 /* OPEN STAFF HOURS */
 
 staffHoursCard.addEventListener("click", async () => {
+  showOnlyManagerScreen("staffHoursScreen");
   managerMoreScreen?.classList.add("hidden");
   managerScreen.classList.add("hidden");
   approvalsScreen.classList.add("hidden");
@@ -6373,6 +6384,7 @@ backStaffHoursBtn.addEventListener("click", async () => {
 approvalsCard.addEventListener(
   "click",
   async () => {
+    showOnlyManagerScreen("approvalsScreen");
 
     managerMoreScreen?.classList.add("hidden");
 
@@ -8239,6 +8251,7 @@ managerBottomNav?.addEventListener("click",event=>{
   const target=button.dataset.managerNav;
 
   if(target==="home"){
+    showOnlyManagerScreen("managerScreen");
     approvalsScreen.classList.add("hidden");
     teamScreen.classList.add("hidden");
   rosterScreen?.classList.add("hidden");
@@ -8255,6 +8268,7 @@ managerBottomNav?.addEventListener("click",event=>{
 
   if(target==="approvals"){
     // Direct navigation fixes the Team → Approvals transition.
+    showOnlyManagerScreen("approvalsScreen");
     managerScreen.classList.add("hidden");
     teamScreen.classList.add("hidden");
   rosterScreen?.classList.add("hidden");
@@ -8284,6 +8298,7 @@ moreTimesheetsBtn?.addEventListener("click", () => timesheetsCard?.click());
 moreManagersBtn?.addEventListener("click", () => teamCard?.click());
 
 moreMyClockBtn?.addEventListener("click", async () => {
+  showOnlyManagerScreen("managerScreen");
   managerMoreScreen?.classList.add("hidden");
   managerScreen.classList.remove("hidden");
   setManagerNavActive("more");
