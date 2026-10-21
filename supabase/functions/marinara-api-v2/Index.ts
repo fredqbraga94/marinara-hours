@@ -1210,6 +1210,7 @@ Deno.serve(async (req) => {
         "manager_leave_decide",
         "manager_leave_create",
         "manager_set_roster_info",
+        "manager_set_roster_order",
         "manager_create_roster_person",
         "manager_stock_list",
         "manager_stock_item_save",
@@ -1377,7 +1378,10 @@ Deno.serve(async (req) => {
 
       // Roster role and roster-only are read when the database has them; an
       // older database (before 20261021010000) still gets the team.
-      let { data, error } = await query(base + ", position, roster_only");
+      let { data, error } = await query(base + ", position, roster_only, roster_order");
+      if (error && (error as any).code === "42703") {
+        ({ data, error } = await query(base + ", position, roster_only"));
+      }
       if (error && (error as any).code === "42703") {
         ({ data, error } = await query(base));
       }
@@ -2674,6 +2678,7 @@ Deno.serve(async (req) => {
               visa_course_break: !!m.visa_course_break,
               position: m.position ?? null,
               roster_only: !!m.roster_only,
+              roster_order: m.roster_order ?? null,
             })),
             entries,
             services,
@@ -2801,6 +2806,20 @@ Deno.serve(async (req) => {
       // =========================
       // ROSTER ROLE / ROSTER-ONLY PEOPLE
       // =========================
+      if (action === "manager_set_roster_order") {
+        const ids = Array.isArray(body.staff_ids) ? body.staff_ids : [];
+        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!ids.length || ids.length > 200 || !ids.every((x: any) => typeof x === "string" && uuid.test(x)) ||
+            new Set(ids).size !== ids.length) {
+          return json({ error: "Invalid order", code: "INVALID_INPUT" }, 400);
+        }
+        const { data, error } = await supabase.rpc("manager_set_roster_order_audited", {
+          p_manager_id: managerStatus.id, p_staff_ids: ids,
+        });
+        if (error) return managerDbError(error, "Unable to save the order");
+        return json({ success: true, action, data });
+      }
+
       if (action === "manager_set_roster_info" || action === "manager_create_roster_person") {
         const positions: Record<string, string[]> = { Kitchen: ["Chef", "Dishwasher"], Floor: ["Floor", "Bar"] };
         const position = typeof body.position === "string" && body.position.trim() ? body.position.trim() : null;
