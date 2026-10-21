@@ -1046,6 +1046,7 @@ button{cursor:pointer}
 .roster-choice{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
 .roster-choice button,.roster-sheet-actions button{min-height:48px;border-radius:13px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:15px;color:var(--text)}
 .roster-choice button.selected{background:var(--green);border-color:var(--green);color:#fff}
+.roster-or{font-size:11px;font-weight:900;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);text-align:center;margin:2px 0 8px}
 .roster-times{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;margin-bottom:10px}
 .roster-times input{min-width:0;max-width:100%}
 .roster-times label{font-size:12px;font-weight:700;color:var(--muted)}
@@ -5723,8 +5724,8 @@ function holidayNoticeHtml(holidays, title) {
 }
 
 /* ROSTER */
-// Paper-style weekly roster. Kitchen cells: L, D, L/D, Off. Floor cells: a
-// start and finish time (e.g. 17:00-21:00), or Off. The server checks every
+// Paper-style weekly roster. Cells: L, D, L/D, Off; Floor can also use a
+// start and finish time (e.g. 17:00-21:00). The server checks every
 // change (department/unit access) and returns the student-visa fortnight
 // (last week + this week) so the warning shows while the week is planned.
 const ROSTER_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -6010,13 +6011,13 @@ function rosterPdfReport() {
   const span = (s) => s ? `${t12(s.start_time)}-${t12(s.end_time)}` : "";
   const roles = [...new Set(people.map(p => p.position).filter(Boolean))];
   const legendParts = [];
-  if (dept === "Kitchen") {
+  {
     for (const r of roles) {
       const l = svc.find(x => x.position === r && x.service === "L"), d = svc.find(x => x.position === r && x.service === "D");
       if (l || d) legendParts.push(`${r}: L ${span(l)}, D ${span(d)}`);
     }
-    const l = svc.find(x => !x.position && x.department === "Kitchen" && x.service === "L");
-    const d = svc.find(x => !x.position && x.department === "Kitchen" && x.service === "D");
+    const l = svc.find(x => !x.position && x.department === dept && x.service === "L");
+    const d = svc.find(x => !x.position && x.department === dept && x.service === "D");
     if (!legendParts.length && (l || d)) legendParts.push(`L ${span(l)}, D ${span(d)}`);
   }
   const fmtDay = (d) => new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${d}T00:00:00Z`));
@@ -6098,13 +6099,18 @@ function openRosterSheet(staffId, date) {
     <p>${escapeHtml(dayName)} ${escapeHtml(rosterShortDate(date))} · ${escapeHtml(person.department)}</p>
     ${leaveNote}
     ${isFloor ? `
+      <div class="roster-choice">
+        ${[["L", "L"], ["D", "D"], ["LD", "L/D"], ["OFF", "Off"]].map(([code, label]) =>
+          `<button type="button" data-roster-save="${code}" class="${entry?.code === code ? "selected" : ""}">${label}</button>`
+        ).join("")}
+      </div>
+      <div class="roster-or">or set times</div>
       <div class="roster-times">
         <label>Start<input type="time" class="roster-start" step="900" value="${escapeHtml(entry?.code === "SHIFT" ? entry.start_time : "17:00")}"></label>
         <label>Finish<input type="time" class="roster-end" step="900" value="${escapeHtml(entry?.code === "SHIFT" ? entry.end_time : "21:00")}"></label>
       </div>
-      <div class="roster-sheet-actions" style="margin-bottom:8px">
+      <div class="roster-sheet-actions" style="margin-bottom:8px;grid-template-columns:1fr">
         <button type="button" class="primary" data-roster-save="SHIFT">Save time</button>
-        <button type="button" data-roster-save="OFF">Off</button>
       </div>
     ` : `
       <div class="roster-choice">
