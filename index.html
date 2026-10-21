@@ -1051,6 +1051,9 @@ button{cursor:pointer}
 .roster-times input{min-width:0;max-width:100%}
 .roster-times label{font-size:12px;font-weight:700;color:var(--muted)}
 .roster-times input{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 10px;font-size:16px;margin-top:4px}
+/* iOS draws time inputs wider than their box: keep them inside the sheet */
+.roster-times label{min-width:0;display:block}
+.roster-times input[type=time]{-webkit-appearance:none;appearance:none;display:block;min-width:0;max-width:100%;background:#fff;color:var(--text);text-align:left}
 .roster-sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .roster-sheet-actions .primary{background:var(--green);border-color:var(--green);color:#fff}
 .roster-sheet-msg{min-height:18px;font-size:13px;margin-top:10px;color:var(--danger)}
