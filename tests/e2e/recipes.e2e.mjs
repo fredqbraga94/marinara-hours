@@ -150,6 +150,22 @@ try {
     return groups.join(" / ");
   });
 
+  await check("Team and Approvals in the new look (no MANAGER label, avatars)", async () => {
+    await km.page.click('[data-manager-nav="team"]');
+    await km.page.waitForSelector("#teamScreen:not(.hidden) .team-person-row");
+    const avatars = await km.page.locator("#teamScreen .team-person-row .who-av").count();
+    const kickerShown = await km.page.locator("#teamScreen .team-v2-kicker").isVisible();
+    await km.shot("team_screen");
+    await km.page.click('[data-manager-nav="approvals"]');
+    await km.page.waitForSelector("#approvalsScreen:not(.hidden)");
+    await km.page.waitForTimeout(400);
+    await km.shot("approvals_screen");
+    const apprKicker = await km.page.locator("#approvalsScreen .approvals-v2-kicker").isVisible();
+    await km.page.click('[data-manager-nav="home"]');
+    assert.ok(avatars > 0); assert.equal(kickerShown, false); assert.equal(apprKicker, false);
+    return `${avatars} people with initials`;
+  });
+
   await check("Kitchen Manager: Allergens list shows the whole menu by section, not checked yet", async () => {
     await openRecipes(km);
     const tabsShown = await km.page.locator("#recipesTabs").evaluate((e) => !e.classList.contains("hidden"));
@@ -162,6 +178,19 @@ try {
     assert.deepEqual(groups.slice(0, 3), ["Pane", "Salad", "Entrée"]);
     assert.match(creamy, /Dairy \(milk, cream\)/);
     return creamy.trim().slice(0, 90);
+  });
+
+  await check("Recipes tab: section chips filter; status shows checked / to check / to complete", async () => {
+    await km.page.click('[data-rcp-tab="recipes"]');
+    await km.page.locator('[data-rcp-cats="recipes"] [data-rcp-cat="Pizza"]').click();
+    const groups = await km.page.locator("#rcpRecipeList .rcp-group").allTextContents();
+    const pesto = await km.page.locator('[data-rcp-cats="recipes"] [data-rcp-cat="Sauce"]').click().then(() =>
+      km.page.locator("#rcpRecipeList .rcp-item", { hasText: "Pesto sauce" }).textContent());
+    await km.shot("recipes_list_style");
+    await km.page.locator('[data-rcp-cats="recipes"] [data-rcp-cat=""]').click();
+    assert.deepEqual(groups, ["Pizza"]);
+    assert.match(pesto, /0 ingredients/); assert.match(pesto, /To complete/);
+    return `Pizza only; Pesto sauce: ${pesto.replace(/\s+/g, " ").trim()}`;
   });
 
   await check("Recipes tab: Bolognese shows quantities and method", async () => {
