@@ -31,6 +31,9 @@ create table if not exists public.recipes (
   makes text check (makes is null or length(makes) <= 80),
   method text check (method is null or length(method) <= 6000),
   notes text check (notes is null or length(notes) <= 1000),
+  -- How the dish can be made dairy free / gluten free (empty = not possible or not known).
+  dairy_free_note text check (dairy_free_note is null or length(dairy_free_note) <= 200),
+  gluten_free_note text check (gluten_free_note is null or length(gluten_free_note) <= 200),
   active boolean not null default true,
   updated_by uuid references public.staff(id),
   created_at timestamptz not null default now(),
@@ -86,6 +89,7 @@ returns jsonb language sql stable set search_path to 'public'
 as $function$
   select jsonb_build_object(
     'id', r.id, 'name', r.name, 'category', r.category, 'updated_at', r.updated_at,
+    'dairy_free_note', r.dairy_free_note, 'gluten_free_note', r.gluten_free_note,
     'lines', coalesce((
       select jsonb_agg(jsonb_build_object(
                'ingredient_id', i.id, 'name', i.name, 'allergens', to_jsonb(i.allergens),
@@ -183,15 +187,20 @@ begin
            makes = nullif(trim(p_recipe->>'makes'), ''),
            method = nullif(trim(p_recipe->>'method'), ''),
            notes = nullif(trim(p_recipe->>'notes'), ''),
+           dairy_free_note = nullif(left(trim(coalesce(p_recipe->>'dairy_free_note', '')), 200), ''),
+           gluten_free_note = nullif(left(trim(coalesce(p_recipe->>'gluten_free_note', '')), 200), ''),
            updated_by = mgr.id, updated_at = now()
      where id = v_id returning * into v_row;
     update public.recipe_lines set active = false where recipe_id = v_id and active;
   else
-    insert into public.recipes (location, name, category, makes, method, notes, updated_by)
+    insert into public.recipes (location, name, category, makes, method, notes,
+                                dairy_free_note, gluten_free_note, updated_by)
     values (v_location, trim(p_recipe->>'name'),
             coalesce(nullif(trim(p_recipe->>'category'), ''), 'Sauce'),
             nullif(trim(p_recipe->>'makes'), ''), nullif(trim(p_recipe->>'method'), ''),
-            nullif(trim(p_recipe->>'notes'), ''), mgr.id)
+            nullif(trim(p_recipe->>'notes'), ''),
+            nullif(left(trim(coalesce(p_recipe->>'dairy_free_note', '')), 200), ''),
+            nullif(left(trim(coalesce(p_recipe->>'gluten_free_note', '')), 200), ''), mgr.id)
     returning * into v_row;
   end if;
   for v_line in select * from jsonb_array_elements(p_recipe->'lines') loop

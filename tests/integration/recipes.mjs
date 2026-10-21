@@ -161,11 +161,15 @@ try {
   await check("new recipe reuses ingredients by name; editing and removing work", async () => {
     let r = await api(vNew, 2, km, { action: "manager_recipe_save", recipe: {
       name: "Italian Dressing", category: "Dressing", makes: "2 L",
-      method: "1. Mix.", lines: [{ name: "corn flour", quantity: "10 g" }, { name: "Vinegar", quantity: "500 ml" }, { name: " ", quantity: "x" }],
+      method: "1. Mix.", dairy_free_note: "Already dairy free", gluten_free_note: "Leave out the corn flour",
+      lines: [{ name: "corn flour", quantity: "10 g" }, { name: "Vinegar", quantity: "500 ml" }, { name: " ", quantity: "x" }],
     } });
     assert.equal(r.status, 200, JSON.stringify(r.body));
     const rec = r.body.data.recipe;
     assert.equal(rec.lines.length, 2);
+    const seen = (await api(vNew, 3, fm, { action: "manager_recipe_list" })).body.data.recipes.find((x) => x.id === rec.id);
+    assert.equal(seen.gluten_free_note, "Leave out the corn flour"); // the floor sees how to adapt it
+    assert.equal(seen.dairy_free_note, "Already dairy free");
     assert.equal(rec.lines[0].name, "Corn flour");
     assert.deepEqual(rec.allergens, ["gluten", "wheat"]);
     assert.equal(rec.all_checked, false); // Vinegar is new, not checked

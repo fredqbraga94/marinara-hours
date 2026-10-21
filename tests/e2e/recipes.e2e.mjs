@@ -156,14 +156,29 @@ try {
     await rows.nth(1).locator('[data-rcp-line="name"]').fill("Corn flour");
     await rows.nth(1).locator('[data-rcp-line="quantity"]').fill("20 g");
     await km.page.fill("#rcpFMethod", "1. Whisk everything.");
+    await km.page.fill("#rcpFGlutenFree", "Use gluten-free flour instead of corn flour");
     await km.shot("recipes_new_form");
     await km.page.click("#rcpSaveBtn");
     await km.page.waitForSelector("#recipesMessage.ok");
     await km.page.click('[data-rcp-tab="allergens"]');
     const row = (await km.page.locator("#rcpAllergenList .rcp-item", { hasText: "Italian Dressing" }).textContent()).replace(/\s+/g, " ");
     assert.match(row, /Gluten/); assert.match(row, /Wheat/); assert.match(row, /Not checked yet/);
+    assert.match(row, /Can be made gluten free: Use gluten-free flour/);
     assert.deepEqual(km.errors, []);
     return row.trim().slice(0, 90);
+  });
+  await check("Green 'Dairy free' / 'Gluten free' only once every ingredient is checked", async () => {
+    const before = (await km.page.locator("#rcpAllergenList .rcp-item", { hasText: "Chilli Oil" }).textContent()).replace(/\s+/g, " ");
+    await db.admin.query("update public.recipe_ingredients set checked = true where name in ('Paprika','Chilli paste','Chilli flakes','Tuscan olive oil')");
+    await km.page.click('[data-rcp-tab="recipes"]');
+    await km.page.click('[data-rcp-tab="allergens"]');
+    await km.page.click("#backRecipesBtn");
+    await openRecipes(km);
+    const after = (await km.page.locator("#rcpAllergenList .rcp-item", { hasText: "Chilli Oil" }).textContent()).replace(/\s+/g, " ");
+    await km.shot("recipes_free_labels");
+    assert.ok(!/Dairy free|Gluten free/.test(before), before);
+    assert.match(after, /Dairy free/); assert.match(after, /Gluten free/); assert.ok(!/Not checked/.test(after));
+    return `before: no green labels; after: ${after.trim().slice(0, 60)}`;
   });
   await km.close();
 

@@ -3153,6 +3153,7 @@ Deno.serve(async (req) => {
           const recipe = {
             id: id || null, name, category: text(r.category, 40) || "Sauce",
             makes: text(r.makes, 80), method: text(r.method, 6000), notes: text(r.notes, 1000), lines: clean,
+            dairy_free_note: text(r.dairy_free_note, 200), gluten_free_note: text(r.gluten_free_note, 200),
           };
           const { data, error } = await supabase.rpc("manager_recipe_save", {
             p_manager_id: managerStatus.id, p_location: location, p_recipe: recipe,
