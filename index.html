@@ -1328,6 +1328,26 @@ body.mgr-mode #teamScreen .team-toggle-btn {
 body.mgr-mode #teamScreen .team-visa { font-size: 11.5px; font-weight: 700; padding: 5px 9px; border-radius: 8px; }
 body.mgr-mode #teamScreen .card { border: 1px solid #e7e2d8; box-shadow: none; }
 body.mgr-mode #approvalsScreen .card, body.mgr-mode #approvalsScreen .approval-card { border: 1px solid #e7e2d8; box-shadow: none; }
+
+/* RECIPES in the Marinara look */
+body.mgr-mode .rcp-group {
+  font-family: Cinzel, Georgia, serif; text-transform: none; letter-spacing: 1px;
+  font-size: 18px; font-weight: 700; color: var(--pomodoro); padding-top: 20px;
+}
+body.mgr-mode .rcp-group:first-child { padding-top: 4px; }
+.rcp-right { display: inline-flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.rcp-status { font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.rcp-status.ok { background: #e6f2ea; color: #1e5a3c; }
+.rcp-status.check { background: #fff4d6; color: #8a5a00; }
+.rcp-status.todo { background: #f3efe8; color: #7a6f60; border: 1px dashed #cfc6b6; }
+body.mgr-mode .rcp-cats { margin: -2px 0 12px; }
+body.mgr-mode .rcp-cats button { border-color: #e7e2d8; font-size: 13px; min-height: 34px; }
+body.mgr-mode .rcp-cats button.selected { background: var(--ink, #000); border-color: var(--ink, #000); color: #fff; }
+body.mgr-mode #recipesScreen .card { border: 1px solid #e7e2d8; box-shadow: none; }
+body.mgr-mode #recipesScreen .rcp-head strong { font-size: 16px; }
+body.mgr-mode #rcpNewBtn { background: var(--basil); border-radius: 14px; }
+body.mgr-mode #recipesTabs { background: #ece7dd; }
+body.mgr-mode #recipesTabs button.selected { color: var(--ink, #000); }
 /* RECIPES AND ALLERGENS */
 .rcp-search{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 12px;font-size:16px;margin-bottom:10px;background:#fff;font-family:inherit}
 .rcp-item{padding:13px 0;border-top:1px solid var(--border)}
@@ -1918,12 +1938,14 @@ button:disabled{opacity:.6}
   <div id="recipesMessage" class="message"></div>
   <div id="rcpAllergensView">
     <input id="rcpSearch" class="rcp-search" type="search" placeholder="Search a dish or sauce…" autocomplete="off">
+    <div class="stock-chips rcp-cats" data-rcp-cats="allergens"></div>
     <div class="card"><div id="rcpAllergenList" class="empty-state">Loading…</div></div>
     <p class="team-v2-sub" style="margin:4px 4px 0">Always tell the guest to confirm with the kitchen for serious allergies.</p>
   </div>
   <div id="rcpRecipesView" class="hidden">
     <button id="rcpNewBtn" class="btn primary" type="button" style="margin-bottom:12px">+ New recipe</button>
     <input id="rcpRecipeSearch" class="rcp-search" type="search" placeholder="Search a recipe…" autocomplete="off">
+    <div class="stock-chips rcp-cats" data-rcp-cats="recipes"></div>
     <div id="rcpFormCard" class="card rcp-form hidden">
       <div id="rcpFormTitle" class="section-title">New recipe</div>
       <label>Name<input id="rcpFName" maxlength="80" autocomplete="off" placeholder="e.g. Bolognese"></label>
@@ -7749,7 +7771,7 @@ function rcpRecipeLabels(list) {
   }
   return out;
 }
-const rcpState = { data: null, tab: "allergens", open: {}, editing: null, ingEditing: null, ingPick: [] };
+const rcpState = { data: null, tab: "allergens", open: {}, editing: null, ingEditing: null, ingPick: [], cat: "" };
 
 function rcpMsg(text, ok) {
   const m = document.getElementById("recipesMessage");
@@ -7788,7 +7810,22 @@ function rcpGrouped(list, itemHtml) {
     return head + itemHtml(r);
   }).join("");
 }
+// Section chips (Pane, Salad, Pasta...) above the lists.
+function rcpRenderCats() {
+  const cats = [...new Set((rcpState.data?.recipes || []).map(r => r.category))];
+  const rank = c => { const i = RCP_ORDER.indexOf(c); return i < 0 ? 99 : i; };
+  cats.sort((a, b) => rank(a) - rank(b) || a.localeCompare(b));
+  const html = [`<button type="button" data-rcp-cat="" class="${rcpState.cat ? "" : "selected"}">All</button>`]
+    .concat(cats.map(c => `<button type="button" data-rcp-cat="${escapeHtml(c)}" class="${rcpState.cat === c ? "selected" : ""}">${escapeHtml(c)}</button>`)).join("");
+  document.querySelectorAll("[data-rcp-cats]").forEach(box => { box.innerHTML = html; });
+}
+// Where a recipe stands: empty sauce, still to check, or all checked.
+function rcpStatus(r) {
+  if (!r.lines.length) return `<span class="rcp-status todo">To complete</span>`;
+  return r.all_checked ? `<span class="rcp-status ok">Checked</span>` : `<span class="rcp-status check">To check</span>`;
+}
 function rcpMatch(r, q) {
+  if (rcpState.cat && r.category !== rcpState.cat) return false;
   return !q || r.name.toLowerCase().includes(q) || r.category.toLowerCase().includes(q) ||
     r.lines.some(l => l.name.toLowerCase().includes(q));
 }
@@ -7834,8 +7871,8 @@ function rcpRenderRecipes() {
     const open = rcpState.open["r" + r.id];
     return `<div class="rcp-item">
       <button type="button" class="rcp-head" data-rcp-toggle="r${escapeHtml(r.id)}">
-        <span><strong>${escapeHtml(r.name)}</strong><span class="rcp-cat">${escapeHtml(r.category)}${r.makes ? " · " + escapeHtml(r.makes) : ""}</span></span>
-        <span class="more-v2-chevron">${open ? "⌄" : "›"}</span>
+        <span><strong>${escapeHtml(r.name)}</strong><span class="rcp-cat">${r.lines.length} ingredient${r.lines.length === 1 ? "" : "s"}${r.makes ? " · " + escapeHtml(r.makes) : ""}</span></span>
+        <span class="rcp-right">${rcpStatus(r)}<span class="more-v2-chevron">${open ? "⌄" : "›"}</span></span>
       </button>
       ${open ? `<div class="rcp-detail">
         <div class="rcp-sub" style="margin-top:0">Ingredients</div>
@@ -7869,6 +7906,7 @@ function rcpRenderIngredients() {
 }
 
 function rcpShowTab(tab) {
+  rcpRenderCats();
   const full = !!rcpState.data?.full;
   if (!full) tab = "allergens";
   rcpState.tab = tab;
@@ -7921,6 +7959,7 @@ async function openRecipesScreen() {
   window.scrollTo({ top: 0, behavior: "smooth" });
   rcpState.tab = "allergens";
   rcpState.open = {};
+  rcpState.cat = "";
   document.getElementById("rcpSearch").value = "";
   document.getElementById("rcpRecipeSearch").value = "";
   document.getElementById("rcpIngSearch").value = "";
@@ -7990,6 +8029,8 @@ function rcpRenderPick() {
 }
 
 recipesScreen?.addEventListener("click", async e => {
+  const cat = e.target.closest("[data-rcp-cat]");
+  if (cat) { rcpState.cat = cat.dataset.rcpCat; rcpShowTab(rcpState.tab); return; }
   const tab = e.target.closest("[data-rcp-tab]");
   if (tab) { rcpCloseForms(); rcpClearMsg(); rcpShowTab(tab.dataset.rcpTab); return; }
   const toggle = e.target.closest("[data-rcp-toggle]");

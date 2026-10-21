@@ -180,6 +180,19 @@ try {
     return creamy.trim().slice(0, 90);
   });
 
+  await check("Recipes tab: section chips filter; status shows checked / to check / to complete", async () => {
+    await km.page.click('[data-rcp-tab="recipes"]');
+    await km.page.locator('[data-rcp-cats="recipes"] [data-rcp-cat="Pizza"]').click();
+    const groups = await km.page.locator("#rcpRecipeList .rcp-group").allTextContents();
+    const pesto = await km.page.locator('[data-rcp-cats="recipes"] [data-rcp-cat="Sauce"]').click().then(() =>
+      km.page.locator("#rcpRecipeList .rcp-item", { hasText: "Pesto sauce" }).textContent());
+    await km.shot("recipes_list_style");
+    await km.page.locator('[data-rcp-cats="recipes"] [data-rcp-cat=""]').click();
+    assert.deepEqual(groups, ["Pizza"]);
+    assert.match(pesto, /0 ingredients/); assert.match(pesto, /To complete/);
+    return `Pizza only; Pesto sauce: ${pesto.replace(/\s+/g, " ").trim()}`;
+  });
+
   await check("Recipes tab: Bolognese shows quantities and method", async () => {
     await km.page.click('[data-rcp-tab="recipes"]');
     await km.page.locator("#rcpRecipeList .rcp-head", { has: km.page.getByText("Bolognese", { exact: true }) }).click();
