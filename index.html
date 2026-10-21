@@ -1143,6 +1143,9 @@ button{cursor:pointer}
 .rcp-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
 .rcp-chip{font-size:11px;font-weight:850;padding:3px 8px;border-radius:9px;background:#fde8e6;color:#a1271b;white-space:nowrap}
 .rcp-chip.none{background:#eaf6ec;color:#21633a}
+.rcp-group{font-size:12px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:var(--green);padding:16px 0 4px;border-top:1px solid var(--border)}
+.rcp-group:first-child{padding-top:2px;border-top:0}
+.rcp-group + .rcp-item{border-top:0}
 .rcp-can{margin-top:7px;font-size:12px;color:#21633a;background:#eaf6ec;border-radius:10px;padding:6px 9px;line-height:1.4}
 .rcp-warn{margin-top:7px;font-size:12px;font-weight:800;color:#8a5a00;background:#fff6dc;border-radius:10px;padding:6px 9px}
 .rcp-detail{margin-top:10px;background:#fafbfa;border:1px solid var(--border);border-radius:14px;padding:10px 12px}
@@ -1715,6 +1718,7 @@ button:disabled{opacity:.6}
   </div>
   <div id="rcpRecipesView" class="hidden">
     <button id="rcpNewBtn" class="btn primary" type="button" style="margin-bottom:12px">+ New recipe</button>
+    <input id="rcpRecipeSearch" class="rcp-search" type="search" placeholder="Search a recipe…" autocomplete="off">
     <div id="rcpFormCard" class="card rcp-form hidden">
       <div id="rcpFormTitle" class="section-title">New recipe</div>
       <label>Name<input id="rcpFName" maxlength="80" autocomplete="off" placeholder="e.g. Bolognese"></label>
@@ -1724,6 +1728,7 @@ button:disabled{opacity:.6}
       </div>
       <datalist id="rcpCategoryList"><option value="Sauce"><option value="Dressing"><option value="Dish"><option value="Dessert"><option value="Prep"></datalist>
       <div class="rcp-sub">Ingredients</div>
+      <p class="team-v2-sub" style="margin:0 0 8px">Type a sauce's name (e.g. Bolognese) to use that recipe – its allergens count too.</p>
       <div id="rcpFLines"></div>
       <datalist id="rcpIngredientNames"></datalist>
       <button id="rcpAddLineBtn" class="btn" type="button" style="margin:2px 0 12px">+ Add ingredient</button>
@@ -7529,6 +7534,25 @@ function rcpChips(list, checked, isRecipe) {
   return chips.length ? `<div class="rcp-chips">${chips.join("")}</div>` : "";
 }
 
+// Menu order of the sections; anything else after, alphabetically.
+const RCP_ORDER = ["Pane", "Salad", "Entrée", "Seafood", "Scaloppine", "Steak", "Pasta", "Pizza", "Vegetarian", "Kids", "Dessert", "Dish", "Sauce", "Dressing", "Prep"];
+function rcpSorted(list) {
+  const rank = c => { const i = RCP_ORDER.indexOf(c); return i < 0 ? 99 : i; };
+  return [...list].sort((a, b) => rank(a.category) - rank(b.category) || a.category.localeCompare(b.category) || a.name.localeCompare(b.name));
+}
+function rcpGrouped(list, itemHtml) {
+  let last = null;
+  return rcpSorted(list).map(r => {
+    const head = r.category !== last ? `<div class="rcp-group">${escapeHtml(r.category)}</div>` : "";
+    last = r.category;
+    return head + itemHtml(r);
+  }).join("");
+}
+function rcpMatch(r, q) {
+  return !q || r.name.toLowerCase().includes(q) || r.category.toLowerCase().includes(q) ||
+    r.lines.some(l => l.name.toLowerCase().includes(q));
+}
+
 // "Can be made dairy free / gluten free" lines the floor can tell the guest.
 function rcpCanBe(r) {
   const out = [];
@@ -7540,11 +7564,10 @@ function rcpCanBe(r) {
 function rcpRenderAllergens() {
   const box = document.getElementById("rcpAllergenList");
   const q = (document.getElementById("rcpSearch").value || "").trim().toLowerCase();
-  const list = (rcpState.data?.recipes || []).filter(r =>
-    !q || r.name.toLowerCase().includes(q) || r.lines.some(l => l.name.toLowerCase().includes(q)));
+  const list = (rcpState.data?.recipes || []).filter(r => rcpMatch(r, q));
   box.className = list.length ? "" : "empty-state";
   if (!list.length) { box.innerHTML = q ? "Nothing found." : "No recipes yet."; return; }
-  box.innerHTML = list.map(r => {
+  box.innerHTML = rcpGrouped(list, r => {
     const open = rcpState.open["a" + r.id];
     return `<div class="rcp-item">
       <button type="button" class="rcp-head" data-rcp-toggle="a${escapeHtml(r.id)}">
@@ -7558,15 +7581,16 @@ function rcpRenderAllergens() {
         <div class="rcp-line"><span>${escapeHtml(l.name)}${l.checked ? "" : `<span class="rcp-unchecked">NOT CHECKED</span>`}</span>
         <span class="q">${l.allergens.length ? l.allergens.map(a => escapeHtml(rcpLabel(a))).join(", ") : "—"}</span></div>`).join("")}</div>` : ""}
     </div>`;
-  }).join("");
+  });
 }
 
 function rcpRenderRecipes() {
   const box = document.getElementById("rcpRecipeList");
-  const list = rcpState.data?.recipes || [];
+  const q = (document.getElementById("rcpRecipeSearch")?.value || "").trim().toLowerCase();
+  const list = (rcpState.data?.recipes || []).filter(r => rcpMatch(r, q));
   box.className = list.length ? "" : "empty-state";
-  if (!list.length) { box.innerHTML = "No recipes yet."; return; }
-  box.innerHTML = list.map(r => {
+  if (!list.length) { box.innerHTML = q ? "Nothing found." : "No recipes yet."; return; }
+  box.innerHTML = rcpGrouped(list, r => {
     const open = rcpState.open["r" + r.id];
     return `<div class="rcp-item">
       <button type="button" class="rcp-head" data-rcp-toggle="r${escapeHtml(r.id)}">
@@ -7575,7 +7599,7 @@ function rcpRenderRecipes() {
       </button>
       ${open ? `<div class="rcp-detail">
         <div class="rcp-sub" style="margin-top:0">Ingredients</div>
-        ${r.lines.map(l => `<div class="rcp-line"><span>${escapeHtml(l.name)}</span><span class="q">${escapeHtml(l.quantity || "")}</span></div>`).join("")}
+        ${r.lines.length ? r.lines.map(l => `<div class="rcp-line"><span>${escapeHtml(l.name)}${l.is_recipe ? ` <span class="rcp-cat" style="display:inline">· recipe</span>` : ""}</span><span class="q">${escapeHtml(l.quantity || "")}</span></div>`).join("") : `<div class="rcp-warn" style="margin-top:0">To be completed – tap Edit to add the ingredients</div>`}
         ${r.method ? `<div class="rcp-sub">Method</div><div class="rcp-method">${escapeHtml(r.method)}</div>` : ""}
         ${r.notes ? `<div class="rcp-sub">Notes</div><div class="rcp-method">${escapeHtml(r.notes)}</div>` : ""}
         <div class="rcp-sub">Allergens</div>${rcpChips(r.allergens, r.all_checked, true)}${rcpCanBe(r)}
@@ -7583,7 +7607,7 @@ function rcpRenderRecipes() {
         <div class="rcp-actions"><button type="button" data-rcp-edit="${escapeHtml(r.id)}">Edit</button></div>
       </div>` : ""}
     </div>`;
-  }).join("");
+  });
 }
 
 function rcpRenderIngredients() {
@@ -7623,7 +7647,8 @@ async function loadRecipes() {
     document.getElementById("recipesTitle").textContent = data.full ? "Recipes" : "Allergens";
     document.getElementById("recipesPlace").textContent = data.location || "Hawthorne";
     const dl = document.getElementById("rcpIngredientNames");
-    if (dl) dl.innerHTML = (data.ingredients || []).map(i => `<option value="${escapeHtml(i.name)}">`).join("");
+    const sauces = (data.recipes || []).filter(r => ["Sauce", "Dressing", "Prep"].includes(r.category)).map(r => r.name);
+    if (dl) dl.innerHTML = [...sauces, ...(data.ingredients || []).map(i => i.name)].map(n => `<option value="${escapeHtml(n)}">`).join("");
     rcpShowTab(rcpState.tab);
   } catch (error) {
     rcpMsg(error.message || "Unable to load the recipes.", false);
@@ -7655,6 +7680,11 @@ async function openRecipesScreen() {
   rcpState.tab = "allergens";
   rcpState.open = {};
   document.getElementById("rcpSearch").value = "";
+  document.getElementById("rcpRecipeSearch").value = "";
+  for (const id of ["rcpAllergenList", "rcpRecipeList", "rcpIngredientList"]) {
+    const box = document.getElementById(id);
+    box.className = "empty-state"; box.textContent = "Loading…";
+  }
   await loadRecipes();
 }
 
@@ -7671,6 +7701,7 @@ document.addEventListener("click", event => {
 }, true);
 
 document.getElementById("rcpSearch")?.addEventListener("input", rcpRenderAllergens);
+document.getElementById("rcpRecipeSearch")?.addEventListener("input", rcpRenderRecipes);
 
 function rcpLineRow(name = "", quantity = "") {
   return `<div class="rcp-row">

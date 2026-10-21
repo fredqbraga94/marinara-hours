@@ -107,21 +107,23 @@ try {
   const km = await phone();
   await km.login(PIN[ID(2)]);
 
-  await check("Kitchen Manager: Allergens list shows the 3 recipes, not checked yet", async () => {
+  await check("Kitchen Manager: Allergens list shows the whole menu by section, not checked yet", async () => {
     await openRecipes(km);
     const tabsShown = await km.page.locator("#recipesTabs").evaluate((e) => !e.classList.contains("hidden"));
     const items = await km.page.locator("#rcpAllergenList .rcp-item").count();
     const warn = await km.page.locator("#rcpAllergenList .rcp-warn").count();
     const creamy = (await km.page.locator("#rcpAllergenList .rcp-item", { hasText: "Creamy Chicken Sauce" }).textContent()).replace(/\s+/g, " ");
     await km.shot("recipes_allergens_kitchen");
-    assert.equal(tabsShown, true); assert.equal(items, 3); assert.equal(warn, 3);
+    const groups = await km.page.locator("#rcpAllergenList .rcp-group").allTextContents();
+    assert.equal(tabsShown, true); assert.ok(items >= 60, String(items)); assert.equal(warn, items);
+    assert.deepEqual(groups.slice(0, 3), ["Pane", "Salad", "Entrée"]);
     assert.match(creamy, /Dairy/);
     return creamy.trim().slice(0, 90);
   });
 
   await check("Recipes tab: Bolognese shows quantities and method", async () => {
     await km.page.click('[data-rcp-tab="recipes"]');
-    await km.page.locator("#rcpRecipeList .rcp-head", { hasText: "Bolognese" }).click();
+    await km.page.locator("#rcpRecipeList .rcp-head", { has: km.page.getByText("Bolognese", { exact: true }) }).click();
     const text = (await km.page.locator("#rcpRecipeList .rcp-detail").textContent()).replace(/\s+/g, " ");
     await km.shot("recipes_bolognese");
     assert.match(text, /Mince\s*10 kg/); assert.match(text, /Brown the mince/);
@@ -197,7 +199,8 @@ try {
     assert.equal(label, "Allergens"); assert.equal(tabsHidden, true);
     assert.ok(!/bottles|900 g/.test(detail), detail);
     assert.match(detail, /Corn flour Gluten, Wheat/);
-    assert.equal(found, 2); // Creamy Chicken Sauce + Italian Dressing
+    const names = await fm.page.locator("#rcpAllergenList .rcp-head strong").allTextContents();
+    assert.ok(names.includes("Creamy Chicken Sauce") && names.includes("Italian Dressing") && names.includes("Vegetarian Pizza"), names.join());
     assert.deepEqual(fm.errors, []);
     return `${label}; ${detail.slice(0, 70)}…; search 'corn' → ${found}`;
   });

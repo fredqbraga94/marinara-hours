@@ -44,10 +44,13 @@ create index if not exists recipes_place_idx on public.recipes (location, active
 create table if not exists public.recipe_lines (
   id uuid primary key default gen_random_uuid(),
   recipe_id uuid not null references public.recipes(id),
-  ingredient_id uuid not null references public.recipe_ingredients(id),
+  -- A line is either an ingredient or another recipe (a sauce or dressing).
+  ingredient_id uuid references public.recipe_ingredients(id),
+  sub_recipe_id uuid references public.recipes(id),
   quantity text check (quantity is null or length(quantity) <= 80),
   position integer not null default 0,
-  active boolean not null default true  -- replaced lines are kept, switched off
+  active boolean not null default true,  -- replaced lines are kept, switched off
+  constraint recipe_lines_one_kind check ((ingredient_id is null) <> (sub_recipe_id is null))
 );
 create index if not exists recipe_lines_recipe_idx on public.recipe_lines (recipe_id, active, position);
 
@@ -83,6 +86,45 @@ as $function$
                  where l.ingredient_id = i.id and l.active and r.active))
 $function$;
 
+-- A recipe and the sauces/dressings it uses (up to 4 levels deep).
+create or replace function public.mh_recipe_tree(p_id uuid)
+returns table (rid uuid) language sql stable set search_path to 'public'
+as $function$
+  with recursive t(rid, depth) as (
+    select p_id, 0
+    union
+    select l.sub_recipe_id, t.depth + 1
+      from t join public.recipe_lines l on l.recipe_id = t.rid and l.active
+     where l.sub_recipe_id is not null and t.depth < 4)
+  select distinct rid from t
+$function$;
+
+-- Every allergen in the recipe, including its sauces.
+create or replace function public.mh_recipe_allergens(p_id uuid)
+returns text[] language sql stable set search_path to 'public'
+as $function$
+  select coalesce(array_agg(distinct a order by a), '{}')
+    from public.mh_recipe_tree(p_id) t
+    join public.recipe_lines l on l.recipe_id = t.rid and l.active
+    join public.recipe_ingredients i on i.id = l.ingredient_id,
+         unnest(i.allergens) a
+$function$;
+
+-- Checked = every ingredient (sauces included) was checked on the label, and
+-- no recipe in it is still empty ("to be completed").
+create or replace function public.mh_recipe_checked(p_id uuid)
+returns boolean language sql stable set search_path to 'public'
+as $function$
+  select not exists (
+           select 1 from public.mh_recipe_tree(p_id) t
+             join public.recipe_lines l on l.recipe_id = t.rid and l.active
+             join public.recipe_ingredients i on i.id = l.ingredient_id
+            where not i.checked)
+     and not exists (
+           select 1 from public.mh_recipe_tree(p_id) t
+            where not exists (select 1 from public.recipe_lines l where l.recipe_id = t.rid and l.active))
+$function$;
+
 -- One recipe; p_full = false leaves out quantities, method and notes.
 create or replace function public.mh_recipe_json(r public.recipes, p_full boolean)
 returns jsonb language sql stable set search_path to 'public'
@@ -92,20 +134,19 @@ as $function$
     'dairy_free_note', r.dairy_free_note, 'gluten_free_note', r.gluten_free_note,
     'lines', coalesce((
       select jsonb_agg(jsonb_build_object(
-               'ingredient_id', i.id, 'name', i.name, 'allergens', to_jsonb(i.allergens),
-               'checked', i.checked)
+               'ingredient_id', i.id, 'recipe_id', sr.id, 'is_recipe', sr.id is not null,
+               'name', coalesce(i.name, sr.name),
+               'allergens', case when sr.id is null then to_jsonb(i.allergens)
+                                 else to_jsonb(public.mh_recipe_allergens(sr.id)) end,
+               'checked', case when sr.id is null then i.checked else public.mh_recipe_checked(sr.id) end)
              || case when p_full then jsonb_build_object('quantity', l.quantity) else '{}'::jsonb end
              order by l.position)
-        from public.recipe_lines l join public.recipe_ingredients i on i.id = l.ingredient_id
+        from public.recipe_lines l
+        left join public.recipe_ingredients i on i.id = l.ingredient_id
+        left join public.recipes sr on sr.id = l.sub_recipe_id
        where l.recipe_id = r.id and l.active), '[]'::jsonb),
-    'allergens', coalesce((
-      select to_jsonb(array_agg(distinct a order by a))
-        from public.recipe_lines l join public.recipe_ingredients i on i.id = l.ingredient_id,
-             unnest(i.allergens) a
-       where l.recipe_id = r.id and l.active), '[]'::jsonb),
-    'all_checked', not exists (
-      select 1 from public.recipe_lines l join public.recipe_ingredients i on i.id = l.ingredient_id
-       where l.recipe_id = r.id and l.active and not i.checked))
+    'allergens', to_jsonb(public.mh_recipe_allergens(r.id)),
+    'all_checked', public.mh_recipe_checked(r.id))
   || case when p_full then jsonb_build_object('makes', r.makes, 'method', r.method, 'notes', r.notes)
           else '{}'::jsonb end
 $function$;
@@ -154,6 +195,28 @@ begin
     end if;
   end if;
   return v_id;
+end $function$;
+
+-- Add one line. A name that matches a sauce, dressing or prep recipe of the
+-- unit becomes a link to that recipe (its allergens then count too);
+-- anything else is an ingredient.
+create or replace function public.mh_recipe_line_add(
+  p_recipe_id uuid, p_location text, p_name text, p_quantity text, p_position integer)
+returns void language plpgsql security definer set search_path to 'public'
+as $function$
+declare
+  v_name text := left(regexp_replace(trim(coalesce(p_name, '')), '\s+', ' ', 'g'), 80);
+  v_sub uuid;
+begin
+  if v_name = '' then return; end if;
+  select id into v_sub from public.recipes
+   where location = p_location and active and id <> p_recipe_id
+     and category in ('Sauce', 'Dressing', 'Prep') and lower(name) = lower(v_name)
+   order by created_at limit 1;
+  insert into public.recipe_lines (recipe_id, ingredient_id, sub_recipe_id, quantity, position)
+  values (p_recipe_id,
+          case when v_sub is null then public.mh_recipe_ingredient_id(p_location, v_name) end,
+          v_sub, nullif(left(trim(coalesce(p_quantity, '')), 80), ''), p_position);
 end $function$;
 
 -- Create or update a recipe. p_recipe: {id?, name, category, makes, method,
@@ -205,9 +268,7 @@ begin
   end if;
   for v_line in select * from jsonb_array_elements(p_recipe->'lines') loop
     continue when coalesce(trim(v_line->>'name'), '') = '';
-    insert into public.recipe_lines (recipe_id, ingredient_id, quantity, position)
-    values (v_row.id, public.mh_recipe_ingredient_id(v_location, v_line->>'name'),
-            nullif(left(trim(coalesce(v_line->>'quantity', '')), 80), ''), v_pos);
+    perform public.mh_recipe_line_add(v_row.id, v_location, v_line->>'name', v_line->>'quantity', v_pos);
     v_pos := v_pos + 1;
   end loop;
   insert into public.recipe_audit (kind, ref, changed_by, old_value, new_value)
@@ -278,6 +339,10 @@ revoke all on function public.mh_recipe_full(text) from public, anon, authentica
 revoke all on function public.mh_recipe_ingredient_json(public.recipe_ingredients) from public, anon, authenticated;
 revoke all on function public.mh_recipe_json(public.recipes, boolean) from public, anon, authenticated;
 revoke all on function public.mh_recipe_ingredient_id(text, text) from public, anon, authenticated;
+revoke all on function public.mh_recipe_line_add(uuid, text, text, text, integer) from public, anon, authenticated;
+revoke all on function public.mh_recipe_tree(uuid) from public, anon, authenticated;
+revoke all on function public.mh_recipe_allergens(uuid) from public, anon, authenticated;
+revoke all on function public.mh_recipe_checked(uuid) from public, anon, authenticated;
 revoke all on function public.manager_recipe_list(uuid, text) from public, anon, authenticated;
 revoke all on function public.manager_recipe_save(uuid, text, jsonb) from public, anon, authenticated;
 revoke all on function public.manager_recipe_remove(uuid, text, uuid) from public, anon, authenticated;
@@ -323,3 +388,111 @@ begin
   end loop;
   update public.recipe_ingredients set allergens = array['milk'] where location = 'Hawthorne' and name in ('Milk', 'Cream');
 end $seed$;
+
+-- Hawthorne menu (from the printed menu). Ingredients come from the menu
+-- descriptions; the sauces the menu names start empty ("to be completed" by the
+-- chefs), so every dish stays "Not checked yet" until the kitchen fills them in
+-- and checks the labels. Obvious allergens are pre-marked (still not checked).
+do $menu$
+declare
+  v_rec record;
+  v_id uuid;
+  v_pos integer;
+  v_part text;
+begin
+  if exists (select 1 from public.recipes where location = 'Hawthorne' and name = 'Margherita') then return; end if;
+
+  -- Sauces and dressings named on the menu (empty for now).
+  insert into public.recipes (location, name, category, method)
+  select 'Hawthorne', n, c, 'To be completed by the kitchen.'
+    from (values
+      ('Napoli sauce','Sauce'), ('Pesto sauce','Sauce'), ('Kilpatrick sauce','Sauce'), ('Mornay sauce','Sauce'),
+      ('White sauce','Sauce'), ('Funghi sauce','Sauce'), ('Marsala cream sauce','Sauce'), ('Pepe verde sauce','Sauce'),
+      ('Lemon sauce','Sauce'), ('Tuscan sauce','Sauce'), ('Bearnaise sauce','Sauce'),
+      ('House dressing','Dressing'), ('Citrus dressing','Dressing'), ('Honey mustard dressing','Dressing')
+    ) as t(n, c)
+   where not exists (select 1 from public.recipes r where r.location = 'Hawthorne' and lower(r.name) = lower(t.n));
+
+  for v_rec in select * from (values
+    -- name, category, ingredients (| separated), gluten-free note
+    ('Garlic Bread','Pane','Ciabatta bread|Garlic butter', null),
+    ('Cheesy Garlic Pizza Bread','Pane','Pizza dough|Olive oil|Garlic|Oregano|Cracked pepper|Mozzarella', null),
+    ('Bruschetta Pizza Bread','Pane','Pizza dough|Olive oil|Tomato|Basil|Red onion', null),
+    ('Warm Seafood Salad','Salad','Prawns|Mussels|Calamari|Salmon|Garden salad|Citrus dressing', null),
+    ('Lemon Pepper Chicken','Salad','Lemon pepper chicken|Mixed leaves|Carrot|Red onion|Capsicum|Tomato|Cucumber|Honey mustard dressing', null),
+    ('Italian Salad','Salad','Mixed lettuce|Red onion|Olives|Capsicum|Fresh herbs|Mushrooms|Cucumber|Tomato|Carrot|House dressing', null),
+    ('Insalata Caprese','Salad','Tomato|Bocconcini|Basil|Red onion|Balsamic vinegar|Olive oil', null),
+    ('Natural Oysters','Entrée','Oysters|Lemon juice|Shallots', null),
+    ('Kilpatrick Oysters','Entrée','Oysters|Kilpatrick sauce', null),
+    ('Oyster Mornay','Entrée','Oysters|Mornay sauce', null),
+    ('Garlic Prawn Classico','Entrée','Prawns|Garlic butter|Cracked pepper|Parsley|Lemon juice', null),
+    ('Mussel Napoletana','Entrée','Mussels|White wine|Napoli sauce|Mozzarella', null),
+    ('Tuscan Baked Salmon','Seafood','Salmon|Kipfler potatoes|Mushrooms|Napoli sauce|Mozzarella', null),
+    ('Calamari al Limone','Seafood','Calamari|Garlic|Olive oil|Chilli flakes|Lemon|Parsley|Rice|Rocket', null),
+    ('Risotto Marinara','Seafood','Arborio rice|Fish|Prawns|Scallops|Baby clams|Mussels|Fresh herbs|Tomato', null),
+    ('Scaloppine al Limone','Scaloppine','Scaloppine|Lemon sauce|Fettuccine', null),
+    ('Scaloppine ai Funghi','Scaloppine','Scaloppine|Mushrooms|White sauce|Fettuccine', null),
+    ('Scaloppine al Marsala','Scaloppine','Scaloppine|Marsala cream sauce|Fettuccine', null),
+    ('Scaloppine alla Zingala','Scaloppine','Scaloppine|Chilli|Tomato|Onion|Capsicum|Shallots|Parmesan|Cream|Fettuccine', null),
+    ('Steak ai Funghi','Steak','Eye fillet steak|Kipfler potatoes|Broccolini|Truss tomatoes|Funghi sauce', null),
+    ('Steak Pepe Verde','Steak','Eye fillet steak|Cracked pepper|Kipfler potatoes|Broccolini|Truss tomatoes|Pepe verde sauce', null),
+    ('Fettuccine Don Carlos','Pasta','Fettuccine|Prawns|Chilli|Garlic|Olive oil|Shallots|Tomato|Parsley', 'Gluten-free pasta (extra charge)'),
+    ('Fettuccine Carbonara','Pasta','Fettuccine|Bacon|Mushrooms|Onion|Cream|Parmesan', 'Gluten-free pasta (extra charge)'),
+    ('Fettuccine Marinara','Pasta','Fettuccine|Prawns|Baby clams|Scallops|Mussels|Tomato|Garlic|Cream|Fresh herbs', 'Gluten-free pasta (extra charge)'),
+    ('Fettuccine al Pollo','Pasta','Fettuccine|Chicken|Mushrooms|White sauce|Parmesan', 'Gluten-free pasta (extra charge)'),
+    ('Penne Matriciana','Pasta','Penne|Onion|Bacon|Garlic|Tomato|Chilli|Cream', 'Gluten-free pasta (extra charge)'),
+    ('Chicken Penne Pesto','Pasta','Penne|Chicken tenderloin|Pesto sauce|Cream', 'Gluten-free pasta (extra charge)'),
+    ('Baked Spinach & Ricotta Ravioli','Pasta','Spinach & ricotta ravioli|Tuscan sauce|Vegetables', null),
+    ('Lasagna al Forno','Pasta','Lasagne sheets|Bolognese|Tomato|Mozzarella', null),
+    ('Cannelloni','Pasta','Cannelloni|Mince|Mushrooms|Mozzarella|Cream|Napoli sauce', null),
+    ('Gnocchi Bolognese / Napoli','Pasta','Gnocchi|Bolognese|Napoli sauce|Mozzarella|Fresh herbs', null),
+    ('Margherita','Pizza','Pizza dough|Tomato base|Mozzarella|Oregano', 'Gluten-free base (extra charge)'),
+    ('Paradiso','Pizza','Pizza dough|Tomato base|Mozzarella|Ham|Pineapple', 'Gluten-free base (extra charge)'),
+    ('Vesuvio','Pizza','Pizza dough|Tomato base|Mozzarella|Ham', 'Gluten-free base (extra charge)'),
+    ('Pepperoni Pizza','Pizza','Pizza dough|Tomato base|Mozzarella|Pepperoni', 'Gluten-free base (extra charge)'),
+    ('Napoletana','Pizza','Pizza dough|Tomato base|Olives|Anchovies|Mozzarella|Fresh herbs', 'Gluten-free base (extra charge)'),
+    ('Capricciosa','Pizza','Pizza dough|Tomato base|Ham|Mozzarella|Mushrooms', 'Gluten-free base (extra charge)'),
+    ('Chilli Prawn Pizza','Pizza','Pizza dough|Tomato base|Prawns|Chilli|Mozzarella|Red onion|Fresh herbs', 'Gluten-free base (extra charge)'),
+    ('Vegetarian Pizza','Pizza','Pizza dough|Tomato base|Mozzarella|Onion|Mushrooms|Capsicum|Olives|Corn kernels|Spinach|Fetta', 'Gluten-free base (extra charge)'),
+    ('Supreme','Pizza','Pizza dough|Tomato base|Ham|Mozzarella|Pepperoni|Onion|Capsicum|Olives|Mushrooms', 'Gluten-free base (extra charge)'),
+    ('Marinara Pizza','Pizza','Pizza dough|Tomato base|Mozzarella|Prawns|Baby clams|Mussels|Oysters|Fresh herbs', 'Gluten-free base (extra charge)'),
+    ('Prosciutto & Rocket','Pizza','Pizza dough|Tomato base|Red onion|Bocconcini|Prosciutto|Rocket|Lemon juice', 'Gluten-free base (extra charge)'),
+    ('Calzone','Pizza','Pizza dough|Tomato base|Ham|Chicken|Pepperoni|Chorizo|Napoli sauce|Bolognese|Mozzarella', 'Gluten-free base (extra charge)'),
+    ('Mediterranean','Pizza','Pizza dough|Tomato base|Capsicum|Zucchini|Eggplant|Sundried tomato|Fetta|Mozzarella|Red onion|Olives|Fresh herbs', 'Gluten-free base (extra charge)'),
+    ('Chicken Avocado','Pizza','Pizza dough|Tomato base|BBQ chicken|Avocado|Fetta|Sundried tomato|Rocket|Mozzarella', 'Gluten-free base (extra charge)'),
+    ('House Special','Pizza','Pizza dough|Tomato base|Scaloppine|Tomato|Mozzarella|Mushrooms|Bearnaise sauce|Fresh herbs', 'Gluten-free base (extra charge)'),
+    ('Meat Lovers','Pizza','Pizza dough|Tomato base|Mozzarella|Pepperoni|Chicken|Ham|Bolognese', 'Gluten-free base (extra charge)'),
+    ('Chicken & Chorizo','Pizza','Pizza dough|Tomato base|Mozzarella|Chicken|Chorizo', 'Gluten-free base (extra charge)'),
+    ('Risotto ai Funghi','Vegetarian','Arborio rice|Mushrooms|Garlic|White wine|Cream|Truffle oil|Parmesan', null),
+    ('Fettuccine Verde','Vegetarian','Fettuccine|Vegetables|Olive oil|Garlic|Chilli|Fresh herbs', 'Gluten-free pasta (extra charge)'),
+    ('Kids Pasta (plain or cheese & butter)','Kids','Fettuccine, penne or gnocchi|Parmesan|Butter', 'Gluten-free pasta (extra charge)')
+  ) as t(name, category, parts, gf) loop
+    insert into public.recipes (location, name, category, gluten_free_note, notes)
+    values ('Hawthorne', v_rec.name, v_rec.category, v_rec.gf,
+            case when v_rec.category in ('Pasta', 'Vegetarian', 'Kids') then 'Most dishes are served with shredded cheese.' end)
+    returning id into v_id;
+    v_pos := 0;
+    foreach v_part in array string_to_array(v_rec.parts, '|') loop
+      perform public.mh_recipe_line_add(v_id, 'Hawthorne', v_part, null, v_pos);
+      v_pos := v_pos + 1;
+    end loop;
+  end loop;
+
+  -- Pre-mark the obvious allergens (still NOT checked: the kitchen confirms).
+  update public.recipe_ingredients i set allergens = m.a, updated_at = now()
+    from (values
+      ('Ciabatta bread', array['gluten','wheat']), ('Pizza dough', array['gluten','wheat']),
+      ('Fettuccine', array['gluten','wheat']), ('Penne', array['gluten','wheat']),
+      ('Lasagne sheets', array['gluten','wheat']), ('Cannelloni', array['gluten','wheat']),
+      ('Gnocchi', array['gluten','wheat']), ('Fettuccine, penne or gnocchi', array['gluten','wheat']),
+      ('Spinach & ricotta ravioli', array['gluten','milk','wheat']),
+      ('Mozzarella', array['milk']), ('Parmesan', array['milk']), ('Cream', array['milk']),
+      ('Fetta', array['milk']), ('Bocconcini', array['milk']), ('Garlic butter', array['milk']),
+      ('Butter', array['milk']),
+      ('Prawns', array['crustacean']),
+      ('Mussels', array['mollusc']), ('Baby clams', array['mollusc']), ('Scallops', array['mollusc']),
+      ('Oysters', array['mollusc']), ('Calamari', array['mollusc']),
+      ('Salmon', array['fish']), ('Fish', array['fish']), ('Anchovies', array['fish'])
+    ) as m(n, a)
+   where i.location = 'Hawthorne' and i.name = m.n and not i.checked and i.allergens = '{}';
+end $menu$;

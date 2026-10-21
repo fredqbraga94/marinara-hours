@@ -72,7 +72,7 @@ try {
   });
 
   section("B. Migration");
-  await check("applies; nothing existing changed; closed to the public keys; 3 recipes added", async () => {
+  await check("applies; nothing existing changed; closed to the public keys; menu and sauces added", async () => {
     const r = db.psqlFile(RECIPES); assert.ok(r.ok, r.stderr);
     const fp = await db.fingerprints();
     assert.deepEqual(Object.keys(fpBefore).filter((k) => fp[k] !== fpBefore[k]), []);
@@ -80,13 +80,21 @@ try {
       assert.equal(await one(db, `select has_table_privilege('anon', 'public.${t}', 'select')`), "f", t);
     }
     assert.equal(await one(db, "select has_function_privilege('anon', 'public.manager_recipe_list(uuid,text)', 'execute')"), "f");
-    assert.equal(await one(db, "select count(*) from public.recipes where location = 'Hawthorne'"), "3");
+    const total = await one(db, "select count(*) from public.recipes where location = 'Hawthorne'");
+    assert.ok(Number(total) >= 60, total);
+    for (const n of ["Creamy Chicken Sauce", "Bolognese", "Chilli Oil", "Margherita", "Lasagna al Forno", "Pesto sauce"]) {
+      assert.equal(await one(db, `select count(*) from public.recipes where name = '${n}'`), "1", n);
+    }
+    // Lasagna uses the Bolognese recipe (linked, not a copy).
+    assert.equal(await one(db, "select s.name from public.recipe_lines l join public.recipes r on r.id = l.recipe_id join public.recipes s on s.id = l.sub_recipe_id where r.name = 'Lasagna al Forno'"), "Bolognese");
+    // 'Pepperoni' on a pizza is an ingredient, never the 'Pepperoni Pizza' recipe.
+    assert.equal(await one(db, "select count(*) from public.recipe_lines where sub_recipe_id in (select id from public.recipes where category not in ('Sauce','Dressing','Prep'))"), "0");
     assert.equal(await one(db, "select count(*) from public.recipe_ingredients where checked"), "0");
     // Onion powder is used in two recipes but stored once.
     assert.equal(await one(db, "select count(*) from public.recipe_ingredients where name = 'Onion powder'"), "1");
     const again = db.psqlFile(RECIPES); assert.ok(again.ok, again.stderr);
-    assert.equal(await one(db, "select count(*) from public.recipes"), "3");
-    return "3 recipes, 14 ingredients, none checked; running it twice adds nothing";
+    assert.equal(await one(db, "select count(*) from public.recipes"), total);
+    return `${total} recipes (menu + sauces), sauces linked, none checked; running it twice adds nothing`;
   });
   await check("current production server keeps working", async () => {
     const m = await login(vProd, 1);
@@ -110,7 +118,7 @@ try {
       const bol = d.recipes.find((x) => x.name === "Bolognese");
       assert.equal(bol.lines[0].quantity, "10 kg");
       assert.match(bol.method, /Brown the mince/);
-      assert.equal(d.ingredients.length, 14);
+      assert.equal(d.ingredients.length, Number(await one(db, "select count(*) from public.recipe_ingredients")));
     }
     return "quantities, method and the ingredient list";
   });
@@ -183,9 +191,39 @@ try {
     r = await api(vNew, 2, km, { action: "manager_recipe_remove", id: rec.id });
     assert.equal(r.status, 404);
     const floor = (await api(vNew, 3, fm, { action: "manager_recipe_list" })).body.data;
-    assert.equal(floor.recipes.length, 3);
+    assert.ok(!floor.recipes.some((x) => x.id === rec.id));
     assert.ok(Number(await one(db, "select count(*) from public.recipe_audit")) >= 4);
     return "lowercase 'corn flour' matched the existing one; edit 200; remove 200 then 404; changes audited";
+  });
+
+  await check("a sauce's allergens reach every dish that uses it; an empty sauce keeps the dish 'not checked'", async () => {
+    const list = (await api(vNew, 2, km, { action: "manager_recipe_list" })).body.data;
+    const napoli = list.recipes.find((x) => x.name === "Napoli sauce");
+    assert.equal(napoli.lines.length, 0);
+    let mussel = list.recipes.find((x) => x.name === "Mussel Napoletana");
+    assert.ok(!mussel.allergens.includes("sesame"));
+    let r = await api(vNew, 2, km, { action: "manager_recipe_save", recipe: { ...napoli, lines: [{ name: "Tomato", quantity: "5 kg" }, { name: "Sesame oil", quantity: "10 ml" }] } });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const after = (await api(vNew, 2, km, { action: "manager_recipe_list" })).body.data;
+    const sesame = after.ingredients.find((i) => i.name === "Sesame oil");
+    await api(vNew, 2, km, { action: "manager_recipe_ingredient_save", id: sesame.id, allergens: ["sesame"], checked: true });
+    const floor = (await api(vNew, 3, fm, { action: "manager_recipe_list" })).body.data;
+    mussel = floor.recipes.find((x) => x.name === "Mussel Napoletana");
+    const line = mussel.lines.find((l) => l.name === "Napoli sauce");
+    assert.ok(mussel.allergens.includes("sesame"), mussel.allergens.join());
+    assert.equal(line.is_recipe, true);
+    assert.ok(line.allergens.includes("sesame"));
+    // Kilpatrick sauce is still empty: even with the oysters checked, the dish is not checked.
+    const oysters = after.ingredients.find((i) => i.name === "Oysters");
+    await api(vNew, 2, km, { action: "manager_recipe_ingredient_save", id: oysters.id, allergens: ["mollusc"], checked: true });
+    const kil = (await api(vNew, 3, fm, { action: "manager_recipe_list" })).body.data.recipes.find((x) => x.name === "Kilpatrick Oysters");
+    assert.equal(kil.all_checked, false);
+    // Typing a sauce name in a new recipe links that sauce.
+    r = await api(vNew, 2, km, { action: "manager_recipe_save", recipe: { name: "Test Dish", category: "Dish", lines: [{ name: "napoli sauce" }, { name: "Basil" }] } });
+    assert.equal(r.body.data.recipe.lines[0].is_recipe, true);
+    assert.ok(r.body.data.recipe.allergens.includes("sesame"));
+    await api(vNew, 2, km, { action: "manager_recipe_remove", id: r.body.data.recipe.id });
+    return `Mussel Napoletana now: ${mussel.allergens.join(", ")}; Kilpatrick Oysters still not checked`;
   });
 
   section("D. Rollback");
