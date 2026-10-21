@@ -8005,7 +8005,7 @@ function invRenderUsage() {
       <div><strong>${items.length}</strong><span>Products</span></div>
       <div><strong>${n}</strong><span>${n === 1 ? "Week" : "Weeks"} of invoices</span></div>
     </div>
-    <div class="inv-use-note">From ${escapeHtml(invShort(data.week_starts?.[0]))} to ${escapeHtml(invShort(data.to))}. Amounts ex GST. Averages count only the weeks since the first saved invoice.
+    <div class="inv-use-note">From ${escapeHtml(invShort(data.week_starts?.[0]))} to ${escapeHtml(invShort(data.to))}. Full weeks, Monday to Sunday, amounts ex GST. Averages count only the weeks since the first saved invoice.
     <b>Busiest week</b> is a good starting point for how much to keep in stock.${n < 4 ? " With fewer than 4 weeks the numbers are still a rough guide." : ""}</div>`;
   const suppliers = [...new Set(items.map(i => i.supplier))];
   chips.innerHTML = suppliers.length > 1 ? [["", "All"], ...suppliers.map(x => [x, x])].map(([v, l]) =>

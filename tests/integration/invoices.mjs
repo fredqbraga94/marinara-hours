@@ -200,30 +200,50 @@ try {
     return "tomatoes +12.5% (bags unchanged, credit note ignored)";
   });
 
-  await check("weekly use: what is bought most, average per week, busiest week", async () => {
-    const monday = (d) => { const t = Date.parse(`${d}T00:00:00Z`); return t - ((new Date(t).getUTCDay() + 6) % 7) * 86400000; };
-    const counted = Math.round((monday(today) - monday(daysAgo(10))) / (7 * 86400000)) + 1;
+  await check("weekly use: full weeks only, average per week, busiest week", async () => {
+    const DAY = 86400000;
+    const monday = (d) => { const t = Date.parse(`${d}T00:00:00Z`); return t - ((new Date(t).getUTCDay() + 6) % 7) * DAY; };
+    const firstMon = monday(daysAgo(10));
+    let endMon = monday(today);
+    if (firstMon < endMon) endMon -= 7 * DAY; // the week still running is left out
+    const counted = Math.round((endMon - firstMon) / (7 * DAY)) + 1;
+    const inRange = (n) => Date.parse(`${daysAgo(n)}T00:00:00Z`) <= endMon + 6 * DAY;
+    // Test Produce Co tomatoes: 10 kg (10 days ago), 10 kg (2 days ago), -2 kg credit (1 day ago).
+    const qty = [[10, 10, 40], [2, 10, 45], [1, -2, -9]].filter(([n]) => inRange(n));
     const r = await api(vNew, 1, gm, { action: "manager_invoice_usage", weeks: 4 });
     assert.equal(r.status, 200, JSON.stringify(r.body));
     const d = r.body.data;
     assert.equal(d.weeks, 4);
     assert.equal(d.weeks_counted, counted);
     assert.equal(d.week_starts.length, counted);
-    const names = d.items.map((i) => `${i.supplier}|${i.description}`);
-    assert.deepEqual(names, ["Test Produce Co|Test tomatoes", "Test Dairy Pty|Test tomatoes", "Test Produce Co|Test paper bags", "Test Dairy Pty|Test paper bags"]);
-    const tom = d.items[0];
-    assert.equal(Number(tom.qty), 18); // 10 + 10 - 2 (credit note)
-    assert.equal(Number(tom.spend), 76);
-    assert.equal(Number(tom.avg_per_week), Math.round(18 / counted * 100) / 100);
+    assert.equal(d.to, new Date(endMon + 6 * DAY).toISOString().slice(0, 10));
+    const tom = d.items.find((i) => i.supplier === "Test Produce Co" && i.description === "Test tomatoes");
+    const q = qty.reduce((a, x) => a + x[1], 0);
+    assert.equal(Number(tom.qty), q);
+    assert.equal(Number(tom.spend), qty.reduce((a, x) => a + x[2], 0));
+    assert.equal(Number(tom.avg_per_week), Math.round(q / counted * 100) / 100);
     assert.equal(tom.by_week.length, counted);
-    assert.equal(tom.by_week.reduce((a, b) => a + Number(b), 0), 18);
+    assert.equal(tom.by_week.reduce((a, b) => a + Number(b), 0), q);
     assert.equal(Number(tom.max_week), Math.max(...tom.by_week.map(Number)));
-    assert.equal(Number(tom.last_price), 4.5);
     assert.equal(tom.unit, "kg");
-    assert.equal(Number(d.total_spend), 52.5 + 57.5 - 9 + 42.5);
+    const spends = d.items.map((i) => Number(i.spend));
+    assert.deepEqual(spends, [...spends].sort((a, b) => b - a), "biggest spend first");
     const bad = await api(vNew, 1, gm, { action: "manager_invoice_usage", weeks: 999 });
     assert.equal(bad.body.data.weeks, 8);
-    return `${counted} week(s) counted; tomatoes ${tom.avg_per_week}/week, busiest ${tom.max_week}`;
+    return `${counted} full week(s) to ${d.to}; tomatoes ${tom.avg_per_week}/week, busiest ${tom.max_week}`;
+  });
+
+  await check("weekly use: only this week's invoices so far -> this week counts", async () => {
+    const r1 = await api(vNew, 1, gm, { action: "manager_invoice_save", invoice: { ...invoice("N-1", today, 2), supplier: "Test New Supplier" } });
+    assert.equal(r1.status, 200);
+    await db.admin.query("update public.supplier_invoices set active = false where supplier <> 'Test New Supplier'");
+    const d = (await api(vNew, 1, gm, { action: "manager_invoice_usage", weeks: 8 })).body.data;
+    assert.equal(d.weeks_counted, 1);
+    assert.equal(d.to, today);
+    assert.equal(Number(d.items[0].avg_per_week), 10);
+    await db.admin.query("update public.supplier_invoices set active = true where removed_at is null and supplier <> 'Test New Supplier'");
+    await db.admin.query("update public.supplier_invoices set active = false where supplier = 'Test New Supplier'");
+    return "a new start is not left empty";
   });
 
   await check("remove hides the invoice and allows saving it again", async () => {

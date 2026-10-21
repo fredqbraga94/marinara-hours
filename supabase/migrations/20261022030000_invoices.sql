@@ -221,7 +221,9 @@ end $function$;
 -- Brisbane). Per product (same supplier + code, or same description when the
 -- supplier prints no code): total bought, average per week, busiest week, the
 -- quantity for each week, and spend. Credit notes subtract. The average only
--- counts weeks since the first saved invoice, so a new start is not diluted.
+-- counts weeks since the first saved invoice, so a new start is not diluted,
+-- and only full weeks (the week still running is left out once there is an
+-- earlier week, so a half-ordered week does not pull the averages down).
 create or replace function public.manager_invoice_usage(p_manager_id uuid, p_location text, p_weeks integer)
 returns jsonb
 language plpgsql
@@ -240,6 +242,13 @@ declare
 begin
   select min(invoice_date) into v_first from public.supplier_invoices
    where location = v_location and active and invoice_date between v_from and v_today;
+  if v_first is not null and v_first < v_this_monday then
+    v_this_monday := v_this_monday - 7;      -- last full week
+    v_today := v_this_monday + 6;
+    v_from := v_this_monday - (v_weeks - 1) * 7;
+    select min(invoice_date) into v_first from public.supplier_invoices
+     where location = v_location and active and invoice_date between v_from and v_today;
+  end if;
   v_counted := case when v_first is null then 0
                     else ((v_this_monday - (v_first - ((extract(isodow from v_first)::integer) - 1))) / 7) + 1 end;
   return jsonb_build_object(
