@@ -1348,6 +1348,42 @@ body.mgr-mode #recipesScreen .rcp-head strong { font-size: 16px; }
 body.mgr-mode #rcpNewBtn { background: var(--basil); border-radius: 14px; }
 body.mgr-mode #recipesTabs { background: #ece7dd; }
 body.mgr-mode #recipesTabs button.selected { color: var(--ink, #000); }
+
+/* SUPPLIER INVOICES */
+.inv-add { display: block; text-align: center; cursor: pointer; margin-bottom: 6px; }
+.inv-hint { color: var(--muted); font-size: 12px; margin: 4px 4px 12px; line-height: 1.4; }
+.inv-review { border: 1px solid #e7e2d8; border-radius: 16px; background: #fff; padding: 12px 14px; margin-bottom: 10px; }
+.inv-review.bad { border-color: #f0c9c4; background: #fff8f7; }
+.inv-review-top { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.inv-review strong { font-size: 15px; }
+.inv-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.inv-amount { font-weight: 900; font-size: 16px; white-space: nowrap; }
+.inv-flag { display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 800; padding: 4px 9px; border-radius: 9px; }
+.inv-flag.ok { background: #e6f2ea; color: #1e5a3c; }
+.inv-flag.warn { background: #fff4d6; color: #8a5a00; }
+.inv-flag.err { background: #fde8e6; color: #a1271b; }
+.inv-review-actions { display: flex; gap: 8px; margin-top: 10px; }
+.inv-review-actions button { flex: 1; min-height: 40px; border-radius: 12px; border: 1px solid #e7e2d8; background: #fff; font-weight: 800; font-size: 13px; }
+.inv-review-actions .save { background: var(--green); border-color: var(--green); color: #fff; }
+.inv-sum-total { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.inv-sum-total strong { font-size: 24px; font-family: Cinzel, Georgia, serif; }
+.inv-sum-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-top: 1px solid var(--border); }
+.inv-sum-row:first-of-type { border-top: 0; }
+.inv-item { border-top: 1px solid var(--border); padding: 12px 0; }
+.inv-item:first-child { border-top: 0; }
+.inv-head { width: 100%; border: 0; background: transparent; padding: 0; display: flex; justify-content: space-between; gap: 10px; text-align: left; color: var(--text); cursor: pointer; }
+.inv-lines { margin-top: 10px; background: #fafbfa; border: 1px solid var(--border); border-radius: 12px; padding: 6px 10px; }
+.inv-line { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 7px 0; border-top: 1px solid var(--border); font-size: 13px; }
+.inv-line:first-child { border-top: 0; }
+.inv-line small { color: var(--muted); grid-column: 1 / -1; font-size: 11px; }
+.inv-remove { margin-top: 8px; border: 0; background: transparent; color: #9a6b66; font-weight: 700; font-size: 12px; padding: 4px 0; }
+.inv-price { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; padding: 10px 0; border-top: 1px solid var(--border); }
+.inv-price:first-child { border-top: 0; }
+.inv-price .chg { font-weight: 900; white-space: nowrap; }
+.inv-price .chg.up { color: #b3261e; }
+.inv-price .chg.down { color: #1e5a3c; }
+.inv-price small { color: var(--muted); font-size: 12px; grid-column: 1 / -1; }
+body.mgr-mode #invoicesScreen .card { border: 1px solid #e7e2d8; box-shadow: none; }
 /* RECIPES AND ALLERGENS */
 .rcp-search{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 12px;font-size:16px;margin-bottom:10px;background:#fff;font-family:inherit}
 .rcp-item{padding:13px 0;border-top:1px solid var(--border)}
@@ -1453,6 +1489,7 @@ button:disabled{opacity:.6}
 <script defer src="./timesheet-pdf.js"></script>
 <script defer src="./stock-pdf.js"></script>
 <script defer src="./roster-pdf.js"></script>
+<script defer src="./invoice-reader.js"></script>
 </head>
 
 <body>
@@ -1649,6 +1686,7 @@ button:disabled{opacity:.6}
   <div class="home-tiles">
     <button id="stockCard" class="manager-quick-card home-tile home-tile-k"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg></div><strong>Stock</strong><span>Count &amp; order</span></button>
     <button id="recipesCard" class="manager-quick-card home-tile home-tile-k"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10.5a3.5 3.5 0 1 1 1.6-6.6A4 4 0 0 1 16.4 4a3.5 3.5 0 1 1 .6 6.5V14H7z"/><path d="M7 14h10v4.5a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1z"/></svg></div><strong id="recipesCardLabel">Recipes</strong><span id="recipesCardSub">Allergens too</span></button>
+    <button id="invoicesCard" class="manager-quick-card home-tile home-tile-k hidden"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h12v17l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3z"/><path d="M9 8h6M9 11.5h6M9 15h4"/></svg></div><strong>Invoices</strong><span>Spend &amp; prices</span></button>
     <button id="myClockCard" class="manager-quick-card home-tile"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13h3M9.5 3h5M12 3v2.5"/></svg></div><strong>My Clock</strong><span>Clock in / out</span></button>
   </div>
 
@@ -1921,6 +1959,39 @@ button:disabled{opacity:.6}
   </div>
 </section>
 
+
+<section id="invoicesScreen" class="hidden">
+  <div class="manager-top">
+    <div>
+      <h2>Invoices</h2>
+      <p id="invPlace">Hawthorne</p>
+    </div>
+    <button id="backInvoicesBtn" class="back-btn">Back</button>
+  </div>
+  <div class="stock-tabs" id="invTabs" style="grid-template-columns:repeat(2,1fr)">
+    <button type="button" data-inv-tab="list" class="selected">Invoices</button>
+    <button type="button" data-inv-tab="prices">Price changes</button>
+  </div>
+  <div id="invMessage" class="message"></div>
+  <div id="invListView">
+    <label class="btn primary inv-add" for="invFiles">+ Add invoices (PDF)</label>
+    <input id="invFiles" type="file" accept="application/pdf,.pdf" multiple hidden>
+    <p class="inv-hint">Read on this device from the text inside the PDF. Nothing is sent to any other service.</p>
+    <div id="invReview"></div>
+    <div class="stock-chips" id="invPeriods">
+      <button type="button" data-inv-period="week" class="selected">This week</button>
+      <button type="button" data-inv-period="month">This month</button>
+      <button type="button" data-inv-period="last">Last month</button>
+    </div>
+    <div class="card"><div id="invSummary" class="empty-state">Loading…</div></div>
+    <div class="card"><div id="invList" class="empty-state">Loading…</div></div>
+  </div>
+  <div id="invPricesView" class="hidden">
+    <p class="inv-hint">Products whose latest price is different from the time before, biggest change first.</p>
+    <div class="card"><div id="invPrices" class="empty-state">Loading…</div></div>
+  </div>
+</section>
+
 <section id="recipesScreen" class="hidden">
   <div class="manager-top">
     <div>
@@ -2063,6 +2134,11 @@ button:disabled{opacity:.6}
     <button id="moreStockBtn" class="more-v2-item more-k" type="button">
       <span class="more-v2-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg></span>
       <span><strong>Stock</strong><small>Count and see what to order</small></span>
+      <span class="more-v2-chevron">›</span>
+    </button>
+    <button id="moreInvoicesBtn" class="more-v2-item more-k hidden" type="button">
+      <span class="more-v2-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h12v17l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3z"/><path d="M9 8h6M9 11.5h6M9 15h4"/></svg></span>
+      <span><strong>Invoices</strong><small>Supplier invoices, spend and price changes</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
     <button id="moreMyClockBtn" class="more-v2-item" type="button">
@@ -3313,6 +3389,7 @@ async function loadManagerDashboard() {
     const rcpTileSub = document.getElementById("recipesCardSub");
     if (rcpTileLabel) rcpTileLabel.textContent = rcpFloorHome ? "Allergens" : "Recipes";
     if (rcpTileSub) rcpTileSub.textContent = rcpFloorHome ? "What dishes contain" : "Allergens too";
+    document.getElementById("invoicesCard")?.classList.toggle("hidden", currentManagerRole !== "manager");
     const holidayNotice = document.getElementById("managerHolidayNotice");
     if (holidayNotice) {
       const upcoming = dashboard.upcoming_holidays || [];
@@ -6082,6 +6159,7 @@ function openManagerMore() {
   moreManagersBtn?.classList.toggle("hidden", currentManagerRole !== "manager");
   // Devices: Administrator only (the server refuses everyone else too).
   document.getElementById("moreDevicesBtn")?.classList.toggle("hidden", currentManagerRole !== "manager");
+  document.getElementById("moreInvoicesBtn")?.classList.toggle("hidden", currentManagerRole !== "manager");
   // Recipes: full for Administrator and Kitchen Manager; Floor Manager sees allergens only.
   const rcpFloor = currentManagerRole === "floor_manager";
   const rcpLabel = document.getElementById("moreRecipesLabel");
@@ -7751,6 +7829,218 @@ window.addEventListener("focus", syncCurrentView);
 
 
 
+/* SUPPLIER INVOICES (Administrator) */
+const invoicesScreen = document.getElementById("invoicesScreen");
+const invState = { tab: "list", period: "week", review: [], open: {}, lines: {} };
+const invMoney = n => (n == null || Number.isNaN(Number(n))) ? "—" :
+  (Number(n) < 0 ? "-" : "") + "$" + Math.abs(Number(n)).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const invDate = d => d ? new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${d}T00:00:00Z`)) : "—";
+function invMsg(text, ok) {
+  const m = document.getElementById("invMessage");
+  m.className = "message show " + (ok ? "ok" : "error"); m.textContent = text;
+}
+function invClearMsg() { const m = document.getElementById("invMessage"); m.className = "message"; m.textContent = ""; }
+function invPeriodRange(period) {
+  const today = brisbaneTodayInput();
+  const d = new Date(`${today}T00:00:00Z`);
+  if (period === "week") {
+    const back = (d.getUTCDay() + 6) % 7; // Monday
+    return { from: new Date(d - back * 86400000).toISOString().slice(0, 10), to: today };
+  }
+  if (period === "last") {
+    const first = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - 1, 1));
+    const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 0));
+    return { from: first.toISOString().slice(0, 10), to: last.toISOString().slice(0, 10) };
+  }
+  return { from: today.slice(0, 8) + "01", to: today };
+}
+
+function invRenderReview() {
+  const box = document.getElementById("invReview");
+  box.innerHTML = invState.review.map((r, i) => {
+    if (r.reading) return `<div class="inv-review"><strong>${escapeHtml(r.file)}</strong><div class="inv-sub">Reading…</div></div>`;
+    if (r.error) return `<div class="inv-review bad"><strong>${escapeHtml(r.file)}</strong>
+      <div class="inv-flag err">${escapeHtml(r.error)}</div>
+      <div class="inv-review-actions"><button type="button" data-inv-dismiss="${i}">Dismiss</button></div></div>`;
+    const inv = r.invoice;
+    const flag = r.saved ? `<div class="inv-flag ok">Saved</div>`
+      : inv.ok ? `<div class="inv-flag ok">Adds up: ${inv.lines.length} lines match the total</div>`
+      : `<div class="inv-flag warn">Check: the lines don't add up to the total. Compare with the PDF before saving.</div>`;
+    return `<div class="inv-review${inv.ok ? "" : " bad"}">
+      <div class="inv-review-top">
+        <div><strong>${escapeHtml(inv.supplier)}</strong>
+          <div class="inv-sub">${inv.kind === "credit" ? "Credit note" : "Invoice"} ${escapeHtml(inv.number || "?")} · ${escapeHtml(invDate(inv.date))} · ${inv.lines.length} lines</div></div>
+        <div class="inv-amount">${escapeHtml(invMoney(inv.total))}</div>
+      </div>
+      ${flag}
+      ${r.saved ? "" : `<div class="inv-review-actions">
+        <button type="button" data-inv-dismiss="${i}">Don't save</button>
+        <button type="button" class="save" data-inv-save="${i}">Save</button></div>`}
+    </div>`;
+  }).join("");
+}
+
+async function invReadFiles(files) {
+  invClearMsg();
+  const start = invState.review.length;
+  for (const f of files) invState.review.push({ file: f.name, reading: true });
+  invRenderReview();
+  for (let k = 0; k < files.length; k++) {
+    const f = files[k], slot = invState.review[start + k];
+    try {
+      if (f.size > 20 * 1024 * 1024) throw new Error("This file is too big for an invoice.");
+      const inv = await window.MarinaraInvoiceReader.readPdf(new Uint8Array(await f.arrayBuffer()), "./");
+      slot.reading = false;
+      if (inv.error) slot.error = "This supplier's layout isn't known yet. Send this PDF to Fred so it can be added.";
+      else slot.invoice = inv;
+    } catch (error) {
+      slot.reading = false;
+      slot.error = "Could not read this PDF. " + (error?.message || "");
+    }
+    invRenderReview();
+  }
+}
+
+async function loadInvoices() {
+  const { from, to } = invPeriodRange(invState.period);
+  try {
+    const data = await managerApi("manager_invoice_list", { from, to });
+    document.getElementById("invPlace").textContent = data.location || "Hawthorne";
+    const sum = document.getElementById("invSummary");
+    sum.className = "";
+    sum.innerHTML = `<div class="inv-sum-total"><span>${escapeHtml(invDate(from))} – ${escapeHtml(invDate(to))}</span><strong>${escapeHtml(invMoney(data.total))}</strong></div>` +
+      ((data.by_supplier || []).length
+        ? data.by_supplier.map(s => `<div class="inv-sum-row"><span>${escapeHtml(s.supplier)} <small style="color:var(--muted)">· ${s.count}</small></span><strong>${escapeHtml(invMoney(s.total))}</strong></div>`).join("")
+        : `<div class="empty-state">No invoices in this period yet.</div>`);
+    const list = document.getElementById("invList");
+    const invs = data.invoices || [];
+    list.className = invs.length ? "" : "hidden";
+    list.innerHTML = invs.length ? invs.map(inv => {
+      const open = invState.open[inv.id], lines = invState.lines[inv.id];
+      return `<div class="inv-item">
+        <button type="button" class="inv-head" data-inv-open="${escapeHtml(inv.id)}">
+          <span><strong>${escapeHtml(inv.supplier)}</strong>
+            <span class="inv-sub" style="display:block">${inv.kind === "credit" ? "Credit " : ""}#${escapeHtml(inv.number)} · ${escapeHtml(invDate(inv.invoice_date))} · ${inv.line_count} lines${inv.checks_ok ? "" : " · ⚠ check"}</span></span>
+          <span class="inv-amount">${escapeHtml(invMoney(inv.total))}</span>
+        </button>
+        ${open ? `<div class="inv-lines">${lines ? lines.map(l => `<div class="inv-line"><span>${escapeHtml(l.description)}</span><strong>${escapeHtml(invMoney(l.line_total))}</strong>
+            <small>${l.code ? escapeHtml(l.code) + " · " : ""}${l.qty ?? ""} ${escapeHtml(l.unit || "")}${l.unit_price != null ? " × " + escapeHtml(invMoney(l.unit_price)) : ""}${Number(l.gst) ? " · GST " + escapeHtml(invMoney(l.gst)) : ""}</small></div>`).join("") : "Loading…"}</div>
+          <button type="button" class="inv-remove" data-inv-remove="${escapeHtml(inv.id)}">Remove this invoice</button>` : ""}
+      </div>`;
+    }).join("") : "";
+  } catch (error) {
+    invMsg(error.message || "Unable to load invoices.", false);
+  }
+}
+
+async function loadInvoicePrices() {
+  const box = document.getElementById("invPrices");
+  try {
+    const data = await managerApi("manager_invoice_prices");
+    const list = data.changes || [];
+    box.className = list.length ? "" : "empty-state";
+    box.innerHTML = list.length ? list.map(c => {
+      const up = Number(c.change_pct) > 0;
+      return `<div class="inv-price"><strong>${escapeHtml(c.description)}</strong>
+        <span class="chg ${up ? "up" : "down"}">${up ? "▲" : "▼"} ${Math.abs(Number(c.change_pct))}%</span>
+        <small>${escapeHtml(c.supplier)} · ${escapeHtml(invMoney(c.previous_price))} (${escapeHtml(invDate(c.previous_date))}) → ${escapeHtml(invMoney(c.latest_price))} (${escapeHtml(invDate(c.latest_date))})${c.unit ? " · " + escapeHtml(c.unit) : ""}</small></div>`;
+    }).join("") : "No price changes yet. They show up once the same product appears on two invoices.";
+  } catch (error) {
+    box.className = "empty-state"; box.textContent = error.message || "Unable to load price changes.";
+  }
+}
+
+function invShowTab(tab) {
+  invState.tab = tab;
+  document.querySelectorAll("#invTabs [data-inv-tab]").forEach(b => b.classList.toggle("selected", b.dataset.invTab === tab));
+  document.getElementById("invListView").classList.toggle("hidden", tab !== "list");
+  document.getElementById("invPricesView").classList.toggle("hidden", tab !== "prices");
+  if (tab === "list") loadInvoices(); else loadInvoicePrices();
+}
+
+async function openInvoicesScreen() {
+  [managerMoreScreen, managerScreen, approvalsScreen, staffHoursScreen, teamScreen, rosterScreen, timeOffScreen,
+    timesheetsScreen, devicesScreen, stockScreen, recipesScreen].forEach(el => el?.classList.add("hidden"));
+  invClearMsg();
+  invoicesScreen.classList.remove("hidden");
+  setManagerNavActive("more");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  for (const id of ["invSummary", "invList"]) { const b = document.getElementById(id); b.className = "empty-state"; b.textContent = "Loading…"; }
+  invShowTab("list");
+}
+document.getElementById("moreInvoicesBtn")?.addEventListener("click", openInvoicesScreen);
+document.getElementById("invoicesCard")?.addEventListener("click", openInvoicesScreen);
+document.getElementById("backInvoicesBtn")?.addEventListener("click", () => {
+  invoicesScreen.classList.add("hidden");
+  openManagerMore();
+});
+document.addEventListener("click", event => {
+  if (!invoicesScreen || invoicesScreen.classList.contains("hidden")) return;
+  const nav = event.target.closest("[data-manager-nav], .manager-quick-card, .more-v2-item, #managerLogoutBtn, #moreSignOutBtn");
+  if (nav && nav.id !== "moreInvoicesBtn" && nav.id !== "invoicesCard") invoicesScreen.classList.add("hidden");
+}, true);
+document.getElementById("invFiles")?.addEventListener("change", e => {
+  const files = [...(e.target.files || [])];
+  e.target.value = "";
+  if (files.length) invReadFiles(files);
+});
+invoicesScreen?.addEventListener("click", async e => {
+  const tab = e.target.closest("[data-inv-tab]");
+  if (tab) { invClearMsg(); invShowTab(tab.dataset.invTab); return; }
+  const per = e.target.closest("[data-inv-period]");
+  if (per) {
+    invState.period = per.dataset.invPeriod;
+    document.querySelectorAll("#invPeriods [data-inv-period]").forEach(b => b.classList.toggle("selected", b === per));
+    loadInvoices(); return;
+  }
+  const dis = e.target.closest("[data-inv-dismiss]");
+  if (dis) { invState.review.splice(Number(dis.dataset.invDismiss), 1); invRenderReview(); return; }
+  const save = e.target.closest("[data-inv-save]");
+  if (save) {
+    const slot = invState.review[Number(save.dataset.invSave)];
+    if (!slot?.invoice) return;
+    save.disabled = true;
+    const inv = slot.invoice;
+    try {
+      await managerApi("manager_invoice_save", { invoice: {
+        supplier: inv.supplier, number: inv.number, kind: inv.kind, date: inv.date,
+        subtotal: inv.subtotal, gst: inv.gst, total: inv.total, checks_ok: inv.ok, file_name: slot.file, lines: inv.lines,
+      } });
+      slot.saved = true;
+      invRenderReview();
+      invMsg(`Saved: ${inv.supplier} #${inv.number}.`, true);
+      loadInvoices();
+    } catch (error) {
+      save.disabled = false;
+      invMsg(error.message || "Unable to save the invoice.", false);
+    }
+    return;
+  }
+  const open = e.target.closest("[data-inv-open]");
+  if (open) {
+    const id = open.dataset.invOpen;
+    invState.open[id] = !invState.open[id];
+    loadInvoices();
+    if (invState.open[id] && !invState.lines[id]) {
+      try {
+        const data = await managerApi("manager_invoice_get", { id });
+        invState.lines[id] = data.invoice.lines || [];
+        loadInvoices();
+      } catch (error) { invMsg(error.message || "Unable to open the invoice.", false); }
+    }
+    return;
+  }
+  const rm = e.target.closest("[data-inv-remove]");
+  if (rm) {
+    if (rm.dataset.confirm !== "1") { rm.dataset.confirm = "1"; rm.textContent = "Tap again to remove"; return; }
+    try {
+      await managerApi("manager_invoice_remove", { id: rm.dataset.invRemove });
+      invMsg("Invoice removed.", true);
+      loadInvoices();
+    } catch (error) { invMsg(error.message || "Unable to remove the invoice.", false); }
+  }
+});
+
 /* RECIPES AND ALLERGENS */
 const recipesScreen = document.getElementById("recipesScreen");
 // What the kitchen marks on an ingredient (what it really is)...
@@ -7955,6 +8245,7 @@ async function openRecipesScreen() {
   timesheetsScreen.classList.add("hidden");
   devicesScreen?.classList.add("hidden");
   stockScreen?.classList.add("hidden");
+  document.getElementById("invoicesScreen")?.classList.add("hidden");
   rcpCloseForms();
   rcpClearMsg();
   recipesScreen.classList.remove("hidden");
