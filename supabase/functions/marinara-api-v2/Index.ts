@@ -338,6 +338,8 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   RECIPE_NOT_FOUND: [404, "Recipe not found"],
   INVOICE_NOT_FOUND: [404, "Invoice not found"],
   INVOICE_DUPLICATE: [409, "This invoice is already saved."],
+  INGREDIENT_NOT_FOUND: [404, "Ingredient not found"],
+  NAME_IS_A_DISH: [409, "There is already a dish with this name. Rename the ingredient first."],
 };
 
 // WEBPUSH-START
@@ -1417,6 +1419,9 @@ Deno.serve(async (req) => {
         "manager_invoice_remove",
         "manager_invoice_prices",
         "manager_invoice_usage",
+        "manager_ingredient_costs",
+        "manager_ingredient_cost_save",
+        "manager_ingredient_make_recipe",
         "manager_recipe_save",
         "manager_recipe_remove",
         "manager_recipe_ingredient_save",
@@ -3129,9 +3134,9 @@ Deno.serve(async (req) => {
       }
 
       // =========================
-      // SUPPLIER INVOICES (Administrator)
+      // SUPPLIER INVOICES and INGREDIENT COSTS (Administrator, Kitchen Manager)
       // =========================
-      if (action.startsWith("manager_invoice_")) {
+      if (action.startsWith("manager_invoice_") || action.startsWith("manager_ingredient_cost") || action === "manager_ingredient_make_recipe") {
         const isUuid = (v: string) =>
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
         const isDate = (v: any) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
@@ -3183,6 +3188,45 @@ Deno.serve(async (req) => {
           });
           if (error) return managerDbError(error, "Unable to load price changes", 500);
           return json({ success: true, action, data: { changes: data || [] } });
+        }
+
+        if (action === "manager_ingredient_costs") {
+          const { data, error } = await supabase.rpc("manager_ingredient_costs", {
+            p_manager_id: managerStatus.id, p_location: location,
+          });
+          if (error) return managerDbError(error, "Unable to load ingredient costs", 500);
+          return json({ success: true, action, data });
+        }
+
+        if (action === "manager_ingredient_make_recipe") {
+          const id = typeof body.ingredient_id === "string" ? body.ingredient_id : "";
+          if (!isUuid(id)) return json({ error: "Ingredient not found", code: "INGREDIENT_NOT_FOUND" }, 404);
+          const { data, error } = await supabase.rpc("manager_ingredient_make_recipe", {
+            p_manager_id: managerStatus.id, p_location: location, p_ingredient_id: id,
+          });
+          if (error) return managerDbError(error, "Unable to make it a recipe");
+          return json({ success: true, action, data });
+        }
+
+        if (action === "manager_ingredient_cost_save") {
+          const id = typeof body.ingredient_id === "string" ? body.ingredient_id : "";
+          if (!isUuid(id)) return json({ error: "Ingredient not found", code: "INGREDIENT_NOT_FOUND" }, 404);
+          let link: any = null;
+          if (body.link && typeof body.link === "object") {
+            const l = body.link;
+            const count = amount(l.pack_count, 10001), size = amount(l.pack_size, 100001);
+            const unit = ["kg", "g", "l", "ml", "each"].includes(l.pack_unit) ? l.pack_unit : "";
+            link = { supplier: text(l.supplier, 80), product_key: text(l.product_key, 300), label: text(l.label, 300),
+              pack_count: count, pack_size: size, pack_unit: unit };
+            if (!link.supplier || !link.product_key || !unit || !count || count <= 0 || !size || size <= 0) {
+              return json({ error: "Check the product and what the price buys (e.g. 6 x 2 kg).", code: "INVALID_INPUT" }, 400);
+            }
+          }
+          const { data, error } = await supabase.rpc("manager_ingredient_cost_save", {
+            p_manager_id: managerStatus.id, p_location: location, p_ingredient_id: id, p_link: link,
+          });
+          if (error) return managerDbError(error, "Unable to save the ingredient cost");
+          return json({ success: true, action, data });
         }
 
         if (action === "manager_invoice_usage") {

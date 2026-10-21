@@ -22,6 +22,7 @@ const HTML = readFileSync(resolve(root, "index.html"));
 const STOCK = "supabase/migrations/20261021000000_stock_par.sql";
 const RECIPES = "supabase/migrations/20261022000000_recipes.sql";
 const INVOICES = "supabase/migrations/20261022030000_invoices.sql";
+const COSTS = "supabase/migrations/20261022040000_ingredient_costs.sql";
 
 let failures = 0;
 const log = (...a) => console.log(...a);
@@ -49,7 +50,7 @@ for (const f of [MIGRATION_A, MIGRATION_B,
   STOCK, "supabase/migrations/20261021010000_roster_roles.sql", "supabase/migrations/20261021020000_roster_order.sql", "supabase/migrations/20261021030000_floor_services.sql", "supabase/migrations/20261021040000_push.sql", "supabase/migrations/20261021050000_push_badge.sql", RECIPES]) { const r = db.psqlFile(f); if (!r.ok) throw new Error(`${f}: ${r.stderr}`); }
 useDatabase(db.svc);
 await reseed(db);
-for (const f of [STOCK, RECIPES, "supabase/migrations/20261022010000_recipes_kids_pasta.sql", "supabase/migrations/20261022020000_recipes_dairy_kinds.sql", INVOICES]) { const r = db.psqlFile(f); if (!r.ok) throw new Error(r.stderr); } // reseed's cascade emptied them
+for (const f of [STOCK, RECIPES, "supabase/migrations/20261022010000_recipes_kids_pasta.sql", "supabase/migrations/20261022020000_recipes_dairy_kinds.sql", INVOICES, COSTS]) { const r = db.psqlFile(f); if (!r.ok) throw new Error(r.stderr); } // reseed's cascade emptied them
 const handler = await loadHandler(resolve(root, "supabase/functions/marinara-api-v2/Index.ts"));
 
 const server = await new Promise((ok) => {
@@ -217,6 +218,70 @@ try {
     await gm.page.click('[data-inv-tab="list"]');
     await waitList(gm);
     return sum.slice(0, 90);
+  });
+
+  await check("costs: link an ingredient to an invoice product and see its price per kg", async () => {
+    await gm.page.click('[data-inv-tab="costs"]');
+    await gm.page.waitForSelector("#invCosts .inv-cost");
+    const sum = (await gm.page.innerText("#invCostsSummary")).replace(/\s+/g, " ");
+    assert.match(sum, /0 Linked/i); assert.match(sum, /0 Made here/i); assert.match(sum, /2 products in your invoices/i);
+    await gm.page.fill("#invCostsSearch", "tomato");
+    const head = gm.page.locator(".inv-cost-head", { hasText: /^Tomato\s*Link/ });
+    await head.first().click();
+    await gm.page.waitForSelector(".inv-cost-edit .inv-prod");
+    const sugg = await gm.page.locator(".inv-cost-edit .inv-prod").allInnerTexts();
+    assert.match(sugg[0], /TEST TOMATOES/); assert.doesNotMatch(sugg.join(" "), /NAPKINS/);
+    await gm.page.locator(".inv-cost-edit .inv-prod").first().click();
+    await gm.page.waitForSelector("#invCostResult");
+    assert.equal(await gm.page.textContent("#invCostResult"), "= $5.50 per kg");
+    // A carton of 2 x 5 kg would be $0.55 per kg (live, before saving)
+    await gm.page.fill('[data-inv-pack="count"]', "2");
+    await gm.page.fill('[data-inv-pack="size"]', "5");
+    assert.equal(await gm.page.textContent("#invCostResult"), "= $0.55 per kg");
+    await gm.page.fill('[data-inv-pack="count"]', "1");
+    await gm.page.fill('[data-inv-pack="size"]', "1");
+    await gm.shot("invoices_costs_edit");
+    await gm.page.click("[data-inv-cost-save]");
+    await gm.page.waitForSelector("#invMessage.ok");
+    assert.match(await gm.page.textContent("#invMessage"), /linked/);
+    await gm.page.click('[data-inv-costs-filter="done"]');
+    await gm.page.fill("#invCostsSearch", "");
+    const linked = await gm.page.locator("#invCosts .inv-cost").allInnerTexts();
+    await gm.shot("invoices_costs_linked");
+    assert.equal(linked.length, 1);
+    assert.match(linked[0], /Tomato/); assert.match(linked[0], /\$5\.50\/kg/); assert.match(linked[0], /TEST TOMATOES/);
+    await gm.page.click('[data-inv-tab="list"]');
+    await waitList(gm);
+    return linked[0].replace(/\s+/g, " ");
+  });
+
+  await check("costs: Pizza dough is made in the kitchen -> its own recipe, opened in Recipes", async () => {
+    await gm.page.click('[data-inv-tab="costs"]');
+    await gm.page.waitForSelector("#invCosts .inv-cost");
+    await gm.page.click('[data-inv-costs-filter="todo"]');
+    await gm.page.fill("#invCostsSearch", "pizza dough");
+    await gm.page.locator(".inv-cost-head", { hasText: "Pizza dough" }).first().click();
+    const btn = gm.page.locator("[data-inv-cost-made]");
+    await btn.click();
+    assert.match(await btn.textContent(), /Tap again/);
+    await btn.click();
+    await gm.page.waitForSelector("#invMessage.ok");
+    assert.match(await gm.page.textContent("#invMessage"), /Pizza dough is now its own recipe, used by \d+ recipes/);
+    await gm.page.click('[data-inv-costs-filter="made"]');
+    const rows = await gm.page.locator("#invCosts .inv-cost").allInnerTexts();
+    assert.equal(rows.length, 1); assert.match(rows[0], /Made here/); assert.match(rows[0], /to fill in/);
+    await gm.page.locator(".inv-cost-head", { hasText: "Pizza dough" }).click();
+    await gm.shot("invoices_costs_made");
+    await gm.page.click("[data-inv-open-recipe]");
+    await gm.page.waitForSelector("#recipesScreen:not(.hidden)");
+    await gm.page.waitForSelector("#rcpRecipeList .rcp-detail");
+    const txt = await gm.page.innerText("#rcpRecipeList");
+    assert.match(txt, /Pizza dough/); assert.match(txt, /To fill in/);
+    await gm.page.click('[data-manager-nav="more"]');
+    await gm.page.click("#moreInvoicesBtn");
+    await gm.page.waitForSelector("#invoicesScreen:not(.hidden)");
+    await waitList(gm);
+    return rows[0].replace(/\s+/g, " ");
   });
 
   await check("open an invoice to see its lines; remove needs two taps", async () => {

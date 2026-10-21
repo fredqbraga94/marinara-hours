@@ -110,8 +110,8 @@ try {
   await check("Home: restaurant header, today's numbers, grouped shortcuts; Recipes tile opens recipes", async () => {
     await km.page.waitForFunction(() => !/Loading/.test(document.getElementById("workingList").textContent));
     const header = (await km.page.textContent(".header")).replace(/\s+/g, " ").trim();
-    const groups = await km.page.locator("#managerScreen .home-group").allTextContents();
-    const stats = await km.page.locator("#managerScreen .home-stat-l").allTextContents();
+    const groups = await km.page.locator("#managerScreen .home-group:visible").allTextContents();
+    const stats = await km.page.locator("#managerScreen .home-stat-l:visible").allTextContents();
     await km.shot("home_kitchen_manager");
     assert.match(header, /Hawthorne Restaurant manager/);
     assert.deepEqual(groups, ["Team & hours", "Kitchen & floor"]);
@@ -296,30 +296,100 @@ try {
   await fm.close();
   const desk = await phone({ viewport: { width: 1440, height: 900 } });
   await desk.login(PIN[ID(1)]);
-  await check("Laptop/desktop: side menu and wide home for managers; staff screens unchanged", async () => {
+  await check("Laptop/desktop: overview with the four areas, grouped side menu; sign out from More", async () => {
     await desk.page.waitForFunction(() => !/Loading/.test(document.getElementById("workingList").textContent));
+    await desk.page.waitForSelector("#deskAreas .desk-area-card");
+    await desk.page.waitForFunction(() => /To order|No stock count/.test(document.getElementById("deskStats").textContent));
     const nav = await desk.page.locator(".manager-bottom-nav").boundingBox();
-    const tiles = await desk.page.locator("#managerScreen .home-tiles").first().locator(".home-tile").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
-    const cards = await desk.page.locator("#managerScreen > .card").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+    const top = (sel) => desk.page.locator(sel).evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+    const stats = await top("#deskStats .desk-stat");
+    const areas = await desk.page.locator("#deskAreas h3").allInnerTexts();
+    const areaTops = await top("#deskAreas .desk-area-card");
+    const pair = await top("#managerScreen > .desk-attention, #managerScreen > .desk-today");
+    const att = await desk.page.innerText("#deskAttention");
+    const today = await desk.page.innerText("#deskToday");
+    const head = await desk.page.innerText("#managerScreen .week-head");
+    const title = await desk.page.innerText(".desk-title");
     await desk.shot("desktop_home");
-    await desk.page.click("#rosterCard");
+    assert.ok(nav.x === 0 && nav.width < 300 && nav.height > 800, JSON.stringify(nav)); // a left side menu
+    assert.equal(title, "Restaurant overview");
+    assert.equal(stats.length, 4); assert.equal(new Set(stats).size, 1, "four numbers on one row");
+    assert.deepEqual(areas, ["Team & Hours", "Stock & Orders", "Kitchen & Recipes", "Invoices & Costs"]);
+    assert.equal(areaTops[0], areaTops[1]); assert.equal(areaTops[2], areaTops[3]); assert.ok(areaTops[2] > areaTops[0], "2 x 2");
+    assert.equal(pair.length, 2); assert.equal(pair[0], pair[1], "Needs attention and Today side by side");
+    assert.equal(await desk.page.locator("#deskAttention").isVisible(), true);
+    assert.equal(await desk.page.locator("#deskToday").isVisible(), true);
+    assert.ok(pair[0] > areaTops[2], "below the areas");
+    assert.match(att, /Needs attention/); assert.match(att, /2 shifts awaiting approval/);
+    assert.match(today, /Today at Hawthorne/); assert.match(today, /2 working/);
+    assert.match(head, /EMPLOYEE\s*DEPARTMENT\s*SHIFTS\s*TOTAL HOURS/i);
+    // area buttons open their screens
+    await desk.page.click('#deskAreas [data-desk-card="rosterCard"]');
     await desk.page.waitForSelector("#rosterGridBox .roster-grid");
     await desk.shot("desktop_roster");
-    await desk.page.click('[data-manager-nav="more"]');
-    await desk.page.click("#moreRecipesBtn");
-    await desk.page.waitForFunction(() => !/Loading/.test(document.getElementById("rcpAllergenList").textContent));
+    // side menu: four areas that open to their sections
+    const areaNames = (await desk.page.locator("[data-desk-area]").allInnerTexts()).map((t) => t.replace(/[›\d]/g, "").trim());
+    assert.deepEqual(areaNames, ["Team & Hours", "Stock & Orders", "Kitchen & Recipes", "Invoices & Costs"]);
+    assert.equal(await desk.page.locator('[data-desk-area="team"]').getAttribute("aria-expanded"), "true", "opens where you are");
+    assert.match(await desk.page.getAttribute('[data-desk-key="moreRosterBtn"]', "class"), /active/);
+    await desk.page.click('[data-desk-area="invoices"]');
+    await desk.page.click('[data-desk-key="moreInvoicesBtn:costs"]');
+    await desk.page.waitForSelector("#invoicesScreen:not(.hidden) #invCostsView:not(.hidden)");
+    assert.match(await desk.page.getAttribute('[data-desk-key="moreInvoicesBtn:costs"]', "class"), /active/);
+    assert.equal(await desk.page.locator('[data-desk-area="team"]').getAttribute("aria-expanded"), "false");
+    await desk.page.click('[data-desk-area="team"]');
+    await desk.page.click('[data-desk-nav="approvals"]');
+    await desk.page.waitForSelector("#approvalsScreen:not(.hidden)");
+    assert.equal(await desk.page.locator("#invoicesScreen").isVisible(), false);
+    assert.match(await desk.page.getAttribute('[data-desk-nav="approvals"]', "class"), /active/);
+    await desk.page.click('[data-desk-area="kitchen"]');
+    await desk.page.click('[data-desk-key="moreRecipesBtn"]');
+    await desk.page.waitForSelector("#recipesScreen:not(.hidden)");
+    await desk.page.waitForFunction(() => document.querySelector('#recipesTabs [data-rcp-tab="recipes"]')?.classList.contains("selected"));
     await desk.shot("desktop_recipes");
-    assert.ok(nav.x === 0 && nav.width < 300 && nav.height > 800, JSON.stringify(nav)); // a left side menu
-    assert.equal(new Set(tiles).size, 1, "six tiles on one row");
-    assert.equal(cards[0], cards[1], "Who's working and This week side by side");
     await desk.page.click('[data-manager-nav="home"]');
-    await desk.page.click("#managerLogoutBtn");
+    await desk.page.waitForSelector("#managerScreen:not(.hidden)");
+    assert.equal(await desk.page.locator("[data-desk-key].active, [data-desk-nav].active").count(), 0);
+    assert.match(await desk.page.innerText(".desk-foot"), /Test General Manager\s*Administrator/);
+    assert.equal(await desk.page.locator("#managerLogoutBtn").isVisible(), false, "sign out lives in More");
+    await desk.page.click(".desk-foot");
+    await desk.page.waitForSelector("#managerMoreScreen:not(.hidden)");
+    await desk.page.click("#moreSignOutBtn");
     await desk.page.waitForSelector("#loginScreen:not(.hidden)");
     assert.equal(await desk.page.evaluate(() => document.body.classList.contains("mgr-mode")), false);
     assert.deepEqual(desk.errors, []);
-    return `side menu ${nav.width}px; 6 tiles per row; cards side by side; sign out back to normal`;
+    return `4 numbers, 4 areas (2 x 2), attention + today; side menu ${nav.width}px with 4 areas`;
   });
   await desk.close();
+  await check("Laptop/desktop: Floor Manager sees Allergens and no Invoices & Costs", async () => {
+    const fd = await phone({ viewport: { width: 1440, height: 900 } });
+    await fd.login(PIN[ID(3)]);
+    await fd.page.waitForSelector("#deskAreas .desk-area-card");
+    const areas = (await fd.page.locator("[data-desk-area]").allInnerTexts()).map((t) => t.replace(/[›\d]/g, "").trim());
+    const cards = await fd.page.locator("#deskAreas h3").allInnerTexts();
+    assert.deepEqual(areas, ["Team & Hours", "Stock & Orders", "Allergens"]);
+    assert.ok(cards.includes("Allergens") && !cards.includes("Invoices & Costs"), cards.join(","));
+    assert.match(await fd.page.innerText("#deskStats"), /Time off requests/);
+    assert.match(await fd.page.innerText(".desk-foot"), /Floor Manager/);
+    await fd.page.click('[data-desk-area="kitchen"]');
+    await fd.page.click('[data-desk-key="moreRecipesBtn"]');
+    await fd.page.waitForSelector("#recipesScreen:not(.hidden)");
+    assert.deepEqual(fd.errors, []);
+    await fd.close();
+    return areas.join(", ");
+  });
+  // A phone never shows the extra links.
+  await check("Phone: bottom bar keeps 4 buttons", async () => {
+    const ph = await phone();
+    await ph.login(PIN[ID(1)]);
+    assert.equal(await ph.page.locator("#deskNavLinks").isVisible(), false);
+    assert.equal(await ph.page.locator("#deskAreas").isVisible(), false);
+    assert.equal(await ph.page.locator(".desk-foot").isVisible(), false);
+    const visible = await ph.page.locator("#managerBottomNav [data-manager-nav]").evaluateAll((els) => els.filter((e) => e.offsetParent).length);
+    assert.equal(visible, 4);
+    await ph.close();
+    return "4";
+  });
 } finally {
   await browser.close();
   server.close();

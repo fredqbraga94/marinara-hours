@@ -1350,6 +1350,30 @@ body.mgr-mode #recipesTabs { background: #ece7dd; }
 body.mgr-mode #recipesTabs button.selected { color: var(--ink, #000); }
 
 /* SUPPLIER INVOICES */
+.inv-cost { border-top: 1px solid var(--border); padding: 12px 0; }
+.inv-cost:first-child { border-top: 0; }
+.inv-cost-head { width: 100%; border: 0; background: transparent; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; text-align: left; color: var(--text); cursor: pointer; }
+.inv-cost-head strong { font-size: 15px; }
+.inv-cost-head small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.inv-cost-head .val { text-align: right; white-space: nowrap; font-weight: 900; color: var(--basil, #1e5a3c); }
+.inv-cost-head .val.todo { color: #b3261e; font-weight: 800; font-size: 13px; }
+.inv-cost-edit { margin-top: 10px; background: #fafbfa; border: 1px solid var(--border); border-radius: 14px; padding: 10px 12px; }
+.inv-cost-edit h4 { margin: 4px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.inv-prod { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; text-align: left; border: 1px solid #e7e2d8; background: #fff; border-radius: 12px; padding: 9px 11px; margin-bottom: 6px; font-size: 13px; color: var(--text); cursor: pointer; }
+.inv-prod.sel { border-color: var(--basil, #1e5a3c); box-shadow: 0 0 0 2px #cfe3d6; }
+.inv-prod small { grid-column: 1 / -1; color: var(--muted); font-size: 11px; }
+.inv-pack { display: grid; grid-template-columns: 1fr auto 1fr 1fr; gap: 6px; align-items: center; margin: 6px 0; }
+.inv-pack input, .inv-pack select { min-height: 42px; border: 1px solid #e7e2d8; border-radius: 10px; padding: 0 10px; font-size: 16px; background: #fff; width: 100%; }
+.inv-pack span { font-weight: 800; color: var(--muted); }
+.inv-cost-result { font-weight: 900; font-size: 16px; margin: 6px 0; }
+.inv-cost-warn { background: #fff4d6; color: #8a5a00; border-radius: 10px; padding: 7px 10px; font-size: 12px; font-weight: 700; margin: 6px 0; }
+.inv-cost-actions { display: flex; gap: 8px; margin-top: 8px; }
+.inv-cost-actions button { flex: 1; min-height: 42px; border-radius: 12px; border: 1px solid #e7e2d8; background: #fff; font-weight: 800; font-size: 13px; }
+.inv-cost-actions .save { background: var(--green); border-color: var(--green); color: #fff; }
+.inv-cost-actions .unlink { color: #9a6b66; }
+.inv-cost-head .val.made { color: #8a5a00; font-size: 13px; font-weight: 800; }
+.inv-made-btn { width: 100%; margin-top: 10px; min-height: 42px; border-radius: 12px; border: 1px dashed #c9b98f; background: #fffaf0; color: #6b5200; font-weight: 800; font-size: 13px; }
+.inv-made-note { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
 .inv-search { width: 100%; min-height: 44px; border: 1px solid #e7e2d8; border-radius: 12px; padding: 0 14px; font-size: 15px; background: #fff; margin: 0 0 12px; }
 .inv-use-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .inv-use-kpis div { background: #f7f5f0; border-radius: 12px; padding: 10px; }
@@ -1506,6 +1530,241 @@ body.mgr-mode #invoicesScreen .card { border: 1px solid #e7e2d8; box-shadow: non
 .stock-min-row input{min-height:42px;border:1.5px solid var(--border);border-radius:11px;text-align:center;font-size:16px;width:100%;box-sizing:border-box}
 .stock-min-row button{min-height:42px;border-radius:11px;border:0;background:var(--green-light);color:var(--green);font-weight:850;padding:0 12px}
 button:disabled{opacity:.6}
+
+/* DESKTOP / LAPTOP, refined (managers only, 1000px and wider): black side
+   menu with the Marinara logo, roomier page, bigger numbers and tiles.
+   Phones are unchanged. */
+.nav-brand { display: none; }
+@media (min-width: 1000px) {
+  body.mgr-mode { padding-left: 264px; }
+  body.mgr-mode .header { display: none; }
+  body.mgr-mode .app { max-width: 1200px; }
+  body.mgr-mode .content { padding: 40px 52px 56px; }
+  body.mgr-mode .manager-bottom-nav {
+    width: 264px; padding: 0 16px 24px; gap: 4px; background: #0b0b0b; border-right: 0;
+    box-shadow: 1px 0 0 rgba(0,0,0,.04);
+  }
+  body.mgr-mode .nav-brand {
+    display: block; text-align: center; padding: calc(30px + env(safe-area-inset-top)) 8px 24px;
+    margin: 0 -16px 18px; border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  body.mgr-mode .nav-brand img { display: block; width: 178px; height: auto; margin: 0 auto; }
+  body.mgr-mode .nav-brand span {
+    display: block; margin-top: 10px; color: #fff; font-family: Cinzel, Georgia, serif;
+    font-size: 14px; font-weight: 600; letter-spacing: 4px; text-transform: uppercase;
+  }
+  body.mgr-mode .nav-brand i {
+    display: block; width: 64px; height: 3px; margin: 12px auto 0; border-radius: 2px;
+    background: linear-gradient(90deg, #1f8a4c 0 33.3%, #fff 33.3% 66.6%, #c8102e 66.6%);
+  }
+  body.mgr-mode .manager-nav-item {
+    color: rgba(255,255,255,.62); font-size: 15px; min-height: 50px; border-radius: 12px; padding: 0 16px;
+  }
+  body.mgr-mode .manager-nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  body.mgr-mode .manager-nav-item.active {
+    background: rgba(255,255,255,.10); color: #fff; box-shadow: inset 3px 0 0 var(--pomodoro);
+  }
+  body.mgr-mode .count-badge.nav { box-shadow: none; }
+  /* Home */
+  body.mgr-mode .manager-v2-hero { margin: 0 0 26px; }
+  body.mgr-mode .manager-v2-greeting { font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 40px; letter-spacing: 0; }
+  body.mgr-mode .manager-v2-role { font-size: 15px; }
+  body.mgr-mode .home-today { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-bottom: 8px; }
+  body.mgr-mode .home-stat {
+    padding: 22px 24px; border-radius: 20px; gap: 8px; border-left: 4px solid var(--basil);
+  }
+  body.mgr-mode .home-stat.alert { border-left-color: var(--pomodoro); }
+  body.mgr-mode .home-stat-n { font-size: 46px; }
+  body.mgr-mode .home-stat-l { font-size: 14px; color: #55524c; }
+  body.mgr-mode .home-group { font-size: 21px; margin: 36px 2px 14px; }
+  body.mgr-mode .home-tiles { gap: 16px; }
+  body.mgr-mode .home-tile.manager-quick-card {
+    min-height: 156px; padding: 20px; border-radius: 20px; display: flex; flex-direction: column;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  body.mgr-mode .home-tile.manager-quick-card:hover {
+    transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,.07); border-color: #d9d2c4;
+  }
+  body.mgr-mode .home-tile .manager-quick-icon {
+    width: 48px; height: 48px; padding: 12px; border-radius: 14px; margin-bottom: auto; background: #e9f1ec;
+  }
+  body.mgr-mode .home-tile-k .manager-quick-icon { background: #f8e7e5; }
+  body.mgr-mode .home-tile strong { font-size: 16px; margin-top: 18px; }
+  body.mgr-mode .home-tile span:not(.count-badge) { font-size: 13px; }
+  body.mgr-mode .home-tile .count-badge { top: 16px; right: 16px; }
+  body.mgr-mode #managerScreen { column-gap: 22px; }
+  body.mgr-mode #managerScreen > .card { margin-top: 36px; padding: 26px 28px; min-height: 220px; }
+  body.mgr-mode #managerScreen .section-title { font-family: Cinzel, Georgia, serif; font-size: 21px; }
+  /* Other manager screens: same roomy page */
+  body.mgr-mode .manager-top { margin-bottom: 22px; }
+  body.mgr-mode .manager-top h2 { font-size: 34px; }
+}
+/* Full side menu on laptop / desktop */
+.desk-only { display: none; }
+@media (min-width: 1000px) {
+  body.mgr-mode .manager-bottom-nav { overflow-y: auto; overscroll-behavior: contain; }
+  body.mgr-mode .manager-bottom-nav .desk-only { display: flex; }
+  body.mgr-mode .desk-group {
+    display: block !important; color: rgba(255,255,255,.38); font-size: 11px; font-weight: 800;
+    letter-spacing: 1.4px; text-transform: uppercase; padding: 18px 16px 6px;
+  }
+  body.mgr-mode .manager-nav-item.desk-link { min-height: 42px; font-size: 14px; }
+  body.mgr-mode .manager-nav-item.desk-link .manager-nav-icon { width: 20px; height: 20px; }
+  body.mgr-mode .manager-nav-item.desk-k .manager-nav-icon { color: #f1a39b; }
+  body.mgr-mode .manager-nav-item.desk-link.active .manager-nav-icon { color: #fff; }
+  body.mgr-mode .desk-link .count-badge { margin-left: auto; box-shadow: none; }
+  body.mgr-mode #navMoreBadge { display: none; }
+  body.mgr-mode .desk-foot {
+    margin-top: auto; padding: 16px 8px 0; border-top: 1px solid rgba(255,255,255,.08);
+    align-items: center; gap: 12px;
+  }
+  body.mgr-mode .desk-av {
+    flex: 0 0 auto; width: 38px; height: 38px; border-radius: 50%; display: inline-flex; align-items: center;
+    justify-content: center; background: rgba(255,255,255,.12); color: #fff;
+    font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 16px;
+  }
+  body.mgr-mode .desk-who { min-width: 0; flex: 1; line-height: 1.25; }
+  body.mgr-mode .desk-who strong { display: block; color: #fff; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.mgr-mode .desk-who small { color: rgba(255,255,255,.5); font-size: 12px; }
+  body.mgr-mode .desk-out {
+    border: 1px solid rgba(255,255,255,.18); background: transparent; color: #f1a39b; border-radius: 10px;
+    padding: 7px 10px; font-size: 12px; font-weight: 800; cursor: pointer;
+  }
+  body.mgr-mode .desk-out:hover { background: rgba(255,255,255,.06); }
+  body.mgr-mode #managerLogoutBtn { display: none; }
+}
+/* Desktop overview (after Fred's concept): four numbers, the four areas,
+   needs attention + today, then who's working and this week. */
+@media (min-width: 1000px) {
+  body.mgr-mode .manager-bottom-nav > :is([data-manager-nav="approvals"], [data-manager-nav="team"], [data-manager-nav="more"]) { display: none; }
+  body.mgr-mode .manager-bottom-nav > [data-manager-nav="home"] > span:not(.manager-nav-icon) { font-size: 0; }
+  body.mgr-mode .manager-bottom-nav > [data-manager-nav="home"] > span:not(.manager-nav-icon)::after { content: "Overview"; font-size: 15px; }
+  body.mgr-mode .desk-foot { cursor: pointer; border-radius: 12px; }
+  body.mgr-mode .desk-out { font-size: 22px; line-height: 1; padding: 4px 10px; color: rgba(255,255,255,.7); border: 0; }
+  /* side menu areas */
+  body.mgr-mode .manager-nav-item.desk-area { font-size: 15px; min-height: 50px; margin-top: 4px; }
+  body.mgr-mode .manager-nav-item.desk-area.has-active { color: #fff; }
+  body.mgr-mode .desk-area-chev { margin-left: auto; font-style: normal; font-size: 18px; opacity: .6; transition: transform .15s ease; }
+  body.mgr-mode .desk-area.open .desk-area-chev { transform: rotate(90deg); }
+  body.mgr-mode .desk-area .count-badge { margin-left: auto; box-shadow: none; }
+  body.mgr-mode .desk-area .count-badge + .desk-area-chev { margin-left: 8px; }
+  body.mgr-mode .desk-sub { display: none; flex-direction: column; gap: 1px; padding: 2px 0 6px 34px; }
+  body.mgr-mode .desk-sub.open { display: flex; }
+  body.mgr-mode .manager-nav-item.desk-link { min-height: 38px; font-size: 14px; padding: 0 12px; }
+  body.mgr-mode .manager-nav-item.desk-link.active { box-shadow: inset 3px 0 0 var(--pomodoro); }
+  /* page layout */
+  body.mgr-mode #managerScreen { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 22px; }
+  body.mgr-mode #managerScreen.hidden { display: none; }
+  body.mgr-mode #managerScreen > * { grid-column: 1 / -1; order: 20; }
+  body.mgr-mode #managerScreen > .manager-v2-hero { order: 1; }
+  body.mgr-mode #managerScreen > #managerMessage { order: 2; }
+  body.mgr-mode #managerScreen > #managerHolidayNotice { order: 3; }
+  body.mgr-mode #managerScreen > .desk-stats { order: 4; }
+  body.mgr-mode #managerScreen > .desk-areas { order: 5; }
+  body.mgr-mode #managerScreen > .desk-attention { order: 6; grid-column: 1; }
+  body.mgr-mode #managerScreen > .desk-today { order: 7; grid-column: 2; }
+  body.mgr-mode #managerScreen > .desk-working { order: 8; grid-column: 1 / -1; }
+  body.mgr-mode #managerScreen > .desk-week { order: 9; grid-column: 1 / -1; }
+  body.mgr-mode #managerScreen > :is(.desk-attention, .desk-today) { display: block; }
+  body.mgr-mode #managerScreen > :is(.home-today, .home-group, .home-tiles) { display: none; }
+  body.mgr-mode #managerScreen > .card { margin-top: 22px; min-height: 0; padding: 24px 26px; align-self: stretch; }
+  /* hero */
+  body.mgr-mode .manager-v2-greeting, body.mgr-mode .manager-v2-role { display: none; }
+  body.mgr-mode .desk-hero { display: block; }
+  body.mgr-mode .desk-title { margin: 0; font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 42px; letter-spacing: 0; line-height: 1.1; }
+  body.mgr-mode .desk-hero p { margin: 6px 0 0; color: #5c5850; font-size: 17px; }
+  body.mgr-mode .desk-loc {
+    display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border: 1px solid #e7e2d8;
+    border-radius: 14px; background: #fff; font-weight: 700; font-size: 14px; white-space: nowrap;
+  }
+  body.mgr-mode .desk-loc svg { width: 18px; height: 18px; fill: none; stroke: var(--basil); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+  body.mgr-mode .manager-v2-hero { margin-bottom: 22px; }
+  /* shared icon tiles */
+  body.mgr-mode :is(.desk-stat-ico, .desk-area-ico, .desk-row-ico) svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  body.mgr-mode :is(.desk-stat, .desk-area-card, .desk-row-ico, .desk-tag).green { --tint: #e9f1ec; --ink2: var(--basil); }
+  body.mgr-mode :is(.desk-stat, .desk-area-card, .desk-row-ico, .desk-tag).amber { --tint: #fbedd3; --ink2: #8a5a00; }
+  body.mgr-mode :is(.desk-stat, .desk-area-card, .desk-row-ico, .desk-tag).blue { --tint: #e6edf5; --ink2: #2c4a6b; }
+  body.mgr-mode :is(.desk-stat, .desk-area-card, .desk-row-ico, .desk-tag).red { --tint: #f8e7e5; --ink2: var(--pomodoro); }
+  /* four numbers */
+  body.mgr-mode .desk-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  body.mgr-mode .desk-stat {
+    display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; column-gap: 16px; row-gap: 2px; align-items: center;
+    padding: 18px 20px; border: 1px solid #e7e2d8; border-radius: 18px; background: #fff; text-align: left; cursor: pointer; color: var(--text);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  body.mgr-mode .desk-stat:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,.07); }
+  body.mgr-mode .desk-stat-ico { grid-row: 1 / span 2; display: flex; width: 54px; height: 54px; padding: 14px; border-radius: 16px; background: var(--tint); color: var(--ink2); }
+  body.mgr-mode .desk-stat-n { font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 36px; line-height: 1; color: var(--ink2); }
+  body.mgr-mode .desk-stat-l { font-size: 14px; color: #5c5850; }
+  body.mgr-mode .desk-stat i { grid-column: 3; grid-row: 1 / span 2; font-style: normal; font-size: 22px; color: #8c877e; }
+  /* four areas */
+  body.mgr-mode .desk-areas { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+  body.mgr-mode .desk-area-card { display: flex; gap: 22px; padding: 24px 26px; border: 1px solid #e7e2d8; border-radius: 20px; background: #fff; }
+  body.mgr-mode .desk-area-ico { flex: 0 0 auto; display: flex; width: 92px; height: 92px; padding: 24px; border-radius: 22px; background: var(--tint); color: var(--ink2); }
+  body.mgr-mode .desk-area-card h3 { margin: 4px 0 4px; font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 26px; letter-spacing: 0; }
+  body.mgr-mode .desk-area-card p { margin: 0 0 16px; color: #5c5850; font-size: 15px; }
+  body.mgr-mode .desk-area-btns { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; }
+  body.mgr-mode .desk-btn {
+    border: 0; background: #e9f1ec; color: var(--basil); font-weight: 800; font-size: 14px; padding: 11px 18px;
+    border-radius: 12px; cursor: pointer;
+  }
+  body.mgr-mode .desk-btn:hover { background: #dbe9e0; }
+  body.mgr-mode .desk-btn.link { background: transparent; padding: 11px 2px; }
+  body.mgr-mode .desk-btn.link:hover { text-decoration: underline; }
+  /* needs attention / today rows */
+  body.mgr-mode :is(.desk-attention, .desk-today) .section-title { font-family: Cinzel, Georgia, serif; font-size: 22px; margin-bottom: 8px; }
+  body.mgr-mode .desk-row {
+    width: 100%; display: flex; align-items: center; gap: 16px; padding: 12px 2px; border: 0; border-top: 1px solid var(--border);
+    background: transparent; text-align: left; cursor: pointer; color: var(--text);
+  }
+  body.mgr-mode .section-title + .desk-row { border-top: 0; }
+  body.mgr-mode .desk-row:hover { background: #fbfaf7; }
+  body.mgr-mode .desk-row-ico { flex: 0 0 auto; display: flex; width: 52px; height: 52px; padding: 14px; border-radius: 14px; background: var(--tint); color: var(--ink2); }
+  body.mgr-mode .desk-row-txt { flex: 1; min-width: 0; }
+  body.mgr-mode .desk-row-txt strong { display: block; font-size: 15px; }
+  body.mgr-mode .desk-row-txt small { color: var(--muted); font-size: 13px; }
+  body.mgr-mode .desk-tag { padding: 5px 14px; border-radius: 999px; background: var(--tint); color: var(--ink2); font-size: 12px; font-weight: 800; }
+  body.mgr-mode .desk-row i { font-style: normal; font-size: 20px; color: #8c877e; }
+  body.mgr-mode .desk-row-link { color: var(--basil); font-weight: 800; font-size: 14px; white-space: nowrap; }
+  body.mgr-mode .desk-ok { display: flex; gap: 14px; align-items: center; padding: 10px 0; }
+  body.mgr-mode .desk-ok > span { width: 46px; height: 46px; border-radius: 50%; background: #e6efe9; color: var(--basil); display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; }
+  body.mgr-mode .desk-ok strong { display: block; font-size: 16px; }
+  body.mgr-mode .desk-ok small { color: var(--muted); }
+  /* who's working */
+  body.mgr-mode #workingList .pm-sep, body.mgr-mode #workingList .pm-status { display: none; }
+  body.mgr-mode #workingList .person-row { padding: 14px 0; }
+  body.mgr-mode .who-pill {
+    display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px;
+    background: #e6efe9; color: var(--basil); font-size: 12px; font-weight: 800; justify-content: center;
+  }
+  body.mgr-mode .who-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #2e9d5b; }
+  body.mgr-mode .who-pill.brk { background: #fbedd3; color: #8a5a00; }
+  body.mgr-mode .who-pill.brk::before { background: #e0a100; }
+  body.mgr-mode #workingList .hours-pill { min-width: 74px; text-align: right; font-size: 16px; font-weight: 900; }
+  body.mgr-mode .manager-staff-clockout { padding: 8px 14px; font-size: 13px; border-radius: 10px; }
+  body.mgr-mode #managerScreen .section-title { font-family: Cinzel, Georgia, serif; font-size: 22px; }
+  /* this week as a table */
+  body.mgr-mode .desk-range { display: inline; font-family: Inter, system-ui, sans-serif; font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 10px; letter-spacing: 0; }
+  body.mgr-mode .week-head, body.mgr-mode #hoursList .person-row {
+    display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(0, 1fr) minmax(0, 1.4fr) 90px; align-items: center; column-gap: 14px;
+  }
+  body.mgr-mode .week-head {
+    padding: 8px 0; border-bottom: 1px solid var(--border); color: var(--muted);
+    font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase;
+  }
+  body.mgr-mode .week-head span:last-child, body.mgr-mode #hoursList .hours-pill { text-align: right; }
+  body.mgr-mode #hoursList .person-row { padding: 9px 0; }
+  body.mgr-mode #hoursList .person-meta { display: none; }
+  body.mgr-mode #hoursList .who-av { width: 32px; height: 32px; font-size: 14px; }
+  body.mgr-mode #hoursList .person-name { font-weight: 700; }
+  body.mgr-mode #hoursList .wk-dept { display: block; color: var(--muted); }
+  body.mgr-mode #hoursList .wk-shifts { display: block; color: #3c3a36; }
+  body.mgr-mode #hoursList .pm-pend { color: #9a6200; font-weight: 700; }
+  body.mgr-mode #hoursList .hours-pill { font-size: 15px; font-weight: 900; }
+}
+@media (min-width: 1000px) and (prefers-reduced-motion: reduce) {
+  body.mgr-mode .home-tile.manager-quick-card, body.mgr-mode .home-tile.manager-quick-card:hover { transition: none; transform: none; }
+}
 </style>
 <script defer src="./timesheet-pdf.js"></script>
 <script defer src="./stock-pdf.js"></script>
@@ -1680,19 +1939,24 @@ button:disabled{opacity:.6}
   <div class="manager-v2-hero">
     <div id="managerEyebrow" class="manager-v2-eyebrow">MARINARA · HAWTHORNE</div>
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-      <div><h2 id="managerGreeting" class="manager-v2-greeting">Good morning</h2><div id="managerRoleLine" class="manager-v2-role">Administrator · Hawthorne</div></div>
+      <div><h2 id="managerGreeting" class="manager-v2-greeting">Good morning</h2><div id="managerRoleLine" class="manager-v2-role">Administrator · Hawthorne</div>
+        <div class="desk-only desk-hero"><h2 class="desk-title">Restaurant overview</h2><p id="deskSubtitle">Everything you need to run Hawthorne.</p></div></div>
       <button id="managerLogoutBtn" class="manager-v2-signout">Sign Out</button>
+      <span class="desk-only desk-loc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg><span id="deskLocName">Hawthorne</span></span>
     </div><p id="managerLocation" class="hidden">Hawthorne</p>
   </div>
   <div id="managerMessage" class="message"></div>
   <div id="managerHolidayNotice"></div>
 
   <div class="home-today">
-    <button type="button" class="home-stat" data-home-scroll="workingList"><span id="workingNowCount" class="home-stat-n">0</span><span class="home-stat-l">Working now</span></button>
-    <button type="button" class="home-stat" data-home-go="approvalsCard"><span id="pendingCount" class="home-stat-n">0</span><span class="home-stat-l">To approve</span></button>
-    <button type="button" class="home-stat" data-home-go="timeOffCard"><span id="homeTimeOffCount" class="home-stat-n">0</span><span class="home-stat-l">Time off requests</span></button>
+    <button type="button" class="home-stat st-work" data-home-scroll="workingList"><span class="home-stat-ico desk-only"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16 14.6c2.3.2 3.9 1.8 4.5 4.9"/></svg></span><span id="workingNowCount" class="home-stat-n">0</span><span class="home-stat-l">Working now</span></button>
+    <button type="button" class="home-stat st-break desk-only" data-home-scroll="workingList"><span class="home-stat-ico desk-only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16M8 3.5c-.6.8-.6 1.7 0 2.5M11 3.5c-.6.8-.6 1.7 0 2.5M14 3.5c-.6.8-.6 1.7 0 2.5"/></svg></span><span id="breakNowCount" class="home-stat-n">0</span><span class="home-stat-l">On break</span></button>
+    <button type="button" class="home-stat st-approve" data-home-go="approvalsCard"><span class="home-stat-ico desk-only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5A.5.5 0 0 1 6.5 20V4a.5.5 0 0 1 .5-.5z"/><path d="M14 3.5V8h4M9.5 12h5M9.5 15h5M9.5 18h3"/></svg></span><span id="pendingCount" class="home-stat-n">0</span><span class="home-stat-l">To approve</span></button>
+    <button type="button" class="home-stat st-off" data-home-go="timeOffCard"><span class="home-stat-ico desk-only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 13.5L4 11l1.5-1.5 7 1 4-4c.8-.8 2.2-.8 3 0s.8 2.2 0 3l-4 4 1 7L16 21.5l-2.5-6.5-3 3V21l-1.5 1-1-4-4-1 1-1.5h3z"/></svg></span><span id="homeTimeOffCount" class="home-stat-n">0</span><span class="home-stat-l">Time off requests</span></button>
   </div>
 
+  <div id="deskStats" class="desk-only desk-stats"></div>
+  <div id="deskAreas" class="desk-only desk-areas"></div>
   <div class="home-group">Team &amp; hours</div>
   <div class="home-tiles">
     <button id="approvalsCard" class="manager-quick-card home-tile"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg></div><strong>Approvals</strong><span id="approvalsText">Review shifts</span></button>
@@ -1711,8 +1975,10 @@ button:disabled{opacity:.6}
     <button id="myClockCard" class="manager-quick-card home-tile"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13h3M9.5 3h5M12 3v2.5"/></svg></div><strong>My Clock</strong><span>Clock in / out</span></button>
   </div>
 
-  <div class="card"><div class="manager-v2-section-head"><div class="section-title">Who's Working</div><button id="managerWorkingViewAll" class="manager-v2-link" type="button">View team</button></div><div id="workingList" class="empty-state">Loading...</div></div>
-  <div class="card"><div class="manager-v2-section-head"><div class="section-title">This Week</div><button id="managerHoursViewAll" class="manager-v2-link" type="button">Staff Hours</button></div><div id="hoursList" class="empty-state">Loading...</div></div>
+  <div class="card desk-working"><div class="manager-v2-section-head"><div class="section-title">Who's Working</div><button id="managerWorkingViewAll" class="manager-v2-link" type="button">View team</button></div><div id="workingList" class="empty-state">Loading...</div></div>
+  <div id="deskAttention" class="card desk-only desk-attention"></div>
+  <div id="deskToday" class="card desk-only desk-today"></div>
+  <div class="card desk-week"><div class="manager-v2-section-head"><div class="section-title">This Week <span id="homeWeekRange" class="desk-range desk-only"></span></div><button id="managerHoursViewAll" class="manager-v2-link" type="button">Staff Hours</button></div><div class="desk-only week-head"><span>Employee</span><span>Department</span><span>Shifts</span><span>Total hours</span></div><div id="hoursList" class="empty-state">Loading...</div></div>
   <div id="managerClockSection" class="hidden"><div class="card"><div class="section-title">My Time Clock</div><div class="status"><div class="status-label">Current status</div><div id="managerStatusValue" class="status-value">Off shift</div></div><button id="managerClockInBtn" class="btn primary hidden">Clock In</button><button id="managerStartBreakBtn" class="btn secondary hidden">Start Break</button><button id="managerEndBreakBtn" class="btn primary hidden">End Break</button><button id="managerClockOutBtn" class="btn danger hidden">Clock Out</button><div id="managerActionMessage" class="message"></div></div></div>
 </section>
 
@@ -1720,7 +1986,9 @@ button:disabled{opacity:.6}
   <button type="button" class="manager-nav-item active" data-manager-nav="home"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6.5 8 6.5V19.5a.5.5 0 0 1-.5.5H15v-5.5H9V20H4.5a.5.5 0 0 1-.5-.5z"/></svg></span><span>Home</span></button>
   <button type="button" class="manager-nav-item" data-manager-nav="approvals"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span><span>Approvals</span></button>
   <button type="button" class="manager-nav-item" data-manager-nav="team"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.8 14.6c2.3-.1 4.1 1.4 4.7 4.4"/></svg></span><span>Team</span></button>
+  <div id="deskNavLinks" class="desk-only" style="flex-direction:column;gap:2px"></div>
   <button type="button" class="manager-nav-item" data-manager-nav="more"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/></svg></span><span>More</span><span id="navMoreBadge" class="count-badge nav hidden"></span></button>
+  <div class="desk-only desk-foot"><span id="deskAvatar" class="desk-av">M</span><span class="desk-who"><strong id="deskName">Manager</strong><small id="deskRole">Administrator</small></span><button type="button" id="deskSignOut" class="desk-out" aria-label="More: devices, managers, sign out">›</button></div>
 </nav>
 
 <!-- STAFF HOURS SCREEN -->
@@ -1989,10 +2257,11 @@ button:disabled{opacity:.6}
     </div>
     <button id="backInvoicesBtn" class="back-btn">Back</button>
   </div>
-  <div class="stock-tabs" id="invTabs" style="grid-template-columns:repeat(3,1fr)">
+  <div class="stock-tabs" id="invTabs" style="grid-template-columns:repeat(4,1fr)">
     <button type="button" data-inv-tab="list" class="selected">Invoices</button>
-    <button type="button" data-inv-tab="usage">Weekly use</button>
+    <button type="button" data-inv-tab="usage">Weekly</button>
     <button type="button" data-inv-tab="prices">Prices</button>
+    <button type="button" data-inv-tab="costs">Costs</button>
   </div>
   <div id="invMessage" class="message"></div>
   <div id="invListView">
@@ -2018,6 +2287,18 @@ button:disabled{opacity:.6}
     <div class="stock-chips" id="invUsageSuppliers"></div>
     <input id="invUsageSearch" class="inv-search" type="search" placeholder="Search a product" autocomplete="off">
     <div class="card"><div id="invUsage" class="empty-state">Loading…</div></div>
+  </div>
+  <div id="invCostsView" class="hidden">
+    <p class="inv-hint">Link each ingredient you buy to its product in the invoices: the app then knows its real price per kg, litre or each, and follows the latest invoice. Things made in the kitchen (pizza dough, sauces) become their own recipe instead. Next step: the cost of each dish.</p>
+    <div class="card"><div id="invCostsSummary" class="empty-state">Loading…</div></div>
+    <div class="stock-chips" id="invCostsFilter">
+      <button type="button" data-inv-costs-filter="todo" class="selected">To link</button>
+      <button type="button" data-inv-costs-filter="done">Linked</button>
+      <button type="button" data-inv-costs-filter="made">Made here</button>
+      <button type="button" data-inv-costs-filter="all">All</button>
+    </div>
+    <input id="invCostsSearch" class="inv-search" type="search" placeholder="Search an ingredient" autocomplete="off">
+    <div class="card"><div id="invCosts" class="empty-state">Loading…</div></div>
   </div>
   <div id="invPricesView" class="hidden">
     <p class="inv-hint">Products whose latest price is different from the time before, biggest change first.</p>
@@ -3446,6 +3727,10 @@ async function loadManagerDashboard() {
 
     pendingCount.textContent =
       pending;
+    const breakEl = document.getElementById("breakNowCount");
+    if (breakEl) breakEl.textContent = (dashboard.working || []).filter(p => p.status === "break").length;
+    deskPending = pending;
+    setTimeout(renderDeskHome, 0);
 
     approvalsText.textContent =
       pending +
@@ -3493,17 +3778,7 @@ async function loadManagerDashboard() {
 
               <div class="person-meta">
 
-                ${escapeHtml(
-                  person.department
-                )}
-
-                ·
-
-                ${
-                  person.status === "break"
-                    ? "On break"
-                    : "Working"
-                }
+                <span class="pm-dept">${escapeHtml(person.department)}</span><span class="pm-sep"> · </span><span class="pm-status">${person.status === "break" ? "On break" : "Working"}</span>
 
               </div>
 
@@ -3511,6 +3786,7 @@ async function loadManagerDashboard() {
             </div>
 
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+              <span class="who-pill desk-only ${person.status === "break" ? "brk" : ""}">${person.status === "break" ? "On break" : "Working"}</span>
               <div class="hours-pill">${formatHours(person.hours_so_far)}</div>
               <button type="button" class="manager-staff-clockout" data-close-shift="${escapeHtml(person.shift_id)}">Clock Out</button>
             </div>
@@ -3572,31 +3848,14 @@ async function loadManagerDashboard() {
 
               <div class="person-meta">
 
-                ${escapeHtml(
-                  person.department
-                )}
-
-                ·
-
-                ${person.shifts}
-                shift${
-                  person.shifts === 1
-                    ? ""
-                    : "s"
-                }
-
-                ${
-                  person.unapproved
-                    ? " · " +
-                      person.unapproved +
-                      " pending"
-                    : ""
-                }
+                <span class="pm-dept">${escapeHtml(person.department)}</span><span class="pm-sep"> · </span><span class="pm-shifts">${person.shifts} shift${person.shifts === 1 ? "" : "s"}${person.unapproved ? `<span class="pm-pend"> · ${person.unapproved} pending</span>` : ""}</span>
 
               </div>
 
             </div>
             </div>
+            <span class="wk-dept desk-only">${escapeHtml(person.department)}</span>
+            <span class="wk-shifts desk-only">${person.shifts} shift${person.shifts === 1 ? "" : "s"}${person.unapproved ? `<span class="pm-pend"> · ${person.unapproved} pending</span>` : ""}</span>
 
             <div class="hours-pill">
 
@@ -7724,11 +7983,246 @@ function openPendingScreen() {
 }
 
 /* MANAGER V2 NAVIGATION */
+/* Laptop / desktop: the side menu shows the restaurant's four areas, each
+   opening to its sections (phones keep Home, Approvals, Team and More).
+   Each link opens the same screen as its More row or home tile. */
+let deskPending = 0;
+let deskActive = "";
+let deskNavActive = "";
+const DESK_AREAS = [
+  { id: "team", label: "Team & Hours", icon: "people", items: [
+    { nav: "approvals", label: "Approvals", badge: "deskApprovalsBadge" },
+    { go: "moreRosterBtn", label: "Roster" },
+    { go: "moreStaffHoursBtn", label: "Staff Hours" },
+    { go: "moreTimesheetsBtn", label: "Timesheets" },
+    { nav: "team", label: "Team" },
+    { go: "moreTimeOffBtn", label: "Time off", badge: "deskTimeOffBadge" },
+    { go: "moreMyClockBtn", label: "My Clock" },
+  ] },
+  { id: "stock", label: "Stock & Orders", icon: "box", items: [
+    { go: "moreStockBtn", label: "Stock count & order" },
+  ] },
+  { id: "kitchen", label: "Kitchen & Recipes", floorLabel: "Allergens", icon: "chef", items: [
+    { go: "moreRecipesBtn", label: "Recipe book", floorLabel: "Allergens", after: "recipes", noFloor: false },
+    { go: "moreRecipesBtn", label: "Allergens", key: "moreRecipesBtn:allergens", after: "allergens", hideFloor: true },
+  ] },
+  { id: "invoices", label: "Invoices & Costs", icon: "receipt", roles: ["manager", "kitchen_manager"], items: [
+    { go: "moreInvoicesBtn", label: "Invoices", tab: "list" },
+    { go: "moreInvoicesBtn", label: "Weekly use", tab: "usage" },
+    { go: "moreInvoicesBtn", label: "Price changes", tab: "prices" },
+    { go: "moreInvoicesBtn", label: "Ingredient costs", tab: "costs" },
+  ] },
+];
+const DESK_ICONS = {
+  people: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16 14.6c2.3.2 3.9 1.8 4.5 4.9"/></svg>',
+  box: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg>',
+  chef: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10.5a3.5 3.5 0 1 1 1.6-6.6A4 4 0 0 1 16.4 4a3.5 3.5 0 1 1 .6 6.5V14H7z"/><path d="M7 14h10v4.5a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1z"/></svg>',
+  receipt: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h12v17l-2-1.3-2 1.3-2-1.3-2 1.3-2-1.3-2 1.3z"/><path d="M9 8h6M9 11.5h6M9 15h4"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l9 16H3z"/><path d="M12 10v4.5M12 17.5v.01"/></svg>',
+  doc: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5A.5.5 0 0 1 6.5 20V4a.5.5 0 0 1 .5-.5z"/><path d="M14 3.5V8h4M9.5 12h5M9.5 15h5M9.5 18h3"/></svg>',
+  plane: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 13.5L4 11l1.5-1.5 7 1 4-4c.8-.8 2.2-.8 3 0s.8 2.2 0 3l-4 4 1 7L16 21.5l-2.5-6.5-3 3V21l-1.5 1-1-4-4-1 1-1.5h3z"/></svg>',
+  money: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6.5" width="18" height="11" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6.5 9.5v.01M17.5 14.5v.01"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+};
+const deskOpen = (() => { try { return JSON.parse(localStorage.getItem("mh_desk_open") || "{}"); } catch (_) { return {}; } })();
+const deskKey = l => l.key || (l.nav ? "nav:" + l.nav : l.go + (l.tab ? ":" + l.tab : ""));
+function deskTimeOffCount() { return Number(document.getElementById("homeTimeOffCount")?.textContent || 0) || 0; }
+function deskAreasFor(role) {
+  const floor = role === "floor_manager";
+  return DESK_AREAS.filter(a => !a.roles || a.roles.includes(role)).map(a => ({
+    ...a, label: floor && a.floorLabel ? a.floorLabel : a.label,
+    items: a.items.filter(i => !(floor && i.hideFloor)).map(i => ({ ...i, label: floor && i.floorLabel ? i.floorLabel : i.label })),
+  }));
+}
+function buildDeskNav() {
+  const box = document.getElementById("deskNavLinks");
+  if (!box) return;
+  const role = currentManagerRole;
+  const counts = { deskApprovalsBadge: deskPending, deskTimeOffBadge: deskTimeOffCount() };
+  const activeKey = deskNavActive ? "nav:" + deskNavActive : deskActive;
+  box.innerHTML = deskAreasFor(role).map(a => {
+    const hasActive = a.items.some(i => deskKey(i) === activeKey);
+    const open = hasActive || deskOpen[a.id] === true;
+    const sum = a.items.reduce((n, i) => n + (i.badge ? counts[i.badge] || 0 : 0), 0);
+    return `<button type="button" class="manager-nav-item desk-area${hasActive ? " has-active" : ""}${open ? " open" : ""}" data-desk-area="${a.id}" aria-expanded="${open}">
+        <span class="manager-nav-icon">${DESK_ICONS[a.icon]}</span><span>${escapeHtml(a.label)}</span>
+        ${!open && sum ? `<span class="count-badge">${sum > 99 ? "99+" : sum}</span>` : ""}<i class="desk-area-chev">›</i></button>
+      <div class="desk-sub${open ? " open" : ""}">${a.items.map(i => {
+        const n = i.badge ? counts[i.badge] || 0 : 0;
+        const attrs = i.nav ? `data-desk-nav="${i.nav}"` : `data-desk-go="${i.go}"${i.tab ? ` data-desk-tab="${i.tab}"` : ""}${i.after ? ` data-desk-after="${i.after}"` : ""} data-desk-key="${deskKey(i)}"`;
+        return `<button type="button" class="manager-nav-item desk-link${deskKey(i) === activeKey ? " active" : ""}" ${attrs}><span>${escapeHtml(i.label)}</span>${i.badge ? `<span id="${i.badge}" class="count-badge${n ? "" : " hidden"}">${n > 99 ? "99+" : n}</span>` : ""}</button>`;
+      }).join("")}</div>`;
+  }).join("");
+  const roleText = role === "kitchen_manager" ? "Kitchen Manager" : role === "floor_manager" ? "Floor Manager" : "Administrator";
+  let identity = {};
+  try { identity = JSON.parse(sessionStorage.getItem("marinara_staff_identity") || "{}"); } catch (_) { /* ignore */ }
+  const name = identity.name || "Manager";
+  const initial = String(name).trim().charAt(0).toUpperCase() || "M";
+  for (const [id, v] of [["deskName", name], ["deskAvatar", initial], ["deskRole", roleText]]) {
+    const el = document.getElementById(id); if (el) el.textContent = v;
+  }
+}
+document.getElementById("managerBottomNav")?.addEventListener("click", event => {
+  const area = event.target.closest("[data-desk-area]");
+  if (area) {
+    const id = area.dataset.deskArea;
+    deskOpen[id] = !area.classList.contains("open");
+    try { localStorage.setItem("mh_desk_open", JSON.stringify(deskOpen)); } catch (_) { /* ignore */ }
+    buildDeskNav();
+    return;
+  }
+  const navLink = event.target.closest("[data-desk-nav]");
+  if (navLink) {
+    deskActive = "";
+    managerBottomNav.querySelector(`[data-manager-nav="${navLink.dataset.deskNav}"]`)?.click();
+    return;
+  }
+  const link = event.target.closest("[data-desk-go]");
+  if (link) { deskGo(link.dataset.deskGo, link.dataset.deskTab, link.dataset.deskAfter, link.dataset.deskKey); return; }
+  if (event.target.closest("[data-manager-nav]")) deskActive = "";
+  if (event.target.closest(".desk-foot")) { deskActive = ""; managerBottomNav.querySelector('[data-manager-nav="more"]')?.click(); }
+});
+async function deskGo(go, tab, after, key) {
+  deskActive = key || go;
+  document.getElementById(go)?.click();
+  setManagerNavActive("more");
+  if (tab && typeof invShowTab === "function") invShowTab(tab);
+  if (after && typeof rcpShowTab === "function") {
+    // wait for the recipes to load, then show the tab
+    for (let i = 0; i < 40 && !rcpState.data; i++) await new Promise(r => setTimeout(r, 50));
+    rcpShowTab(after);
+  }
+}
+
+// Desktop overview: four numbers, the four areas, needs attention, today.
+const deskExtra = { at: 0, toOrder: null, spend: null, loading: false };
+async function deskLoadExtra() {
+  if (deskExtra.loading || Date.now() - deskExtra.at < 60000) return;
+  if (!window.matchMedia?.("(min-width: 1000px)").matches) return;
+  deskExtra.loading = true;
+  try {
+    const role = currentManagerRole;
+    let toOrder = 0, counted = false;
+    const first = await managerApi("manager_stock_list").catch(() => null);
+    const lists = [first];
+    if (first?.can_choose_department) lists.push(await managerApi("manager_stock_list", { department: first.department === "Kitchen" ? "Floor" : "Kitchen" }).catch(() => null));
+    for (const d of lists) {
+      const lines = d?.last_count?.lines || [];
+      if (d?.last_count) counted = true;
+      toOrder += lines.filter(l => l.counted && Number(l.order_qty) > 0).length;
+    }
+    deskExtra.toOrder = counted ? toOrder : null;
+    if (["manager", "kitchen_manager"].includes(role)) {
+      const today = brisbaneTodayInput();
+      const d = new Date(`${today}T00:00:00Z`);
+      const mon = new Date(d - ((d.getUTCDay() + 6) % 7) * 86400000).toISOString().slice(0, 10);
+      const inv = await managerApi("manager_invoice_list", { from: mon, to: today }).catch(() => null);
+      deskExtra.spend = inv ? { total: Number(inv.total) || 0, count: (inv.invoices || []).length, suppliers: (inv.by_supplier || []).length } : null;
+    } else deskExtra.spend = null;
+    deskExtra.at = Date.now();
+  } finally {
+    deskExtra.loading = false;
+  }
+  renderDeskHome(true);
+}
+function renderDeskHome(fromExtra) {
+  const role = currentManagerRole;
+  const floor = role === "floor_manager";
+  const canInv = ["manager", "kitchen_manager"].includes(role);
+  const place = document.getElementById("managerLocation")?.textContent || "Hawthorne";
+  const loc = document.getElementById("deskLocName"); if (loc) loc.textContent = place;
+  const sub = document.getElementById("deskSubtitle"); if (sub) sub.textContent = `Everything you need to run ${place}.`;
+  const working = Number(document.getElementById("workingNowCount")?.textContent || 0) || 0;
+  const onBreak = Number(document.getElementById("breakNowCount")?.textContent || 0) || 0;
+  const pending = deskPending, off = deskTimeOffCount();
+  const toOrder = deskExtra.toOrder, spend = deskExtra.spend;
+  const stat = (cls, icon, n, label, go, attrs = "") => `<button type="button" class="desk-stat ${cls}" ${go} ${attrs}><span class="desk-stat-ico">${DESK_ICONS[icon]}</span><span class="desk-stat-n">${n}</span><span class="desk-stat-l">${escapeHtml(label)}</span><i>›</i></button>`;
+  const stats = document.getElementById("deskStats");
+  if (stats) stats.innerHTML = [
+    stat("green", "people", working, "On shift", `data-desk-card="teamCard"`),
+    stat("amber", "alert", toOrder == null ? "—" : toOrder, toOrder == null ? "No stock count yet" : "Items to order", `data-desk-card="stockCard"`),
+    stat("blue", "doc", pending, "Shifts to approve", `data-desk-card="approvalsCard"`),
+    canInv
+      ? stat("red", "money", spend ? invMoney(spend.total).replace(/\.\d\d$/, "") : "—", "Spend this week", `data-desk-card="invoicesCard"`)
+      : stat("red", "plane", off, "Time off requests", `data-desk-card="timeOffCard"`),
+  ].join("");
+  const area = (cls, icon, title, text, b1, b2) => `<div class="desk-area-card ${cls}"><span class="desk-area-ico">${DESK_ICONS[icon]}</span><div>
+      <h3>${escapeHtml(title)}</h3><p>${escapeHtml(text)}</p>
+      <div class="desk-area-btns">${b1 ? `<button type="button" class="desk-btn" ${b1[1]}>${escapeHtml(b1[0])} <span aria-hidden="true">→</span></button>` : ""}${b2 ? `<button type="button" class="desk-btn link" ${b2[1]}>${escapeHtml(b2[0])} <span aria-hidden="true">→</span></button>` : ""}</div></div></div>`;
+  const areas = document.getElementById("deskAreas");
+  if (areas) areas.innerHTML = [
+    area("green", "people", "Team & Hours", "People, rosters & timesheets.", ["View roster", `data-desk-card="rosterCard"`], ["Manage team", `data-desk-card="teamCard"`]),
+    area("amber", "box", "Stock & Orders", "Stock levels and what to order.", ["Check stock", `data-desk-card="stockCard"`], canInv ? ["Weekly use", `data-desk-goto="moreInvoicesBtn" data-desk-tab="usage"`] : null),
+    floor
+      ? area("red", "chef", "Allergens", "What each dish and sauce contains.", ["Open allergens", `data-desk-card="recipesCard"`], null)
+      : area("red", "chef", "Kitchen & Recipes", "Recipes, preparation & allergens.", ["Recipe book", `data-desk-goto="moreRecipesBtn" data-desk-after="recipes"`], ["Allergens", `data-desk-goto="moreRecipesBtn" data-desk-after="allergens"`]),
+    canInv ? area("blue", "receipt", "Invoices & Costs", "Invoices, spending & supplier prices.", ["Review invoices", `data-desk-goto="moreInvoicesBtn" data-desk-tab="list"`], ["View costs", `data-desk-goto="moreInvoicesBtn" data-desk-tab="costs"`])
+      : area("blue", "clock", "Hours", "Staff hours and weekly timesheets.", ["Staff hours", `data-desk-card="staffHoursCard"`], ["Timesheets", `data-desk-card="timesheetsCard"`]),
+  ].join("");
+  const att = document.getElementById("deskAttention");
+  if (att) {
+    const rows = [];
+    if (toOrder) rows.push({ icon: "alert", cls: "amber", t: `${toOrder} ${toOrder === 1 ? "item" : "items"} to order`, s: "Below par at the last stock count.", tag: "Stock", go: `data-desk-card="stockCard"` });
+    if (pending) rows.push({ icon: "doc", cls: "blue", t: `${pending} ${pending === 1 ? "shift" : "shifts"} awaiting approval`, s: "Approve them so staff hours are right.", tag: "Team", go: `data-desk-card="approvalsCard"` });
+    if (off) rows.push({ icon: "plane", cls: "red", t: `${off} time off ${off === 1 ? "request" : "requests"}`, s: "Someone is waiting for an answer.", tag: "Team", go: `data-desk-card="timeOffCard"` });
+    att.innerHTML = `<div class="section-title">Needs attention</div>` + (rows.length ? rows.map(r => `
+      <button type="button" class="desk-row" ${r.go}><span class="desk-row-ico ${r.cls}">${DESK_ICONS[r.icon]}</span>
+        <span class="desk-row-txt"><strong>${escapeHtml(r.t)}</strong><small>${escapeHtml(r.s)}</small></span>
+        <span class="desk-tag ${r.cls}">${escapeHtml(r.tag)}</span><i>›</i></button>`).join("")
+      : `<div class="desk-ok"><span>✓</span><div><strong>All caught up</strong><small>Nothing waiting for you right now.</small></div></div>`);
+  }
+  const today = document.getElementById("deskToday");
+  if (today) {
+    const hours = [...document.querySelectorAll("#hoursList .hours-pill")].reduce((n, el) => n + (parseFloat(el.textContent) || 0), 0);
+    const rows = [
+      { icon: "people", cls: "green", t: "Team", s: `${working} working${onBreak ? ` · ${onBreak} on break` : ""}`, go: `data-desk-card="teamCard"` },
+      { icon: "clock", cls: "blue", t: "This week", s: `${Math.round(hours * 10) / 10} hours worked so far`, go: `data-desk-card="staffHoursCard"` },
+    ];
+    if (canInv) rows.push({ icon: "receipt", cls: "red", t: "Invoices this week", s: spend ? `${spend.count} ${spend.count === 1 ? "invoice" : "invoices"} · ${spend.suppliers} ${spend.suppliers === 1 ? "supplier" : "suppliers"}` : "—", go: `data-desk-goto="moreInvoicesBtn" data-desk-tab="list"` });
+    rows.push(floor
+      ? { icon: "chef", cls: "amber", t: "Allergens", s: "What each dish contains.", go: `data-desk-card="recipesCard"`, link: "Open allergens" }
+      : { icon: "chef", cls: "amber", t: "Kitchen", s: "Recipes, prep and allergens.", go: `data-desk-goto="moreRecipesBtn" data-desk-after="recipes"`, link: "Open recipe book" });
+    today.innerHTML = `<div class="section-title">Today at ${escapeHtml(place)}</div>` + rows.map(r => `
+      <button type="button" class="desk-row" ${r.go}><span class="desk-row-ico ${r.cls}">${DESK_ICONS[r.icon]}</span>
+        <span class="desk-row-txt"><strong>${escapeHtml(r.t)}</strong><small>${escapeHtml(r.s)}</small></span>
+        ${r.link ? `<span class="desk-row-link">${escapeHtml(r.link)} →</span>` : "<i>›</i>"}</button>`).join("");
+  }
+  const range = document.getElementById("homeWeekRange");
+  if (range) {
+    const t = brisbaneTodayInput();
+    const d = new Date(`${t}T00:00:00Z`);
+    const mon = new Date(d - ((d.getUTCDay() + 6) % 7) * 86400000), sun = new Date(mon.getTime() + 6 * 86400000);
+    const f = x => new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", day: "numeric", month: "short" }).format(x);
+    range.textContent = mon.getUTCMonth() === sun.getUTCMonth() ? `${mon.getUTCDate()} – ${f(sun)}` : `${f(mon)} – ${f(sun)}`;
+  }
+  buildDeskNav();
+  if (!fromExtra) deskLoadExtra();
+}
+const DESK_CARD_KEY = { rosterCard: "moreRosterBtn", timeOffCard: "moreTimeOffBtn", staffHoursCard: "moreStaffHoursBtn",
+  timesheetsCard: "moreTimesheetsBtn", stockCard: "moreStockBtn", recipesCard: "moreRecipesBtn", invoicesCard: "moreInvoicesBtn:list", myClockCard: "moreMyClockBtn" };
+document.getElementById("managerScreen")?.addEventListener("click", e => {
+  const c = e.target.closest("[data-desk-card]");
+  if (c) {
+    const key = DESK_CARD_KEY[c.dataset.deskCard];
+    if (key) deskActive = key;
+    document.getElementById(c.dataset.deskCard)?.click();
+    if (key) setManagerNavActive("more");
+    return;
+  }
+  const g = e.target.closest("[data-desk-goto]");
+  if (g) deskGo(g.dataset.deskGoto, g.dataset.deskTab, g.dataset.deskAfter, g.dataset.deskGoto + (g.dataset.deskTab ? ":" + g.dataset.deskTab : g.dataset.deskAfter === "allergens" ? ":allergens" : ""));
+});
+
 function setManagerNavActive(target = "home") {
   if (!managerBottomNav) return;
   managerBottomNav.classList.remove("hidden");
+  if (target !== "more") deskActive = "";
+  deskNavActive = ["approvals", "team"].includes(target) ? target : "";
+  const box = document.getElementById("deskNavLinks");
+  if (box) buildDeskNav();
+  const desk = deskActive && box && getComputedStyle(box).display !== "none";
   managerBottomNav.querySelectorAll("[data-manager-nav]").forEach(button => {
-    button.classList.toggle("active", button.dataset.managerNav === target);
+    button.classList.toggle("active", button.dataset.managerNav === target && !desk);
   });
 }
 
@@ -7864,7 +8358,8 @@ window.addEventListener("focus", syncCurrentView);
 
 /* SUPPLIER INVOICES (Administrator) */
 const invoicesScreen = document.getElementById("invoicesScreen");
-const invState = { tab: "list", period: "week", review: [], open: {}, lines: {}, weeks: 8, usage: null, usageSupplier: "", usageSearch: "" };
+const invState = { tab: "list", period: "week", review: [], open: {}, lines: {}, weeks: 8, usage: null, usageSupplier: "", usageSearch: "",
+  costs: null, costsFilter: "todo", costsSearch: "", costOpen: null, costPick: null, costProdSearch: "" };
 const invMoney = n => (n == null || Number.isNaN(Number(n))) ? "—" :
   (Number(n) < 0 ? "-" : "") + "$" + Math.abs(Number(n)).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const invDate = d => d ? new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${d}T00:00:00Z`)) : "—";
@@ -8038,13 +8533,139 @@ async function loadInvoiceUsage() {
   }
 }
 
+/* Ingredient costs (step 1: link ingredients to invoice products) */
+const R_ = () => window.MarinaraInvoiceReader;
+const invUnitLabel = u => ({ kg: "kg", l: "litre", each: "each" })[u] || u;
+const invProdKey = p => `${p.supplier}\u0001${p.product_key}`;
+function invCostDraft(ing) {
+  const products = invState.costs?.products || [];
+  const l = ing.link;
+  if (l) {
+    const p = products.find(x => x.supplier === l.supplier && x.product_key === l.product_key);
+    return { product: p || { supplier: l.supplier, product_key: l.product_key, description: l.label, price: l.latest_price, date: l.price_date },
+      count: Number(l.pack_count), size: Number(l.pack_size), unit: l.pack_unit };
+  }
+  return null;
+}
+function invCostEditor(ing) {
+  const products = invState.costs?.products || [];
+  const pick = invState.costPick;
+  const q = invState.costProdSearch.trim().toLowerCase();
+  let list;
+  if (q) list = products.filter(p => `${p.description} ${p.code || ""} ${p.supplier}`.toLowerCase().includes(q)).slice(0, 12);
+  else list = products.map(p => ({ p, s: R_().matchScore(ing.name, p.description) })).filter(x => x.s > 0)
+    .sort((a, b) => b.s - a.s).slice(0, 5).map(x => x.p);
+  const chosen = pick?.product;
+  const prodBtn = p => `<button type="button" class="inv-prod${chosen && invProdKey(chosen) === invProdKey(p) ? " sel" : ""}" data-inv-cost-prod="${escapeHtml(invProdKey(p))}">
+      <span>${escapeHtml(p.description)}</span><strong>${escapeHtml(invMoney(p.price))}</strong>
+      <small>${escapeHtml(p.supplier)}${p.code ? " · " + escapeHtml(p.code) : ""}${p.unit ? " · per " + escapeHtml(p.unit) : ""} · ${escapeHtml(invShort(p.date))}</small></button>`;
+  let packHtml = "";
+  if (chosen) {
+    const per = R_().perUnit(chosen.price, pick);
+    const base = R_().baseOf(pick.unit);
+    const carton = /ctn|carton|case/i.test(chosen.unit || "") && Number(pick.count) === 1;
+    packHtml = `<h4>What ${escapeHtml(invMoney(chosen.price))} buys</h4>
+      <div class="inv-pack">
+        <input type="number" inputmode="decimal" min="0" step="any" data-inv-pack="count" value="${escapeHtml(String(pick.count))}" aria-label="How many packs">
+        <span>×</span>
+        <input type="number" inputmode="decimal" min="0" step="any" data-inv-pack="size" value="${escapeHtml(String(pick.size))}" aria-label="Pack size">
+        <select data-inv-pack="unit" aria-label="Unit">${["kg", "g", "l", "ml", "each"].map(u => `<option value="${u}"${u === pick.unit ? " selected" : ""}>${u}</option>`).join("")}</select>
+      </div>
+      ${carton ? `<div class="inv-cost-warn">Check: is ${escapeHtml(invMoney(chosen.price))} for one pack or a whole carton? If it's a carton of several, change the first number.</div>` : ""}
+      <div class="inv-cost-result" id="invCostResult">${per == null ? "—" : `= ${escapeHtml(invMoney(per))} per ${escapeHtml(invUnitLabel(base))}`}</div>`;
+  }
+  return `<div class="inv-cost-edit">
+    <h4>${q ? "Products found" : "Suggested products"}</h4>
+    <input class="inv-search" type="search" data-inv-cost-search placeholder="Search all invoice products" value="${escapeHtml(invState.costProdSearch)}" autocomplete="off">
+    ${list.length ? list.map(prodBtn).join("") : `<div class="inv-hint">${q ? "Nothing found." : "No obvious match. Search above (e.g. the brand or “cheese”)."}</div>`}
+    ${chosen && !list.some(p => invProdKey(p) === invProdKey(chosen)) ? prodBtn(chosen) : ""}
+    ${packHtml}
+    <div class="inv-cost-actions">
+      ${ing.link ? `<button type="button" class="unlink" data-inv-cost-unlink="${escapeHtml(ing.id)}">Unlink</button>` : ""}
+      <button type="button" data-inv-cost-cancel>Cancel</button>
+      <button type="button" class="save" data-inv-cost-save="${escapeHtml(ing.id)}"${chosen ? "" : " disabled"}>Save</button>
+    </div>
+    <button type="button" class="inv-made-btn" data-inv-cost-made="${escapeHtml(ing.id)}">Not bought – it's made in the kitchen</button>
+    <div class="inv-made-note">It becomes its own recipe (like Bolognese) that you fill in later in Recipes. Every dish that uses it keeps its allergens as they are now.</div>
+  </div>`;
+}
+function invMadeEditor(ing) {
+  const m = ing.made_here;
+  return `<div class="inv-cost-edit">
+    <div class="inv-made-note" style="margin-top:0">${m.empty_lines
+      ? `${escapeHtml(ing.name)} is made in the kitchen. Its recipe still needs the real ingredients and quantities, and what one batch makes.`
+      : `${escapeHtml(ing.name)} is made in the kitchen; its cost will come from its recipe.`}</div>
+    <div class="inv-cost-actions">
+      <button type="button" data-inv-cost-cancel>Close</button>
+      <button type="button" class="save" data-inv-open-recipe="${escapeHtml(m.recipe_id)}" data-name="${escapeHtml(ing.name)}">Open in Recipes</button>
+    </div>
+  </div>`;
+}
+function invRenderCosts() {
+  const data = invState.costs;
+  if (!data) return;
+  const box = document.getElementById("invCosts");
+  const sum = document.getElementById("invCostsSummary");
+  const all = data.ingredients || [];
+  const isTodo = i => !i.link && !i.made_here && i.used_in > 0;
+  const linked = all.filter(i => i.link).length;
+  const made = all.filter(i => i.made_here).length;
+  sum.className = "";
+  sum.innerHTML = `<div class="inv-use-kpis">
+      <div><strong>${linked}</strong><span>Linked</span></div>
+      <div><strong>${all.filter(isTodo).length}</strong><span>To link</span></div>
+      <div><strong>${made}</strong><span>Made here</span></div>
+    </div><div class="inv-use-note">${(data.products || []).length} products in your invoices.${(data.products || []).length ? "" : " Save some invoices first: the products come from them."}</div>`;
+  const q = invState.costsSearch.trim().toLowerCase();
+  const f = invState.costsFilter;
+  const inFilter = i => f === "all" ? (i.used_in > 0 || i.link || i.made_here) : f === "done" ? !!i.link : f === "made" ? !!i.made_here : isTodo(i);
+  const shown = all.filter(i => inFilter(i) && (!q || i.name.toLowerCase().includes(q)) || i.id === invState.costOpen)
+    .sort((a, b) => f === "todo" ? (b.used_in - a.used_in) || a.name.localeCompare(b.name) : a.name.localeCompare(b.name));
+  box.className = shown.length ? "" : "empty-state";
+  box.innerHTML = shown.length ? shown.map(i => {
+    const l = i.link, m = i.made_here;
+    if (m) {
+      return `<div class="inv-cost">
+      <button type="button" class="inv-cost-head" data-inv-cost-open="${escapeHtml(i.id)}"><strong>${escapeHtml(i.name)}</strong><span class="val made">Made here</span>
+        <small>Its own recipe · used in ${m.used_in} ${m.used_in === 1 ? "recipe" : "recipes"}${m.empty_lines ? " · to fill in" : ""}</small></button>
+      ${invState.costOpen === i.id ? invMadeEditor(i) : ""}
+    </div>`;
+    }
+    const val = l ? (l.cost_per_unit == null ? `<span class="val todo">No price</span>` : `<span class="val">${escapeHtml(invMoney(l.cost_per_unit))}/${escapeHtml(l.base_unit === "each" ? "each" : l.base_unit)}</span>`)
+      : `<span class="val todo">Link</span>`;
+    const sub = l ? `${escapeHtml(l.label)} · ${escapeHtml(l.supplier)} · ${escapeHtml(invQty(l.pack_count))} × ${escapeHtml(invQty(l.pack_size))} ${escapeHtml(l.pack_unit)}`
+      : `Used in ${i.used_in} ${i.used_in === 1 ? "recipe" : "recipes"}`;
+    return `<div class="inv-cost">
+      <button type="button" class="inv-cost-head" data-inv-cost-open="${escapeHtml(i.id)}"><strong>${escapeHtml(i.name)}</strong>${val}<small>${sub}</small></button>
+      ${invState.costOpen === i.id ? invCostEditor(i) : ""}
+    </div>`;
+  }).join("") : (f === "todo" && !q ? "Every ingredient is linked." : f === "made" && !q ? "Nothing marked as made in the kitchen yet." : "Nothing here.");
+}
+async function loadIngredientCosts() {
+  try {
+    invState.costs = await managerApi("manager_ingredient_costs");
+    invRenderCosts();
+  } catch (error) {
+    const b = document.getElementById("invCostsSummary");
+    b.className = "empty-state"; b.textContent = error.message || "Unable to load ingredient costs.";
+  }
+}
+function invCostUpdateResult() {
+  const pick = invState.costPick, el = document.getElementById("invCostResult");
+  if (!pick || !el) return;
+  const per = R_().perUnit(pick.product.price, pick);
+  el.textContent = per == null ? "—" : `= ${invMoney(per)} per ${invUnitLabel(R_().baseOf(pick.unit))}`;
+}
+
 function invShowTab(tab) {
   invState.tab = tab;
   document.querySelectorAll("#invTabs [data-inv-tab]").forEach(b => b.classList.toggle("selected", b.dataset.invTab === tab));
   document.getElementById("invListView").classList.toggle("hidden", tab !== "list");
   document.getElementById("invUsageView").classList.toggle("hidden", tab !== "usage");
   document.getElementById("invPricesView").classList.toggle("hidden", tab !== "prices");
-  if (tab === "list") loadInvoices(); else if (tab === "usage") loadInvoiceUsage(); else loadInvoicePrices();
+  document.getElementById("invCostsView").classList.toggle("hidden", tab !== "costs");
+  if (tab === "list") loadInvoices(); else if (tab === "usage") loadInvoiceUsage();
+  else if (tab === "costs") loadIngredientCosts(); else loadInvoicePrices();
 }
 
 async function openInvoicesScreen() {
@@ -8069,6 +8690,27 @@ document.addEventListener("click", event => {
   if (nav && nav.id !== "moreInvoicesBtn" && nav.id !== "invoicesCard") invoicesScreen.classList.add("hidden");
 }, true);
 document.getElementById("invUsageSearch")?.addEventListener("input", e => { invState.usageSearch = e.target.value; invRenderUsage(); });
+document.getElementById("invCostsSearch")?.addEventListener("input", e => { invState.costsSearch = e.target.value; invRenderCosts(); });
+document.getElementById("invCosts")?.addEventListener("input", e => {
+  const pk = e.target.closest("[data-inv-pack]");
+  if (pk && invState.costPick) {
+    const k = pk.dataset.invPack;
+    invState.costPick[k] = k === "unit" ? pk.value : Number(pk.value);
+    invCostUpdateResult(); return;
+  }
+  const sr = e.target.closest("[data-inv-cost-search]");
+  if (sr) {
+    invState.costProdSearch = sr.value;
+    const pos = sr.selectionStart;
+    invRenderCosts();
+    const again = document.querySelector("#invCosts [data-inv-cost-search]");
+    if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch (_) { /* ignore */ } }
+  }
+});
+document.getElementById("invCosts")?.addEventListener("change", e => {
+  const pk = e.target.closest("[data-inv-pack]");
+  if (pk && invState.costPick) { invState.costPick[pk.dataset.invPack] = pk.dataset.invPack === "unit" ? pk.value : Number(pk.value); invCostUpdateResult(); }
+});
 document.getElementById("invFiles")?.addEventListener("change", e => {
   const files = [...(e.target.files || [])];
   e.target.value = "";
@@ -8082,6 +8724,77 @@ invoicesScreen?.addEventListener("click", async e => {
     invState.period = per.dataset.invPeriod;
     document.querySelectorAll("#invPeriods [data-inv-period]").forEach(b => b.classList.toggle("selected", b === per));
     loadInvoices(); return;
+  }
+  const cf = e.target.closest("[data-inv-costs-filter]");
+  if (cf) {
+    invState.costsFilter = cf.dataset.invCostsFilter;
+    document.querySelectorAll("#invCostsFilter [data-inv-costs-filter]").forEach(b => b.classList.toggle("selected", b === cf));
+    invRenderCosts(); return;
+  }
+  const co = e.target.closest("[data-inv-cost-open]");
+  if (co) {
+    const id = co.dataset.invCostOpen;
+    invState.costOpen = invState.costOpen === id ? null : id;
+    invState.costProdSearch = "";
+    const ing = (invState.costs?.ingredients || []).find(i => i.id === id);
+    invState.costPick = ing ? invCostDraft(ing) : null;
+    invRenderCosts(); return;
+  }
+  const cp = e.target.closest("[data-inv-cost-prod]");
+  if (cp) {
+    const p = (invState.costs?.products || []).find(x => invProdKey(x) === cp.dataset.invCostProd) || invState.costPick?.product;
+    if (p) invState.costPick = { product: p, ...R_().packGuess(p.description, p.unit) };
+    invRenderCosts(); return;
+  }
+  const mk = e.target.closest("[data-inv-cost-made]");
+  if (mk) {
+    if (mk.dataset.confirm !== "1") { mk.dataset.confirm = "1"; mk.textContent = "Tap again to confirm: it's made in the kitchen"; return; }
+    const ing = (invState.costs?.ingredients || []).find(i => i.id === mk.dataset.invCostMade);
+    mk.disabled = true;
+    try {
+      const r = await managerApi("manager_ingredient_make_recipe", { ingredient_id: mk.dataset.invCostMade });
+      invState.costOpen = null; invState.costPick = null;
+      invMsg(`${ing?.name || "It"} is now its own recipe, used by ${r.recipes_using_it} ${r.recipes_using_it === 1 ? "recipe" : "recipes"}. Fill it in later in Recipes.`, true);
+      await loadIngredientCosts();
+    } catch (error) {
+      mk.disabled = false;
+      invMsg(error.message || "Unable to make it a recipe.", false);
+    }
+    return;
+  }
+  const orc = e.target.closest("[data-inv-open-recipe]");
+  if (orc) {
+    const rid = orc.dataset.invOpenRecipe, name = orc.dataset.name || "";
+    invoicesScreen.classList.add("hidden");
+    await openRecipesScreen();
+    rcpShowTab("recipes");
+    const search = document.getElementById("rcpRecipeSearch");
+    if (search) search.value = name;
+    rcpState.open["r" + rid] = true;
+    rcpRenderRecipes();
+    return;
+  }
+  if (e.target.closest("[data-inv-cost-cancel]")) { invState.costOpen = null; invState.costPick = null; invRenderCosts(); return; }
+  const cs = e.target.closest("[data-inv-cost-save], [data-inv-cost-unlink]");
+  if (cs) {
+    const unlink = cs.hasAttribute("data-inv-cost-unlink");
+    if (unlink && cs.dataset.confirm !== "1") { cs.dataset.confirm = "1"; cs.textContent = "Tap again"; return; }
+    const id = cs.dataset.invCostSave || cs.dataset.invCostUnlink;
+    const pick = invState.costPick;
+    const ing = (invState.costs?.ingredients || []).find(i => i.id === id);
+    cs.disabled = true;
+    try {
+      await managerApi("manager_ingredient_cost_save", { ingredient_id: id, link: unlink ? null : {
+        supplier: pick.product.supplier, product_key: pick.product.product_key, label: pick.product.description,
+        pack_count: Number(pick.count), pack_size: Number(pick.size), pack_unit: pick.unit } });
+      invState.costOpen = null; invState.costPick = null;
+      invMsg(unlink ? `${ing?.name || "Ingredient"} unlinked.` : `${ing?.name || "Ingredient"} linked.`, true);
+      await loadIngredientCosts();
+    } catch (error) {
+      cs.disabled = false;
+      invMsg(error.message || "Unable to save.", false);
+    }
+    return;
   }
   const wk = e.target.closest("[data-inv-weeks]");
   if (wk) {
@@ -8536,6 +9249,20 @@ function setManagerHeader(place) {
     if (place && !logo.src) logo.src = document.querySelector(".login-original-logo")?.src || "";
     logo.hidden = !place;
   }
+  // Laptop / desktop: logo and place at the top of the side menu.
+  const nav = document.getElementById("managerBottomNav");
+  if (nav && place) {
+    let brand = nav.querySelector(".nav-brand");
+    if (!brand) {
+      brand = document.createElement("div");
+      brand.className = "nav-brand";
+      brand.innerHTML = '<img alt="Marinara Ristorante Cafe"><span></span><i></i>';
+      nav.prepend(brand);
+    }
+    const img = brand.querySelector("img");
+    if (!img.getAttribute("src")) img.src = logo?.src || document.querySelector(".login-original-logo")?.src || "";
+    brand.querySelector("span").textContent = place;
+  }
   const h1 = document.querySelector(".header h1");
   const p = document.querySelector(".header p");
   if (place) {
@@ -8568,7 +9295,8 @@ function showLeaveBadge(count) {
   const n = Math.max(0, Number(count) || 0);
   const stat = document.getElementById("homeTimeOffCount");
   if (stat) { stat.textContent = String(n); stat.closest(".home-stat")?.classList.toggle("alert", n > 0); }
-  for (const id of ["moreTimeOffBadge", "navMoreBadge", "homeTimeOffBadge"]) {
+  setTimeout(() => { if (typeof renderDeskHome === "function" && document.body.classList.contains("mgr-mode")) renderDeskHome(); }, 0);
+  for (const id of ["moreTimeOffBadge", "navMoreBadge", "homeTimeOffBadge", "deskTimeOffBadge"]) {
     const el = document.getElementById(id);
     if (!el) continue;
     el.textContent = n > 99 ? "99+" : String(n);
