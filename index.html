@@ -1303,6 +1303,31 @@ body.mgr-mode .notify-head { gap: 10px; }
 body.mgr-mode .notify-head .more-v2-icon { flex: 0 0 38px; width: 38px; height: 26px; padding: 0 6px; }
 body.mgr-mode .notify-head strong { font-size: 15px; }
 body.mgr-mode #managerMoreScreen > .card:last-child { background: transparent; border: 0; box-shadow: none; padding: 0; }
+
+/* TEAM & APPROVALS in the Marinara look */
+body.mgr-mode .manager-top [class$="-kicker"] { display: none; }
+body.mgr-mode :is(.approvals-v2-add:has(#addShiftPanel.hidden), .team-add-card:has(#addStaffPanel.hidden)) {
+  background: transparent; border: 0; box-shadow: none; padding: 0; margin-bottom: 18px;
+}
+body.mgr-mode :is(#showAddShiftBtn, .team-add-toggle) { min-height: 50px; border-radius: 14px; background: var(--basil); font-size: 15px; }
+body.mgr-mode .team-who { align-items: flex-start; }
+body.mgr-mode .team-who .who-av { margin-top: 2px; }
+body.mgr-mode #teamScreen .team-person-row { align-items: center; padding: 14px 0; }
+/* Active is the normal case: only say it when someone is inactive. */
+body.mgr-mode #teamScreen .team-person-row:not(.is-inactive) .team-status-wrap { display: none; }
+body.mgr-mode #teamScreen .is-inactive { opacity: .6; }
+body.mgr-mode #teamScreen .team-person-actions { flex-direction: column; align-items: flex-end; gap: 6px; }
+body.mgr-mode #teamScreen .team-edit-btn {
+  min-height: 34px; padding: 6px 14px; border-radius: 10px; font-size: 13px; font-weight: 800;
+  background: #fff; border: 1px solid #e7e2d8; color: var(--text);
+}
+body.mgr-mode #teamScreen .team-toggle-btn {
+  min-height: 28px; padding: 2px 4px; border: 0; background: transparent; box-shadow: none;
+  font-size: 12px; font-weight: 700; color: #9a6b66;
+}
+body.mgr-mode #teamScreen .team-visa { font-size: 11.5px; font-weight: 700; padding: 5px 9px; border-radius: 8px; }
+body.mgr-mode #teamScreen .card { border: 1px solid #e7e2d8; box-shadow: none; }
+body.mgr-mode #approvalsScreen .card, body.mgr-mode #approvalsScreen .approval-card { border: 1px solid #e7e2d8; box-shadow: none; }
 /* RECIPES AND ALLERGENS */
 .rcp-search{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 12px;font-size:16px;margin-bottom:10px;background:#fff;font-family:inherit}
 .rcp-item{padding:13px 0;border-top:1px solid var(--border)}
@@ -5426,7 +5451,9 @@ function renderTeamMember(person, visa) {
           : "Staff";
 
   return `
-    <div class="person-row team-person-row" data-team-row="${escapeHtml(person.id)}">
+    <div class="person-row team-person-row${person.active ? "" : " is-inactive"}" data-team-row="${escapeHtml(person.id)}">
+      <div class="who-main team-who">
+        ${whoAvatar(person.name || "Staff", person.department, "")}
       <div>
         <div class="person-name">${escapeHtml(person.name || "Staff")}</div>
         <div class="person-meta">
@@ -5434,13 +5461,14 @@ function renderTeamMember(person, visa) {
             ? `${escapeHtml(roleLabel)} · Hawthorne`
             : `${escapeHtml(person.department || "")} · ${escapeHtml(roleLabel)}`}
           ${person.position ? ` · ${escapeHtml(person.position)}` : ""}
-          · <span class="team-status-dot ${statusDotClass}"></span>${statusText}
+          <span class="team-status-wrap">· <span class="team-status-dot ${statusDotClass}"></span>${statusText}</span>
         </div>
         ${person.roster_only ? `<div class="team-roster-only">Roster only · no time clock</div>` : ""}
         ${person.pin_conflict_at && person.active
           ? `<div class="team-pin-conflict">PIN shared with someone else — set a new PIN</div>`
           : ""}
         ${renderVisaBadge(person, visa)}
+      </div>
       </div>
 
       <div class="team-person-actions">
