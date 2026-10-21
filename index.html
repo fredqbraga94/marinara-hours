@@ -1069,6 +1069,18 @@ button{cursor:pointer}
 .roster-grid th.roster-ph .ph-tag{display:inline-block;margin-top:2px;padding:0 4px;border-radius:5px;background:#fde7c7;color:#8a4b00;font-size:9px;font-weight:900}
 .roster-grid td.roster-ph-col{background:#fffaf2}
 /* ROSTER ROLES */
+.team-inactive-toggle{display:block;width:100%;margin:12px 0 4px;min-height:42px;border-radius:12px;border:1.5px dashed var(--border);background:#fff;color:var(--muted);font-weight:850;font-size:13px}
+.roster-tools{display:flex;justify-content:flex-end;gap:8px;margin:0 0 10px}
+.roster-tools .roster-pdf-btn{margin:0}
+.roster-order-box{border:1.5px solid var(--border);border-radius:14px;padding:10px 12px;margin-bottom:12px;background:#fafbfa}
+.roster-order-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid var(--border)}
+.roster-order-row:first-of-type{border-top:0}
+.roster-order-row strong{font-size:14px}
+.roster-order-row div{display:flex;gap:4px}
+.roster-order-row button{min-width:38px;min-height:36px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-weight:900}
+.roster-order-head{font-size:11px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:10px 0 2px}
+.roster-order-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.roster-order-actions .btn{margin-top:0}
 .roster-pdf-btn{display:block;margin:0 0 10px auto;min-height:34px;padding:0 12px;border-radius:10px;border:1.5px solid var(--border);background:#fff;color:var(--green);font-weight:850;font-size:13px}
 .team-roster-only{display:inline-block;margin-top:6px;padding:3px 8px;border-radius:8px;background:#eef1f8;color:#3b4a7a;font-size:11px;font-weight:800}
 .team-add-only{display:flex;gap:8px;align-items:flex-start;font-size:13px;font-weight:600;margin:4px 0 12px;color:var(--text)}
@@ -1507,7 +1519,11 @@ button:disabled{opacity:.6}
       <button id="rosterNextBtn" type="button" aria-label="Next week">›</button>
     </div>
     <div id="rosterTabs" class="roster-tabs"></div>
-    <button id="rosterPdfBtn" class="roster-pdf-btn" type="button">Export PDF</button>
+    <div class="roster-tools">
+      <button id="rosterOrderBtn" class="roster-pdf-btn" type="button">Order</button>
+      <button id="rosterPdfBtn" class="roster-pdf-btn" type="button">Export PDF</button>
+    </div>
+    <div id="rosterOrderBox" class="roster-order-box hidden"></div>
     <div id="rosterMessage" class="message"></div>
     <div id="rosterHolidayNotice"></div>
     <div id="rosterGridBox" class="empty-state">Loading roster...</div>
@@ -5207,6 +5223,7 @@ function renderTeamMember(person, visa) {
   `;
 }
 
+let teamShowInactive = false;
 async function loadTeamScreen() {
   teamMessage.textContent = "";
   teamList.className = "empty-state";
@@ -5243,8 +5260,9 @@ async function loadTeamScreen() {
       data?.manager?.location || "Hawthorne";
 
     if (teamV2Count) {
+      const activeCount = team.filter(p => p.active).length;
       teamV2Count.textContent =
-        team.length === 1 ? "1 member" : `${team.length} members`;
+        activeCount === 1 ? "1 active" : `${activeCount} active`;
     }
 
     // Restricted managers get one fixed department only.
@@ -5269,9 +5287,21 @@ async function loadTeamScreen() {
     teamList.className = "";
     const visaById = {};
     (data?.visa_hours || []).forEach(v => { visaById[v.staff_id] = v; });
-    teamList.innerHTML = team
+    // Inactive people stay in the records (their hours and timesheets) but are
+    // hidden from the list unless asked for.
+    const activeTeam = team.filter(p => p.active);
+    const inactiveTeam = team.filter(p => !p.active);
+    teamList.innerHTML = activeTeam
       .map(person => renderTeamMember(person, visaById[person.id]))
-      .join("");
+      .join("") +
+      (inactiveTeam.length
+        ? `<button type="button" class="team-inactive-toggle" data-team-inactive-toggle>${teamShowInactive ? "Hide" : "Show"} inactive (${inactiveTeam.length})</button>` +
+          (teamShowInactive ? inactiveTeam.map(person => renderTeamMember(person, visaById[person.id])).join("") : "")
+        : "");
+    teamList.querySelector("[data-team-inactive-toggle]")?.addEventListener("click", () => {
+      teamShowInactive = !teamShowInactive;
+      loadTeamScreen();
+    });
 
     teamList.querySelectorAll(".team-edit-btn").forEach(button => {
       button.addEventListener("click", () => {
@@ -5778,17 +5808,31 @@ function rosterVisaLevel(v) {
 }
 
 // Chefs on top and dishwashers last (Kitchen); Floor then Bar (Floor).
-// People without a role go at the end, then by name.
+// Inside a role: the order the manager set (Order button), then by name.
+// People without a role go at the end.
 const ROSTER_ROLE_ORDER = { Chef: 1, Dishwasher: 2, Floor: 1, Bar: 2 };
 function rosterSortByRole(list) {
+  const ord = (m) => (m.roster_order == null ? 1e9 : Number(m.roster_order));
   return list.slice().sort((a, b) =>
     (ROSTER_ROLE_ORDER[a.position] || 9) - (ROSTER_ROLE_ORDER[b.position] || 9) ||
+    ord(a) - ord(b) ||
     String(a.name || "").localeCompare(String(b.name || "")));
+}
+// Manager accounts (Administrator, Kitchen/Floor Manager logins) are for using
+// the app, not people on the roster.
+function rosterPeople(data, dept) {
+  return rosterSortByRole((data.team || []).filter(m =>
+    m.department === dept && (m.role || "staff") === "staff"));
 }
 
 function renderRoster() {
   const data = rosterState.data;
   if (!data) return;
+  if (typeof rosterOrderState !== "undefined" && rosterOrderState.open &&
+      rosterOrderState.list.some(m => m.department !== rosterState.dept)) {
+    rosterOrderState.open = false;
+    renderRosterOrder();
+  }
   const role = data.manager?.role || currentManagerRole;
   const ownDept = role === "kitchen_manager" ? "Kitchen" : role === "floor_manager" ? "Floor" : null;
   if (ownDept) rosterState.dept = ownDept;
@@ -5810,7 +5854,7 @@ function renderRoster() {
     `${escapeHtml(rosterShortDate(week))} – ${escapeHtml(rosterShortDate(rosterAddDays(week, 6)))}` +
     `<small>${week === rosterMonday(today) ? "This week" : week > today ? "Upcoming" : "Past week"}</small>`;
 
-  const people = rosterSortByRole((data.team || []).filter(m => m.department === rosterState.dept));
+  const people = rosterPeople(data, rosterState.dept);
   const cells = {};
   (data.entries || []).forEach(e => { cells[`${e.staff_id}|${e.work_date}`] = e; });
   const leaveCells = rosterLeaveByCell(data.leave || [], week);
@@ -5870,13 +5914,68 @@ function renderRoster() {
   `<div class="person-meta" style="margin-top:10px">Past days use clocked hours; today and later use the roster. Hours at other jobs also count.</div>`;
 }
 
+// Order of people inside each role (the manager's own order, like the paper).
+const rosterOrderState = { open: false, list: [] };
+function renderRosterOrder() {
+  const box = document.getElementById("rosterOrderBox");
+  if (!box) return;
+  box.classList.toggle("hidden", !rosterOrderState.open);
+  if (!rosterOrderState.open) return;
+  const list = rosterOrderState.list;
+  let html = `<div class="person-meta">Move people up or down inside their role, then Save.</div>`;
+  list.forEach((m, i) => {
+    const group = m.position || "No role set";
+    if (!i || (list[i - 1].position || "No role set") !== group) html += `<div class="roster-order-head">${escapeHtml(group)}</div>`;
+    const sameUp = i > 0 && (list[i - 1].position || "") === (m.position || "");
+    const sameDown = i < list.length - 1 && (list[i + 1].position || "") === (m.position || "");
+    html += `<div class="roster-order-row"><strong>${escapeHtml(m.name)}</strong><div>
+      <button type="button" data-roster-order-move="-1" data-i="${i}" ${sameUp ? "" : "disabled"} aria-label="Up">↑</button>
+      <button type="button" data-roster-order-move="1" data-i="${i}" ${sameDown ? "" : "disabled"} aria-label="Down">↓</button></div></div>`;
+  });
+  html += `<div class="roster-order-actions"><button type="button" class="btn secondary" data-roster-order-cancel>Cancel</button><button type="button" class="btn primary" data-roster-order-save>Save order</button></div>`;
+  box.innerHTML = html;
+}
+document.getElementById("rosterOrderBtn")?.addEventListener("click", () => {
+  if (!rosterState.data) return;
+  rosterOrderState.open = !rosterOrderState.open;
+  rosterOrderState.list = rosterPeople(rosterState.data, rosterState.dept || "Kitchen");
+  renderRosterOrder();
+});
+document.getElementById("rosterOrderBox")?.addEventListener("click", async e => {
+  const mv = e.target.closest("[data-roster-order-move]");
+  if (mv) {
+    const i = Number(mv.dataset.i), j = i + Number(mv.dataset.rosterOrderMove);
+    const l = rosterOrderState.list;
+    if (j < 0 || j >= l.length) return;
+    [l[i], l[j]] = [l[j], l[i]];
+    renderRosterOrder();
+    return;
+  }
+  if (e.target.closest("[data-roster-order-cancel]")) { rosterOrderState.open = false; renderRosterOrder(); return; }
+  const save = e.target.closest("[data-roster-order-save]");
+  if (save) {
+    save.disabled = true;
+    const msg = document.getElementById("rosterMessage");
+    try {
+      await managerApi("manager_set_roster_order", { staff_ids: rosterOrderState.list.map(m => m.id) });
+      rosterOrderState.open = false;
+      renderRosterOrder();
+      await loadRoster(rosterState.week);
+      msg.className = "message show ok"; msg.textContent = "Order saved.";
+    } catch (error) {
+      msg.className = "message show error"; msg.textContent = error.message || "Unable to save the order.";
+      save.disabled = false;
+    }
+  }
+});
+
 // PDF of the week on screen (current department), grouped by role.
 function rosterPdfReport() {
   const data = rosterState.data;
   if (!data) return null;
   const week = data.week_start;
   const dept = rosterState.dept || "Kitchen";
-  const people = rosterSortByRole((data.team || []).filter(m => m.department === dept));
+  const people = rosterPeople(data, dept);
   const cells = {};
   (data.entries || []).forEach(e => { cells[`${e.staff_id}|${e.work_date}`] = e; });
   const leaveCells = rosterLeaveByCell(data.leave || [], week);

@@ -19,6 +19,8 @@ const BEFORE = [
 ];
 const ROLES = "supabase/migrations/20261021010000_roster_roles.sql";
 const ROLES_DOWN = "supabase/rollback/20261021010000_roster_roles.down.sql";
+const ORDER = "supabase/migrations/20261021020000_roster_order.sql";
+const ORDER_DOWN = "supabase/rollback/20261021020000_roster_order.down.sql";
 const NEW_SERVER = resolve(root, "supabase/functions/marinara-api-v2/Index.ts");
 const PROD_SERVER = resolve(root, "tests/edge/baseline-v41.ts");
 
@@ -80,8 +82,9 @@ try {
     }
     return "team, roster, dashboard 200 (no role columns yet)";
   });
-  await check("the migration applies cleanly; no existing function or row changed", async () => {
+  await check("the migrations apply cleanly; no existing function or row changed", async () => {
     const r = db.psqlFile(ROLES); assert.ok(r.ok, r.stderr);
+    const r2 = db.psqlFile(ORDER); assert.ok(r2.ok, r2.stderr);
     const fp = await db.fingerprints();
     assert.deepEqual(Object.keys(fpBefore).filter((k) => fp[k] !== fpBefore[k]), []);
     assert.equal(await one(db, DATA_SQL), dataBefore);
@@ -185,6 +188,20 @@ try {
     return `roster-only: old PIN ${tryLogin.status}; manager refused; new PIN + untick: sign-in 200`;
   });
 
+  await check("roster order: saved order comes back; kitchen manager cannot order Floor people", async () => {
+    let r = await api(vNew, 2, km, { action: "manager_set_roster_order", staff_ids: [ID(12), ID(4), ID(5)] });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const w = await api(vNew, 2, km, { action: "manager_roster_week", week_start: "2026-11-02" });
+    const ord = Object.fromEntries(w.body.data.team.map((p) => [p.id, p.roster_order]));
+    assert.deepEqual([ord[ID(12)], ord[ID(4)], ord[ID(5)]], [10, 20, 30]);
+    r = await api(vNew, 2, km, { action: "manager_set_roster_order", staff_ids: [ID(6)] });
+    assert.equal(r.status, 403);
+    r = await api(vNew, 2, km, { action: "manager_set_roster_order", staff_ids: [ID(4), ID(4)] });
+    assert.equal(r.status, 400);
+    assert.equal(Number(await one(db, "select count(*) from public.staff_audit where action = 'manager_set_roster_order'")), 1);
+    return "Racer 10, Kitchen A 20, Kitchen B 30; Floor person 403; duplicate 400; 1 audit row";
+  });
+
   await check("existing screens keep working for every manager type", async () => {
     for (const [n, t] of [[1, gm], [2, km], [3, fm]]) {
       for (const action of ["manager_dashboard", "manager_team", "manager_hours", "manager_working", "manager_approvals", "manager_roster_week", "manager_leave_list", "manager_stock_list"]) {
@@ -204,12 +221,13 @@ try {
   });
 
   section("D. Rollback");
-  await check("the rollback file removes the role columns, table and functions", async () => {
+  await check("the rollback files remove the order and role columns, table and functions", async () => {
+    const r0 = db.psqlFile(ORDER_DOWN); assert.ok(r0.ok, r0.stderr);
     const r = db.psqlFile(ROLES_DOWN); assert.ok(r.ok, r.stderr);
     const fp = await db.fingerprints();
     assert.deepEqual(Object.keys(fp).sort(), Object.keys(fpBefore).sort());
     for (const k of Object.keys(fpBefore)) assert.equal(fp[k], fpBefore[k], k);
-    assert.equal(Number(await one(db, "select count(*) from information_schema.columns where table_name='staff' and column_name in ('position','roster_only')")), 0);
+    assert.equal(Number(await one(db, "select count(*) from information_schema.columns where table_name='staff' and column_name in ('position','roster_only','roster_order')")), 0);
     return "functions equal production again";
   });
   await check("v41 and the new server both work after the rollback", async () => {

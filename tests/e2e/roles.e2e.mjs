@@ -42,7 +42,7 @@ for (const f of [MIGRATION_A, MIGRATION_B,
   "supabase/migrations/20261020010000_roster.sql",
   "supabase/migrations/20261020020000_leave.sql",
   "supabase/migrations/20261020030000_public_holidays.sql",
-  STOCK, "supabase/migrations/20261021010000_roster_roles.sql"]) { const r = db.psqlFile(f); if (!r.ok) throw new Error(`${f}: ${r.stderr}`); }
+  STOCK, "supabase/migrations/20261021010000_roster_roles.sql", "supabase/migrations/20261021020000_roster_order.sql"]) { const r = db.psqlFile(f); if (!r.ok) throw new Error(`${f}: ${r.stderr}`); }
 useDatabase(db.svc);
 await reseed(db);
 { const r = db.psqlFile(STOCK); if (!r.ok) throw new Error(r.stderr); } // reseed's cascade emptied it
@@ -150,6 +150,23 @@ try {
     return order.join(" | ");
   });
 
+  await check("Roster: manager logins are not on the roster; Order puts people in the chosen order", async () => {
+    const names = await gm.page.$$eval("#rosterGridBox .roster-name", (e) => e.map((x) => x.firstChild.textContent.trim()));
+    assert.ok(!names.some((n) => /Manager/.test(n)), names.join(","));
+    await gm.page.click("#rosterOrderBtn");
+    await gm.page.waitForSelector("#rosterOrderBox:not(.hidden) .roster-order-row");
+    // Chef group is [Test Kitchen A, Test Salary Chef] -> move Salary Chef up
+    const rows = await gm.page.$$eval("#rosterOrderBox .roster-order-row strong", (e) => e.map((x) => x.textContent));
+    const i = rows.indexOf("Test Salary Chef");
+    await gm.page.locator(`#rosterOrderBox [data-roster-order-move="-1"][data-i="${i}"]`).click();
+    await gm.shot("roster_order");
+    await gm.page.click("[data-roster-order-save]");
+    await gm.page.waitForFunction(() => /Order saved/.test(document.getElementById("rosterMessage").textContent));
+    const after = await gm.page.$$eval("#rosterGridBox .roster-name", (e) => e.map((x) => x.firstChild.textContent.trim()));
+    assert.ok(after.indexOf("Test Salary Chef") < after.indexOf("Test Kitchen A"), after.join(","));
+    return `before: ${names.join(", ")} → after: ${after.join(", ")}`;
+  });
+
   await check("Roster: Export PDF of the week (Kitchen)", async () => {
     // put a few cells in so the PDF has content
     const week = await gm.page.evaluate(() => rosterState.week);
@@ -172,6 +189,18 @@ try {
     assert.equal(pdf.subarray(0, 5).toString(), "%PDF-"); assert.ok(pdf.length > 3000);
     assert.deepEqual(gm.errors, []);
     return `PDF ${pdf.length} bytes`;
+  });
+
+  await check("Team: inactive people hidden behind 'Show inactive'", async () => {
+    await gm.page.click('[data-manager-nav="home"]');
+    await gm.page.click("#teamCard");
+    await gm.page.waitForSelector("#teamScreen:not(.hidden) .team-person-row");
+    const before = await gm.page.locator(".team-person-row", { hasText: "Test Inactive" }).count();
+    await gm.page.click("[data-team-inactive-toggle]");
+    await gm.page.locator(".team-person-row", { hasText: "Test Inactive" }).waitFor();
+    const count = await gm.page.textContent("#teamV2Count");
+    assert.equal(before, 0);
+    return `hidden by default; shown after tapping; header "${count}"`;
   });
 
   await check("Staff Hours and timesheets do not list the roster-only person", async () => {
