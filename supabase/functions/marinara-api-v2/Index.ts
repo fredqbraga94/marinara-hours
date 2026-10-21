@@ -336,6 +336,8 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   INVALID_INPUT: [400, "Invalid request"],
   STOCK_ITEM_NOT_FOUND: [404, "Item not found"],
   RECIPE_NOT_FOUND: [404, "Recipe not found"],
+  INVOICE_NOT_FOUND: [404, "Invoice not found"],
+  INVOICE_DUPLICATE: [409, "This invoice is already saved."],
 };
 
 // WEBPUSH-START
@@ -1409,6 +1411,12 @@ Deno.serve(async (req) => {
         "manager_leave_create",
         "manager_leave_count",
         "manager_recipe_list",
+        "manager_invoice_save",
+        "manager_invoice_list",
+        "manager_invoice_get",
+        "manager_invoice_remove",
+        "manager_invoice_prices",
+        "manager_invoice_usage",
         "manager_recipe_save",
         "manager_recipe_remove",
         "manager_recipe_ingredient_save",
@@ -3118,6 +3126,80 @@ Deno.serve(async (req) => {
         });
         if (error) return managerDbError(error, "Unable to add the person");
         return json({ success: true, action, data: { staff: data } });
+      }
+
+      // =========================
+      // SUPPLIER INVOICES (Administrator)
+      // =========================
+      if (action.startsWith("manager_invoice_")) {
+        const isUuid = (v: string) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const isDate = (v: any) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
+        const amount = (v: any, max = 1e7) => {
+          const n = typeof v === "number" ? v : Number(v);
+          return Number.isFinite(n) && Math.abs(n) < max ? Math.round(n * 10000) / 10000 : null;
+        };
+        const text = (v: any, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+
+        if (action === "manager_invoice_save") {
+          const inv = body.invoice && typeof body.invoice === "object" ? body.invoice : {};
+          const lines = Array.isArray(inv.lines) ? inv.lines : [];
+          const supplier = text(inv.supplier, 80), number = text(inv.number, 60);
+          const kind = inv.kind === "credit" ? "credit" : "invoice";
+          const subtotal = amount(inv.subtotal), gst = amount(inv.gst ?? 0), total = amount(inv.total);
+          const clean = lines.slice(0, 301).map((l: any) => ({
+            code: text(l?.code, 40), description: text(l?.description, 300),
+            qty: l?.qty == null ? null : amount(l.qty, 1e6), unit: text(l?.unit, 40),
+            unit_price: l?.unit_price == null ? null : amount(l.unit_price), line_total: amount(l?.line_total),
+            gst: amount(l?.gst ?? 0) ?? 0,
+          }));
+          if (!supplier || !number || !isDate(inv.date) || subtotal === null || gst === null || total === null ||
+              !clean.length || clean.length > 300 || clean.some((l: any) => l.line_total === null || !l.description)) {
+            return json({ error: "This invoice could not be read completely. Check it and try again.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_invoice_save", {
+            p_manager_id: managerStatus.id, p_location: location,
+            p_invoice: { supplier, number, kind, date: inv.date, subtotal, gst, total,
+              checks_ok: inv.checks_ok === true, file_name: text(inv.file_name, 200), lines: clean },
+          });
+          if (error) return managerDbError(error, "Unable to save the invoice");
+          return json({ success: true, action, data: { invoice: data } });
+        }
+
+        if (action === "manager_invoice_list") {
+          const today = new Date(Date.now() + BRISBANE_OFFSET_MS).toISOString().slice(0, 10);
+          const from = isDate(body.from) ? body.from : today.slice(0, 8) + "01";
+          const to = isDate(body.to) ? body.to : today;
+          const { data, error } = await supabase.rpc("manager_invoice_list", {
+            p_manager_id: managerStatus.id, p_location: location, p_from: from, p_to: to,
+          });
+          if (error) return managerDbError(error, "Unable to load invoices", 500);
+          return json({ success: true, action, data });
+        }
+
+        if (action === "manager_invoice_prices") {
+          const { data, error } = await supabase.rpc("manager_invoice_price_changes", {
+            p_manager_id: managerStatus.id, p_location: location,
+          });
+          if (error) return managerDbError(error, "Unable to load price changes", 500);
+          return json({ success: true, action, data: { changes: data || [] } });
+        }
+
+        if (action === "manager_invoice_usage") {
+          const weeks = [4, 8, 12, 26].includes(Number(body.weeks)) ? Number(body.weeks) : 8;
+          const { data, error } = await supabase.rpc("manager_invoice_usage", {
+            p_manager_id: managerStatus.id, p_location: location, p_weeks: weeks,
+          });
+          if (error) return managerDbError(error, "Unable to load weekly use", 500);
+          return json({ success: true, action, data });
+        }
+
+        const id = typeof body.id === "string" ? body.id.trim() : "";
+        if (!isUuid(id)) return json({ error: "Invoice not found", code: "INVOICE_NOT_FOUND" }, 404);
+        const fn = action === "manager_invoice_get" ? "manager_invoice_get" : "manager_invoice_remove";
+        const { data, error } = await supabase.rpc(fn, { p_manager_id: managerStatus.id, p_location: location, p_id: id });
+        if (error) return managerDbError(error, "Unable to open the invoice");
+        return json({ success: true, action, data: action === "manager_invoice_get" ? { invoice: data } : data });
       }
 
       // =========================
