@@ -347,8 +347,27 @@ try {
     await desk.page.waitForSelector("#recipesScreen:not(.hidden)");
     await desk.page.waitForFunction(() => document.querySelector('#recipesTabs [data-rcp-tab="recipes"]')?.classList.contains("selected"));
     await desk.shot("desktop_recipes");
+    // From any screen to any other: only one screen is ever showing.
+    const SCREENS = ["managerScreen", "managerMoreScreen", "approvalsScreen", "teamScreen", "rosterScreen", "timeOffScreen",
+      "staffHoursScreen", "timesheetsScreen", "devicesScreen", "stockScreen", "recipesScreen", "invoicesScreen"];
+    const visible = () => desk.page.evaluate((ids) => ids.filter((id) => !document.getElementById(id)?.classList.contains("hidden")), SCREENS);
+    for (const a of ["team", "stock", "kitchen", "invoices"]) {
+      if (await desk.page.locator(`[data-desk-area="${a}"]`).getAttribute("aria-expanded") !== "true") await desk.page.click(`[data-desk-area="${a}"]`);
+    }
+    const targets = await desk.page.locator("[data-desk-key], [data-desk-nav]").evaluateAll((els) => els.map((e) => e.dataset.deskKey ? `[data-desk-key="${e.dataset.deskKey}"]` : `[data-desk-nav="${e.dataset.deskNav}"]`));
+    const seen = [];
+    for (const from of targets) {
+      for (const to of [targets[(targets.indexOf(from) + 3) % targets.length], '[data-desk-nav="team"]', '[data-desk-key="moreTimesheetsBtn"]']) {
+        await desk.page.click(from); await desk.page.waitForTimeout(150);
+        await desk.page.click(to); await desk.page.waitForTimeout(250);
+        const v = await visible();
+        assert.equal(v.length, 1, `${from} -> ${to}: ${v.join(", ")}`);
+        seen.push(v[0]);
+      }
+    }
     await desk.page.click('[data-manager-nav="home"]');
     await desk.page.waitForSelector("#managerScreen:not(.hidden)");
+    assert.deepEqual(await visible(), ["managerScreen"]);
     assert.equal(await desk.page.locator("[data-desk-key].active, [data-desk-nav].active").count(), 0);
     assert.match(await desk.page.innerText(".desk-foot"), /Test General Manager\s*Administrator/);
     assert.equal(await desk.page.locator("#managerLogoutBtn").isVisible(), false, "sign out lives in More");
