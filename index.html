@@ -6368,6 +6368,7 @@ function rosterPdfReport() {
   if (!data) return null;
   const week = data.week_start;
   const dept = rosterState.dept || "Kitchen";
+  const startOnly = dept === "Floor";
   const people = rosterPeople(data, dept);
   const cells = {};
   (data.entries || []).forEach(e => { cells[`${e.staff_id}|${e.work_date}`] = e; });
@@ -6385,7 +6386,8 @@ function rosterPdfReport() {
     if (l && l.status === "APPROVED") return { text: l.kind === "HOLIDAY" ? "Holiday" : "Day off", kind: "leave" };
     if (!e) return { text: "", kind: "" };
     if (e.code === "OFF") return { text: "Off", kind: "off" };
-    if (e.code === "SHIFT") return { text: `${t12(e.start_time)}-${t12(e.end_time)}`, kind: "work" };
+    // Floor gets start times only: no finish time is promised on the PDF.
+    if (e.code === "SHIFT") return { text: startOnly ? t12(e.start_time) : `${t12(e.start_time)}-${t12(e.end_time)}`, kind: "work" };
     return { text: e.code === "LD" ? "L/D" : e.code, kind: "work" };
   };
   const groups = [];
@@ -6400,7 +6402,7 @@ function rosterPdfReport() {
     });
   }
   const svc = data.services || [];
-  const span = (s) => s ? `${t12(s.start_time)}-${t12(s.end_time)}` : "";
+  const span = (s) => s ? (startOnly ? `from ${t12(s.start_time)}` : `${t12(s.start_time)}-${t12(s.end_time)}`) : "";
   const roles = [...new Set(people.map(p => p.position).filter(Boolean))];
   const legendParts = [];
   {
@@ -6418,7 +6420,8 @@ function rosterPdfReport() {
     week: `${fmtDay(days[0])} - ${fmtDay(days[6])}`,
     fileName: `${dept}-${week}`,
     legend: (legendParts.length ? `L = lunch, D = dinner, L/D = both. ${legendParts.join(" · ")}. ` : "") +
-      "Hours are planned hours.",
+      (startOnly ? "Times are start times." : "Hours are planned hours."),
+    noHours: startOnly,
     logo: document.querySelector(".login-original-logo")?.src,
     days: days.map(d => ({ label: fmtDay(d), holiday: holidays[d] || "" })),
     groups,

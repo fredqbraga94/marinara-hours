@@ -46,28 +46,30 @@
     doc.text(`Generated from Marinara Hours · ${page} / ${pages}`, W - R, 203.2, { align: 'right' });
   }
 
-  // report: {place, week, legend, logo, days:[{label, holiday}], groups:[{name, rows:[{name, cells:[7], hours}]}]}
+  // report: {place, week, legend, logo, days:[{label, holiday}], groups:[{name, rows:[{name, cells:[7], hours}]}], noHours?}
+  // noHours: leave out the Hours column (Floor: no finish times on the PDF).
   function generate(report) {
     const doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
     const head = [[
       { content: 'Name', styles: { halign: 'left' } },
       ...report.days.map(d => ({ content: clean(d.label) + (d.holiday ? '\nPublic holiday' : ''),
                                 styles: d.holiday ? { fillColor: [253, 231, 199], textColor: [122, 75, 0] } : {} })),
-      'Hours',
+      ...(report.noHours ? [] : ['Hours']),
     ]];
+    const cols = report.noHours ? 8 : 9;
     const body = [];
     report.groups.forEach(g => {
-      if (g.name) body.push([{ content: clean(g.name).toUpperCase(), colSpan: 9,
+      if (g.name) body.push([{ content: clean(g.name).toUpperCase(), colSpan: cols,
         styles: { fontStyle: 'bold', textColor: 40, fillColor: 232, fontSize: 8 } }]);
       g.rows.forEach(r => body.push([
         { content: clean(r.name), styles: { fontStyle: 'bold' } },
         ...r.cells.map(c => ({ content: clean(c.text),
           styles: c.kind === 'off' ? { textColor: 150 } : c.kind === 'leave' ? { textColor: [91, 75, 168], fontStyle: 'bold' }
             : c.kind === 'work' ? { fontStyle: 'bold' } : {} })),
-        clean(r.hours),
+        ...(report.noHours ? [] : [clean(r.hours)]),
       ]));
     });
-    if (!body.length) body.push([{ content: 'No staff on this roster.', colSpan: 9 }]);
+    if (!body.length) body.push([{ content: 'No staff on this roster.', colSpan: cols }]);
     doc.autoTable({
       startY: 38,
       margin: { left: L, right: R, top: 38, bottom: 14 },
@@ -76,7 +78,7 @@
       styles: { font: 'helvetica', fontSize: 9, cellPadding: 1.8, halign: 'center', valign: 'middle',
                 lineColor: 205, lineWidth: 0.15, textColor: 30, minCellHeight: 8 },
       headStyles: { fillColor: 55, textColor: 255, fontStyle: 'bold', fontSize: 8.5 },
-      columnStyles: { 0: { cellWidth: 46, halign: 'left' }, 8: { cellWidth: 18 } },
+      columnStyles: report.noHours ? { 0: { cellWidth: 46, halign: 'left' } } : { 0: { cellWidth: 46, halign: 'left' }, 8: { cellWidth: 18 } },
       showHead: 'everyPage',
     });
     const pages = doc.getNumberOfPages();

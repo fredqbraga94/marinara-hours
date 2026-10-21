@@ -209,6 +209,32 @@ try {
     return `PDF ${pdf.length} bytes`;
   });
 
+  await check("Roster PDF (Floor): start times only, no finish times, no hours column", async () => {
+    const week = await gm.page.evaluate(() => rosterState.week);
+    const id = await db.admin.query("select id from public.staff where name = 'Test Floor A'").then((r) => r.rows[0][0]);
+    const d = await gm.page.evaluate(([w]) => rosterAddDays(w, 2), [week]);
+    await gm.page.evaluate(async ([sid, wd]) => managerApi("manager_roster_set", { staff_id: sid, work_date: wd, code: "SHIFT", start_time: "17:00", end_time: "22:00" }), [id, d]);
+    await gm.page.click('[data-roster-dept="Floor"]');
+    await gm.page.evaluate(async (w) => loadRoster(w), week);
+    const rep = await gm.page.evaluate(() => rosterPdfReport());
+    const row = rep.groups.flatMap((g) => g.rows).find((r) => r.name === "Test Floor A");
+    const cell = row.cells[2].text;
+    const ok = await gm.page.evaluate(async () => {
+      const blob = window.MarinaraRosterPdf.generate(rosterPdfReport());
+      return (await blob.arrayBuffer()).byteLength;
+    });
+    // The app itself still keeps both times (for hours and the visa check).
+    const saved = await db.admin.query(`select start_time::text, end_time::text from public.roster_entries where staff_id = '${id}' and work_date = '${d}'`).then((r) => r.rows[0]);
+    await gm.page.click('[data-roster-dept="Kitchen"]');
+    assert.equal(cell, "5pm");
+    assert.equal(rep.noHours, true);
+    assert.ok(!/\d(am|pm)-\d/.test(rep.legend), rep.legend);
+    assert.match(rep.legend, /start times/);
+    assert.deepEqual(saved, ["17:00:00", "22:00:00"]);
+    assert.ok(ok > 3000);
+    return `cell "${cell}"; legend: ${rep.legend}`;
+  });
+
   await check("Team: inactive people hidden behind 'Show inactive'", async () => {
     await gm.page.click('[data-manager-nav="home"]');
     await gm.page.click("#teamCard");
