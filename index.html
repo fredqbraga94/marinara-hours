@@ -1371,6 +1371,9 @@ body.mgr-mode #recipesTabs button.selected { color: var(--ink, #000); }
 .inv-cost-actions button { flex: 1; min-height: 42px; border-radius: 12px; border: 1px solid #e7e2d8; background: #fff; font-weight: 800; font-size: 13px; }
 .inv-cost-actions .save { background: var(--green); border-color: var(--green); color: #fff; }
 .inv-cost-actions .unlink { color: #9a6b66; }
+.inv-cost-head .val.made { color: #8a5a00; font-size: 13px; font-weight: 800; }
+.inv-made-btn { width: 100%; margin-top: 10px; min-height: 42px; border-radius: 12px; border: 1px dashed #c9b98f; background: #fffaf0; color: #6b5200; font-weight: 800; font-size: 13px; }
+.inv-made-note { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
 .inv-search { width: 100%; min-height: 44px; border: 1px solid #e7e2d8; border-radius: 12px; padding: 0 14px; font-size: 15px; background: #fff; margin: 0 0 12px; }
 .inv-use-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .inv-use-kpis div { background: #f7f5f0; border-radius: 12px; padding: 10px; }
@@ -2042,11 +2045,12 @@ button:disabled{opacity:.6}
     <div class="card"><div id="invUsage" class="empty-state">Loading…</div></div>
   </div>
   <div id="invCostsView" class="hidden">
-    <p class="inv-hint">Link each recipe ingredient to the product you buy. The app then knows its real price per kg, litre or each, and follows the latest invoice. Next step: the cost of each dish.</p>
+    <p class="inv-hint">Link each ingredient you buy to its product in the invoices: the app then knows its real price per kg, litre or each, and follows the latest invoice. Things made in the kitchen (pizza dough, sauces) become their own recipe instead. Next step: the cost of each dish.</p>
     <div class="card"><div id="invCostsSummary" class="empty-state">Loading…</div></div>
     <div class="stock-chips" id="invCostsFilter">
       <button type="button" data-inv-costs-filter="todo" class="selected">To link</button>
       <button type="button" data-inv-costs-filter="done">Linked</button>
+      <button type="button" data-inv-costs-filter="made">Made here</button>
       <button type="button" data-inv-costs-filter="all">All</button>
     </div>
     <input id="invCostsSearch" class="inv-search" type="search" placeholder="Search an ingredient" autocomplete="off">
@@ -8124,6 +8128,20 @@ function invCostEditor(ing) {
       <button type="button" data-inv-cost-cancel>Cancel</button>
       <button type="button" class="save" data-inv-cost-save="${escapeHtml(ing.id)}"${chosen ? "" : " disabled"}>Save</button>
     </div>
+    <button type="button" class="inv-made-btn" data-inv-cost-made="${escapeHtml(ing.id)}">Not bought – it's made in the kitchen</button>
+    <div class="inv-made-note">It becomes its own recipe (like Bolognese) that you fill in later in Recipes. Every dish that uses it keeps its allergens as they are now.</div>
+  </div>`;
+}
+function invMadeEditor(ing) {
+  const m = ing.made_here;
+  return `<div class="inv-cost-edit">
+    <div class="inv-made-note" style="margin-top:0">${m.empty_lines
+      ? `${escapeHtml(ing.name)} is made in the kitchen. Its recipe still needs the real ingredients and quantities, and what one batch makes.`
+      : `${escapeHtml(ing.name)} is made in the kitchen; its cost will come from its recipe.`}</div>
+    <div class="inv-cost-actions">
+      <button type="button" data-inv-cost-cancel>Close</button>
+      <button type="button" class="save" data-inv-open-recipe="${escapeHtml(m.recipe_id)}" data-name="${escapeHtml(ing.name)}">Open in Recipes</button>
+    </div>
   </div>`;
 }
 function invRenderCosts() {
@@ -8132,20 +8150,30 @@ function invRenderCosts() {
   const box = document.getElementById("invCosts");
   const sum = document.getElementById("invCostsSummary");
   const all = data.ingredients || [];
+  const isTodo = i => !i.link && !i.made_here && i.used_in > 0;
   const linked = all.filter(i => i.link).length;
+  const made = all.filter(i => i.made_here).length;
   sum.className = "";
   sum.innerHTML = `<div class="inv-use-kpis">
       <div><strong>${linked}</strong><span>Linked</span></div>
-      <div><strong>${all.length - linked}</strong><span>To link</span></div>
-      <div><strong>${(data.products || []).length}</strong><span>Products in invoices</span></div>
-    </div>${(data.products || []).length ? "" : `<div class="inv-use-note">Save some invoices first: the products come from them.</div>`}`;
+      <div><strong>${all.filter(isTodo).length}</strong><span>To link</span></div>
+      <div><strong>${made}</strong><span>Made here</span></div>
+    </div><div class="inv-use-note">${(data.products || []).length} products in your invoices.${(data.products || []).length ? "" : " Save some invoices first: the products come from them."}</div>`;
   const q = invState.costsSearch.trim().toLowerCase();
   const f = invState.costsFilter;
-  const shown = all.filter(i => (f === "all" || (f === "done") === !!i.link) && (!q || i.name.toLowerCase().includes(q)) || i.id === invState.costOpen)
+  const inFilter = i => f === "all" ? (i.used_in > 0 || i.link || i.made_here) : f === "done" ? !!i.link : f === "made" ? !!i.made_here : isTodo(i);
+  const shown = all.filter(i => inFilter(i) && (!q || i.name.toLowerCase().includes(q)) || i.id === invState.costOpen)
     .sort((a, b) => f === "todo" ? (b.used_in - a.used_in) || a.name.localeCompare(b.name) : a.name.localeCompare(b.name));
   box.className = shown.length ? "" : "empty-state";
   box.innerHTML = shown.length ? shown.map(i => {
-    const l = i.link;
+    const l = i.link, m = i.made_here;
+    if (m) {
+      return `<div class="inv-cost">
+      <button type="button" class="inv-cost-head" data-inv-cost-open="${escapeHtml(i.id)}"><strong>${escapeHtml(i.name)}</strong><span class="val made">Made here</span>
+        <small>Its own recipe · used in ${m.used_in} ${m.used_in === 1 ? "recipe" : "recipes"}${m.empty_lines ? " · to fill in" : ""}</small></button>
+      ${invState.costOpen === i.id ? invMadeEditor(i) : ""}
+    </div>`;
+    }
     const val = l ? (l.cost_per_unit == null ? `<span class="val todo">No price</span>` : `<span class="val">${escapeHtml(invMoney(l.cost_per_unit))}/${escapeHtml(l.base_unit === "each" ? "each" : l.base_unit)}</span>`)
       : `<span class="val todo">Link</span>`;
     const sub = l ? `${escapeHtml(l.label)} · ${escapeHtml(l.supplier)} · ${escapeHtml(invQty(l.pack_count))} × ${escapeHtml(invQty(l.pack_size))} ${escapeHtml(l.pack_unit)}`
@@ -8154,7 +8182,7 @@ function invRenderCosts() {
       <button type="button" class="inv-cost-head" data-inv-cost-open="${escapeHtml(i.id)}"><strong>${escapeHtml(i.name)}</strong>${val}<small>${sub}</small></button>
       ${invState.costOpen === i.id ? invCostEditor(i) : ""}
     </div>`;
-  }).join("") : (f === "todo" && !q ? "Every ingredient is linked." : "Nothing here.");
+  }).join("") : (f === "todo" && !q ? "Every ingredient is linked." : f === "made" && !q ? "Nothing marked as made in the kitchen yet." : "Nothing here.");
 }
 async function loadIngredientCosts() {
   try {
@@ -8260,6 +8288,34 @@ invoicesScreen?.addEventListener("click", async e => {
     const p = (invState.costs?.products || []).find(x => invProdKey(x) === cp.dataset.invCostProd) || invState.costPick?.product;
     if (p) invState.costPick = { product: p, ...R_().packGuess(p.description, p.unit) };
     invRenderCosts(); return;
+  }
+  const mk = e.target.closest("[data-inv-cost-made]");
+  if (mk) {
+    if (mk.dataset.confirm !== "1") { mk.dataset.confirm = "1"; mk.textContent = "Tap again to confirm: it's made in the kitchen"; return; }
+    const ing = (invState.costs?.ingredients || []).find(i => i.id === mk.dataset.invCostMade);
+    mk.disabled = true;
+    try {
+      const r = await managerApi("manager_ingredient_make_recipe", { ingredient_id: mk.dataset.invCostMade });
+      invState.costOpen = null; invState.costPick = null;
+      invMsg(`${ing?.name || "It"} is now its own recipe, used by ${r.recipes_using_it} ${r.recipes_using_it === 1 ? "recipe" : "recipes"}. Fill it in later in Recipes.`, true);
+      await loadIngredientCosts();
+    } catch (error) {
+      mk.disabled = false;
+      invMsg(error.message || "Unable to make it a recipe.", false);
+    }
+    return;
+  }
+  const orc = e.target.closest("[data-inv-open-recipe]");
+  if (orc) {
+    const rid = orc.dataset.invOpenRecipe, name = orc.dataset.name || "";
+    invoicesScreen.classList.add("hidden");
+    await openRecipesScreen();
+    rcpShowTab("recipes");
+    const search = document.getElementById("rcpRecipeSearch");
+    if (search) search.value = name;
+    rcpState.open["r" + rid] = true;
+    rcpRenderRecipes();
+    return;
   }
   if (e.target.closest("[data-inv-cost-cancel]")) { invState.costOpen = null; invState.costPick = null; invRenderCosts(); return; }
   const cs = e.target.closest("[data-inv-cost-save], [data-inv-cost-unlink]");

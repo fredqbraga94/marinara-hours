@@ -224,7 +224,7 @@ try {
     await gm.page.click('[data-inv-tab="costs"]');
     await gm.page.waitForSelector("#invCosts .inv-cost");
     const sum = (await gm.page.innerText("#invCostsSummary")).replace(/\s+/g, " ");
-    assert.match(sum, /0 Linked/i); assert.match(sum, /2 Products in invoices/i);
+    assert.match(sum, /0 Linked/i); assert.match(sum, /0 Made here/i); assert.match(sum, /2 products in your invoices/i);
     await gm.page.fill("#invCostsSearch", "tomato");
     const head = gm.page.locator(".inv-cost-head", { hasText: /^Tomato\s*Link/ });
     await head.first().click();
@@ -253,6 +253,35 @@ try {
     await gm.page.click('[data-inv-tab="list"]');
     await waitList(gm);
     return linked[0].replace(/\s+/g, " ");
+  });
+
+  await check("costs: Pizza dough is made in the kitchen -> its own recipe, opened in Recipes", async () => {
+    await gm.page.click('[data-inv-tab="costs"]');
+    await gm.page.waitForSelector("#invCosts .inv-cost");
+    await gm.page.click('[data-inv-costs-filter="todo"]');
+    await gm.page.fill("#invCostsSearch", "pizza dough");
+    await gm.page.locator(".inv-cost-head", { hasText: "Pizza dough" }).first().click();
+    const btn = gm.page.locator("[data-inv-cost-made]");
+    await btn.click();
+    assert.match(await btn.textContent(), /Tap again/);
+    await btn.click();
+    await gm.page.waitForSelector("#invMessage.ok");
+    assert.match(await gm.page.textContent("#invMessage"), /Pizza dough is now its own recipe, used by \d+ recipes/);
+    await gm.page.click('[data-inv-costs-filter="made"]');
+    const rows = await gm.page.locator("#invCosts .inv-cost").allInnerTexts();
+    assert.equal(rows.length, 1); assert.match(rows[0], /Made here/); assert.match(rows[0], /to fill in/);
+    await gm.page.locator(".inv-cost-head", { hasText: "Pizza dough" }).click();
+    await gm.shot("invoices_costs_made");
+    await gm.page.click("[data-inv-open-recipe]");
+    await gm.page.waitForSelector("#recipesScreen:not(.hidden)");
+    await gm.page.waitForSelector("#rcpRecipeList .rcp-detail");
+    const txt = await gm.page.innerText("#rcpRecipeList");
+    assert.match(txt, /Pizza dough/); assert.match(txt, /To fill in/);
+    await gm.page.click('[data-manager-nav="more"]');
+    await gm.page.click("#moreInvoicesBtn");
+    await gm.page.waitForSelector("#invoicesScreen:not(.hidden)");
+    await waitList(gm);
+    return rows[0].replace(/\s+/g, " ");
   });
 
   await check("open an invoice to see its lines; remove needs two taps", async () => {

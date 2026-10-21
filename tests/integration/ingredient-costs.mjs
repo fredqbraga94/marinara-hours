@@ -189,6 +189,51 @@ try {
     return "400 / 404";
   });
 
+  await check("made in the kitchen: Pizza dough becomes its own Prep recipe; dishes keep allergens and checked state", async () => {
+    const dough = await one(db, "select id from public.recipe_ingredients where name = 'Pizza dough' and location = 'Hawthorne'");
+    const usedBefore = Number(await one(db, `select count(distinct recipe_id) from public.recipe_lines where ingredient_id = '${dough}' and active`));
+    assert.ok(usedBefore > 5, String(usedBefore));
+    const snap = async () => Object.fromEntries((await api(vNew, 3, fm, { action: "manager_recipe_list" })).body.data.recipes
+      .map((r) => [r.name, JSON.stringify([r.allergens, r.all_checked])]));
+    const before = await snap();
+    // linked by mistake to flour first: the link is switched off
+    assert.equal((await api(vNew, 1, gm, { action: "manager_ingredient_cost_save", ingredient_id: dough, link: {
+      supplier: "Test Dairy Pty", product_key: "900", label: "x", pack_count: 1, pack_size: 1, pack_unit: "kg" } })).status, 200);
+    assert.equal((await api(vNew, 3, fm, { action: "manager_ingredient_make_recipe", ingredient_id: dough })).status, 403);
+    const r = await api(vNew, 2, km, { action: "manager_ingredient_make_recipe", ingredient_id: dough });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.data.recipes_using_it, usedBefore);
+    const after = await snap();
+    const changed = Object.keys(before).filter((k) => before[k] !== after[k]);
+    assert.deepEqual(changed, [], "allergens / checked of every recipe unchanged");
+    assert.ok(after["Pizza dough"], "the Prep recipe is listed");
+    const marg = (await api(vNew, 1, gm, { action: "manager_recipe_list" })).body.data.recipes.find((x) => x.name === "Margherita");
+    const line = marg.lines.find((l) => l.name === "Pizza dough");
+    assert.equal(line.is_recipe, true);
+    let c = (await api(vNew, 1, gm, { action: "manager_ingredient_costs" })).body.data.ingredients.find((i) => i.id === dough);
+    assert.equal(c.link, null);
+    assert.equal(c.made_here.used_in, usedBefore);
+    assert.equal(c.made_here.empty_lines, true);
+    assert.equal(c.used_in, 0);
+    // twice: nothing new
+    const again = await api(vNew, 1, gm, { action: "manager_ingredient_make_recipe", ingredient_id: dough });
+    assert.equal(again.body.data.recipes_using_it, 0);
+    assert.equal(await one(db, "select count(*) from public.recipes where name = 'Pizza dough' and active"), "1");
+    // a dish with the same name can't be made a Prep recipe
+    const can = await one(db, "select id from public.recipe_ingredients where name = 'Cannelloni' and location = 'Hawthorne'");
+    const no = await api(vNew, 1, gm, { action: "manager_ingredient_make_recipe", ingredient_id: can });
+    assert.equal(no.status, 409, JSON.stringify(no.body));
+    // the kitchen fills it in later in Recipes
+    const save = await api(vNew, 2, km, { action: "manager_recipe_save", recipe: { id: c.made_here.recipe_id, name: "Pizza dough", category: "Prep",
+      makes: "40 balls", lines: [{ name: "Test flour", quantity: "12.5 kg" }, { name: "Butter", quantity: "250 g" }, { name: "Water", quantity: "7 l" }] } });
+    assert.equal(save.status, 200, JSON.stringify(save.body));
+    c = (await api(vNew, 1, gm, { action: "manager_ingredient_costs" })).body.data.ingredients.find((i) => i.id === dough);
+    assert.equal(c.made_here.empty_lines, false);
+    const marg2 = (await api(vNew, 1, gm, { action: "manager_recipe_list" })).body.data.recipes.find((x) => x.name === "Margherita");
+    assert.ok(marg2.lines.some((l) => l.name === "Pizza dough" && l.is_recipe));
+    return `${usedBefore} recipes now use the Pizza dough recipe; allergens unchanged`;
+  });
+
   await check("everything else still works on the new server", async () => {
     for (const action of ["manager_dashboard", "manager_recipe_list", "manager_invoice_list", "manager_invoice_usage", "manager_invoice_prices"]) {
       assert.equal((await api(vNew, 1, gm, { action })).status, 200, action);

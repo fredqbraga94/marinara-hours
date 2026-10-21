@@ -1,8 +1,10 @@
 -- Ingredient costs, step 1: link each recipe ingredient to the product it is
 -- bought as (from the saved supplier invoices) and say what the invoice price
 -- buys (e.g. 6 x 2 kg). The app then knows the real price per kg / litre /
--- each, and it follows the latest invoice. Administrator and Kitchen Manager
--- only. Additive only: one new table and new functions. Nothing existing changes.
+-- each, and it follows the latest invoice. An ingredient that is made in the
+-- kitchen (e.g. pizza dough) can instead become its own Prep recipe, to be
+-- filled in later. Administrator and Kitchen Manager only.
+-- Additive only: one new table and new functions. Nothing existing changes.
 
 create table if not exists public.recipe_ingredient_costs (
   id uuid primary key default gen_random_uuid(),
@@ -63,7 +65,17 @@ begin
                'id', g.id, 'name', g.name,
                'used_in', (select count(distinct rl.recipe_id) from public.recipe_lines rl
                              join public.recipes r on r.id = rl.recipe_id and r.active
-                            where rl.ingredient_id = g.id and rl.active),
+                            where rl.ingredient_id = g.id and rl.active and lower(r.name) <> lower(g.name)),
+               'made_here', (select jsonb_build_object('recipe_id', r.id, 'empty_lines',
+                                      not exists (select 1 from public.recipe_lines rl where rl.recipe_id = r.id and rl.active
+                                                     and coalesce(rl.ingredient_id, '00000000-0000-0000-0000-000000000000') <> g.id),
+                                      'used_in', (select count(distinct rl.recipe_id) from public.recipe_lines rl
+                                                    join public.recipes d on d.id = rl.recipe_id and d.active
+                                                   where rl.sub_recipe_id = r.id and rl.active))
+                               from public.recipes r
+                              where r.location = g.location and r.active and lower(r.name) = lower(g.name)
+                                and r.category in ('Sauce', 'Dressing', 'Prep')
+                              order by r.created_at limit 1),
                'link', case when c.id is null then null else jsonb_build_object(
                  'supplier', c.supplier, 'product_key', c.product_key, 'label', c.product_label,
                  'pack_count', c.pack_count, 'pack_size', c.pack_size, 'pack_unit', c.pack_unit,
@@ -121,8 +133,63 @@ exception
     raise exception 'INVALID_INPUT';
 end $function$;
 
+-- "Made in the kitchen": turn a bought-looking ingredient into its own Prep
+-- recipe, and make every recipe that used it use that Prep recipe instead
+-- (like Lasagna uses Bolognese). The new recipe starts with the ingredient
+-- itself as its only line, so allergens and the "checked" state of every dish
+-- stay exactly as they were until the kitchen fills in the real ingredients.
+-- Any price link of the ingredient is switched off (the cost will come from
+-- the recipe). Replaced lines are kept, switched off.
+create or replace function public.manager_ingredient_make_recipe(p_manager_id uuid, p_location text, p_ingredient_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_location text := public.mh_invoice_admin(p_manager_id, p_location);
+  v_ing public.recipe_ingredients%rowtype;
+  v_recipe public.recipes%rowtype;
+  v_line public.recipe_lines%rowtype;
+  v_moved integer := 0;
+begin
+  select * into v_ing from public.recipe_ingredients where id = p_ingredient_id and location = v_location;
+  if not found then raise exception 'INGREDIENT_NOT_FOUND'; end if;
+  select * into v_recipe from public.recipes
+   where location = v_location and active and lower(name) = lower(v_ing.name)
+   order by created_at limit 1;
+  if found and v_recipe.category not in ('Sauce', 'Dressing', 'Prep') then
+    raise exception 'NAME_IS_A_DISH';
+  end if;
+  if v_recipe.id is null then
+    insert into public.recipes (location, name, category, notes, updated_by)
+    values (v_location, v_ing.name, 'Prep',
+            'To fill in: replace this line with the real ingredients and quantities, and say what one batch makes.',
+            p_manager_id)
+    returning * into v_recipe;
+    insert into public.recipe_lines (recipe_id, ingredient_id, quantity, position)
+    values (v_recipe.id, v_ing.id, null, 0);
+  end if;
+  for v_line in
+    select l.* from public.recipe_lines l join public.recipes r on r.id = l.recipe_id
+     where l.ingredient_id = v_ing.id and l.active and r.id <> v_recipe.id and r.location = v_location
+  loop
+    update public.recipe_lines set active = false where id = v_line.id;
+    insert into public.recipe_lines (recipe_id, sub_recipe_id, quantity, position)
+    values (v_line.recipe_id, v_recipe.id, v_line.quantity, v_line.position);
+    v_moved := v_moved + 1;
+  end loop;
+  update public.recipe_ingredient_costs set active = false where ingredient_id = v_ing.id and active;
+  insert into public.recipe_audit (kind, ref, changed_by, old_value, new_value)
+  values ('made_here', v_ing.id::text, p_manager_id, to_jsonb(v_ing),
+          jsonb_build_object('recipe_id', v_recipe.id, 'recipes_using_it', v_moved));
+  return jsonb_build_object('recipe_id', v_recipe.id, 'name', v_recipe.name, 'recipes_using_it', v_moved);
+end $function$;
+
 revoke all on function public.mh_invoice_products(text) from public, anon, authenticated;
 revoke all on function public.manager_ingredient_costs(uuid, text) from public, anon, authenticated;
 revoke all on function public.manager_ingredient_cost_save(uuid, text, uuid, jsonb) from public, anon, authenticated;
+revoke all on function public.manager_ingredient_make_recipe(uuid, text, uuid) from public, anon, authenticated;
 grant execute on function public.manager_ingredient_costs(uuid, text) to service_role;
 grant execute on function public.manager_ingredient_cost_save(uuid, text, uuid, jsonb) to service_role;
+grant execute on function public.manager_ingredient_make_recipe(uuid, text, uuid) to service_role;

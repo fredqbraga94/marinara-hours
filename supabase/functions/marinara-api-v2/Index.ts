@@ -339,6 +339,7 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   INVOICE_NOT_FOUND: [404, "Invoice not found"],
   INVOICE_DUPLICATE: [409, "This invoice is already saved."],
   INGREDIENT_NOT_FOUND: [404, "Ingredient not found"],
+  NAME_IS_A_DISH: [409, "There is already a dish with this name. Rename the ingredient first."],
 };
 
 // WEBPUSH-START
@@ -1420,6 +1421,7 @@ Deno.serve(async (req) => {
         "manager_invoice_usage",
         "manager_ingredient_costs",
         "manager_ingredient_cost_save",
+        "manager_ingredient_make_recipe",
         "manager_recipe_save",
         "manager_recipe_remove",
         "manager_recipe_ingredient_save",
@@ -3134,7 +3136,7 @@ Deno.serve(async (req) => {
       // =========================
       // SUPPLIER INVOICES and INGREDIENT COSTS (Administrator, Kitchen Manager)
       // =========================
-      if (action.startsWith("manager_invoice_") || action.startsWith("manager_ingredient_cost")) {
+      if (action.startsWith("manager_invoice_") || action.startsWith("manager_ingredient_cost") || action === "manager_ingredient_make_recipe") {
         const isUuid = (v: string) =>
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
         const isDate = (v: any) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
@@ -3193,6 +3195,16 @@ Deno.serve(async (req) => {
             p_manager_id: managerStatus.id, p_location: location,
           });
           if (error) return managerDbError(error, "Unable to load ingredient costs", 500);
+          return json({ success: true, action, data });
+        }
+
+        if (action === "manager_ingredient_make_recipe") {
+          const id = typeof body.ingredient_id === "string" ? body.ingredient_id : "";
+          if (!isUuid(id)) return json({ error: "Ingredient not found", code: "INGREDIENT_NOT_FOUND" }, 404);
+          const { data, error } = await supabase.rpc("manager_ingredient_make_recipe", {
+            p_manager_id: managerStatus.id, p_location: location, p_ingredient_id: id,
+          });
+          if (error) return managerDbError(error, "Unable to make it a recipe");
           return json({ success: true, action, data });
         }
 
