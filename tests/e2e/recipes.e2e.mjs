@@ -115,7 +115,7 @@ try {
     const creamy = (await km.page.locator("#rcpAllergenList .rcp-item", { hasText: "Creamy Chicken Sauce" }).textContent()).replace(/\s+/g, " ");
     await km.shot("recipes_allergens_kitchen");
     assert.equal(tabsShown, true); assert.equal(items, 3); assert.equal(warn, 3);
-    assert.match(creamy, /Milk/);
+    assert.match(creamy, /Dairy/);
     return creamy.trim().slice(0, 90);
   });
 
