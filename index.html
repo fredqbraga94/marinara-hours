@@ -1350,6 +1350,7 @@ body.mgr-mode #recipesTabs { background: #ece7dd; }
 body.mgr-mode #recipesTabs button.selected { color: var(--ink, #000); }
 
 /* SUPPLIER INVOICES */
+.inv-price .chg .chg-amt { display: block; font-size: 13px; font-weight: 800; text-align: right; margin-top: 2px; }
 .inv-add { display: block; text-align: center; cursor: pointer; margin-bottom: 6px; }
 .inv-hint { color: var(--muted); font-size: 12px; margin: 4px 4px 12px; line-height: 1.4; }
 .inv-review { border: 1px solid #e7e2d8; border-radius: 16px; background: #fff; padding: 12px 14px; margin-bottom: 10px; }
@@ -7942,7 +7943,7 @@ async function loadInvoicePrices() {
     box.innerHTML = list.length ? list.map(c => {
       const up = Number(c.change_pct) > 0;
       return `<div class="inv-price"><strong>${escapeHtml(c.description)}</strong>
-        <span class="chg ${up ? "up" : "down"}">${up ? "▲" : "▼"} ${Math.abs(Number(c.change_pct))}%</span>
+        <span class="chg ${up ? "up" : "down"}">${up ? "▲" : "▼"} ${Math.abs(Number(c.change_pct))}%<b class="chg-amt">${up ? "+" : "-"}${escapeHtml(invMoney(Math.abs(Number(c.latest_price) - Number(c.previous_price))))}</b></span>
         <small>${escapeHtml(c.supplier)} · ${escapeHtml(invMoney(c.previous_price))} (${escapeHtml(invDate(c.previous_date))}) → ${escapeHtml(invMoney(c.latest_price))} (${escapeHtml(invDate(c.latest_date))})${c.unit ? " · " + escapeHtml(c.unit) : ""}</small></div>`;
     }).join("") : "No price changes yet. They show up once the same product appears on two invoices.";
   } catch (error) {

@@ -181,7 +181,7 @@ try {
     await gm.page.waitForSelector("#invPrices .inv-price");
     const t = (await gm.page.textContent("#invPrices")).replace(/\s+/g, " ");
     await gm.shot("invoices_prices");
-    assert.match(t, /TEST TOMATOES/); assert.match(t, /▲ 25%/); assert.match(t, /\$4\.40/); assert.match(t, /\$5\.50/);
+    assert.match(t, /TEST TOMATOES/); assert.match(t, /▲ 25%\+\$1\.10/); assert.match(t, /\$4\.40/); assert.match(t, /\$5\.50/);
     assert.doesNotMatch(t, /NAPKINS/);
     await gm.page.click('[data-inv-tab="list"]');
     await waitList(gm);
