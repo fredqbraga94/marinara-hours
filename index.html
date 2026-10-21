@@ -3422,7 +3422,7 @@ async function loadManagerDashboard() {
     const rcpTileSub = document.getElementById("recipesCardSub");
     if (rcpTileLabel) rcpTileLabel.textContent = rcpFloorHome ? "Allergens" : "Recipes";
     if (rcpTileSub) rcpTileSub.textContent = rcpFloorHome ? "What dishes contain" : "Allergens too";
-    document.getElementById("invoicesCard")?.classList.toggle("hidden", currentManagerRole !== "manager");
+    document.getElementById("invoicesCard")?.classList.toggle("hidden", !["manager", "kitchen_manager"].includes(currentManagerRole));
     const holidayNotice = document.getElementById("managerHolidayNotice");
     if (holidayNotice) {
       const upcoming = dashboard.upcoming_holidays || [];
@@ -6192,7 +6192,7 @@ function openManagerMore() {
   moreManagersBtn?.classList.toggle("hidden", currentManagerRole !== "manager");
   // Devices: Administrator only (the server refuses everyone else too).
   document.getElementById("moreDevicesBtn")?.classList.toggle("hidden", currentManagerRole !== "manager");
-  document.getElementById("moreInvoicesBtn")?.classList.toggle("hidden", currentManagerRole !== "manager");
+  document.getElementById("moreInvoicesBtn")?.classList.toggle("hidden", !["manager", "kitchen_manager"].includes(currentManagerRole));
   // Recipes: full for Administrator and Kitchen Manager; Floor Manager sees allergens only.
   const rcpFloor = currentManagerRole === "floor_manager";
   const rcpLabel = document.getElementById("moreRecipesLabel");

@@ -120,20 +120,20 @@ try {
   const fm = await login(vNew, 3);
   let firstId;
 
-  await check("only the Administrator can see or save invoices", async () => {
-    for (const [n, t] of [[2, km], [3, fm]]) {
-      for (const action of ["manager_invoice_list", "manager_invoice_prices", "manager_invoice_usage"]) {
-        const r = await api(vNew, n, t, { action });
-        assert.equal(r.status, 403, `${n} ${action} ${JSON.stringify(r.body)}`);
-      }
-      const s = await api(vNew, n, t, { action: "manager_invoice_save", invoice: invoice("T-0", today, 4) });
-      assert.equal(s.status, 403);
+  await check("only the Administrator and the Kitchen Manager can see or save invoices", async () => {
+    for (const action of ["manager_invoice_list", "manager_invoice_prices", "manager_invoice_usage"]) {
+      const r = await api(vNew, 3, fm, { action });
+      assert.equal(r.status, 403, `floor ${action} ${JSON.stringify(r.body)}`);
+      const k = await api(vNew, 2, km, { action });
+      assert.equal(k.status, 200, `kitchen ${action} ${JSON.stringify(k.body)}`);
     }
+    const s = await api(vNew, 3, fm, { action: "manager_invoice_save", invoice: invoice("T-0", today, 4) });
+    assert.equal(s.status, 403);
     const staff = await login(vNew, 4);
     const r = await api(vNew, 4, staff, { action: "manager_invoice_list" });
     assert.ok(r.status === 401 || r.status === 403, String(r.status));
     assert.equal(await one(db, "select count(*) from public.supplier_invoices"), "0");
-    return "Kitchen and Floor managers 403; staff refused";
+    return "Floor Manager 403; staff refused; Kitchen Manager 200";
   });
 
   await check("saves an invoice with its lines; the same invoice can't be saved twice", async () => {
@@ -256,6 +256,18 @@ try {
     const again = await api(vNew, 1, gm, { action: "manager_invoice_save", invoice: invoice("T-1001", daysAgo(10), 4) });
     assert.equal(again.status, 200, JSON.stringify(again.body));
     return "soft remove kept for audit";
+  });
+
+  await check("Kitchen Manager saves and sees the same invoices as the Administrator", async () => {
+    const r = await api(vNew, 2, km, { action: "manager_invoice_save", invoice: { ...invoice("K-1", today, 4), supplier: "Test Kitchen Supplier" } });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const a = (await api(vNew, 1, gm, { action: "manager_invoice_list", from: daysAgo(30), to: today })).body.data;
+    const k = (await api(vNew, 2, km, { action: "manager_invoice_list", from: daysAgo(30), to: today })).body.data;
+    assert.deepEqual(k.invoices.map((i) => i.id), a.invoices.map((i) => i.id));
+    assert.ok(a.invoices.some((i) => i.number === "K-1"));
+    const rm = await api(vNew, 2, km, { action: "manager_invoice_remove", id: r.body.data.invoice.id });
+    assert.equal(rm.status, 200);
+    return "same restaurant, same list";
   });
 
   await check("everything else still works on the new server", async () => {

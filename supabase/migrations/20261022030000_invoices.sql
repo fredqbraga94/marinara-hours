@@ -1,6 +1,7 @@
 -- Supplier invoices: the app reads the PDF on the phone/laptop (no AI, no
 -- outside service) and saves the invoice and its lines here. Administrator
--- only. Used for spend per supplier and for price changes per product.
+-- and Kitchen Manager only (not Floor Manager, not staff). Used for spend per
+-- supplier, weekly use and price changes per product.
 -- Additive only: new tables and new functions. Nothing existing changes.
 
 create table if not exists public.supplier_invoices (
@@ -50,7 +51,7 @@ as $function$
 declare
   mgr public.staff%rowtype := public.mh_manager(p_manager_id);
 begin
-  if mgr.role not in ('manager', 'admin') then raise exception 'GM_REQUIRED'; end if;
+  if mgr.role not in ('manager', 'admin', 'kitchen_manager') then raise exception 'GM_REQUIRED'; end if;
   return case when mgr.role = 'admin' then coalesce(p_location, mgr.location) else mgr.location end;
 end $function$;
 

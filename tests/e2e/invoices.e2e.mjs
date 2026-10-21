@@ -119,15 +119,26 @@ const waitList = (p) => p.page.waitForFunction(() => !/Loading/.test(document.ge
 try {
   log(`\nBrowser: ${ENGINE} with iPhone 13 profile`);
 
-  await check("only the Administrator sees Invoices (home tile and More)", async () => {
+  await check("Kitchen Manager sees Invoices; Floor Manager doesn't (home tile and More)", async () => {
+    const fm = await phone();
+    await fm.login(PIN[ID(3)]);
+    assert.equal(await fm.page.locator("#invoicesCard").isVisible(), false);
+    await fm.page.click('[data-manager-nav="more"]');
+    await fm.page.waitForSelector("#managerMoreScreen:not(.hidden)");
+    assert.equal(await fm.page.locator("#moreInvoicesBtn").isVisible(), false);
+    await fm.close();
     const km = await phone();
     await km.login(PIN[ID(2)]);
-    assert.equal(await km.page.locator("#invoicesCard").isVisible(), false);
+    await km.page.waitForSelector("#invoicesCard:not(.hidden)");
     await km.page.click('[data-manager-nav="more"]');
     await km.page.waitForSelector("#managerMoreScreen:not(.hidden)");
-    assert.equal(await km.page.locator("#moreInvoicesBtn").isVisible(), false);
+    assert.equal(await km.page.locator("#moreInvoicesBtn").isVisible(), true);
+    await km.page.click("#moreInvoicesBtn");
+    await km.page.waitForSelector("#invoicesScreen:not(.hidden)");
+    await waitList(km);
+    assert.deepEqual(km.errors, []);
     await km.close();
-    return "Kitchen Manager: hidden";
+    return "Floor Manager: hidden; Kitchen Manager: opens";
   });
 
   const gm = await phone();
