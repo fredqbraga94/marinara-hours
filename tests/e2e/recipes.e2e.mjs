@@ -138,6 +138,18 @@ try {
     return header;
   });
 
+  await check("More screen: grouped menu with line icons", async () => {
+    await km.page.click('[data-manager-nav="more"]');
+    await km.page.waitForSelector("#managerMoreScreen:not(.hidden)");
+    const groups = await km.page.locator("#managerMoreScreen .more-group").allTextContents();
+    const icons = await km.page.locator("#managerMoreScreen .more-v2-icon svg").count();
+    await km.shot("more_kitchen_manager");
+    await km.page.click('[data-manager-nav="home"]');
+    assert.deepEqual(groups, ["Team & hours", "Kitchen & floor", "This phone & access"]);
+    assert.ok(icons >= 8, String(icons));
+    return groups.join(" / ");
+  });
+
   await check("Kitchen Manager: Allergens list shows the whole menu by section, not checked yet", async () => {
     await openRecipes(km);
     const tabsShown = await km.page.locator("#recipesTabs").evaluate((e) => !e.classList.contains("hidden"));
