@@ -193,3 +193,32 @@ grant execute on function public.manager_push_list(uuid) to service_role;
 grant execute on function public.manager_push_remove(uuid, uuid) to service_role;
 grant execute on function public.mh_push_targets(text, text) to service_role;
 grant execute on function public.mh_push_result(uuid, boolean, boolean, text) to service_role;
+
+-- The server's notification key pair, created once by the server itself.
+-- Only the server (service_role, through mh_push_keys) can read it.
+create table if not exists public.push_keys (
+  id integer primary key default 1 check (id = 1),
+  public_key text not null check (length(public_key) between 80 and 100),
+  private_key text not null check (length(private_key) between 40 and 50),
+  created_at timestamptz not null default now()
+);
+alter table public.push_keys enable row level security;
+revoke all on public.push_keys from anon, authenticated;
+
+-- Returns the stored pair. With values given and nothing stored yet, stores
+-- them first (the first one wins; it is never replaced).
+create or replace function public.mh_push_keys(p_public text, p_private text)
+returns table (public_key text, private_key text)
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+begin
+  if p_public is not null and p_private is not null then
+    insert into public.push_keys (id, public_key, private_key) values (1, p_public, p_private)
+    on conflict (id) do nothing;
+  end if;
+  return query select k.public_key, k.private_key from public.push_keys k where k.id = 1;
+end $function$;
+revoke all on function public.mh_push_keys(text, text) from public, anon, authenticated;
+grant execute on function public.mh_push_keys(text, text) to service_role;

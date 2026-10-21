@@ -9,3 +9,5 @@ drop function if exists public.manager_push_unsubscribe(uuid, text);
 drop function if exists public.manager_push_subscribe(uuid, text, text, text, text);
 drop function if exists public.mh_push_json(public.push_subscriptions);
 drop table if exists public.push_subscriptions;
+drop function if exists public.mh_push_keys(text, text);
+drop table if exists public.push_keys;

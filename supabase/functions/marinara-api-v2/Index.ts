@@ -437,18 +437,41 @@ function isPushEndpoint(endpoint: string) {
   }
 }
 
-function pushVapid() {
+// Notification keys. Normally created once by the server itself and kept in
+// the database (only the server can read them); edge secrets override them.
+let pushVapidCache: { publicKey: string; privateKey: string; subject: string } | null = null;
+async function pushVapid(supabase: any) {
   const env = (globalThis as any).Deno?.env;
-  const publicKey = env?.get("VAPID_PUBLIC_KEY") || "";
-  const privateKey = env?.get("VAPID_PRIVATE_KEY") || "";
   const subject = env?.get("VAPID_SUBJECT") || "https://fredqbraga94.github.io/marinara-hours/";
-  return publicKey && privateKey ? { publicKey, privateKey, subject } : null;
+  const envPublic = env?.get("VAPID_PUBLIC_KEY") || "";
+  const envPrivate = env?.get("VAPID_PRIVATE_KEY") || "";
+  if (envPublic && envPrivate) return { publicKey: envPublic, privateKey: envPrivate, subject };
+  if (pushVapidCache) return pushVapidCache;
+  try {
+    let { data, error } = await supabase.rpc("mh_push_keys", { p_public: null, p_private: null });
+    if (error) return null;
+    let row = Array.isArray(data) ? data[0] : data;
+    if (!row?.public_key) {
+      const pair: any = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+      const jwk: any = await crypto.subtle.exportKey("jwk", pair.privateKey);
+      const pub = bytesToB64u(concatBytes(new Uint8Array([4]), b64uToBytes(jwk.x), b64uToBytes(jwk.y)));
+      ({ data, error } = await supabase.rpc("mh_push_keys", { p_public: pub, p_private: jwk.d }));
+      if (error) return null;
+      row = Array.isArray(data) ? data[0] : data;
+    }
+    if (!row?.public_key || !row?.private_key) return null;
+    pushVapidCache = { publicKey: row.public_key, privateKey: row.private_key, subject };
+    return pushVapidCache;
+  } catch (_) {
+    return null;
+  }
 }
 
 // Send to a list of phones and record each result. Never throws.
 async function deliverPush(supabase: any, targets: any[], message: Record<string, unknown>) {
-  const vapid = pushVapid();
-  if (!vapid || !targets?.length) return { sent: 0 };
+  if (!targets?.length) return { sent: 0 };
+  const vapid = await pushVapid(supabase);
+  if (!vapid) return { sent: 0 };
   const send = (globalThis as any).__MH_PUSH_SEND || sendWebPush;
   let sent = 0;
   for (const t of targets) {
@@ -470,7 +493,6 @@ async function deliverPush(supabase: any, targets: any[], message: Record<string
 
 async function notifyDepartment(supabase: any, location: string, department: string, message: Record<string, unknown>) {
   try {
-    if (!pushVapid()) return;
     const { data, error } = await supabase.rpc("mh_push_targets", { p_location: location, p_department: department });
     if (error) return;
     await deliverPush(supabase, data || [], message);
@@ -2986,7 +3008,7 @@ Deno.serve(async (req) => {
       if (action.startsWith("manager_push_")) {
         const endpoint = typeof body.endpoint === "string" ? body.endpoint.trim() : "";
         if (action === "manager_push_config") {
-          return json({ success: true, action, data: { public_key: pushVapid()?.publicKey || null } });
+          return json({ success: true, action, data: { public_key: (await pushVapid(supabase))?.publicKey || null } });
         }
         if (action === "manager_push_subscribe") {
           const p256dh = typeof body.p256dh === "string" ? body.p256dh.trim() : "";
@@ -3022,7 +3044,7 @@ Deno.serve(async (req) => {
           return json({ success: true, action, data });
         }
         // manager_push_test: a test notification to the phones of the person signed in.
-        if (!pushVapid()) return json({ error: "Notifications are not set up on the server yet.", code: "INVALID_INPUT" }, 400);
+        if (!(await pushVapid(supabase))) return json({ error: "Notifications are not set up on the server yet.", code: "INVALID_INPUT" }, 400);
         const { data: mine, error: mineError } = await supabase.rpc("mh_push_for_staff", { p_staff_id: managerStatus.id });
         if (mineError) return managerDbError(mineError, "Unable to send a test", 500);
         const result = await deliverPush(supabase, mine || [], {

@@ -62,9 +62,8 @@ try {
   await reseed(db);
   const vProd = await quiet(() => loadHandler(PROD_SERVER));
   const vNew = await quiet(() => loadHandler(NEW_SERVER));
-  // VAPID keys for the new server; the stub records sends instead of calling Apple/Google.
-  const baseEnv = globalThis.Deno.env.get;
-  globalThis.Deno.env.get = (k) => ({ VAPID_PUBLIC_KEY: "BPUBLICKEYxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", VAPID_PRIVATE_KEY: "privatekeyxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" })[k] ?? baseEnv(k);
+  // No keys are configured: the server must create its own. The stub records
+  // sends instead of calling Apple/Google.
   const sent = [];
   let reply = () => ({ ok: true, gone: false, status: 201 });
   globalThis.__MH_PUSH_SEND = async (s, message) => { sent.push({ endpoint: s.endpoint, message }); return reply(s); };
@@ -93,6 +92,8 @@ try {
     assert.deepEqual(Object.keys(fpBefore).filter((k) => fp[k] !== fpBefore[k]), []);
     assert.equal(await one(db, "select has_table_privilege('anon', 'public.push_subscriptions', 'select')"), "f");
     assert.equal(await one(db, "select has_function_privilege('anon', 'public.manager_push_subscribe(uuid,text,text,text,text)', 'execute')"), "f");
+    assert.equal(await one(db, "select has_table_privilege('anon', 'public.push_keys', 'select')"), "f");
+    assert.equal(await one(db, "select has_function_privilege('anon', 'public.mh_push_keys(text,text)', 'execute')"), "f");
     return `added: ${Object.keys(fp).filter((k) => !(k in fpBefore)).sort().join(", ")}`;
   });
 
@@ -125,8 +126,15 @@ try {
     r = await api(vNew, 3, fm, { action: "manager_push_subscribe", ...sub(3), label: "iPhone · Chris" });
     assert.equal(r.status, 200);
     const cfg = await api(vNew, 1, gm, { action: "manager_push_config" });
-    assert.ok(cfg.body.data.public_key);
-    return "other host 400; bad key 400; Apple and Google 200; public key served";
+    const stored = await one(db, "select public_key from public.push_keys");
+    assert.equal(cfg.body.data.public_key, stored);
+    assert.equal(Buffer.from(stored, "base64url").length, 65);
+    assert.equal(await one(db, "select count(*) from public.push_keys"), "1");
+    // Another server instance (no cache) gets the same keys, never new ones.
+    const other = await quiet(() => loadHandler(NEW_SERVER));
+    const cfg2 = await api(other, 1, gm, { action: "manager_push_config" });
+    assert.equal(cfg2.body.data.public_key, stored);
+    return "other host 400; bad key 400; Apple and Google 200; keys created once by the server and reused";
   });
 
   await check("a Floor request goes to the Administrator and the Floor manager, not Kitchen", async () => {
