@@ -1745,6 +1745,7 @@ button:disabled{opacity:.6}
     <div class="card"><div id="rcpRecipeList" class="empty-state">Loading…</div></div>
   </div>
   <div id="rcpIngredientsView" class="hidden">
+    <input id="rcpIngSearch" class="rcp-search" type="search" placeholder="Search an ingredient…" autocomplete="off">
     <div id="rcpIngFormCard" class="card rcp-form hidden">
       <div id="rcpIngTitle" class="section-title">Ingredient</div>
       <div class="rcp-sub">Contains</div>
@@ -7502,14 +7503,27 @@ window.addEventListener("focus", syncCurrentView);
 
 /* RECIPES AND ALLERGENS */
 const recipesScreen = document.getElementById("recipesScreen");
+// What the kitchen marks on an ingredient (what it really is)...
 const RCP_ALLERGENS = [
-  ["gluten", "Gluten"], ["wheat", "Wheat"], ["milk", "Dairy"], ["egg", "Egg"], ["soy", "Soy"],
-  ["peanut", "Peanut"], ["tree_nuts", "Tree nuts"], ["sesame", "Sesame"], ["fish", "Fish"],
-  ["crustacean", "Crustacean"], ["mollusc", "Mollusc"], ["lupin", "Lupin"], ["sulphites", "Sulphites"],
+  ["gluten", "Gluten"], ["wheat", "Wheat"],
+  ["milk", "Milk"], ["butter", "Butter"], ["cream", "Cream"], ["cheese", "Cheese"], ["yoghurt", "Yoghurt"],
+  ["egg", "Egg"], ["soy", "Soy"], ["peanut", "Peanut"], ["tree_nuts", "Tree nuts"], ["sesame", "Sesame"],
+  ["fish", "Fish"], ["crustacean", "Crustacean"], ["mollusc", "Mollusc"], ["lupin", "Lupin"], ["sulphites", "Sulphites"],
 ];
-const rcpLabel = code => (RCP_ALLERGENS.find(a => a[0] === code) || [code, code])[1];
-// When marking an ingredient the kitchen picks "Milk"; recipes show it as "Dairy".
-const rcpPickLabel = code => (code === "milk" ? "Milk" : rcpLabel(code));
+// ...and recipes show all milk products together as "Dairy (butter, cheese)".
+const RCP_DAIRY = ["milk", "butter", "cream", "cheese", "yoghurt"];
+const rcpPickLabel = code => (RCP_ALLERGENS.find(a => a[0] === code) || [code, code])[1];
+function rcpRecipeLabels(list) {
+  const has = list || [];
+  const dairy = RCP_DAIRY.filter(c => has.includes(c));
+  const out = [];
+  for (const [code, label] of RCP_ALLERGENS) {
+    if (RCP_DAIRY.includes(code)) {
+      if (code === dairy[0]) out.push(`Dairy (${dairy.map(c => rcpPickLabel(c).toLowerCase()).join(", ")})`);
+    } else if (has.includes(code)) out.push(label);
+  }
+  return out;
+}
 const rcpState = { data: null, tab: "allergens", open: {}, editing: null, ingEditing: null, ingPick: [] };
 
 function rcpMsg(text, ok) {
@@ -7525,9 +7539,10 @@ function rcpClearMsg() {
 // every ingredient was checked on the label.
 function rcpChips(list, checked, isRecipe) {
   const has = list || [];
-  const chips = has.map(a => `<span class="rcp-chip">${escapeHtml(isRecipe ? rcpLabel(a) : rcpPickLabel(a))}</span>`);
+  const labels = isRecipe ? rcpRecipeLabels(has) : has.map(rcpPickLabel);
+  const chips = labels.map(l => `<span class="rcp-chip">${escapeHtml(l)}</span>`);
   if (checked && isRecipe) {
-    if (!has.includes("milk")) chips.push(`<span class="rcp-chip none">Dairy free</span>`);
+    if (!RCP_DAIRY.some(c => has.includes(c))) chips.push(`<span class="rcp-chip none">Dairy free</span>`);
     if (!has.includes("gluten") && !has.includes("wheat")) chips.push(`<span class="rcp-chip none">Gluten free</span>`);
   }
   if (checked && !has.length) chips.push(`<span class="rcp-chip none">No listed allergens</span>`);
@@ -7579,7 +7594,7 @@ function rcpRenderAllergens() {
       ${r.all_checked ? "" : `<div class="rcp-warn">Not checked yet – ask the kitchen</div>`}
       ${open ? `<div class="rcp-detail"><div class="rcp-sub" style="margin-top:0">Contains</div>${r.lines.map(l => `
         <div class="rcp-line"><span>${escapeHtml(l.name)}${l.checked ? "" : `<span class="rcp-unchecked">NOT CHECKED</span>`}</span>
-        <span class="q">${l.allergens.length ? l.allergens.map(a => escapeHtml(rcpLabel(a))).join(", ") : "—"}</span></div>`).join("")}</div>` : ""}
+        <span class="q">${l.allergens.length ? l.allergens.map(a => escapeHtml(rcpPickLabel(a))).join(", ") : "—"}</span></div>`).join("")}</div>` : ""}
     </div>`;
   });
 }
@@ -7612,10 +7627,12 @@ function rcpRenderRecipes() {
 
 function rcpRenderIngredients() {
   const box = document.getElementById("rcpIngredientList");
-  const list = rcpState.data?.ingredients || [];
+  const q = (document.getElementById("rcpIngSearch")?.value || "").trim().toLowerCase();
+  const all = (rcpState.data?.ingredients || []).filter(i => i.used_in > 0); // unused ones are hidden
+  const list = all.filter(i => !q || i.name.toLowerCase().includes(q) || (i.note || "").toLowerCase().includes(q));
   box.className = list.length ? "" : "empty-state";
-  if (!list.length) { box.innerHTML = "No ingredients yet."; return; }
-  const todo = list.filter(i => !i.checked).length;
+  if (!list.length) { box.innerHTML = q ? "Nothing found." : "No ingredients yet."; return; }
+  const todo = all.filter(i => !i.checked).length;
   box.innerHTML = (todo ? `<div class="rcp-warn" style="margin:0 0 6px">${todo} not checked on the label yet</div>` : "") +
     list.map(i => `<div class="rcp-item">
       <button type="button" class="rcp-head" data-rcp-ing="${escapeHtml(i.id)}">
@@ -7681,6 +7698,7 @@ async function openRecipesScreen() {
   rcpState.open = {};
   document.getElementById("rcpSearch").value = "";
   document.getElementById("rcpRecipeSearch").value = "";
+  document.getElementById("rcpIngSearch").value = "";
   for (const id of ["rcpAllergenList", "rcpRecipeList", "rcpIngredientList"]) {
     const box = document.getElementById(id);
     box.className = "empty-state"; box.textContent = "Loading…";
@@ -7702,6 +7720,7 @@ document.addEventListener("click", event => {
 
 document.getElementById("rcpSearch")?.addEventListener("input", rcpRenderAllergens);
 document.getElementById("rcpRecipeSearch")?.addEventListener("input", rcpRenderRecipes);
+document.getElementById("rcpIngSearch")?.addEventListener("input", rcpRenderIngredients);
 
 function rcpLineRow(name = "", quantity = "") {
   return `<div class="rcp-row">
