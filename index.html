@@ -1530,6 +1530,78 @@ body.mgr-mode #invoicesScreen .card { border: 1px solid #e7e2d8; box-shadow: non
 .stock-min-row input{min-height:42px;border:1.5px solid var(--border);border-radius:11px;text-align:center;font-size:16px;width:100%;box-sizing:border-box}
 .stock-min-row button{min-height:42px;border-radius:11px;border:0;background:var(--green-light);color:var(--green);font-weight:850;padding:0 12px}
 button:disabled{opacity:.6}
+
+/* DESKTOP / LAPTOP, refined (managers only, 1000px and wider): black side
+   menu with the Marinara logo, roomier page, bigger numbers and tiles.
+   Phones are unchanged. */
+.nav-brand { display: none; }
+@media (min-width: 1000px) {
+  body.mgr-mode { padding-left: 264px; }
+  body.mgr-mode .header { display: none; }
+  body.mgr-mode .app { max-width: 1200px; }
+  body.mgr-mode .content { padding: 40px 52px 56px; }
+  body.mgr-mode .manager-bottom-nav {
+    width: 264px; padding: 0 16px 24px; gap: 4px; background: #0b0b0b; border-right: 0;
+    box-shadow: 1px 0 0 rgba(0,0,0,.04);
+  }
+  body.mgr-mode .nav-brand {
+    display: block; text-align: center; padding: calc(30px + env(safe-area-inset-top)) 8px 24px;
+    margin: 0 -16px 18px; border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  body.mgr-mode .nav-brand img { display: block; width: 178px; height: auto; margin: 0 auto; }
+  body.mgr-mode .nav-brand span {
+    display: block; margin-top: 10px; color: #fff; font-family: Cinzel, Georgia, serif;
+    font-size: 14px; font-weight: 600; letter-spacing: 4px; text-transform: uppercase;
+  }
+  body.mgr-mode .nav-brand i {
+    display: block; width: 64px; height: 3px; margin: 12px auto 0; border-radius: 2px;
+    background: linear-gradient(90deg, #1f8a4c 0 33.3%, #fff 33.3% 66.6%, #c8102e 66.6%);
+  }
+  body.mgr-mode .manager-nav-item {
+    color: rgba(255,255,255,.62); font-size: 15px; min-height: 50px; border-radius: 12px; padding: 0 16px;
+  }
+  body.mgr-mode .manager-nav-item:hover { background: rgba(255,255,255,.06); color: #fff; }
+  body.mgr-mode .manager-nav-item.active {
+    background: rgba(255,255,255,.10); color: #fff; box-shadow: inset 3px 0 0 var(--pomodoro);
+  }
+  body.mgr-mode .count-badge.nav { box-shadow: none; }
+  /* Home */
+  body.mgr-mode .manager-v2-hero { margin: 0 0 26px; }
+  body.mgr-mode .manager-v2-greeting { font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 40px; letter-spacing: 0; }
+  body.mgr-mode .manager-v2-role { font-size: 15px; }
+  body.mgr-mode .home-today { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-bottom: 8px; }
+  body.mgr-mode .home-stat {
+    padding: 22px 24px; border-radius: 20px; gap: 8px; border-left: 4px solid var(--basil);
+  }
+  body.mgr-mode .home-stat.alert { border-left-color: var(--pomodoro); }
+  body.mgr-mode .home-stat-n { font-size: 46px; }
+  body.mgr-mode .home-stat-l { font-size: 14px; color: #55524c; }
+  body.mgr-mode .home-group { font-size: 21px; margin: 36px 2px 14px; }
+  body.mgr-mode .home-tiles { gap: 16px; }
+  body.mgr-mode .home-tile.manager-quick-card {
+    min-height: 156px; padding: 20px; border-radius: 20px; display: flex; flex-direction: column;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  body.mgr-mode .home-tile.manager-quick-card:hover {
+    transform: translateY(-2px); box-shadow: 0 12px 28px rgba(0,0,0,.07); border-color: #d9d2c4;
+  }
+  body.mgr-mode .home-tile .manager-quick-icon {
+    width: 48px; height: 48px; padding: 12px; border-radius: 14px; margin-bottom: auto; background: #e9f1ec;
+  }
+  body.mgr-mode .home-tile-k .manager-quick-icon { background: #f8e7e5; }
+  body.mgr-mode .home-tile strong { font-size: 16px; margin-top: 18px; }
+  body.mgr-mode .home-tile span:not(.count-badge) { font-size: 13px; }
+  body.mgr-mode .home-tile .count-badge { top: 16px; right: 16px; }
+  body.mgr-mode #managerScreen { column-gap: 22px; }
+  body.mgr-mode #managerScreen > .card { margin-top: 36px; padding: 26px 28px; min-height: 220px; }
+  body.mgr-mode #managerScreen .section-title { font-family: Cinzel, Georgia, serif; font-size: 21px; }
+  /* Other manager screens: same roomy page */
+  body.mgr-mode .manager-top { margin-bottom: 22px; }
+  body.mgr-mode .manager-top h2 { font-size: 34px; }
+}
+@media (min-width: 1000px) and (prefers-reduced-motion: reduce) {
+  body.mgr-mode .home-tile.manager-quick-card, body.mgr-mode .home-tile.manager-quick-card:hover { transition: none; transform: none; }
+}
 </style>
 <script defer src="./timesheet-pdf.js"></script>
 <script defer src="./stock-pdf.js"></script>
@@ -8791,6 +8863,20 @@ function setManagerHeader(place) {
   if (logo) {
     if (place && !logo.src) logo.src = document.querySelector(".login-original-logo")?.src || "";
     logo.hidden = !place;
+  }
+  // Laptop / desktop: logo and place at the top of the side menu.
+  const nav = document.getElementById("managerBottomNav");
+  if (nav && place) {
+    let brand = nav.querySelector(".nav-brand");
+    if (!brand) {
+      brand = document.createElement("div");
+      brand.className = "nav-brand";
+      brand.innerHTML = '<img alt="Marinara Ristorante Cafe"><span></span><i></i>';
+      nav.prepend(brand);
+    }
+    const img = brand.querySelector("img");
+    if (!img.getAttribute("src")) img.src = logo?.src || document.querySelector(".login-original-logo")?.src || "";
+    brand.querySelector("span").textContent = place;
   }
   const h1 = document.querySelector(".header h1");
   const p = document.querySelector(".header p");
