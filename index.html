@@ -1350,6 +1350,27 @@ body.mgr-mode #recipesTabs { background: #ece7dd; }
 body.mgr-mode #recipesTabs button.selected { color: var(--ink, #000); }
 
 /* SUPPLIER INVOICES */
+.inv-cost { border-top: 1px solid var(--border); padding: 12px 0; }
+.inv-cost:first-child { border-top: 0; }
+.inv-cost-head { width: 100%; border: 0; background: transparent; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; text-align: left; color: var(--text); cursor: pointer; }
+.inv-cost-head strong { font-size: 15px; }
+.inv-cost-head small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.inv-cost-head .val { text-align: right; white-space: nowrap; font-weight: 900; color: var(--basil, #1e5a3c); }
+.inv-cost-head .val.todo { color: #b3261e; font-weight: 800; font-size: 13px; }
+.inv-cost-edit { margin-top: 10px; background: #fafbfa; border: 1px solid var(--border); border-radius: 14px; padding: 10px 12px; }
+.inv-cost-edit h4 { margin: 4px 0 6px; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.inv-prod { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; text-align: left; border: 1px solid #e7e2d8; background: #fff; border-radius: 12px; padding: 9px 11px; margin-bottom: 6px; font-size: 13px; color: var(--text); cursor: pointer; }
+.inv-prod.sel { border-color: var(--basil, #1e5a3c); box-shadow: 0 0 0 2px #cfe3d6; }
+.inv-prod small { grid-column: 1 / -1; color: var(--muted); font-size: 11px; }
+.inv-pack { display: grid; grid-template-columns: 1fr auto 1fr 1fr; gap: 6px; align-items: center; margin: 6px 0; }
+.inv-pack input, .inv-pack select { min-height: 42px; border: 1px solid #e7e2d8; border-radius: 10px; padding: 0 10px; font-size: 16px; background: #fff; width: 100%; }
+.inv-pack span { font-weight: 800; color: var(--muted); }
+.inv-cost-result { font-weight: 900; font-size: 16px; margin: 6px 0; }
+.inv-cost-warn { background: #fff4d6; color: #8a5a00; border-radius: 10px; padding: 7px 10px; font-size: 12px; font-weight: 700; margin: 6px 0; }
+.inv-cost-actions { display: flex; gap: 8px; margin-top: 8px; }
+.inv-cost-actions button { flex: 1; min-height: 42px; border-radius: 12px; border: 1px solid #e7e2d8; background: #fff; font-weight: 800; font-size: 13px; }
+.inv-cost-actions .save { background: var(--green); border-color: var(--green); color: #fff; }
+.inv-cost-actions .unlink { color: #9a6b66; }
 .inv-search { width: 100%; min-height: 44px; border: 1px solid #e7e2d8; border-radius: 12px; padding: 0 14px; font-size: 15px; background: #fff; margin: 0 0 12px; }
 .inv-use-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .inv-use-kpis div { background: #f7f5f0; border-radius: 12px; padding: 10px; }
@@ -1989,10 +2010,11 @@ button:disabled{opacity:.6}
     </div>
     <button id="backInvoicesBtn" class="back-btn">Back</button>
   </div>
-  <div class="stock-tabs" id="invTabs" style="grid-template-columns:repeat(3,1fr)">
+  <div class="stock-tabs" id="invTabs" style="grid-template-columns:repeat(4,1fr)">
     <button type="button" data-inv-tab="list" class="selected">Invoices</button>
-    <button type="button" data-inv-tab="usage">Weekly use</button>
+    <button type="button" data-inv-tab="usage">Weekly</button>
     <button type="button" data-inv-tab="prices">Prices</button>
+    <button type="button" data-inv-tab="costs">Costs</button>
   </div>
   <div id="invMessage" class="message"></div>
   <div id="invListView">
@@ -2018,6 +2040,17 @@ button:disabled{opacity:.6}
     <div class="stock-chips" id="invUsageSuppliers"></div>
     <input id="invUsageSearch" class="inv-search" type="search" placeholder="Search a product" autocomplete="off">
     <div class="card"><div id="invUsage" class="empty-state">Loading…</div></div>
+  </div>
+  <div id="invCostsView" class="hidden">
+    <p class="inv-hint">Link each recipe ingredient to the product you buy. The app then knows its real price per kg, litre or each, and follows the latest invoice. Next step: the cost of each dish.</p>
+    <div class="card"><div id="invCostsSummary" class="empty-state">Loading…</div></div>
+    <div class="stock-chips" id="invCostsFilter">
+      <button type="button" data-inv-costs-filter="todo" class="selected">To link</button>
+      <button type="button" data-inv-costs-filter="done">Linked</button>
+      <button type="button" data-inv-costs-filter="all">All</button>
+    </div>
+    <input id="invCostsSearch" class="inv-search" type="search" placeholder="Search an ingredient" autocomplete="off">
+    <div class="card"><div id="invCosts" class="empty-state">Loading…</div></div>
   </div>
   <div id="invPricesView" class="hidden">
     <p class="inv-hint">Products whose latest price is different from the time before, biggest change first.</p>
@@ -7864,7 +7897,8 @@ window.addEventListener("focus", syncCurrentView);
 
 /* SUPPLIER INVOICES (Administrator) */
 const invoicesScreen = document.getElementById("invoicesScreen");
-const invState = { tab: "list", period: "week", review: [], open: {}, lines: {}, weeks: 8, usage: null, usageSupplier: "", usageSearch: "" };
+const invState = { tab: "list", period: "week", review: [], open: {}, lines: {}, weeks: 8, usage: null, usageSupplier: "", usageSearch: "",
+  costs: null, costsFilter: "todo", costsSearch: "", costOpen: null, costPick: null, costProdSearch: "" };
 const invMoney = n => (n == null || Number.isNaN(Number(n))) ? "—" :
   (Number(n) < 0 ? "-" : "") + "$" + Math.abs(Number(n)).toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const invDate = d => d ? new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${d}T00:00:00Z`)) : "—";
@@ -8038,13 +8072,115 @@ async function loadInvoiceUsage() {
   }
 }
 
+/* Ingredient costs (step 1: link ingredients to invoice products) */
+const R_ = () => window.MarinaraInvoiceReader;
+const invUnitLabel = u => ({ kg: "kg", l: "litre", each: "each" })[u] || u;
+const invProdKey = p => `${p.supplier}\u0001${p.product_key}`;
+function invCostDraft(ing) {
+  const products = invState.costs?.products || [];
+  const l = ing.link;
+  if (l) {
+    const p = products.find(x => x.supplier === l.supplier && x.product_key === l.product_key);
+    return { product: p || { supplier: l.supplier, product_key: l.product_key, description: l.label, price: l.latest_price, date: l.price_date },
+      count: Number(l.pack_count), size: Number(l.pack_size), unit: l.pack_unit };
+  }
+  return null;
+}
+function invCostEditor(ing) {
+  const products = invState.costs?.products || [];
+  const pick = invState.costPick;
+  const q = invState.costProdSearch.trim().toLowerCase();
+  let list;
+  if (q) list = products.filter(p => `${p.description} ${p.code || ""} ${p.supplier}`.toLowerCase().includes(q)).slice(0, 12);
+  else list = products.map(p => ({ p, s: R_().matchScore(ing.name, p.description) })).filter(x => x.s > 0)
+    .sort((a, b) => b.s - a.s).slice(0, 5).map(x => x.p);
+  const chosen = pick?.product;
+  const prodBtn = p => `<button type="button" class="inv-prod${chosen && invProdKey(chosen) === invProdKey(p) ? " sel" : ""}" data-inv-cost-prod="${escapeHtml(invProdKey(p))}">
+      <span>${escapeHtml(p.description)}</span><strong>${escapeHtml(invMoney(p.price))}</strong>
+      <small>${escapeHtml(p.supplier)}${p.code ? " · " + escapeHtml(p.code) : ""}${p.unit ? " · per " + escapeHtml(p.unit) : ""} · ${escapeHtml(invShort(p.date))}</small></button>`;
+  let packHtml = "";
+  if (chosen) {
+    const per = R_().perUnit(chosen.price, pick);
+    const base = R_().baseOf(pick.unit);
+    const carton = /ctn|carton|case/i.test(chosen.unit || "") && Number(pick.count) === 1;
+    packHtml = `<h4>What ${escapeHtml(invMoney(chosen.price))} buys</h4>
+      <div class="inv-pack">
+        <input type="number" inputmode="decimal" min="0" step="any" data-inv-pack="count" value="${escapeHtml(String(pick.count))}" aria-label="How many packs">
+        <span>×</span>
+        <input type="number" inputmode="decimal" min="0" step="any" data-inv-pack="size" value="${escapeHtml(String(pick.size))}" aria-label="Pack size">
+        <select data-inv-pack="unit" aria-label="Unit">${["kg", "g", "l", "ml", "each"].map(u => `<option value="${u}"${u === pick.unit ? " selected" : ""}>${u}</option>`).join("")}</select>
+      </div>
+      ${carton ? `<div class="inv-cost-warn">Check: is ${escapeHtml(invMoney(chosen.price))} for one pack or a whole carton? If it's a carton of several, change the first number.</div>` : ""}
+      <div class="inv-cost-result" id="invCostResult">${per == null ? "—" : `= ${escapeHtml(invMoney(per))} per ${escapeHtml(invUnitLabel(base))}`}</div>`;
+  }
+  return `<div class="inv-cost-edit">
+    <h4>${q ? "Products found" : "Suggested products"}</h4>
+    <input class="inv-search" type="search" data-inv-cost-search placeholder="Search all invoice products" value="${escapeHtml(invState.costProdSearch)}" autocomplete="off">
+    ${list.length ? list.map(prodBtn).join("") : `<div class="inv-hint">${q ? "Nothing found." : "No obvious match. Search above (e.g. the brand or “cheese”)."}</div>`}
+    ${chosen && !list.some(p => invProdKey(p) === invProdKey(chosen)) ? prodBtn(chosen) : ""}
+    ${packHtml}
+    <div class="inv-cost-actions">
+      ${ing.link ? `<button type="button" class="unlink" data-inv-cost-unlink="${escapeHtml(ing.id)}">Unlink</button>` : ""}
+      <button type="button" data-inv-cost-cancel>Cancel</button>
+      <button type="button" class="save" data-inv-cost-save="${escapeHtml(ing.id)}"${chosen ? "" : " disabled"}>Save</button>
+    </div>
+  </div>`;
+}
+function invRenderCosts() {
+  const data = invState.costs;
+  if (!data) return;
+  const box = document.getElementById("invCosts");
+  const sum = document.getElementById("invCostsSummary");
+  const all = data.ingredients || [];
+  const linked = all.filter(i => i.link).length;
+  sum.className = "";
+  sum.innerHTML = `<div class="inv-use-kpis">
+      <div><strong>${linked}</strong><span>Linked</span></div>
+      <div><strong>${all.length - linked}</strong><span>To link</span></div>
+      <div><strong>${(data.products || []).length}</strong><span>Products in invoices</span></div>
+    </div>${(data.products || []).length ? "" : `<div class="inv-use-note">Save some invoices first: the products come from them.</div>`}`;
+  const q = invState.costsSearch.trim().toLowerCase();
+  const f = invState.costsFilter;
+  const shown = all.filter(i => (f === "all" || (f === "done") === !!i.link) && (!q || i.name.toLowerCase().includes(q)) || i.id === invState.costOpen)
+    .sort((a, b) => f === "todo" ? (b.used_in - a.used_in) || a.name.localeCompare(b.name) : a.name.localeCompare(b.name));
+  box.className = shown.length ? "" : "empty-state";
+  box.innerHTML = shown.length ? shown.map(i => {
+    const l = i.link;
+    const val = l ? (l.cost_per_unit == null ? `<span class="val todo">No price</span>` : `<span class="val">${escapeHtml(invMoney(l.cost_per_unit))}/${escapeHtml(l.base_unit === "each" ? "each" : l.base_unit)}</span>`)
+      : `<span class="val todo">Link</span>`;
+    const sub = l ? `${escapeHtml(l.label)} · ${escapeHtml(l.supplier)} · ${escapeHtml(invQty(l.pack_count))} × ${escapeHtml(invQty(l.pack_size))} ${escapeHtml(l.pack_unit)}`
+      : `Used in ${i.used_in} ${i.used_in === 1 ? "recipe" : "recipes"}`;
+    return `<div class="inv-cost">
+      <button type="button" class="inv-cost-head" data-inv-cost-open="${escapeHtml(i.id)}"><strong>${escapeHtml(i.name)}</strong>${val}<small>${sub}</small></button>
+      ${invState.costOpen === i.id ? invCostEditor(i) : ""}
+    </div>`;
+  }).join("") : (f === "todo" && !q ? "Every ingredient is linked." : "Nothing here.");
+}
+async function loadIngredientCosts() {
+  try {
+    invState.costs = await managerApi("manager_ingredient_costs");
+    invRenderCosts();
+  } catch (error) {
+    const b = document.getElementById("invCostsSummary");
+    b.className = "empty-state"; b.textContent = error.message || "Unable to load ingredient costs.";
+  }
+}
+function invCostUpdateResult() {
+  const pick = invState.costPick, el = document.getElementById("invCostResult");
+  if (!pick || !el) return;
+  const per = R_().perUnit(pick.product.price, pick);
+  el.textContent = per == null ? "—" : `= ${invMoney(per)} per ${invUnitLabel(R_().baseOf(pick.unit))}`;
+}
+
 function invShowTab(tab) {
   invState.tab = tab;
   document.querySelectorAll("#invTabs [data-inv-tab]").forEach(b => b.classList.toggle("selected", b.dataset.invTab === tab));
   document.getElementById("invListView").classList.toggle("hidden", tab !== "list");
   document.getElementById("invUsageView").classList.toggle("hidden", tab !== "usage");
   document.getElementById("invPricesView").classList.toggle("hidden", tab !== "prices");
-  if (tab === "list") loadInvoices(); else if (tab === "usage") loadInvoiceUsage(); else loadInvoicePrices();
+  document.getElementById("invCostsView").classList.toggle("hidden", tab !== "costs");
+  if (tab === "list") loadInvoices(); else if (tab === "usage") loadInvoiceUsage();
+  else if (tab === "costs") loadIngredientCosts(); else loadInvoicePrices();
 }
 
 async function openInvoicesScreen() {
@@ -8069,6 +8205,27 @@ document.addEventListener("click", event => {
   if (nav && nav.id !== "moreInvoicesBtn" && nav.id !== "invoicesCard") invoicesScreen.classList.add("hidden");
 }, true);
 document.getElementById("invUsageSearch")?.addEventListener("input", e => { invState.usageSearch = e.target.value; invRenderUsage(); });
+document.getElementById("invCostsSearch")?.addEventListener("input", e => { invState.costsSearch = e.target.value; invRenderCosts(); });
+document.getElementById("invCosts")?.addEventListener("input", e => {
+  const pk = e.target.closest("[data-inv-pack]");
+  if (pk && invState.costPick) {
+    const k = pk.dataset.invPack;
+    invState.costPick[k] = k === "unit" ? pk.value : Number(pk.value);
+    invCostUpdateResult(); return;
+  }
+  const sr = e.target.closest("[data-inv-cost-search]");
+  if (sr) {
+    invState.costProdSearch = sr.value;
+    const pos = sr.selectionStart;
+    invRenderCosts();
+    const again = document.querySelector("#invCosts [data-inv-cost-search]");
+    if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch (_) { /* ignore */ } }
+  }
+});
+document.getElementById("invCosts")?.addEventListener("change", e => {
+  const pk = e.target.closest("[data-inv-pack]");
+  if (pk && invState.costPick) { invState.costPick[pk.dataset.invPack] = pk.dataset.invPack === "unit" ? pk.value : Number(pk.value); invCostUpdateResult(); }
+});
 document.getElementById("invFiles")?.addEventListener("change", e => {
   const files = [...(e.target.files || [])];
   e.target.value = "";
@@ -8082,6 +8239,49 @@ invoicesScreen?.addEventListener("click", async e => {
     invState.period = per.dataset.invPeriod;
     document.querySelectorAll("#invPeriods [data-inv-period]").forEach(b => b.classList.toggle("selected", b === per));
     loadInvoices(); return;
+  }
+  const cf = e.target.closest("[data-inv-costs-filter]");
+  if (cf) {
+    invState.costsFilter = cf.dataset.invCostsFilter;
+    document.querySelectorAll("#invCostsFilter [data-inv-costs-filter]").forEach(b => b.classList.toggle("selected", b === cf));
+    invRenderCosts(); return;
+  }
+  const co = e.target.closest("[data-inv-cost-open]");
+  if (co) {
+    const id = co.dataset.invCostOpen;
+    invState.costOpen = invState.costOpen === id ? null : id;
+    invState.costProdSearch = "";
+    const ing = (invState.costs?.ingredients || []).find(i => i.id === id);
+    invState.costPick = ing ? invCostDraft(ing) : null;
+    invRenderCosts(); return;
+  }
+  const cp = e.target.closest("[data-inv-cost-prod]");
+  if (cp) {
+    const p = (invState.costs?.products || []).find(x => invProdKey(x) === cp.dataset.invCostProd) || invState.costPick?.product;
+    if (p) invState.costPick = { product: p, ...R_().packGuess(p.description, p.unit) };
+    invRenderCosts(); return;
+  }
+  if (e.target.closest("[data-inv-cost-cancel]")) { invState.costOpen = null; invState.costPick = null; invRenderCosts(); return; }
+  const cs = e.target.closest("[data-inv-cost-save], [data-inv-cost-unlink]");
+  if (cs) {
+    const unlink = cs.hasAttribute("data-inv-cost-unlink");
+    if (unlink && cs.dataset.confirm !== "1") { cs.dataset.confirm = "1"; cs.textContent = "Tap again"; return; }
+    const id = cs.dataset.invCostSave || cs.dataset.invCostUnlink;
+    const pick = invState.costPick;
+    const ing = (invState.costs?.ingredients || []).find(i => i.id === id);
+    cs.disabled = true;
+    try {
+      await managerApi("manager_ingredient_cost_save", { ingredient_id: id, link: unlink ? null : {
+        supplier: pick.product.supplier, product_key: pick.product.product_key, label: pick.product.description,
+        pack_count: Number(pick.count), pack_size: Number(pick.size), pack_unit: pick.unit } });
+      invState.costOpen = null; invState.costPick = null;
+      invMsg(unlink ? `${ing?.name || "Ingredient"} unlinked.` : `${ing?.name || "Ingredient"} linked.`, true);
+      await loadIngredientCosts();
+    } catch (error) {
+      cs.disabled = false;
+      invMsg(error.message || "Unable to save.", false);
+    }
+    return;
   }
   const wk = e.target.closest("[data-inv-weeks]");
   if (wk) {

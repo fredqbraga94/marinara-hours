@@ -373,6 +373,55 @@
     return parse(pages);
   }
 
-  const api = { readPdf, extractPages, parse, toRows, isoDate, READERS };
+  /* ---------- ingredient costs: helpers ---------- */
+
+  // What one invoice price most likely buys, read from the product line:
+  // "CREAM THICKENED · 5LT" -> 1 x 5 l, "[12x330ml]" -> 12 x 330 ml,
+  // "3kg Beef Lasagna" + unit "x 6" -> 6 x 3 kg, "(Qty: 200)" -> 200 x 1 each,
+  // weighed items (unit kg) -> 1 x 1 kg. Only a suggestion: the manager checks
+  // it, because some suppliers price a whole carton of several packs.
+  const UNIT = { kg: "kg", g: "g", gm: "g", gr: "g", l: "l", lt: "l", ltr: "l", litre: "l", ml: "ml", q: "each", pcs: "each", ea: "each" };
+  function packGuess(description, unit) {
+    const d = String(description || ""), u = String(unit || "").trim().toLowerCase();
+    if (u === "kg") return { count: 1, size: 1, unit: "kg" };
+    const one = (txt) => {
+      const m = String(txt).match(/(\d+(?:\.\d+)?)\s*(kg|gm|gr|g|ltr|lt|litre|l|ml)(?![a-z])/i);
+      return m ? { size: Number(m[1]), unit: UNIT[m[2].toLowerCase()] } : null;
+    };
+    let m = d.match(/(\d+)\s*x\s*(\d+(?:\.\d+)?)\s*(kg|gm|gr|g|ltr|lt|litre|l|ml)(?![a-z])/i);
+    if (m) return { count: Number(m[1]), size: Number(m[2]), unit: UNIT[m[3].toLowerCase()] };
+    m = d.match(/\(\s*qty\s*:\s*(\d+)/i) || d.match(/·\s*(\d+)\s*q\s*$/i) || u.match(/^pack\s+(\d+)$/);
+    if (m) return { count: 1, size: Number(m[1]), unit: "each" };
+    const uSize = one(u);
+    if (uSize) return { count: 1, ...uSize };
+    const many = u.match(/^x\s*(\d+)$/);
+    const parts = d.split("·").map(x => x.trim());
+    const size = one(parts[parts.length - 1]) || one(d);
+    if (size) return { count: many ? Number(many[1]) : 1, ...size };
+    return { count: 1, size: 1, unit: "each" };
+  }
+  const baseOf = (unit) => (unit === "g" ? "kg" : unit === "ml" ? "l" : unit);
+  function perUnit(price, pack) {
+    if (price == null || !pack || !(pack.count > 0) || !(pack.size > 0)) return null;
+    const qty = pack.count * pack.size / (pack.unit === "g" || pack.unit === "ml" ? 1000 : 1);
+    return Math.round(Number(price) / qty * 100) / 100;
+  }
+  // How well a product line matches an ingredient name (0 = not at all).
+  const words = (s) => String(s || "").toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/)
+    .filter(w => w.length > 2 && !["the", "and", "with", "for", "fresh"].includes(w))
+    .map(w => w.replace(/(es|s)$/, ""));
+  function matchScore(name, description) {
+    const want = words(name);
+    if (!want.length) return 0;
+    const have = words(description);
+    let score = 0;
+    for (const w of want) {
+      if (have.includes(w)) score += 2;
+      else if (have.some(h => h.startsWith(w) || w.startsWith(h))) score += 1;
+    }
+    return score / want.length;
+  }
+
+  const api = { readPdf, extractPages, parse, toRows, isoDate, READERS, packGuess, perUnit, baseOf, matchScore };
   root.MarinaraInvoiceReader = api;
 })(typeof window !== "undefined" ? window : globalThis);
