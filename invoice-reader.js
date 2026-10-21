@@ -126,6 +126,9 @@
   /* ---------- suppliers ---------- */
 
   // MOCO Food Services (sideways page; no supplier name printed on it).
+  // Weighed items (meat, fish: "AP9KG", unit RW or EA) are priced per kg; the
+  // real weight is on the next row ("Total Net Weight of 10.200kg"), so that
+  // weight becomes the quantity (in kg).
   // Columns: category, code, brand, description, pack, per, unit, qty, price,
   // line total (ex GST), GST, total. Weighed items (unit RW) are per kg.
   const moco = {
@@ -134,6 +137,13 @@
     read(pages) {
       const lines = [];
       for (const rows of pages) for (const r of rows) {
+        const rt = rowText(r);
+        if (/Total Net Weight of/i.test(rt)) {
+          const m = rt.match(/Total Net Weight of\s*([\d.]+)\s*kg/i);
+          const last = lines[lines.length - 1];
+          if (m && last && last.code && Number(m[1]) > 0) { last.qty = Number(m[1]); last.unit = "kg"; last.weighed = true; }
+          continue;
+        }
         const code = firstIn(r, 45, 70);
         const total = money(firstIn(r, 565, 600));
         // Charges without a product code (e.g. FUEL LEVY): text on the left, amounts on the right.
@@ -154,6 +164,14 @@
           gst: money(firstIn(r, 520, 560)) || 0,
         });
       }
+      // No weight row printed but priced per kg: the weight is total / price.
+      for (const l of lines) {
+        if (l.weighed || !l.code || !(l.unit_price > 0) || l.qty == null) continue;
+        if (/\bAP\s?\d/i.test(l.description) && Math.abs(l.qty * l.unit_price - l.line_total) > 0.05) {
+          l.qty = Math.round(l.line_total / l.unit_price * 1000) / 1000; l.unit = "kg";
+        }
+      }
+      lines.forEach(l => delete l.weighed);
       return {
         number: valueAfter(pages, "Invoice #:"),
         date: isoDate(valueAfter(pages, "Date:")),
