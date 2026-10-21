@@ -40,12 +40,13 @@ create index if not exists recipes_place_idx on public.recipes (location, active
 
 create table if not exists public.recipe_lines (
   id uuid primary key default gen_random_uuid(),
-  recipe_id uuid not null references public.recipes(id) on delete cascade,
+  recipe_id uuid not null references public.recipes(id),
   ingredient_id uuid not null references public.recipe_ingredients(id),
   quantity text check (quantity is null or length(quantity) <= 80),
-  position integer not null default 0
+  position integer not null default 0,
+  active boolean not null default true  -- replaced lines are kept, switched off
 );
-create index if not exists recipe_lines_recipe_idx on public.recipe_lines (recipe_id, position);
+create index if not exists recipe_lines_recipe_idx on public.recipe_lines (recipe_id, active, position);
 
 create table if not exists public.recipe_audit (
   id bigint generated always as identity primary key,
@@ -76,7 +77,7 @@ as $function$
     'checked', i.checked, 'checked_at', i.checked_at, 'note', i.note,
     'used_in', (select count(distinct l.recipe_id) from public.recipe_lines l
                   join public.recipes r on r.id = l.recipe_id
-                 where l.ingredient_id = i.id and r.active))
+                 where l.ingredient_id = i.id and l.active and r.active))
 $function$;
 
 -- One recipe; p_full = false leaves out quantities, method and notes.
@@ -92,15 +93,15 @@ as $function$
              || case when p_full then jsonb_build_object('quantity', l.quantity) else '{}'::jsonb end
              order by l.position)
         from public.recipe_lines l join public.recipe_ingredients i on i.id = l.ingredient_id
-       where l.recipe_id = r.id), '[]'::jsonb),
+       where l.recipe_id = r.id and l.active), '[]'::jsonb),
     'allergens', coalesce((
       select to_jsonb(array_agg(distinct a order by a))
         from public.recipe_lines l join public.recipe_ingredients i on i.id = l.ingredient_id,
              unnest(i.allergens) a
-       where l.recipe_id = r.id), '[]'::jsonb),
+       where l.recipe_id = r.id and l.active), '[]'::jsonb),
     'all_checked', not exists (
       select 1 from public.recipe_lines l join public.recipe_ingredients i on i.id = l.ingredient_id
-       where l.recipe_id = r.id and not i.checked))
+       where l.recipe_id = r.id and l.active and not i.checked))
   || case when p_full then jsonb_build_object('makes', r.makes, 'method', r.method, 'notes', r.notes)
           else '{}'::jsonb end
 $function$;
@@ -184,7 +185,7 @@ begin
            notes = nullif(trim(p_recipe->>'notes'), ''),
            updated_by = mgr.id, updated_at = now()
      where id = v_id returning * into v_row;
-    delete from public.recipe_lines where recipe_id = v_id;
+    update public.recipe_lines set active = false where recipe_id = v_id and active;
   else
     insert into public.recipes (location, name, category, makes, method, notes, updated_by)
     values (v_location, trim(p_recipe->>'name'),
