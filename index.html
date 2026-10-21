@@ -1273,6 +1273,36 @@ body.mgr-mode .manager-nav-item:active { transform: scale(.94); }
   body.mgr-mode :is(.home-tile, .home-stat, .manager-nav-item):active { transform: none; }
   .home-flash { animation: none; }
 }
+
+/* MORE screen in the Marinara look */
+body.mgr-mode .more-v2-title { font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 28px; letter-spacing: .5px; }
+body.mgr-mode .more-v2-sub { font-size: 13px; }
+body.mgr-mode .more-v2-avatar {
+  border-radius: 50%; background: #e6efe9; color: var(--basil);
+  font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 20px;
+}
+body.mgr-mode .more-v2-profile { border: 1px solid #e7e2d8; box-shadow: none; }
+body.mgr-mode .more-group {
+  font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 17px; letter-spacing: 1px;
+  color: var(--pomodoro); margin: 22px 4px 10px;
+}
+.more-group { font-weight: 800; font-size: 13px; color: var(--muted); margin: 18px 4px 8px; }
+body.mgr-mode .more-v2-menu { padding: 2px 16px; border: 1px solid #e7e2d8; box-shadow: none; }
+body.mgr-mode .more-v2-item:last-child, body.mgr-mode .more-v2-menu > .more-v2-item:last-of-type { border-bottom: 0; }
+body.mgr-mode .more-v2-icon { background: transparent; width: 26px; height: 26px; color: var(--basil); }
+body.mgr-mode .more-k .more-v2-icon { color: var(--pomodoro); }
+.more-v2-icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+body.mgr-mode .more-v2-item strong { font-size: 15px; }
+body.mgr-mode .more-v2-item small { font-size: 12px; }
+body.mgr-mode .more-v2-item:active { background: #fbfaf7; }
+/* Dividers above each row (not below), so hidden rows never leave a stray line. */
+body.mgr-mode .more-v2-menu > .more-v2-item { border-bottom: 0; border-top: 1px solid var(--border); }
+body.mgr-mode .more-v2-menu > :first-child { border-top: 0; }
+body.mgr-mode .notify-card { border: 0; padding: 14px 0; }
+body.mgr-mode .notify-head { gap: 10px; }
+body.mgr-mode .notify-head .more-v2-icon { flex: 0 0 38px; width: 38px; height: 26px; padding: 0 6px; }
+body.mgr-mode .notify-head strong { font-size: 15px; }
+body.mgr-mode #managerMoreScreen > .card:last-child { background: transparent; border: 0; box-shadow: none; padding: 0; }
 /* RECIPES AND ALLERGENS */
 .rcp-search{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 12px;font-size:16px;margin-bottom:10px;background:#fff;font-family:inherit}
 .rcp-item{padding:13px 0;border-top:1px solid var(--border)}
@@ -1942,12 +1972,10 @@ button:disabled{opacity:.6}
 <section id="managerMoreScreen" class="hidden">
   <div class="manager-top">
     <div>
-      <div class="more-v2-kicker">MANAGER</div>
       <h2 class="more-v2-title">More</h2>
-      <p class="more-v2-sub">Management tools and account options</p>
+      <p class="more-v2-sub">Everything for the restaurant, in one place</p>
     </div>
   </div>
-
   <div class="card more-v2-profile">
     <div id="moreManagerAvatar" class="more-v2-avatar">M</div>
     <div>
@@ -1955,45 +1983,51 @@ button:disabled{opacity:.6}
       <span id="moreManagerRole">Administrator · Hawthorne</span>
     </div>
   </div>
-
+  <div class="more-group">Team &amp; hours</div>
   <div class="card more-v2-menu">
     <button id="moreStaffHoursBtn" class="more-v2-item" type="button">
-      <span class="more-v2-icon">◷</span>
-      <span><strong>Staff Hours</strong><small>Review weekly hours and individual shifts</small></span>
+      <span class="more-v2-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></span>
+      <span><strong>Staff Hours</strong><small>Hours and shifts this week</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
     <button id="moreTimesheetsBtn" class="more-v2-item" type="button">
-      <span class="more-v2-icon">▤</span>
-      <span><strong>Timesheets & PDF</strong><small>View weekly timesheets and export the approved PDF</small></span>
+      <span class="more-v2-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5A.5.5 0 0 1 6.5 20V4a.5.5 0 0 1 .5-.5z"/><path d="M14 3.5V8h4M9.5 12h5M9.5 15h5M9.5 18h3"/></svg></span>
+      <span><strong>Timesheets &amp; PDF</strong><small>Approved timesheets to export</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
     <button id="moreRosterBtn" class="more-v2-item" type="button">
-      <span class="more-v2-icon">▦</span>
+      <span class="more-v2-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h2M12 14h2M16 14h0.5M8 17h2M12 17h2"/></svg></span>
       <span><strong>Roster</strong><small>Plan the week for Kitchen and Floor</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
     <button id="moreTimeOffBtn" class="more-v2-item" type="button">
-      <span class="more-v2-icon">✈</span>
+      <span class="more-v2-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 13.5L4 11l1.5-1.5 7 1 4-4c.8-.8 2.2-.8 3 0s.8 2.2 0 3l-4 4 1 7L16 21.5l-2.5-6.5-3 3V21l-1.5 1-1-4-4-1 1-1.5h3z"/></svg></span>
       <span><strong>Time off<span id="moreTimeOffBadge" class="count-badge hidden"></span></strong><small>Approve holidays and days off</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
-    <button id="moreRecipesBtn" class="more-v2-item" type="button">
-      <span class="more-v2-icon">❖</span>
+  </div>
+  <div class="more-group">Kitchen &amp; floor</div>
+  <div class="card more-v2-menu">
+    <button id="moreRecipesBtn" class="more-v2-item more-k" type="button">
+      <span class="more-v2-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10.5a3.5 3.5 0 1 1 1.6-6.6A4 4 0 0 1 16.4 4a3.5 3.5 0 1 1 .6 6.5V14H7z"/><path d="M7 14h10v4.5a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1z"/></svg></span>
       <span><strong id="moreRecipesLabel">Recipes</strong><small id="moreRecipesSub">Recipes, ingredients and allergens</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
-    <button id="moreStockBtn" class="more-v2-item" type="button">
-      <span class="more-v2-icon">▥</span>
-      <span><strong>Stock</strong><small>Count against the par level and see what to order</small></span>
+    <button id="moreStockBtn" class="more-v2-item more-k" type="button">
+      <span class="more-v2-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8l8-4 8 4v8l-8 4-8-4z"/><path d="M4 8l8 4 8-4M12 12v8"/></svg></span>
+      <span><strong>Stock</strong><small>Count and see what to order</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
     <button id="moreMyClockBtn" class="more-v2-item" type="button">
-      <span class="more-v2-icon">◉</span>
-      <span><strong>My Time Clock</strong><small>Clock in, take a break and clock out</small></span>
+      <span class="more-v2-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13h3M9.5 3h5M12 3v2.5"/></svg></span>
+      <span><strong>My Time Clock</strong><small>Clock in, break and clock out</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
+  </div>
+  <div class="more-group">This phone &amp; access</div>
+  <div class="card more-v2-menu">
     <div id="notifyCard" class="notify-card">
-      <div class="notify-head"><span class="more-v2-icon">🔔</span><span><strong>Notifications on this phone</strong><small id="notifyStatus">Checking…</small></span></div>
+      <div class="notify-head"><span class="more-v2-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg></span><span><strong>Notifications on this phone</strong><small id="notifyStatus">Checking…</small></span></div>
       <div class="notify-actions">
         <button id="notifyOnBtn" class="btn primary hidden" type="button">Turn on</button>
         <button id="notifyTestBtn" class="btn secondary hidden" type="button">Send a test</button>
@@ -2002,17 +2036,16 @@ button:disabled{opacity:.6}
       <div id="notifyMessage" class="message"></div>
     </div>
     <button id="moreDevicesBtn" class="more-v2-item" type="button">
-      <span class="more-v2-icon">▣</span>
+      <span class="more-v2-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6.5" y="3" width="11" height="18" rx="2"/><path d="M10.5 18h3"/></svg></span>
       <span><strong>Devices</strong><small>Phones and tablets allowed to sign in</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
     <button id="moreManagersBtn" class="more-v2-item hidden" type="button">
-      <span class="more-v2-icon">◎</span>
-      <span><strong>Managers</strong><small>Manage Administrator, Kitchen and Floor Manager accounts</small></span>
+      <span class="more-v2-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5.5c0 4.3-3 7.8-7 9.5-4-1.7-7-5.2-7-9.5V6z"/><path d="M9 12l2.2 2.2L15 10.5"/></svg></span>
+      <span><strong>Managers</strong><small>Administrator, Kitchen and Floor Manager accounts</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
   </div>
-
   <div class="card">
     <button id="moreSignOutBtn" class="more-v2-signout" type="button">Sign Out</button>
   </div>
