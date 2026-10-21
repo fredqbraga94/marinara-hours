@@ -20,7 +20,8 @@
     "test:e2e:stock:webkit": "E2E_BROWSER=webkit node tests/e2e/stock.e2e.mjs",
     "test:roles": "node tests/integration/roles.mjs",
     "test:e2e:roles": "node tests/e2e/roles.e2e.mjs",
-    "test:e2e:roles:webkit": "E2E_BROWSER=webkit node tests/e2e/roles.e2e.mjs"
+    "test:e2e:roles:webkit": "E2E_BROWSER=webkit node tests/e2e/roles.e2e.mjs",
+    "test:push": "node --test --test-reporter=spec tests/edge/webpush.test.mjs && node tests/integration/push.mjs"
   },
   "devDependencies": {
     "jspdf": "4.2.1",

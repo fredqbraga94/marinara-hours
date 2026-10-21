@@ -337,6 +337,185 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   STOCK_ITEM_NOT_FOUND: [404, "Item not found"],
 };
 
+// WEBPUSH-START
+// Web Push (RFC 8030) with VAPID (RFC 8292) and aes128gcm payload encryption
+// (RFC 8291 / 8188), using only WebCrypto - no extra library. Works on
+// Apple (iPhone home-screen apps), Google (Android/Chrome) and Mozilla push.
+function b64uToBytes(s: string): Uint8Array {
+  const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4);
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function bytesToB64u(b: Uint8Array): string {
+  let s = "";
+  for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function concatBytes(...parts: Uint8Array[]): Uint8Array {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let o = 0;
+  for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
+}
+
+async function hkdf(salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, length: number) {
+  const key = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt, info }, key, length * 8);
+  return new Uint8Array(bits);
+}
+
+// VAPID key pair: public = 65-byte uncompressed point, private = 32-byte d (both base64url).
+async function vapidAuthorization(endpoint: string, publicKey: string, privateKey: string, subject: string, nowSec: number) {
+  const pub = b64uToBytes(publicKey);
+  const jwk = {
+    kty: "EC", crv: "P-256", ext: true,
+    x: bytesToB64u(pub.slice(1, 33)), y: bytesToB64u(pub.slice(33, 65)), d: privateKey,
+  };
+  const key = await crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const enc = new TextEncoder();
+  const header = bytesToB64u(enc.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
+  const claims = bytesToB64u(enc.encode(JSON.stringify({
+    aud: new URL(endpoint).origin, exp: nowSec + 12 * 3600, sub: subject,
+  })));
+  const sig = new Uint8Array(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(`${header}.${claims}`)));
+  return `vapid t=${header}.${claims}.${bytesToB64u(sig)}, k=${publicKey}`;
+}
+
+// Encrypt one message for one subscription (aes128gcm, a single record).
+async function encryptPushPayload(p256dh: string, authSecret: string, payload: Uint8Array, salt?: Uint8Array) {
+  const uaPublic = b64uToBytes(p256dh);
+  const auth = b64uToBytes(authSecret);
+  const local = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const asPublic = new Uint8Array(await crypto.subtle.exportKey("raw", local.publicKey));
+  const uaKey = await crypto.subtle.importKey("raw", uaPublic, { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const shared = new Uint8Array(await crypto.subtle.deriveBits({ name: "ECDH", public: uaKey }, local.privateKey, 256));
+  const enc = new TextEncoder();
+  const ikm = await hkdf(auth, shared, concatBytes(enc.encode("WebPush: info\0"), uaPublic, asPublic), 32);
+  const s = salt || crypto.getRandomValues(new Uint8Array(16));
+  const cek = await hkdf(s, ikm, enc.encode("Content-Encoding: aes128gcm\0"), 16);
+  const nonce = await hkdf(s, ikm, enc.encode("Content-Encoding: nonce\0"), 12);
+  const aes = await crypto.subtle.importKey("raw", cek, "AES-GCM", false, ["encrypt"]);
+  const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, aes, concatBytes(payload, new Uint8Array([2]))));
+  const rs = new Uint8Array([0, 0, 16, 0]); // record size 4096
+  return concatBytes(s, rs, new Uint8Array([asPublic.length]), asPublic, cipher);
+}
+
+async function sendWebPush(
+  sub: { endpoint: string; p256dh: string; auth: string },
+  message: Record<string, unknown>,
+  vapid: { publicKey: string; privateKey: string; subject: string },
+) {
+  const body = await encryptPushPayload(sub.p256dh, sub.auth, new TextEncoder().encode(JSON.stringify(message)));
+  const authorization = await vapidAuthorization(sub.endpoint, vapid.publicKey, vapid.privateKey, vapid.subject, Math.floor(Date.now() / 1000));
+  const res = await fetch(sub.endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: authorization,
+      "Content-Encoding": "aes128gcm",
+      "Content-Type": "application/octet-stream",
+      TTL: "86400",
+      Urgency: "normal",
+    },
+    body,
+  });
+  return { ok: res.status >= 200 && res.status < 300, status: res.status, gone: res.status === 404 || res.status === 410 };
+}
+// WEBPUSH-END
+
+// Only real push services: the server never posts to any other address.
+function isPushEndpoint(endpoint: string) {
+  try {
+    const u = new URL(endpoint);
+    return u.protocol === "https:" &&
+      /(^|\.)push\.apple\.com$|^fcm\.googleapis\.com$|(^|\.)push\.services\.mozilla\.com$|\.notify\.windows\.com$/.test(u.hostname);
+  } catch (_) {
+    return false;
+  }
+}
+
+// Notification keys. Normally created once by the server itself and kept in
+// the database (only the server can read them); edge secrets override them.
+let pushVapidCache: { publicKey: string; privateKey: string; subject: string } | null = null;
+async function pushVapid(supabase: any) {
+  const env = (globalThis as any).Deno?.env;
+  const subject = env?.get("VAPID_SUBJECT") || "https://fredqbraga94.github.io/marinara-hours/";
+  const envPublic = env?.get("VAPID_PUBLIC_KEY") || "";
+  const envPrivate = env?.get("VAPID_PRIVATE_KEY") || "";
+  if (envPublic && envPrivate) return { publicKey: envPublic, privateKey: envPrivate, subject };
+  if (pushVapidCache) return pushVapidCache;
+  try {
+    let { data, error } = await supabase.rpc("mh_push_keys", { p_public: null, p_private: null });
+    if (error) return null;
+    let row = Array.isArray(data) ? data[0] : data;
+    if (!row?.public_key) {
+      const pair: any = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+      const jwk: any = await crypto.subtle.exportKey("jwk", pair.privateKey);
+      const pub = bytesToB64u(concatBytes(new Uint8Array([4]), b64uToBytes(jwk.x), b64uToBytes(jwk.y)));
+      ({ data, error } = await supabase.rpc("mh_push_keys", { p_public: pub, p_private: jwk.d }));
+      if (error) return null;
+      row = Array.isArray(data) ? data[0] : data;
+    }
+    if (!row?.public_key || !row?.private_key) return null;
+    pushVapidCache = { publicKey: row.public_key, privateKey: row.private_key, subject };
+    return pushVapidCache;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Send to a list of phones and record each result. Never throws.
+async function deliverPush(supabase: any, targets: any[], message: Record<string, unknown>) {
+  if (!targets?.length) return { sent: 0 };
+  const vapid = await pushVapid(supabase);
+  if (!vapid) return { sent: 0 };
+  const send = (globalThis as any).__MH_PUSH_SEND || sendWebPush;
+  let sent = 0;
+  for (const t of targets) {
+    let r: any;
+    try {
+      r = await send({ endpoint: t.endpoint, p256dh: t.p256dh, auth: t.auth }, message, vapid);
+    } catch (e) {
+      r = { ok: false, gone: false, status: 0, error: String((e as any)?.message || e).slice(0, 120) };
+    }
+    if (r.ok) sent++;
+    try {
+      await supabase.rpc("mh_push_result", {
+        p_id: t.id, p_ok: !!r.ok, p_gone: !!r.gone, p_error: r.ok ? null : `status ${r.status}${r.error ? " " + r.error : ""}`,
+      });
+    } catch (_) { /* best effort */ }
+  }
+  return { sent };
+}
+
+async function notifyDepartment(supabase: any, location: string, department: string, message: Record<string, unknown>) {
+  try {
+    const { data, error } = await supabase.rpc("mh_push_targets", { p_location: location, p_department: department });
+    if (error) return;
+    await deliverPush(supabase, data || [], message);
+  } catch (e) {
+    console.error("Push notify error:", (e as any)?.code || "");
+  }
+}
+
+// Run after the response (Supabase EdgeRuntime), or just let it run.
+function inBackground(p: Promise<unknown>) {
+  const er = (globalThis as any).EdgeRuntime;
+  if (er && typeof er.waitUntil === "function") er.waitUntil(p);
+  else p.catch(() => {});
+}
+
+function leaveRangeText(start: string, end: string) {
+  const f = (d: string, withMonth: boolean) => new Intl.DateTimeFormat("en-AU", {
+    timeZone: "UTC", day: "numeric", ...(withMonth ? { month: "short" } : {}),
+  }).format(new Date(`${d}T00:00:00Z`));
+  if (!end || end === start) return f(start, true);
+  return start.slice(0, 7) === end.slice(0, 7) ? `${f(start, false)}–${f(end, true)}` : `${f(start, true)} – ${f(end, true)}`;
+}
+
 // VISA-HOURS-START
 // Student visa (subclass 500, condition 8105): at most 48 worked hours per
 // fortnight while the course is in session. A fortnight is 14 days starting
@@ -820,6 +999,17 @@ Deno.serve(async (req) => {
             p_staff_id: staffId, p_kind: kind, p_start: start, p_end: end, p_note: note || null,
           });
           if (error) return managerDbError(error, "Unable to send the request");
+          // Tell the managers' phones (in the background; never delays or breaks the request).
+          inBackground((async () => {
+            const { data: who } = await supabase.from("staff").select("name, department, location").eq("id", staffId).single();
+            if (!who) return;
+            await notifyDepartment(supabase, who.location || "Hawthorne", who.department, {
+              title: kind === "HOLIDAY" ? "Holiday request" : "Day off request",
+              body: `${who.name} asked for ${kind === "HOLIDAY" ? "a holiday" : "a day off"} · ${leaveRangeText(start, end)}. Tap to approve or decline.`,
+              tag: `leave-${data?.id || start}`,
+              url: "./?open=timeoff",
+            });
+          })());
           return json({ success: true, action, data: { request: data } });
         }
 
@@ -1210,6 +1400,12 @@ Deno.serve(async (req) => {
         "manager_leave_decide",
         "manager_leave_create",
         "manager_set_roster_info",
+        "manager_push_config",
+        "manager_push_subscribe",
+        "manager_push_unsubscribe",
+        "manager_push_list",
+        "manager_push_remove",
+        "manager_push_test",
         "manager_set_roster_order",
         "manager_create_roster_person",
         "manager_stock_list",
@@ -2806,6 +3002,57 @@ Deno.serve(async (req) => {
       // =========================
       // ROSTER ROLE / ROSTER-ONLY PEOPLE
       // =========================
+      // =========================
+      // PHONE NOTIFICATIONS
+      // =========================
+      if (action.startsWith("manager_push_")) {
+        const endpoint = typeof body.endpoint === "string" ? body.endpoint.trim() : "";
+        if (action === "manager_push_config") {
+          return json({ success: true, action, data: { public_key: (await pushVapid(supabase))?.publicKey || null } });
+        }
+        if (action === "manager_push_subscribe") {
+          const p256dh = typeof body.p256dh === "string" ? body.p256dh.trim() : "";
+          const auth = typeof body.auth === "string" ? body.auth.trim() : "";
+          const label = typeof body.label === "string" ? body.label.trim().slice(0, 80) : "";
+          if (!isPushEndpoint(endpoint) || !/^[A-Za-z0-9_-]{40,200}$/.test(p256dh) || !/^[A-Za-z0-9_-]{10,60}$/.test(auth)) {
+            return json({ error: "This phone's notification address was not accepted.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_push_subscribe", {
+            p_manager_id: managerStatus.id, p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_label: label || null,
+          });
+          if (error) return managerDbError(error, "Unable to turn on notifications");
+          return json({ success: true, action, data: { subscription: data } });
+        }
+        if (action === "manager_push_unsubscribe") {
+          if (!endpoint) return json({ error: "Invalid request", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_push_unsubscribe", { p_manager_id: managerStatus.id, p_endpoint: endpoint });
+          if (error) return managerDbError(error, "Unable to turn off notifications");
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_push_list") {
+          const { data, error } = await supabase.rpc("manager_push_list", { p_manager_id: managerStatus.id });
+          if (error) return managerDbError(error, "Unable to load the phones", 500);
+          return json({ success: true, action, data: { subscriptions: data || [] } });
+        }
+        if (action === "manager_push_remove") {
+          const id = typeof body.id === "string" ? body.id.trim() : "";
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+            return json({ error: "Device not found", code: "DEVICE_NOT_FOUND" }, 404);
+          }
+          const { data, error } = await supabase.rpc("manager_push_remove", { p_manager_id: managerStatus.id, p_id: id });
+          if (error) return managerDbError(error, "Unable to turn off notifications");
+          return json({ success: true, action, data });
+        }
+        // manager_push_test: a test notification to the phones of the person signed in.
+        if (!(await pushVapid(supabase))) return json({ error: "Notifications are not set up on the server yet.", code: "INVALID_INPUT" }, 400);
+        const { data: mine, error: mineError } = await supabase.rpc("mh_push_for_staff", { p_staff_id: managerStatus.id });
+        if (mineError) return managerDbError(mineError, "Unable to send a test", 500);
+        const result = await deliverPush(supabase, mine || [], {
+          title: "Marinara Hours", body: "Notifications are on for this phone.", tag: "test", url: "./",
+        });
+        return json({ success: true, action, data: { phones: (mine || []).length, sent: result.sent } });
+      }
+
       if (action === "manager_set_roster_order") {
         const ids = Array.isArray(body.staff_ids) ? body.staff_ids : [];
         const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
