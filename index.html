@@ -1599,6 +1599,143 @@ button:disabled{opacity:.6}
   body.mgr-mode .manager-top { margin-bottom: 22px; }
   body.mgr-mode .manager-top h2 { font-size: 34px; }
 }
+/* Full side menu on laptop / desktop */
+.desk-only { display: none; }
+@media (min-width: 1000px) {
+  body.mgr-mode .manager-bottom-nav { overflow-y: auto; overscroll-behavior: contain; }
+  body.mgr-mode .manager-bottom-nav .desk-only { display: flex; }
+  body.mgr-mode .desk-group {
+    display: block !important; color: rgba(255,255,255,.38); font-size: 11px; font-weight: 800;
+    letter-spacing: 1.4px; text-transform: uppercase; padding: 18px 16px 6px;
+  }
+  body.mgr-mode .manager-nav-item.desk-link { min-height: 42px; font-size: 14px; }
+  body.mgr-mode .manager-nav-item.desk-link .manager-nav-icon { width: 20px; height: 20px; }
+  body.mgr-mode .manager-nav-item.desk-k .manager-nav-icon { color: #f1a39b; }
+  body.mgr-mode .manager-nav-item.desk-link.active .manager-nav-icon { color: #fff; }
+  body.mgr-mode .desk-link .count-badge { margin-left: auto; box-shadow: none; }
+  body.mgr-mode #navMoreBadge { display: none; }
+  body.mgr-mode .desk-foot {
+    margin-top: auto; padding: 16px 8px 0; border-top: 1px solid rgba(255,255,255,.08);
+    align-items: center; gap: 12px;
+  }
+  body.mgr-mode .desk-av {
+    flex: 0 0 auto; width: 38px; height: 38px; border-radius: 50%; display: inline-flex; align-items: center;
+    justify-content: center; background: rgba(255,255,255,.12); color: #fff;
+    font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 16px;
+  }
+  body.mgr-mode .desk-who { min-width: 0; flex: 1; line-height: 1.25; }
+  body.mgr-mode .desk-who strong { display: block; color: #fff; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.mgr-mode .desk-who small { color: rgba(255,255,255,.5); font-size: 12px; }
+  body.mgr-mode .desk-out {
+    border: 1px solid rgba(255,255,255,.18); background: transparent; color: #f1a39b; border-radius: 10px;
+    padding: 7px 10px; font-size: 12px; font-weight: 800; cursor: pointer;
+  }
+  body.mgr-mode .desk-out:hover { background: rgba(255,255,255,.06); }
+  body.mgr-mode #managerLogoutBtn { display: none; }
+}
+/* Desktop home, after the concept: 4 numbers, who's working + needs
+   attention, quick access, this week as a table. */
+@media (min-width: 1000px) {
+  body.mgr-mode .manager-bottom-nav > :is([data-manager-nav="approvals"], [data-manager-nav="team"], [data-manager-nav="more"]) { display: none; }
+  body.mgr-mode .desk-foot { cursor: default; }
+  body.mgr-mode .desk-out { font-size: 22px; line-height: 1; padding: 4px 10px; color: rgba(255,255,255,.7); border: 0; }
+  body.mgr-mode #managerScreen { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 22px; }
+  body.mgr-mode #managerScreen > .home-group:not(.desk-quick-title),
+  body.mgr-mode #managerScreen > .home-tiles:not(.desk-quick) { display: none; }
+  body.mgr-mode #managerScreen > .desk-working { grid-column: 1 / span 2; margin-top: 22px; }
+  body.mgr-mode #managerScreen > .desk-attention { grid-column: 3; margin-top: 22px; display: block; }
+  body.mgr-mode #managerScreen > .desk-week { grid-column: 1 / -1; margin-top: 22px; min-height: 0; }
+  body.mgr-mode .manager-v2-hero { display: block; }
+  body.mgr-mode .desk-chip {
+    display: inline-flex; align-items: center; gap: 10px; border: 0; background: transparent; cursor: pointer;
+    padding: 6px 8px; border-radius: 14px; text-align: left; color: var(--text);
+  }
+  body.mgr-mode .desk-chip:hover { background: #efece5; }
+  body.mgr-mode .desk-chip-av {
+    width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    background: #e6efe9; color: var(--basil); font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 17px;
+  }
+  body.mgr-mode .desk-chip strong { display: block; font-size: 14px; }
+  body.mgr-mode .desk-chip small { color: var(--muted); font-size: 12px; }
+  body.mgr-mode .desk-chev { color: var(--muted); }
+  /* numbers */
+  body.mgr-mode .home-today { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  body.mgr-mode .home-stat {
+    display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto auto; column-gap: 16px; row-gap: 2px;
+    align-items: center; padding: 20px 22px; position: relative;
+  }
+  body.mgr-mode .home-stat-ico {
+    display: flex; grid-row: 1 / span 2; width: 58px; height: 58px; border-radius: 16px; padding: 15px;
+    background: #e9f1ec; color: var(--basil);
+  }
+  body.mgr-mode .home-stat-ico svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  body.mgr-mode .home-stat-n { grid-column: 2; font-size: 38px; line-height: 1; }
+  body.mgr-mode .home-stat-l { grid-column: 2; font-size: 15px; color: #3c3a36; font-weight: 600; }
+  body.mgr-mode .home-stat::after { content: "›"; grid-column: 3; grid-row: 1 / span 2; color: #8c877e; font-size: 24px; }
+  body.mgr-mode .home-stat.st-break, body.mgr-mode .home-stat.st-approve { border-left-color: #c98a1a; }
+  body.mgr-mode .st-break .home-stat-ico, body.mgr-mode .st-approve .home-stat-ico { background: #fbedd3; color: #8a5a00; }
+  body.mgr-mode .st-break .home-stat-n, body.mgr-mode .st-approve .home-stat-n { color: #9a6200; }
+  body.mgr-mode .st-off .home-stat-ico { background: #eeece8; color: #3c3a36; }
+  body.mgr-mode .home-stat.st-off { border-left-color: #cfcac0; }
+  body.mgr-mode .home-stat.st-off .home-stat-n { color: var(--text); }
+  body.mgr-mode .home-stat.st-off.alert { border-left-color: var(--pomodoro); }
+  body.mgr-mode .home-stat.st-off.alert .home-stat-n { color: var(--pomodoro); }
+  /* who's working */
+  body.mgr-mode #workingList .pm-sep, body.mgr-mode #workingList .pm-status { display: none; }
+  body.mgr-mode #workingList .person-row { padding: 16px 0; }
+  body.mgr-mode .who-pill {
+    display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px;
+    background: #e6efe9; color: var(--basil); font-size: 12px; font-weight: 800; min-width: 96px; justify-content: center;
+  }
+  body.mgr-mode .who-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #2e9d5b; }
+  body.mgr-mode .who-pill.brk { background: #fbedd3; color: #8a5a00; }
+  body.mgr-mode .who-pill.brk::before { background: #e0a100; }
+  body.mgr-mode #workingList .hours-pill { min-width: 90px; text-align: right; font-size: 17px; font-weight: 900; }
+  body.mgr-mode .manager-staff-clockout { padding: 9px 16px; font-size: 13px; border-radius: 10px; }
+  /* needs attention */
+  body.mgr-mode .desk-attention { padding: 26px 28px; }
+  body.mgr-mode .desk-attention .section-title { font-family: Cinzel, Georgia, serif; font-size: 21px; margin-bottom: 16px; }
+  body.mgr-mode .att-item { display: flex; align-items: center; gap: 16px; margin-top: 6px; }
+  body.mgr-mode .att-ico { display: flex; width: 58px; height: 58px; border-radius: 16px; padding: 15px; background: #fbedd3; color: #8a5a00; flex: 0 0 auto; }
+  body.mgr-mode .att-ico.plane { background: #f8e7e5; color: var(--pomodoro); }
+  body.mgr-mode .att-ico svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  body.mgr-mode .att-item strong { display: block; font-family: Cinzel, Georgia, serif; font-size: 32px; color: #9a6200; line-height: 1; }
+  body.mgr-mode .att-ico.plane + div strong { color: var(--pomodoro); }
+  body.mgr-mode .att-item span:not(.att-ico) { font-size: 15px; font-weight: 600; }
+  body.mgr-mode .att-text { color: #5c5850; font-size: 14px; line-height: 1.5; margin: 12px 0; }
+  body.mgr-mode .att-btn {
+    width: 100%; min-height: 46px; border: 0; border-radius: 12px; background: var(--basil); color: #fff;
+    font-weight: 800; font-size: 14px; cursor: pointer; margin-bottom: 14px;
+  }
+  body.mgr-mode .att-btn:hover { background: #174a31; }
+  body.mgr-mode .att-ok { display: flex; gap: 14px; align-items: flex-start; }
+  body.mgr-mode .att-ok > span { width: 44px; height: 44px; border-radius: 50%; background: #e6efe9; color: var(--basil); display: inline-flex; align-items: center; justify-content: center; font-weight: 900; font-size: 20px; flex: 0 0 auto; }
+  body.mgr-mode .att-ok strong { font-size: 16px; }
+  /* quick access */
+  body.mgr-mode .desk-quick-title { display: block; margin-top: 34px; }
+  body.mgr-mode .desk-quick { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  body.mgr-mode .desk-quick .home-tile.manager-quick-card { min-height: 128px; }
+  body.mgr-mode .desk-tile-chev { position: absolute; top: 18px; right: 18px; font-style: normal; color: #8c877e; font-size: 20px; }
+  /* this week as a table */
+  body.mgr-mode .home-stat.desk-only { display: grid; }
+  body.mgr-mode .desk-range { display: inline; font-family: Inter, system-ui, sans-serif; font-size: 15px; font-weight: 500; color: var(--muted); margin-left: 12px; letter-spacing: 0; }
+  body.mgr-mode .week-head, body.mgr-mode #hoursList .person-row {
+    display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1.2fr) minmax(0, 1.4fr) 140px; align-items: center; column-gap: 16px;
+  }
+  body.mgr-mode .week-head {
+    padding: 10px 0; border-bottom: 1px solid var(--border); color: var(--muted);
+    font-size: 11px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase;
+  }
+  body.mgr-mode .week-head span:last-child, body.mgr-mode #hoursList .hours-pill { text-align: right; }
+  body.mgr-mode #hoursList .person-row { padding: 10px 0; }
+  body.mgr-mode #hoursList .person-meta { display: none; }
+  body.mgr-mode #hoursList .who-av { width: 34px; height: 34px; font-size: 15px; }
+  body.mgr-mode #hoursList .person-name { font-weight: 700; }
+  body.mgr-mode #hoursList .wk-dept { display: block; color: var(--muted); }
+  body.mgr-mode #hoursList .wk-shifts { display: block; color: #3c3a36; }
+  body.mgr-mode #hoursList .pm-pend { color: #9a6200; font-weight: 700; }
+  body.mgr-mode #hoursList .hours-pill { grid-column: 4; font-size: 16px; font-weight: 900; }
+}
 @media (min-width: 1000px) and (prefers-reduced-motion: reduce) {
   body.mgr-mode .home-tile.manager-quick-card, body.mgr-mode .home-tile.manager-quick-card:hover { transition: none; transform: none; }
 }
@@ -1778,15 +1915,17 @@ button:disabled{opacity:.6}
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
       <div><h2 id="managerGreeting" class="manager-v2-greeting">Good morning</h2><div id="managerRoleLine" class="manager-v2-role">Administrator · Hawthorne</div></div>
       <button id="managerLogoutBtn" class="manager-v2-signout">Sign Out</button>
+      <button type="button" id="deskUserChip" class="desk-only desk-chip"><span id="deskChipAv" class="desk-chip-av">M</span><span><strong id="deskChipName">Manager</strong><small id="deskChipRole">Administrator</small></span><span class="desk-chev">⌄</span></button>
     </div><p id="managerLocation" class="hidden">Hawthorne</p>
   </div>
   <div id="managerMessage" class="message"></div>
   <div id="managerHolidayNotice"></div>
 
   <div class="home-today">
-    <button type="button" class="home-stat" data-home-scroll="workingList"><span id="workingNowCount" class="home-stat-n">0</span><span class="home-stat-l">Working now</span></button>
-    <button type="button" class="home-stat" data-home-go="approvalsCard"><span id="pendingCount" class="home-stat-n">0</span><span class="home-stat-l">To approve</span></button>
-    <button type="button" class="home-stat" data-home-go="timeOffCard"><span id="homeTimeOffCount" class="home-stat-n">0</span><span class="home-stat-l">Time off requests</span></button>
+    <button type="button" class="home-stat st-work" data-home-scroll="workingList"><span class="home-stat-ico desk-only"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9.5" r="2.5"/><path d="M16 14.6c2.3.2 3.9 1.8 4.5 4.9"/></svg></span><span id="workingNowCount" class="home-stat-n">0</span><span class="home-stat-l">Working now</span></button>
+    <button type="button" class="home-stat st-break desk-only" data-home-scroll="workingList"><span class="home-stat-ico desk-only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z"/><path d="M16 10.5h1.5a2.5 2.5 0 0 1 0 5H16M8 3.5c-.6.8-.6 1.7 0 2.5M11 3.5c-.6.8-.6 1.7 0 2.5M14 3.5c-.6.8-.6 1.7 0 2.5"/></svg></span><span id="breakNowCount" class="home-stat-n">0</span><span class="home-stat-l">On break</span></button>
+    <button type="button" class="home-stat st-approve" data-home-go="approvalsCard"><span class="home-stat-ico desk-only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5A.5.5 0 0 1 6.5 20V4a.5.5 0 0 1 .5-.5z"/><path d="M14 3.5V8h4M9.5 12h5M9.5 15h5M9.5 18h3"/></svg></span><span id="pendingCount" class="home-stat-n">0</span><span class="home-stat-l">To approve</span></button>
+    <button type="button" class="home-stat st-off" data-home-go="timeOffCard"><span class="home-stat-ico desk-only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 13.5L4 11l1.5-1.5 7 1 4-4c.8-.8 2.2-.8 3 0s.8 2.2 0 3l-4 4 1 7L16 21.5l-2.5-6.5-3 3V21l-1.5 1-1-4-4-1 1-1.5h3z"/></svg></span><span id="homeTimeOffCount" class="home-stat-n">0</span><span class="home-stat-l">Time off requests</span></button>
   </div>
 
   <div class="home-group">Team &amp; hours</div>
@@ -1807,8 +1946,11 @@ button:disabled{opacity:.6}
     <button id="myClockCard" class="manager-quick-card home-tile"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13h3M9.5 3h5M12 3v2.5"/></svg></div><strong>My Clock</strong><span>Clock in / out</span></button>
   </div>
 
-  <div class="card"><div class="manager-v2-section-head"><div class="section-title">Who's Working</div><button id="managerWorkingViewAll" class="manager-v2-link" type="button">View team</button></div><div id="workingList" class="empty-state">Loading...</div></div>
-  <div class="card"><div class="manager-v2-section-head"><div class="section-title">This Week</div><button id="managerHoursViewAll" class="manager-v2-link" type="button">Staff Hours</button></div><div id="hoursList" class="empty-state">Loading...</div></div>
+  <div class="card desk-working"><div class="manager-v2-section-head"><div class="section-title">Who's Working</div><button id="managerWorkingViewAll" class="manager-v2-link" type="button">View team</button></div><div id="workingList" class="empty-state">Loading...</div></div>
+  <div id="deskAttention" class="card desk-only desk-attention"></div>
+  <div class="home-group desk-only desk-quick-title">Quick access</div>
+  <div id="deskQuick" class="home-tiles desk-only desk-quick"></div>
+  <div class="card desk-week"><div class="manager-v2-section-head"><div class="section-title">This Week <span id="homeWeekRange" class="desk-range desk-only"></span></div><button id="managerHoursViewAll" class="manager-v2-link" type="button">Staff Hours</button></div><div class="desk-only week-head"><span>Employee</span><span>Department</span><span>Shifts</span><span>Total hours</span></div><div id="hoursList" class="empty-state">Loading...</div></div>
   <div id="managerClockSection" class="hidden"><div class="card"><div class="section-title">My Time Clock</div><div class="status"><div class="status-label">Current status</div><div id="managerStatusValue" class="status-value">Off shift</div></div><button id="managerClockInBtn" class="btn primary hidden">Clock In</button><button id="managerStartBreakBtn" class="btn secondary hidden">Start Break</button><button id="managerEndBreakBtn" class="btn primary hidden">End Break</button><button id="managerClockOutBtn" class="btn danger hidden">Clock Out</button><div id="managerActionMessage" class="message"></div></div></div>
 </section>
 
@@ -1816,7 +1958,9 @@ button:disabled{opacity:.6}
   <button type="button" class="manager-nav-item active" data-manager-nav="home"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6.5 8 6.5V19.5a.5.5 0 0 1-.5.5H15v-5.5H9V20H4.5a.5.5 0 0 1-.5-.5z"/></svg></span><span>Home</span></button>
   <button type="button" class="manager-nav-item" data-manager-nav="approvals"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span><span>Approvals</span></button>
   <button type="button" class="manager-nav-item" data-manager-nav="team"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.8 14.6c2.3-.1 4.1 1.4 4.7 4.4"/></svg></span><span>Team</span></button>
+  <div id="deskNavLinks" class="desk-only" style="flex-direction:column;gap:2px"></div>
   <button type="button" class="manager-nav-item" data-manager-nav="more"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/></svg></span><span>More</span><span id="navMoreBadge" class="count-badge nav hidden"></span></button>
+  <div class="desk-only desk-foot"><span id="deskAvatar" class="desk-av">M</span><span class="desk-who"><strong id="deskName">Manager</strong><small id="deskRole">Administrator</small></span><button type="button" id="deskSignOut" class="desk-out" aria-label="More: devices, managers, sign out">›</button></div>
 </nav>
 
 <!-- STAFF HOURS SCREEN -->
@@ -3555,6 +3699,10 @@ async function loadManagerDashboard() {
 
     pendingCount.textContent =
       pending;
+    const breakEl = document.getElementById("breakNowCount");
+    if (breakEl) breakEl.textContent = (dashboard.working || []).filter(p => p.status === "break").length;
+    deskPending = pending;
+    setTimeout(renderDeskHome, 0);
 
     approvalsText.textContent =
       pending +
@@ -3602,17 +3750,7 @@ async function loadManagerDashboard() {
 
               <div class="person-meta">
 
-                ${escapeHtml(
-                  person.department
-                )}
-
-                ·
-
-                ${
-                  person.status === "break"
-                    ? "On break"
-                    : "Working"
-                }
+                <span class="pm-dept">${escapeHtml(person.department)}</span><span class="pm-sep"> · </span><span class="pm-status">${person.status === "break" ? "On break" : "Working"}</span>
 
               </div>
 
@@ -3620,6 +3758,7 @@ async function loadManagerDashboard() {
             </div>
 
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+              <span class="who-pill desk-only ${person.status === "break" ? "brk" : ""}">${person.status === "break" ? "On break" : "Working"}</span>
               <div class="hours-pill">${formatHours(person.hours_so_far)}</div>
               <button type="button" class="manager-staff-clockout" data-close-shift="${escapeHtml(person.shift_id)}">Clock Out</button>
             </div>
@@ -3681,31 +3820,14 @@ async function loadManagerDashboard() {
 
               <div class="person-meta">
 
-                ${escapeHtml(
-                  person.department
-                )}
-
-                ·
-
-                ${person.shifts}
-                shift${
-                  person.shifts === 1
-                    ? ""
-                    : "s"
-                }
-
-                ${
-                  person.unapproved
-                    ? " · " +
-                      person.unapproved +
-                      " pending"
-                    : ""
-                }
+                <span class="pm-dept">${escapeHtml(person.department)}</span><span class="pm-sep"> · </span><span class="pm-shifts">${person.shifts} shift${person.shifts === 1 ? "" : "s"}${person.unapproved ? `<span class="pm-pend"> · ${person.unapproved} pending</span>` : ""}</span>
 
               </div>
 
             </div>
             </div>
+            <span class="wk-dept desk-only">${escapeHtml(person.department)}</span>
+            <span class="wk-shifts desk-only">${person.shifts} shift${person.shifts === 1 ? "" : "s"}${person.unapproved ? `<span class="pm-pend"> · ${person.unapproved} pending</span>` : ""}</span>
 
             <div class="hours-pill">
 
@@ -7833,11 +7955,135 @@ function openPendingScreen() {
 }
 
 /* MANAGER V2 NAVIGATION */
+/* Laptop / desktop: every section in the side menu (phones keep Home,
+   Approvals, Team and More). Each link opens the same screen as its More row. */
+let deskPending = 0;
+const DESK_LINKS = [
+  { group: "Team & hours" },
+  { nav: "approvals", label: "Approvals", badge: "deskApprovalsBadge" },
+  { go: "moreRosterBtn", label: "Roster" },
+  { go: "moreStaffHoursBtn", label: "Staff Hours" },
+  { go: "moreTimesheetsBtn", label: "Timesheets" },
+  { nav: "team", label: "Team" },
+  { go: "moreTimeOffBtn", label: "Time off", badge: "deskTimeOffBadge" },
+  { group: "Operations" },
+  { go: "moreStockBtn", label: "Stock", k: true },
+  { go: "moreRecipesBtn", label: "Recipes", k: true, floorLabel: "Allergens" },
+  { go: "moreInvoicesBtn", label: "Invoices", k: true, roles: ["manager", "kitchen_manager"] },
+  { go: "moreMyClockBtn", label: "My Clock" },
+];
+let deskActive = "";
+let deskNavActive = "";
+function buildDeskNav() {
+  const box = document.getElementById("deskNavLinks");
+  if (!box) return;
+  const role = currentManagerRole;
+  box.innerHTML = DESK_LINKS.filter(l => !l.roles || l.roles.includes(role)).map(l => {
+    if (l.group) return `<div class="desk-group">${escapeHtml(l.group)}</div>`;
+    if (l.nav) {
+      const icon = document.querySelector(`#managerBottomNav [data-manager-nav="${l.nav}"] .manager-nav-icon`)?.innerHTML || "";
+      return `<button type="button" class="manager-nav-item desk-link${deskNavActive === l.nav ? " active" : ""}" data-desk-nav="${l.nav}"><span class="manager-nav-icon">${icon}</span><span>${escapeHtml(l.label)}</span>${l.badge ? `<span id="${l.badge}" class="count-badge${deskPending ? "" : " hidden"}">${deskPending > 99 ? "99+" : deskPending}</span>` : ""}</button>`;
+    }
+    const icon = document.querySelector(`#${l.go} .more-v2-icon`)?.innerHTML || "";
+    const label = role === "floor_manager" && l.floorLabel ? l.floorLabel : l.label;
+    return `<button type="button" class="manager-nav-item desk-link${l.k ? " desk-k" : ""}${deskActive === l.go ? " active" : ""}" data-desk-go="${l.go}">
+      <span class="manager-nav-icon">${icon}</span><span>${escapeHtml(label)}</span>${l.badge ? `<span id="${l.badge}" class="count-badge hidden"></span>` : ""}</button>`;
+  }).join("");
+  // keep the time-off number
+  const src = document.getElementById("moreTimeOffBadge"), dst = document.getElementById("deskTimeOffBadge");
+  if (src && dst) { dst.textContent = src.textContent; dst.classList.toggle("hidden", src.classList.contains("hidden")); }
+  let identity = {};
+  try { identity = JSON.parse(sessionStorage.getItem("marinara_staff_identity") || "{}"); } catch (_) { /* ignore */ }
+  const name = identity.name || "Manager";
+  const roleText = role === "kitchen_manager" ? "Kitchen Manager" : role === "floor_manager" ? "Floor Manager" : "Administrator";
+  const initial = String(name).trim().charAt(0).toUpperCase() || "M";
+  for (const [id, v] of [["deskName", name], ["deskChipName", String(name).trim().split(/\s+/)[0]], ["deskAvatar", initial], ["deskChipAv", initial], ["deskRole", roleText], ["deskChipRole", roleText]]) {
+    const el = document.getElementById(id); if (el) el.textContent = v;
+  }
+  box.dataset.role = role || "";
+}
+document.getElementById("managerBottomNav")?.addEventListener("click", event => {
+  const navLink = event.target.closest("[data-desk-nav]");
+  if (navLink) {
+    deskActive = "";
+    managerBottomNav.querySelector(`[data-manager-nav="${navLink.dataset.deskNav}"]`)?.click();
+    return;
+  }
+  const link = event.target.closest("[data-desk-go]");
+  if (link) {
+    deskActive = link.dataset.deskGo;
+    document.getElementById(deskActive)?.click();
+    setManagerNavActive("more");
+    return;
+  }
+  if (event.target.closest("[data-manager-nav]")) deskActive = "";
+  if (event.target.closest("#deskSignOut")) { deskActive = ""; managerBottomNav.querySelector('[data-manager-nav="more"]')?.click(); }
+});
+document.getElementById("deskUserChip")?.addEventListener("click", () => managerBottomNav?.querySelector('[data-manager-nav="more"]')?.click());
+
+// Desktop home: "Needs attention", quick access and the week's dates.
+const DESK_QUICK = [
+  { card: "rosterCard", label: "Roster", sub: "Plan the week" },
+  { card: "timesheetsCard", label: "Timesheets", sub: "Weekly PDF" },
+  { card: "stockCard", label: "Stock", sub: "Count & order", k: true },
+  { card: "recipesCard", label: "Recipes", sub: "Allergens too", k: true, floor: ["Allergens", "What dishes contain"] },
+  { card: "invoicesCard", label: "Invoices", sub: "Spend & prices", k: true, roles: ["manager", "kitchen_manager"] },
+  { card: "teamCard", label: "Team", subFrom: "teamText" },
+];
+function renderDeskHome() {
+  const role = currentManagerRole;
+  const quick = document.getElementById("deskQuick");
+  if (quick) quick.innerHTML = DESK_QUICK.filter(q => !q.roles || q.roles.includes(role)).map(q => {
+    const icon = document.querySelector(`#${q.card} .manager-quick-icon`)?.innerHTML || "";
+    const [label, sub] = role === "floor_manager" && q.floor ? q.floor : [q.label, q.subFrom ? document.getElementById(q.subFrom)?.textContent || "" : q.sub];
+    return `<button type="button" class="manager-quick-card home-tile${q.k ? " home-tile-k" : ""}" data-desk-card="${q.card}"><div class="manager-quick-icon">${icon}</div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(sub)}</span><i class="desk-tile-chev">›</i></button>`;
+  }).join("");
+  const att = document.getElementById("deskAttention");
+  if (att) {
+    const pending = deskPending;
+    const off = Number(document.getElementById("homeTimeOffCount")?.textContent || 0);
+    const items = [];
+    if (pending) items.push({ n: pending, label: pending === 1 ? "Shift awaiting approval" : "Shifts awaiting approval", text: "Review and approve pending shifts so staff hours are accurate and up to date.", btn: "Review shifts", go: "approvalsCard", icon: "doc" });
+    if (off) items.push({ n: off, label: off === 1 ? "Time off request" : "Time off requests", text: "Someone is waiting for an answer about their days off.", btn: "Open time off", go: "timeOffCard", icon: "plane" });
+    const ico = { doc: document.querySelector(".st-approve .home-stat-ico")?.innerHTML || "", plane: document.querySelector(".st-off .home-stat-ico")?.innerHTML || "" };
+    att.innerHTML = `<div class="section-title">Needs attention</div>` + (items.length ? items.map(it => `
+      <div class="att-item"><span class="att-ico ${it.icon}">${ico[it.icon]}</span><div><strong>${it.n}</strong><span>${escapeHtml(it.label)}</span></div></div>
+      <p class="att-text">${escapeHtml(it.text)}</p>
+      <button type="button" class="att-btn" data-desk-card="${it.go}">${escapeHtml(it.btn)} <span aria-hidden="true">→</span></button>`).join("")
+      : `<div class="att-ok"><span>✓</span><div><strong>All caught up</strong><p class="att-text">No shifts or time off waiting for you.</p></div></div>`);
+  }
+  const range = document.getElementById("homeWeekRange");
+  if (range) {
+    const today = brisbaneTodayInput();
+    const d = new Date(`${today}T00:00:00Z`);
+    const mon = new Date(d - ((d.getUTCDay() + 6) % 7) * 86400000), sun = new Date(mon.getTime() + 6 * 86400000);
+    const f = x => new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", day: "numeric", month: "short" }).format(x);
+    range.textContent = mon.getUTCMonth() === sun.getUTCMonth() ? `${mon.getUTCDate()} – ${f(sun)}` : `${f(mon)} – ${f(sun)}`;
+  }
+  buildDeskNav();
+}
+document.getElementById("managerScreen")?.addEventListener("click", e => {
+  const c = e.target.closest("[data-desk-card]");
+  if (c) document.getElementById(c.dataset.deskCard)?.click();
+});
+
 function setManagerNavActive(target = "home") {
   if (!managerBottomNav) return;
   managerBottomNav.classList.remove("hidden");
+  if (target !== "more") deskActive = "";
+  const deskNavTarget = ["approvals", "team"].includes(target) ? target : "";
+  deskNavActive = deskNavTarget;
+  const box = document.getElementById("deskNavLinks");
+  if (box) buildDeskNav();
+  const desk = deskActive && box && getComputedStyle(box).display !== "none";
   managerBottomNav.querySelectorAll("[data-manager-nav]").forEach(button => {
-    button.classList.toggle("active", button.dataset.managerNav === target);
+    button.classList.toggle("active", button.dataset.managerNav === target && !desk);
+  });
+  managerBottomNav.querySelectorAll("[data-desk-go]").forEach(button => {
+    button.classList.toggle("active", !!desk && button.dataset.deskGo === deskActive);
+  });
+  managerBottomNav.querySelectorAll("[data-desk-nav]").forEach(button => {
+    button.classList.toggle("active", button.dataset.deskNav === deskNavTarget);
   });
 }
 
@@ -8910,7 +9156,8 @@ function showLeaveBadge(count) {
   const n = Math.max(0, Number(count) || 0);
   const stat = document.getElementById("homeTimeOffCount");
   if (stat) { stat.textContent = String(n); stat.closest(".home-stat")?.classList.toggle("alert", n > 0); }
-  for (const id of ["moreTimeOffBadge", "navMoreBadge", "homeTimeOffBadge"]) {
+  setTimeout(() => { if (typeof renderDeskHome === "function" && document.body.classList.contains("mgr-mode")) renderDeskHome(); }, 0);
+  for (const id of ["moreTimeOffBadge", "navMoreBadge", "homeTimeOffBadge", "deskTimeOffBadge"]) {
     const el = document.getElementById(id);
     if (!el) continue;
     el.textContent = n > 99 ? "99+" : String(n);
