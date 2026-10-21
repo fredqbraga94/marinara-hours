@@ -1133,6 +1133,37 @@ button{cursor:pointer}
 .timeoff-actions button{flex:1;min-height:40px;border-radius:12px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:13px}
 .timeoff-actions .approve{background:var(--green);border-color:var(--green);color:#fff}
 .timeoff-actions .decline{color:var(--danger)}
+/* RECIPES AND ALLERGENS */
+.rcp-search{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 12px;font-size:16px;margin-bottom:10px;background:#fff;font-family:inherit}
+.rcp-item{padding:13px 0;border-top:1px solid var(--border)}
+.rcp-item:first-child{border-top:0}
+.rcp-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;width:100%;border:0;background:transparent;padding:0;text-align:left;color:var(--text)}
+.rcp-head strong{font-size:15px}
+.rcp-cat{display:block;color:var(--muted);font-size:11px;font-weight:700;margin-top:2px}
+.rcp-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+.rcp-chip{font-size:11px;font-weight:850;padding:3px 8px;border-radius:9px;background:#fde8e6;color:#a1271b;white-space:nowrap}
+.rcp-chip.none{background:#eaf6ec;color:#21633a}
+.rcp-warn{margin-top:7px;font-size:12px;font-weight:800;color:#8a5a00;background:#fff6dc;border-radius:10px;padding:6px 9px}
+.rcp-detail{margin-top:10px;background:#fafbfa;border:1px solid var(--border);border-radius:14px;padding:10px 12px}
+.rcp-line{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--border);font-size:13px}
+.rcp-line:first-child{border-top:0}
+.rcp-line .q{color:var(--muted);font-weight:700;text-align:right}
+.rcp-unchecked{font-size:10px;font-weight:900;color:#8a5a00;margin-left:6px}
+.rcp-method{white-space:pre-wrap;font-size:13px;line-height:1.5;margin-top:8px}
+.rcp-sub{font-size:11px;font-weight:900;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin:12px 0 4px}
+.rcp-actions{display:flex;gap:8px;margin-top:10px}
+.rcp-actions button{flex:1;min-height:40px;border-radius:12px;border:1.5px solid var(--border);background:#fff;font-weight:850;font-size:13px;color:var(--green)}
+.rcp-form label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:10px}
+.rcp-form input,.rcp-form textarea{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 10px;font-size:16px;margin-top:4px;background:#fff;font-family:inherit}
+.rcp-form textarea{min-height:140px;resize:vertical}
+.rcp-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) 40px;gap:6px;margin-bottom:6px}
+.rcp-row input{margin-top:0;min-height:42px}
+.rcp-row button{border:1.5px solid var(--border);background:#fff;border-radius:12px;color:var(--danger);font-weight:900}
+.rcp-allergen-grid{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 12px}
+.rcp-allergen-grid button{min-height:38px;padding:0 12px;border-radius:19px;border:1.5px solid var(--border);background:#fff;font-weight:800;font-size:13px;color:var(--text)}
+.rcp-allergen-grid button.selected{background:#a1271b;border-color:#a1271b;color:#fff}
+.rcp-check{display:flex !important;align-items:center;gap:10px;font-size:14px !important;color:var(--text) !important;font-weight:800 !important}
+.rcp-check input{width:22px !important;min-height:22px !important;margin:0 !important}
 /* STOCK PAR LEVEL */
 .stock-chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px;margin-bottom:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .stock-chips::-webkit-scrollbar{display:none}
@@ -1661,6 +1692,67 @@ button:disabled{opacity:.6}
   </div>
 </section>
 
+<section id="recipesScreen" class="hidden">
+  <div class="manager-top">
+    <div>
+      <div class="team-v2-kicker">MANAGER</div>
+      <h2 id="recipesTitle">Recipes</h2>
+      <p id="recipesPlace" class="team-v2-sub">Hawthorne</p>
+    </div>
+    <button id="backRecipesBtn" class="back-btn">Back</button>
+  </div>
+  <div class="stock-tabs hidden" id="recipesTabs">
+    <button type="button" data-rcp-tab="allergens" class="selected">Allergens</button>
+    <button type="button" data-rcp-tab="recipes">Recipes</button>
+    <button type="button" data-rcp-tab="ingredients">Ingredients</button>
+  </div>
+  <div id="recipesMessage" class="message"></div>
+  <div id="rcpAllergensView">
+    <input id="rcpSearch" class="rcp-search" type="search" placeholder="Search a dish or sauce…" autocomplete="off">
+    <div class="card"><div id="rcpAllergenList" class="empty-state">Loading…</div></div>
+    <p class="team-v2-sub" style="margin:4px 4px 0">Always tell the guest to confirm with the kitchen for serious allergies.</p>
+  </div>
+  <div id="rcpRecipesView" class="hidden">
+    <button id="rcpNewBtn" class="btn primary" type="button" style="margin-bottom:12px">+ New recipe</button>
+    <div id="rcpFormCard" class="card rcp-form hidden">
+      <div id="rcpFormTitle" class="section-title">New recipe</div>
+      <label>Name<input id="rcpFName" maxlength="80" autocomplete="off" placeholder="e.g. Bolognese"></label>
+      <div class="stock-two" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px">
+        <label>Type<input id="rcpFCategory" maxlength="40" list="rcpCategoryList" autocomplete="off" placeholder="Sauce"></label>
+        <label>Makes<input id="rcpFMakes" maxlength="80" autocomplete="off" placeholder="e.g. 10 kg batch"></label>
+      </div>
+      <datalist id="rcpCategoryList"><option value="Sauce"><option value="Dressing"><option value="Dish"><option value="Dessert"><option value="Prep"></datalist>
+      <div class="rcp-sub">Ingredients</div>
+      <div id="rcpFLines"></div>
+      <datalist id="rcpIngredientNames"></datalist>
+      <button id="rcpAddLineBtn" class="btn" type="button" style="margin:2px 0 12px">+ Add ingredient</button>
+      <label>Method<textarea id="rcpFMethod" maxlength="6000" placeholder="1. …"></textarea></label>
+      <label>Notes<input id="rcpFNotes" maxlength="1000" autocomplete="off"></label>
+      <div class="stock-actions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button id="rcpCancelBtn" class="btn" type="button">Cancel</button>
+        <button id="rcpSaveBtn" class="btn primary" type="button">Save recipe</button>
+      </div>
+      <button id="rcpRemoveBtn" class="btn hidden" type="button" style="margin-top:8px;color:var(--danger)">Remove recipe</button>
+    </div>
+    <div class="card"><div id="rcpRecipeList" class="empty-state">Loading…</div></div>
+  </div>
+  <div id="rcpIngredientsView" class="hidden">
+    <div id="rcpIngFormCard" class="card rcp-form hidden">
+      <div id="rcpIngTitle" class="section-title">Ingredient</div>
+      <div class="rcp-sub">Contains</div>
+      <div id="rcpIngAllergens" class="rcp-allergen-grid"></div>
+      <label class="rcp-check"><input id="rcpIngChecked" type="checkbox"> Checked on the product label</label>
+      <label>Note (brand, product)<input id="rcpIngNote" maxlength="200" autocomplete="off" placeholder="e.g. Brand X wheaten cornflour"></label>
+      <div class="stock-actions" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button id="rcpIngCancelBtn" class="btn" type="button">Cancel</button>
+        <button id="rcpIngSaveBtn" class="btn primary" type="button">Save</button>
+      </div>
+    </div>
+    <div class="card"><div id="rcpIngredientList" class="empty-state">Loading…</div></div>
+  </div>
+</section>
+
+
 <!-- MORE SCREEN -->
 <section id="devicesScreen" class="hidden">
   <div class="manager-top">
@@ -1724,6 +1816,11 @@ button:disabled{opacity:.6}
     <button id="moreTimeOffBtn" class="more-v2-item" type="button">
       <span class="more-v2-icon">✈</span>
       <span><strong>Time off<span id="moreTimeOffBadge" class="count-badge hidden"></span></strong><small>Approve holidays and days off</small></span>
+      <span class="more-v2-chevron">›</span>
+    </button>
+    <button id="moreRecipesBtn" class="more-v2-item" type="button">
+      <span class="more-v2-icon">❖</span>
+      <span><strong id="moreRecipesLabel">Recipes</strong><small id="moreRecipesSub">Recipes, ingredients and allergens</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
     <button id="moreStockBtn" class="more-v2-item" type="button">
@@ -5729,6 +5826,12 @@ function openManagerMore() {
   moreManagersBtn?.classList.toggle("hidden", currentManagerRole !== "manager");
   // Devices: Administrator only (the server refuses everyone else too).
   document.getElementById("moreDevicesBtn")?.classList.toggle("hidden", currentManagerRole !== "manager");
+  // Recipes: full for Administrator and Kitchen Manager; Floor Manager sees allergens only.
+  const rcpFloor = currentManagerRole === "floor_manager";
+  const rcpLabel = document.getElementById("moreRecipesLabel");
+  const rcpSub = document.getElementById("moreRecipesSub");
+  if (rcpLabel) rcpLabel.textContent = rcpFloor ? "Allergens" : "Recipes";
+  if (rcpSub) rcpSub.textContent = rcpFloor ? "What each dish and sauce contains" : "Recipes, ingredients and allergens";
 
   setManagerNavActive("more");
   window.scrollTo({top:0,behavior:"smooth"});
@@ -7387,6 +7490,302 @@ document.addEventListener("visibilitychange", () => {
 
 window.addEventListener("focus", syncCurrentView);
 
+
+
+/* RECIPES AND ALLERGENS */
+const recipesScreen = document.getElementById("recipesScreen");
+const RCP_ALLERGENS = [
+  ["gluten", "Gluten"], ["wheat", "Wheat"], ["milk", "Milk"], ["egg", "Egg"], ["soy", "Soy"],
+  ["peanut", "Peanut"], ["tree_nuts", "Tree nuts"], ["sesame", "Sesame"], ["fish", "Fish"],
+  ["crustacean", "Crustacean"], ["mollusc", "Mollusc"], ["lupin", "Lupin"], ["sulphites", "Sulphites"],
+];
+const rcpLabel = code => (RCP_ALLERGENS.find(a => a[0] === code) || [code, code])[1];
+const rcpState = { data: null, tab: "allergens", open: {}, editing: null, ingEditing: null, ingPick: [] };
+
+function rcpMsg(text, ok) {
+  const m = document.getElementById("recipesMessage");
+  m.className = "message show " + (ok ? "ok" : "error");
+  m.textContent = text;
+}
+function rcpClearMsg() {
+  const m = document.getElementById("recipesMessage");
+  m.className = "message"; m.textContent = "";
+}
+// "No listed allergens" (green) only when everything was checked on the label.
+function rcpChips(list, checked) {
+  if (list && list.length) return `<div class="rcp-chips">${list.map(a => `<span class="rcp-chip">${escapeHtml(rcpLabel(a))}</span>`).join("")}</div>`;
+  return checked ? `<div class="rcp-chips"><span class="rcp-chip none">No listed allergens</span></div>` : "";
+}
+
+function rcpRenderAllergens() {
+  const box = document.getElementById("rcpAllergenList");
+  const q = (document.getElementById("rcpSearch").value || "").trim().toLowerCase();
+  const list = (rcpState.data?.recipes || []).filter(r =>
+    !q || r.name.toLowerCase().includes(q) || r.lines.some(l => l.name.toLowerCase().includes(q)));
+  box.className = list.length ? "" : "empty-state";
+  if (!list.length) { box.innerHTML = q ? "Nothing found." : "No recipes yet."; return; }
+  box.innerHTML = list.map(r => {
+    const open = rcpState.open["a" + r.id];
+    return `<div class="rcp-item">
+      <button type="button" class="rcp-head" data-rcp-toggle="a${escapeHtml(r.id)}">
+        <span><strong>${escapeHtml(r.name)}</strong><span class="rcp-cat">${escapeHtml(r.category)}</span></span>
+        <span class="more-v2-chevron">${open ? "⌄" : "›"}</span>
+      </button>
+      ${rcpChips(r.allergens, r.all_checked)}
+      ${r.all_checked ? "" : `<div class="rcp-warn">Not checked yet – ask the kitchen</div>`}
+      ${open ? `<div class="rcp-detail"><div class="rcp-sub" style="margin-top:0">Contains</div>${r.lines.map(l => `
+        <div class="rcp-line"><span>${escapeHtml(l.name)}${l.checked ? "" : `<span class="rcp-unchecked">NOT CHECKED</span>`}</span>
+        <span class="q">${l.allergens.length ? l.allergens.map(a => escapeHtml(rcpLabel(a))).join(", ") : "—"}</span></div>`).join("")}</div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+function rcpRenderRecipes() {
+  const box = document.getElementById("rcpRecipeList");
+  const list = rcpState.data?.recipes || [];
+  box.className = list.length ? "" : "empty-state";
+  if (!list.length) { box.innerHTML = "No recipes yet."; return; }
+  box.innerHTML = list.map(r => {
+    const open = rcpState.open["r" + r.id];
+    return `<div class="rcp-item">
+      <button type="button" class="rcp-head" data-rcp-toggle="r${escapeHtml(r.id)}">
+        <span><strong>${escapeHtml(r.name)}</strong><span class="rcp-cat">${escapeHtml(r.category)}${r.makes ? " · " + escapeHtml(r.makes) : ""}</span></span>
+        <span class="more-v2-chevron">${open ? "⌄" : "›"}</span>
+      </button>
+      ${open ? `<div class="rcp-detail">
+        <div class="rcp-sub" style="margin-top:0">Ingredients</div>
+        ${r.lines.map(l => `<div class="rcp-line"><span>${escapeHtml(l.name)}</span><span class="q">${escapeHtml(l.quantity || "")}</span></div>`).join("")}
+        ${r.method ? `<div class="rcp-sub">Method</div><div class="rcp-method">${escapeHtml(r.method)}</div>` : ""}
+        ${r.notes ? `<div class="rcp-sub">Notes</div><div class="rcp-method">${escapeHtml(r.notes)}</div>` : ""}
+        <div class="rcp-sub">Allergens</div>${rcpChips(r.allergens, r.all_checked)}
+        ${r.all_checked ? "" : `<div class="rcp-warn">Some ingredients are not checked on the label yet</div>`}
+        <div class="rcp-actions"><button type="button" data-rcp-edit="${escapeHtml(r.id)}">Edit</button></div>
+      </div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+function rcpRenderIngredients() {
+  const box = document.getElementById("rcpIngredientList");
+  const list = rcpState.data?.ingredients || [];
+  box.className = list.length ? "" : "empty-state";
+  if (!list.length) { box.innerHTML = "No ingredients yet."; return; }
+  const todo = list.filter(i => !i.checked).length;
+  box.innerHTML = (todo ? `<div class="rcp-warn" style="margin:0 0 6px">${todo} not checked on the label yet</div>` : "") +
+    list.map(i => `<div class="rcp-item">
+      <button type="button" class="rcp-head" data-rcp-ing="${escapeHtml(i.id)}">
+        <span><strong>${escapeHtml(i.name)}</strong><span class="rcp-cat">${i.checked ? "Checked on label" : "Not checked"}${i.note ? " · " + escapeHtml(i.note) : ""} · in ${i.used_in} recipe${i.used_in === 1 ? "" : "s"}</span></span>
+        <span class="more-v2-chevron">›</span>
+      </button>
+      ${rcpChips(i.allergens, i.checked)}
+    </div>`).join("");
+}
+
+function rcpShowTab(tab) {
+  const full = !!rcpState.data?.full;
+  if (!full) tab = "allergens";
+  rcpState.tab = tab;
+  document.getElementById("recipesTabs").classList.toggle("hidden", !full);
+  document.querySelectorAll("#recipesTabs [data-rcp-tab]").forEach(b => b.classList.toggle("selected", b.dataset.rcpTab === tab));
+  document.getElementById("rcpAllergensView").classList.toggle("hidden", tab !== "allergens");
+  document.getElementById("rcpRecipesView").classList.toggle("hidden", tab !== "recipes");
+  document.getElementById("rcpIngredientsView").classList.toggle("hidden", tab !== "ingredients");
+  if (tab === "allergens") rcpRenderAllergens();
+  if (tab === "recipes") rcpRenderRecipes();
+  if (tab === "ingredients") rcpRenderIngredients();
+}
+
+async function loadRecipes() {
+  try {
+    const data = await managerApi("manager_recipe_list");
+    rcpState.data = data;
+    document.getElementById("recipesTitle").textContent = data.full ? "Recipes" : "Allergens";
+    document.getElementById("recipesPlace").textContent = data.location || "Hawthorne";
+    const dl = document.getElementById("rcpIngredientNames");
+    if (dl) dl.innerHTML = (data.ingredients || []).map(i => `<option value="${escapeHtml(i.name)}">`).join("");
+    rcpShowTab(rcpState.tab);
+  } catch (error) {
+    rcpMsg(error.message || "Unable to load the recipes.", false);
+  }
+}
+
+function rcpCloseForms() {
+  document.getElementById("rcpFormCard").classList.add("hidden");
+  document.getElementById("rcpIngFormCard").classList.add("hidden");
+  rcpState.editing = null; rcpState.ingEditing = null;
+}
+
+async function openRecipesScreen() {
+  managerMoreScreen?.classList.add("hidden");
+  managerScreen.classList.add("hidden");
+  approvalsScreen.classList.add("hidden");
+  staffHoursScreen.classList.add("hidden");
+  teamScreen.classList.add("hidden");
+  rosterScreen?.classList.add("hidden");
+  timeOffScreen?.classList.add("hidden");
+  timesheetsScreen.classList.add("hidden");
+  devicesScreen?.classList.add("hidden");
+  stockScreen?.classList.add("hidden");
+  rcpCloseForms();
+  rcpClearMsg();
+  recipesScreen.classList.remove("hidden");
+  setManagerNavActive("more");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  rcpState.tab = "allergens";
+  rcpState.open = {};
+  document.getElementById("rcpSearch").value = "";
+  await loadRecipes();
+}
+
+document.getElementById("moreRecipesBtn")?.addEventListener("click", openRecipesScreen);
+document.getElementById("backRecipesBtn")?.addEventListener("click", () => {
+  recipesScreen.classList.add("hidden");
+  openManagerMore();
+});
+// Any other manager navigation leaves the recipes screen.
+document.addEventListener("click", event => {
+  if (!recipesScreen || recipesScreen.classList.contains("hidden")) return;
+  const nav = event.target.closest("[data-manager-nav], .manager-quick-card, .more-v2-item, #managerLogoutBtn, #moreSignOutBtn");
+  if (nav && nav.id !== "moreRecipesBtn") recipesScreen.classList.add("hidden");
+}, true);
+
+document.getElementById("rcpSearch")?.addEventListener("input", rcpRenderAllergens);
+
+function rcpLineRow(name = "", quantity = "") {
+  return `<div class="rcp-row">
+    <input data-rcp-line="name" maxlength="80" list="rcpIngredientNames" placeholder="Ingredient" value="${escapeHtml(name)}" autocomplete="off">
+    <input data-rcp-line="quantity" maxlength="80" placeholder="Amount" value="${escapeHtml(quantity)}" autocomplete="off">
+    <button type="button" data-rcp-line-remove aria-label="Remove">×</button>
+  </div>`;
+}
+
+function rcpOpenForm(recipe) {
+  rcpClearMsg();
+  rcpState.editing = recipe ? recipe.id : null;
+  document.getElementById("rcpFormTitle").textContent = recipe ? "Edit recipe" : "New recipe";
+  document.getElementById("rcpFName").value = recipe?.name || "";
+  document.getElementById("rcpFCategory").value = recipe?.category || "Sauce";
+  document.getElementById("rcpFMakes").value = recipe?.makes || "";
+  document.getElementById("rcpFMethod").value = recipe?.method || "";
+  document.getElementById("rcpFNotes").value = recipe?.notes || "";
+  const lines = recipe?.lines?.length ? recipe.lines : [{ name: "", quantity: "" }, { name: "", quantity: "" }];
+  document.getElementById("rcpFLines").innerHTML = lines.map(l => rcpLineRow(l.name, l.quantity || "")).join("");
+  document.getElementById("rcpRemoveBtn").classList.toggle("hidden", !recipe);
+  document.getElementById("rcpFormCard").classList.remove("hidden");
+  document.getElementById("rcpFormCard").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function rcpOpenIngredient(ing) {
+  rcpClearMsg();
+  rcpState.ingEditing = ing.id;
+  rcpState.ingPick = [...(ing.allergens || [])];
+  document.getElementById("rcpIngTitle").textContent = ing.name;
+  document.getElementById("rcpIngChecked").checked = !!ing.checked;
+  document.getElementById("rcpIngNote").value = ing.note || "";
+  rcpRenderPick();
+  document.getElementById("rcpIngFormCard").classList.remove("hidden");
+  document.getElementById("rcpIngFormCard").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+function rcpRenderPick() {
+  document.getElementById("rcpIngAllergens").innerHTML = RCP_ALLERGENS.map(([code, label]) =>
+    `<button type="button" data-rcp-pick="${code}" class="${rcpState.ingPick.includes(code) ? "selected" : ""}">${escapeHtml(label)}</button>`).join("");
+}
+
+recipesScreen?.addEventListener("click", async e => {
+  const tab = e.target.closest("[data-rcp-tab]");
+  if (tab) { rcpCloseForms(); rcpClearMsg(); rcpShowTab(tab.dataset.rcpTab); return; }
+  const toggle = e.target.closest("[data-rcp-toggle]");
+  if (toggle) {
+    const k = toggle.dataset.rcpToggle;
+    rcpState.open[k] = !rcpState.open[k];
+    rcpShowTab(rcpState.tab);
+    return;
+  }
+  const edit = e.target.closest("[data-rcp-edit]");
+  if (edit) {
+    const r = (rcpState.data?.recipes || []).find(x => x.id === edit.dataset.rcpEdit);
+    if (r) rcpOpenForm(r);
+    return;
+  }
+  if (e.target.closest("#rcpNewBtn")) { rcpOpenForm(null); return; }
+  if (e.target.closest("#rcpAddLineBtn")) {
+    document.getElementById("rcpFLines").insertAdjacentHTML("beforeend", rcpLineRow());
+    return;
+  }
+  const rm = e.target.closest("[data-rcp-line-remove]");
+  if (rm) { rm.closest(".rcp-row").remove(); return; }
+  if (e.target.closest("#rcpCancelBtn") || e.target.closest("#rcpIngCancelBtn")) { rcpCloseForms(); return; }
+  if (e.target.closest("#rcpSaveBtn")) {
+    const btn = e.target.closest("#rcpSaveBtn");
+    const lines = [...document.querySelectorAll("#rcpFLines .rcp-row")].map(row => ({
+      name: row.querySelector('[data-rcp-line="name"]').value.trim(),
+      quantity: row.querySelector('[data-rcp-line="quantity"]').value.trim(),
+    })).filter(l => l.name);
+    const recipe = {
+      id: rcpState.editing,
+      name: document.getElementById("rcpFName").value.trim(),
+      category: document.getElementById("rcpFCategory").value.trim(),
+      makes: document.getElementById("rcpFMakes").value.trim(),
+      method: document.getElementById("rcpFMethod").value,
+      notes: document.getElementById("rcpFNotes").value.trim(),
+      lines,
+    };
+    if (!recipe.name || !lines.length) { rcpMsg("A recipe needs a name and at least one ingredient.", false); return; }
+    btn.disabled = true;
+    try {
+      const data = await managerApi("manager_recipe_save", { recipe });
+      rcpState.open["r" + data.recipe.id] = true;
+      await loadRecipes();
+      rcpCloseForms();
+      rcpMsg(`Saved: ${data.recipe.name}. New ingredients are "Not checked" until you check their label.`, true);
+    } catch (error) {
+      rcpMsg(error.message || "Unable to save the recipe.", false);
+    } finally { btn.disabled = false; }
+    return;
+  }
+  if (e.target.closest("#rcpRemoveBtn")) {
+    if (!rcpState.editing) return;
+    const btn = e.target.closest("#rcpRemoveBtn");
+    if (btn.dataset.confirm !== "1") { btn.dataset.confirm = "1"; btn.textContent = "Tap again to remove"; return; }
+    btn.dataset.confirm = ""; btn.textContent = "Remove recipe";
+    try {
+      await managerApi("manager_recipe_remove", { id: rcpState.editing });
+      rcpCloseForms();
+      await loadRecipes();
+      rcpMsg("Recipe removed.", true);
+    } catch (error) { rcpMsg(error.message || "Unable to remove the recipe.", false); }
+    return;
+  }
+  const ing = e.target.closest("[data-rcp-ing]");
+  if (ing) {
+    const item = (rcpState.data?.ingredients || []).find(i => i.id === ing.dataset.rcpIng);
+    if (item) rcpOpenIngredient(item);
+    return;
+  }
+  const pick = e.target.closest("[data-rcp-pick]");
+  if (pick) {
+    const c = pick.dataset.rcpPick;
+    rcpState.ingPick = rcpState.ingPick.includes(c) ? rcpState.ingPick.filter(x => x !== c) : [...rcpState.ingPick, c];
+    rcpRenderPick();
+    return;
+  }
+  if (e.target.closest("#rcpIngSaveBtn")) {
+    const btn = e.target.closest("#rcpIngSaveBtn");
+    btn.disabled = true;
+    try {
+      const data = await managerApi("manager_recipe_ingredient_save", {
+        id: rcpState.ingEditing, allergens: rcpState.ingPick,
+        checked: document.getElementById("rcpIngChecked").checked,
+        note: document.getElementById("rcpIngNote").value.trim(),
+      });
+      rcpCloseForms();
+      await loadRecipes();
+      rcpMsg(`Saved: ${data.ingredient.name}.`, true);
+    } catch (error) {
+      rcpMsg(error.message || "Unable to save the ingredient.", false);
+    } finally { btn.disabled = false; }
+  }
+});
 
 /* TIME-OFF COUNT: on the More tab, on "Time off" and on the app icon */
 
