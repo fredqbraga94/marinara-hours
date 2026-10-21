@@ -107,6 +107,23 @@ try {
   const km = await phone();
   await km.login(PIN[ID(2)]);
 
+  await check("Home: restaurant header, today's numbers, grouped shortcuts; Recipes tile opens recipes", async () => {
+    await km.page.waitForFunction(() => !/Loading/.test(document.getElementById("workingList").textContent));
+    const header = (await km.page.textContent(".header")).replace(/\s+/g, " ").trim();
+    const groups = await km.page.locator("#managerScreen .home-group").allTextContents();
+    const stats = await km.page.locator("#managerScreen .home-stat-l").allTextContents();
+    await km.shot("home_kitchen_manager");
+    assert.match(header, /Hawthorne Restaurant manager/);
+    assert.deepEqual(groups, ["Team & hours", "Kitchen & floor"]);
+    assert.deepEqual(stats, ["Working now", "To approve", "Time off requests"]);
+    await km.page.click("#recipesCard");
+    await km.page.waitForSelector("#recipesScreen:not(.hidden)");
+    await km.page.click("#backRecipesBtn");
+    await km.page.click('[data-manager-nav="home"]');
+    await km.page.waitForSelector("#managerScreen:not(.hidden)");
+    return header;
+  });
+
   await check("Kitchen Manager: Allergens list shows the whole menu by section, not checked yet", async () => {
     await openRecipes(km);
     const tabsShown = await km.page.locator("#recipesTabs").evaluate((e) => !e.classList.contains("hidden"));
@@ -193,6 +210,16 @@ try {
 
   const fm = await phone();
   await fm.login(PIN[ID(3)]);
+  await check("Floor Manager home: the recipes tile says Allergens", async () => {
+    await fm.page.click('[data-manager-nav="home"]');
+    await fm.page.waitForSelector("#managerScreen:not(.hidden)");
+    await fm.page.waitForFunction(() => !/Loading/.test(document.getElementById("workingList").textContent));
+    const label = await fm.page.textContent("#recipesCardLabel");
+    await fm.shot("home_floor_manager");
+    assert.equal(label, "Allergens");
+    return label;
+  });
+
   await check("Floor Manager: 'Allergens' only, no quantities, search works", async () => {
     await fm.page.click('[data-manager-nav="more"]');
     const label = await fm.page.textContent("#moreRecipesLabel");
