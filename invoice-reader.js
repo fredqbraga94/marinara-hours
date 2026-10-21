@@ -10,8 +10,34 @@
 
   /* ---------- PDF -> rows ---------- */
 
+  // Older Safari (iPhone before iOS 26) can't "for await" over a ReadableStream,
+  // which pdf.js uses to read the text. Add that small piece when it's missing.
+  function addStreamIteration() {
+    const RS = typeof ReadableStream !== "undefined" ? ReadableStream : null;
+    if (!RS || RS.prototype[Symbol.asyncIterator]) return;
+    const values = function ({ preventCancel = false } = {}) {
+      const reader = this.getReader();
+      return {
+        async next() {
+          const r = await reader.read();
+          if (r.done) reader.releaseLock();
+          return r;
+        },
+        async return(value) {
+          if (!preventCancel) { try { await reader.cancel(value); } catch (_) { /* ignore */ } }
+          try { reader.releaseLock(); } catch (_) { /* ignore */ }
+          return { done: true, value };
+        },
+        [Symbol.asyncIterator]() { return this; },
+      };
+    };
+    Object.defineProperty(RS.prototype, "values", { value: values, configurable: true, writable: true });
+    Object.defineProperty(RS.prototype, Symbol.asyncIterator, { value: values, configurable: true, writable: true });
+  }
+
   let pdfjsPromise = null;
   function loadPdfjs(base) {
+    addStreamIteration();
     if (!pdfjsPromise) {
       pdfjsPromise = import(base + "vendor/pdfjs/pdf.min.mjs").then(pdfjs => {
         pdfjs.GlobalWorkerOptions.workerSrc = base + "vendor/pdfjs/pdf.worker.min.mjs";
