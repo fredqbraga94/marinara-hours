@@ -335,6 +335,7 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   TOO_MANY_ACTIVE_CODES: [429, "Too many unused device codes. Wait for them to expire."],
   INVALID_INPUT: [400, "Invalid request"],
   STOCK_ITEM_NOT_FOUND: [404, "Item not found"],
+  RECIPE_NOT_FOUND: [404, "Recipe not found"],
 };
 
 // WEBPUSH-START
@@ -1407,6 +1408,10 @@ Deno.serve(async (req) => {
         "manager_leave_decide",
         "manager_leave_create",
         "manager_leave_count",
+        "manager_recipe_list",
+        "manager_recipe_save",
+        "manager_recipe_remove",
+        "manager_recipe_ingredient_save",
         "manager_set_roster_info",
         "manager_push_config",
         "manager_push_subscribe",
@@ -3113,6 +3118,72 @@ Deno.serve(async (req) => {
         });
         if (error) return managerDbError(error, "Unable to add the person");
         return json({ success: true, action, data: { staff: data } });
+      }
+
+      // =========================
+      // RECIPES AND ALLERGENS
+      // =========================
+      if (action.startsWith("manager_recipe_")) {
+        const isUuid = (v: string) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const text = (v: any, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+        const ALLERGENS = ["gluten", "wheat", "milk", "egg", "soy", "peanut", "tree_nuts", "sesame",
+          "fish", "crustacean", "mollusc", "lupin", "sulphites"];
+
+        if (action === "manager_recipe_list") {
+          const { data, error } = await supabase.rpc("manager_recipe_list", {
+            p_manager_id: managerStatus.id, p_location: location,
+          });
+          if (error) return managerDbError(error, "Unable to load the recipes", 500);
+          return json({ success: true, action, data });
+        }
+
+        if (action === "manager_recipe_save") {
+          const r = body.recipe && typeof body.recipe === "object" ? body.recipe : {};
+          const id = typeof r.id === "string" ? r.id.trim() : "";
+          if (id && !isUuid(id)) return json({ error: "Recipe not found", code: "RECIPE_NOT_FOUND" }, 404);
+          const lines = Array.isArray(r.lines) ? r.lines : [];
+          const clean = lines
+            .map((l: any) => ({ name: text(l?.name, 80), quantity: text(l?.quantity, 80) }))
+            .filter((l: any) => l.name);
+          const name = text(r.name, 80);
+          if (!name || !clean.length || lines.length > 60) {
+            return json({ error: "A recipe needs a name and at least one ingredient.", code: "INVALID_INPUT" }, 400);
+          }
+          const recipe = {
+            id: id || null, name, category: text(r.category, 40) || "Sauce",
+            makes: text(r.makes, 80), method: text(r.method, 6000), notes: text(r.notes, 1000), lines: clean,
+            dairy_free_note: text(r.dairy_free_note, 200), gluten_free_note: text(r.gluten_free_note, 200),
+          };
+          const { data, error } = await supabase.rpc("manager_recipe_save", {
+            p_manager_id: managerStatus.id, p_location: location, p_recipe: recipe,
+          });
+          if (error) return managerDbError(error, "Unable to save the recipe");
+          return json({ success: true, action, data: { recipe: data } });
+        }
+
+        if (action === "manager_recipe_remove") {
+          const id = typeof body.id === "string" ? body.id.trim() : "";
+          if (!isUuid(id)) return json({ error: "Recipe not found", code: "RECIPE_NOT_FOUND" }, 404);
+          const { data, error } = await supabase.rpc("manager_recipe_remove", {
+            p_manager_id: managerStatus.id, p_location: location, p_id: id,
+          });
+          if (error) return managerDbError(error, "Unable to remove the recipe");
+          return json({ success: true, action, data });
+        }
+
+        // manager_recipe_ingredient_save
+        const id = typeof body.id === "string" ? body.id.trim() : "";
+        const allergens = Array.isArray(body.allergens) ? body.allergens : null;
+        if (!isUuid(id) || !allergens || allergens.some((a: any) => !ALLERGENS.includes(a))) {
+          return json({ error: "Invalid request", code: "INVALID_INPUT" }, 400);
+        }
+        const { data, error } = await supabase.rpc("manager_recipe_ingredient_save", {
+          p_manager_id: managerStatus.id, p_location: location, p_id: id,
+          p_allergens: allergens, p_checked: body.checked === true, p_note: text(body.note, 200) || null,
+        });
+        if (error) return managerDbError(error, "Unable to save the ingredient");
+        return json({ success: true, action, data: { ingredient: data } });
       }
 
       // =========================
