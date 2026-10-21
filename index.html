@@ -1072,6 +1072,18 @@ button{cursor:pointer}
 .roster-grid th.roster-ph{color:#b45309}
 .roster-grid th.roster-ph .ph-tag{display:inline-block;margin-top:2px;padding:0 4px;border-radius:5px;background:#fde7c7;color:#8a4b00;font-size:9px;font-weight:900}
 .roster-grid td.roster-ph-col{background:#fffaf2}
+/* NOTIFICATIONS */
+.notify-card{padding:12px 4px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.notify-head{display:flex;gap:12px;align-items:center}
+.notify-head strong{display:block;font-size:14px}
+.notify-head small{display:block;color:var(--muted);font-size:12px;margin-top:2px;line-height:1.35}
+.notify-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.notify-actions .btn{margin-top:10px;min-height:0;padding:11px 12px;font-size:14px}
+.notify-actions .btn.hidden{display:none}
+.push-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border)}
+.push-row:first-child{border-top:0}
+.push-row strong{font-size:14px;display:block}
+.push-row small{color:var(--muted);font-size:12px}
 /* ROSTER ROLES */
 .team-inactive-toggle{display:block;width:100%;margin:12px 0 4px;min-height:42px;border-radius:12px;border:1.5px dashed var(--border);background:#fff;color:var(--muted);font-weight:850;font-size:13px}
 .roster-tools{display:flex;justify-content:flex-end;gap:8px;margin:0 0 10px}
@@ -1668,6 +1680,11 @@ button:disabled{opacity:.6}
     <div class="section-title">Authorised devices</div>
     <div id="devicesList"></div>
   </div>
+  <div class="card">
+    <div class="section-title">Phones with notifications</div>
+    <div class="person-meta" style="margin-bottom:6px">These phones get a notification when someone asks for time off. Turn on in More → Notifications on each phone.</div>
+    <div id="pushList" class="empty-state">Loading…</div>
+  </div>
   <button id="devicesBackBtn" class="btn secondary" type="button">Back</button>
 </section>
 
@@ -1719,6 +1736,15 @@ button:disabled{opacity:.6}
       <span><strong>My Time Clock</strong><small>Clock in, take a break and clock out</small></span>
       <span class="more-v2-chevron">›</span>
     </button>
+    <div id="notifyCard" class="notify-card">
+      <div class="notify-head"><span class="more-v2-icon">🔔</span><span><strong>Notifications on this phone</strong><small id="notifyStatus">Checking…</small></span></div>
+      <div class="notify-actions">
+        <button id="notifyOnBtn" class="btn primary hidden" type="button">Turn on</button>
+        <button id="notifyTestBtn" class="btn secondary hidden" type="button">Send a test</button>
+        <button id="notifyOffBtn" class="btn secondary hidden" type="button">Turn off</button>
+      </div>
+      <div id="notifyMessage" class="message"></div>
+    </div>
     <button id="moreDevicesBtn" class="more-v2-item" type="button">
       <span class="more-v2-icon">▣</span>
       <span><strong>Devices</strong><small>Phones and tablets allowed to sign in</small></span>
@@ -2913,6 +2939,8 @@ async function loadManagerDashboard() {
   clearMessage(
     managerMessage
   );
+  // Opened from a notification: go straight to Time off.
+  if (typeof pendingOpenScreen !== "undefined" && pendingOpenScreen) setTimeout(() => openPendingScreen(), 0);
 
   try {
 
@@ -5703,6 +5731,7 @@ function openManagerMore() {
 
   setManagerNavActive("more");
   window.scrollTo({top:0,behavior:"smooth"});
+  refreshNotifyCard();
 }
 
 /* PUBLIC HOLIDAYS */
@@ -7085,6 +7114,140 @@ document.getElementById("stockFRemove")?.addEventListener("click", async () => {
   }
 });
 
+/* PHONE NOTIFICATIONS (Web Push) */
+// Each manager turns them on on their own phone (never on the shared tablet).
+// iPhone: only works when the app was added to the Home Screen (iOS 16.4+).
+function pushB64uToBytes(s) {
+  const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4);
+  const bin = atob(b64); const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function pushSupported() {
+  return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+}
+function pushIsIos() { return /iPhone|iPad|iPod/.test(navigator.userAgent); }
+function pushStandalone() {
+  return window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true;
+}
+function pushDeviceLabel() {
+  const ua = navigator.userAgent;
+  const kind = /iPhone/.test(ua) ? "iPhone" : /iPad/.test(ua) ? "iPad" : /Android/.test(ua) ? "Android" : "Computer";
+  let name = "";
+  try { name = JSON.parse(sessionStorage.getItem("marinara_staff_identity") || "{}").name || ""; } catch (_) {}
+  return name ? `${kind} · ${name}` : kind;
+}
+async function pushCurrentSubscription() {
+  if (!pushSupported()) return null;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration("./");
+    return reg ? await reg.pushManager.getSubscription() : null;
+  } catch (_) { return null; }
+}
+async function refreshNotifyCard() {
+  const status = document.getElementById("notifyStatus");
+  if (!status) return;
+  const on = document.getElementById("notifyOnBtn"), off = document.getElementById("notifyOffBtn"), test = document.getElementById("notifyTestBtn");
+  [on, off, test].forEach(b => b.classList.add("hidden"));
+  if (!pushSupported()) {
+    status.textContent = pushIsIos() && !pushStandalone()
+      ? "On iPhone, first add the app to the Home Screen (Share → Add to Home Screen) and open it from the icon."
+      : "This phone or browser cannot receive notifications.";
+    return;
+  }
+  if (Notification.permission === "denied") {
+    status.textContent = "Blocked in the phone settings. Allow notifications for Marinara Hours in Settings, then come back.";
+    return;
+  }
+  const sub = await pushCurrentSubscription();
+  if (sub) {
+    status.textContent = "On — this phone gets time-off requests.";
+    off.classList.remove("hidden"); test.classList.remove("hidden");
+  } else {
+    status.textContent = "Off. Turn on to get time-off requests on this phone.";
+    on.classList.remove("hidden");
+  }
+}
+function notifyMsg(text, ok) {
+  const el = document.getElementById("notifyMessage");
+  if (!el) return;
+  el.className = `message show ${ok ? "ok" : "error"}`;
+  el.textContent = text;
+}
+document.getElementById("notifyOnBtn")?.addEventListener("click", async () => {
+  const btn = document.getElementById("notifyOnBtn");
+  btn.disabled = true;
+  try {
+    // Ask first, straight from the tap (iPhone requires that).
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") { notifyMsg("Notifications were not allowed on this phone.", false); return; }
+    const config = await managerApi("manager_push_config");
+    if (!config?.public_key) { notifyMsg("Notifications are not set up on the server yet.", false); return; }
+    const reg = await navigator.serviceWorker.register("./push-sw.js", { scope: "./" });
+    await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: pushB64uToBytes(config.public_key) });
+    const json = sub.toJSON();
+    await managerApi("manager_push_subscribe", { endpoint: json.endpoint, p256dh: json.keys?.p256dh, auth: json.keys?.auth, label: pushDeviceLabel() });
+    notifyMsg("Notifications are on for this phone.", true);
+  } catch (error) {
+    notifyMsg(error.message || "Unable to turn on notifications.", false);
+  } finally {
+    btn.disabled = false;
+    refreshNotifyCard();
+  }
+});
+document.getElementById("notifyOffBtn")?.addEventListener("click", async () => {
+  try {
+    const sub = await pushCurrentSubscription();
+    if (sub) {
+      await managerApi("manager_push_unsubscribe", { endpoint: sub.endpoint }).catch(() => {});
+      await sub.unsubscribe();
+    }
+    notifyMsg("Notifications are off for this phone.", true);
+  } catch (error) {
+    notifyMsg(error.message || "Unable to turn off.", false);
+  }
+  refreshNotifyCard();
+});
+document.getElementById("notifyTestBtn")?.addEventListener("click", async () => {
+  try {
+    const data = await managerApi("manager_push_test");
+    notifyMsg(data.sent ? "Test sent. It should appear in a few seconds." : "Could not reach this phone. Turn off and on again.", !!data.sent);
+  } catch (error) {
+    notifyMsg(error.message || "Unable to send a test.", false);
+  }
+});
+async function loadPushList() {
+  const box = document.getElementById("pushList");
+  if (!box) return;
+  try {
+    const data = await managerApi("manager_push_list");
+    const list = data.subscriptions || [];
+    if (!list.length) { box.className = "empty-state"; box.textContent = "No phone has notifications on yet."; return; }
+    box.className = "";
+    box.innerHTML = list.map(p => `<div class="push-row"><div><strong>${escapeHtml(p.device_label || "Phone")}</strong><small>Signed in as ${escapeHtml(p.staff_name || "—")}${p.last_sent_at ? " · last sent " + escapeHtml(new Intl.DateTimeFormat("en-AU", { timeZone: "Australia/Brisbane", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(p.last_sent_at))) : ""}</small></div>
+      <button class="back-btn" type="button" data-push-off="${escapeHtml(p.id)}">Turn off</button></div>`).join("");
+  } catch (error) {
+    box.className = "empty-state"; box.textContent = error.message || "Unable to load.";
+  }
+}
+document.getElementById("pushList")?.addEventListener("click", async e => {
+  const b = e.target.closest("[data-push-off]");
+  if (!b) return;
+  b.disabled = true;
+  try { await managerApi("manager_push_remove", { id: b.dataset.pushOff }); await loadPushList(); }
+  catch (error) { b.disabled = false; alert(error.message || "Unable to turn off."); }
+});
+// A tap on a notification opens the app at ?open=timeoff: go to Time off once signed in.
+var pendingOpenScreen = (() => { try { return new URLSearchParams(location.search).get("open"); } catch (_) { return null; } })();
+function openPendingScreen() {
+  if (pendingOpenScreen !== "timeoff" || !currentSessionToken) return;
+  pendingOpenScreen = null;
+  try { history.replaceState(null, "", location.pathname); } catch (_) {}
+  openTimeOffScreen();
+}
+
 /* MANAGER V2 NAVIGATION */
 function setManagerNavActive(target = "home") {
   if (!managerBottomNav) return;
@@ -7490,6 +7653,7 @@ function deviceNameSuggestion(d) {
 
 async function loadDevices() {
   clearMessage(devicesMessage);
+  loadPushList();
   devicesList.innerHTML = '<div class="person-meta">Loading…</div>';
   try {
     const data = await managerApi("manager_devices");

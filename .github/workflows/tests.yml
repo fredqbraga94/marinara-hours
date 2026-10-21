@@ -45,6 +45,7 @@ jobs:
       - run: npm run test:features
       - run: npm run test:stock
       - run: npm run test:roles
+      - run: npm run test:push
   browser:
     runs-on: ubuntu-latest
     steps:
