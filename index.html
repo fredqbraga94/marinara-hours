@@ -1239,6 +1239,40 @@ body.mgr-mode :is(.manager-v2-signout) { border-color: #e7e2d8; background: #fff
   body.mgr-mode .manager-bottom-nav::before { content: none; }
   body.mgr-mode .manager-bottom-nav { padding-top: 110px; }
 }
+
+/* MANAGER LOOK, part 2: people rows, page headers, touch feedback */
+.who-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.who-av {
+  position: relative; flex: 0 0 auto; width: 40px; height: 40px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 17px;
+  background: #e6efe9; color: var(--basil, #1e5a3c);
+}
+.who-av.k { background: #f6e3e1; color: var(--pomodoro, #b3261e); }
+.who-dot {
+  position: absolute; right: -1px; bottom: -1px; width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid #fff; background: #2e9d5b;
+}
+.who-dot.break { background: #e0a100; }
+body.mgr-mode #managerScreen .card { border: 1px solid #e7e2d8; box-shadow: none; border-radius: 22px; }
+body.mgr-mode #managerScreen .section-title { font-size: 17px; }
+body.mgr-mode #managerScreen .hours-pill { background: transparent; padding: 0; font-size: 14px; color: var(--basil); }
+body.mgr-mode #workingList .person-row > div:last-child { flex-direction: row !important; align-items: center !important; gap: 12px !important; }
+body.mgr-mode .manager-staff-clockout { padding: 6px 10px; border-color: #d9d3c7; color: var(--text); font-size: 12px; border-radius: 9px; }
+/* Page headers on every manager screen: big serif title, no "MANAGER" label. */
+body.mgr-mode .manager-top .team-v2-kicker { display: none; }
+body.mgr-mode .manager-top h2 { font-family: Cinzel, Georgia, serif; font-weight: 700; font-size: 26px; letter-spacing: .5px; }
+body.mgr-mode .back-btn { background: #fff; border: 1px solid #e7e2d8; color: var(--text); }
+body.mgr-mode .card:not(#managerScreen .card) { box-shadow: none; border: 1px solid #e7e2d8; }
+/* Touch feedback */
+body.mgr-mode :is(.home-tile, .home-stat, .more-v2-item, .manager-nav-item) { transition: transform .12s ease, background-color .12s ease; -webkit-tap-highlight-color: transparent; }
+body.mgr-mode :is(.home-tile, .home-stat):active { transform: scale(.97); background: #fbfaf7; }
+body.mgr-mode .manager-nav-item:active { transform: scale(.94); }
+@media (prefers-reduced-motion: reduce) {
+  body.mgr-mode :is(.home-tile, .home-stat, .more-v2-item, .manager-nav-item) { transition: none; }
+  body.mgr-mode :is(.home-tile, .home-stat, .manager-nav-item):active { transform: none; }
+  .home-flash { animation: none; }
+}
 /* RECIPES AND ALLERGENS */
 .rcp-search{width:100%;box-sizing:border-box;min-height:46px;border:1.5px solid var(--border);border-radius:13px;padding:8px 12px;font-size:16px;margin-bottom:10px;background:#fff;font-family:inherit}
 .rcp-item{padding:13px 0;border-top:1px solid var(--border)}
@@ -3259,6 +3293,8 @@ async function loadManagerDashboard() {
 
           <div class="person-row">
 
+            <div class="who-main">
+              ${whoAvatar(person.name, person.department, person.status === "break" ? "break" : "working")}
             <div>
 
               <div class="person-name">
@@ -3281,6 +3317,7 @@ async function loadManagerDashboard() {
 
               </div>
 
+            </div>
             </div>
 
             <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
@@ -3335,6 +3372,8 @@ async function loadManagerDashboard() {
 
           <div class="person-row">
 
+            <div class="who-main">
+              ${whoAvatar(person.name, person.department, "")}
             <div>
 
               <div class="person-name">
@@ -3366,6 +3405,7 @@ async function loadManagerDashboard() {
 
               </div>
 
+            </div>
             </div>
 
             <div class="hours-pill">
@@ -7987,6 +8027,13 @@ recipesScreen?.addEventListener("click", async e => {
 });
 
 /* MANAGER HOME: header and shortcuts */
+// Round initial for a person, coloured by area; optional live status dot.
+function whoAvatar(name, department, status) {
+  const initial = String(name || "?").trim().charAt(0).toUpperCase() || "?";
+  const area = department === "Kitchen" ? "k" : "f";
+  const dot = status ? `<i class="who-dot ${status}" title="${status === "break" ? "On break" : "Working"}"></i>` : "";
+  return `<span class="who-av ${area}" aria-hidden="true">${escapeHtml(initial)}${dot}</span>`;
+}
 // Managers see the restaurant name in the top bar; staff keep "Hours".
 function setManagerHeader(place) {
   document.body.classList.toggle("mgr-mode", !!place);
