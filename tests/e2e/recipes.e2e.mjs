@@ -62,8 +62,8 @@ const ORIGIN = `http://127.0.0.1:${server.address().port}`;
 const browser = await pw[ENGINE].launch();
 const realLog = console.log;
 
-async function phone() {
-  const ctx = await browser.newContext({ ...pw.devices["iPhone 13"], serviceWorkers: "block", timezoneId: "Australia/Brisbane" });
+async function phone(device = pw.devices["iPhone 13"]) {
+  const ctx = await browser.newContext({ ...device, serviceWorkers: "block", timezoneId: "Australia/Brisbane" });
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
@@ -116,6 +116,13 @@ try {
     assert.match(header, /Hawthorne Restaurant manager/);
     assert.deepEqual(groups, ["Team & hours", "Kitchen & floor"]);
     assert.deepEqual(stats, ["Working now", "To approve", "Time off requests"]);
+    // The time-off dot on the tile: white number on red, readable size.
+    await km.page.evaluate(() => showLeaveBadge(3));
+    const dot = await km.page.locator("#homeTimeOffBadge").evaluate((e) => { const c = getComputedStyle(e); return [e.textContent, c.color, c.backgroundColor, c.fontSize, c.display]; });
+    await km.shot("home_badge");
+    assert.deepEqual(dot, ["3", "rgb(255, 255, 255)", "rgb(217, 48, 37)", "12px", "flex"]);
+    await km.page.evaluate(() => showLeaveBadge(0));
+    assert.equal(await km.page.locator("#homeTimeOffBadge").isVisible(), false);
     await km.page.click("#recipesCard");
     await km.page.waitForSelector("#recipesScreen:not(.hidden)");
     await km.page.click("#backRecipesBtn");
@@ -239,6 +246,32 @@ try {
     return `${label}; ${detail.slice(0, 70)}…; search 'corn' → ${found}`;
   });
   await fm.close();
+  const desk = await phone({ viewport: { width: 1440, height: 900 } });
+  await desk.login(PIN[ID(1)]);
+  await check("Laptop/desktop: side menu and wide home for managers; staff screens unchanged", async () => {
+    await desk.page.waitForFunction(() => !/Loading/.test(document.getElementById("workingList").textContent));
+    const nav = await desk.page.locator(".manager-bottom-nav").boundingBox();
+    const tiles = await desk.page.locator("#managerScreen .home-tiles").first().locator(".home-tile").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+    const cards = await desk.page.locator("#managerScreen > .card").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+    await desk.shot("desktop_home");
+    await desk.page.click("#rosterCard");
+    await desk.page.waitForSelector("#rosterGridBox .roster-grid");
+    await desk.shot("desktop_roster");
+    await desk.page.click('[data-manager-nav="more"]');
+    await desk.page.click("#moreRecipesBtn");
+    await desk.page.waitForFunction(() => !/Loading/.test(document.getElementById("rcpAllergenList").textContent));
+    await desk.shot("desktop_recipes");
+    assert.ok(nav.x === 0 && nav.width < 300 && nav.height > 800, JSON.stringify(nav)); // a left side menu
+    assert.equal(new Set(tiles).size, 1, "six tiles on one row");
+    assert.equal(cards[0], cards[1], "Who's working and This week side by side");
+    await desk.page.click('[data-manager-nav="home"]');
+    await desk.page.click("#managerLogoutBtn");
+    await desk.page.waitForSelector("#loginScreen:not(.hidden)");
+    assert.equal(await desk.page.evaluate(() => document.body.classList.contains("mgr-mode")), false);
+    assert.deepEqual(desk.errors, []);
+    return `side menu ${nav.width}px; 6 tiles per row; cards side by side; sign out back to normal`;
+  });
+  await desk.close();
 } finally {
   await browser.close();
   server.close();
