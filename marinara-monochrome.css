@@ -1,0 +1,13 @@
+/* Marinara test preview — unified monochrome button palette. */
+:root{--green:#242424;--green-dark:#171717;--green-light:#ededed;}
+body.mgr-mode{--green:#242424;--green-dark:#171717;--green-light:#ededed;}
+button,.btn{transition:background-color .16s ease,border-color .16s ease,color .16s ease;}
+button:focus-visible,.btn:focus-visible{outline:3px solid #8b8b8b;outline-offset:2px;}
+.primary,.btn.primary,body.mgr-mode .primary,body.mgr-mode .btn.primary{background:#202020!important;border-color:#202020!important;color:#fff!important;}
+.secondary,.btn.secondary,body.mgr-mode .secondary,body.mgr-mode .btn.secondary{background:#ededed!important;border-color:#d4d4d4!important;color:#303030!important;}
+.danger,.btn.danger,body.mgr-mode .danger,body.mgr-mode .btn.danger{background:#fff5f5!important;border-color:#edcccc!important;color:#ad3030!important;}
+body.mgr-mode button[class*="approve"],body.mgr-mode button[class*="confirm"]{background:#353535;color:#fff;border-color:#353535;}
+body.mgr-mode button[class*="delete"],body.mgr-mode button[class*="remove"]{background:#fff5f5;color:#ad3030;border-color:#edcccc;}
+body.mgr-mode .roster-tabs button.active,body.mgr-mode .roster-choice button.selected,body.mgr-mode .timeoff-kind button.selected{background:#242424!important;border-color:#242424!important;color:#fff!important;}
+@media(hover:hover){.primary:hover,.btn.primary:hover{background:#3a3a3a!important;}}
+@media(prefers-reduced-motion:reduce){button,.btn{transition:none;}}
