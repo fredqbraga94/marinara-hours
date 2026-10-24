@@ -1266,30 +1266,32 @@ button:disabled{opacity:.6}
 
 <!-- MANAGER DASHBOARD -->
 <section id="managerScreen" class="hidden manager-v2">
-  <div class="manager-v2-hero">
-    <div class="manager-v2-eyebrow">MARINARA HOURS</div>
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-      <div><h2 id="managerGreeting" class="manager-v2-greeting">Good morning</h2><div id="managerRoleLine" class="manager-v2-role">Administrator · Hawthorne</div></div>
-      <button id="managerLogoutBtn" class="manager-v2-signout">Sign Out</button>
-    </div><p id="managerLocation" class="hidden">Hawthorne</p>
+  <div class="restaurant-home-header">
+    <div class="restaurant-home-brand"><span class="restaurant-home-brand-name">Marinara</span><span class="restaurant-home-brand-location">HAWTHORNE</span></div>
+    <button id="managerLogoutBtn" class="manager-v2-signout" type="button">Sign Out</button>
   </div>
-  <div id="managerMessage" class="message"></div>
-  <div id="managerHolidayNotice"></div>
-  <div class="summary-grid">
-    <div class="summary-card"><div id="workingNowCount" class="summary-number">0</div><div class="summary-label">Working Now</div><div class="manager-summary-sub">Currently on shift</div></div>
-    <div class="summary-card"><div id="pendingCount" class="summary-number">0</div><div class="summary-label">Pending Approvals</div><div class="manager-summary-sub">Needs your review</div></div>
+  <div class="restaurant-home-content">
+    <div class="restaurant-home-intro"><h2 id="managerGreeting" class="manager-v2-greeting">Good morning</h2><p id="managerRoleLine" class="manager-v2-role">Administrator · Hawthorne</p><p id="managerLocation" class="hidden">Hawthorne</p></div>
+    <div id="managerMessage" class="message"></div><div id="managerHolidayNotice"></div>
+    <div class="restaurant-home-feature"><span class="restaurant-home-feature-icon">▤</span><span><strong>Invoices & expenses</strong><small>Supplier documents and spending</small></span><span aria-hidden="true">›</span></div>
+    <h3 class="restaurant-home-heading">Restaurant management</h3>
+    <div class="restaurant-home-modules">
+      <button id="teamCard" class="restaurant-home-module" type="button"><span>♧</span><strong>Team</strong><small>Staff, roster & approvals</small></button>
+      <button id="rosterCard" class="restaurant-home-module" type="button"><span>▦</span><strong>Roster</strong><small>Plan kitchen & floor</small></button>
+      <button id="approvalsCard" class="restaurant-home-module" type="button"><span>✓</span><strong>Approvals</strong><small id="approvalsText">Review completed shifts</small></button>
+      <button id="timesheetsCard" class="restaurant-home-module" type="button"><span>▤</span><strong>Timesheets</strong><small>Weekly reports & PDF</small></button>
+    </div>
+    <h3 class="restaurant-home-heading">Restaurant overview</h3>
+    <div class="restaurant-home-overview">
+      <button id="managerWorkingViewAll" class="restaurant-home-stat" type="button"><span>●</span><strong id="workingNowCount">0</strong><small>Working</small></button>
+      <button id="managerHoursViewAll" class="restaurant-home-stat" type="button"><span>◷</span><strong>↗</strong><small>Staff hours</small></button>
+      <button id="staffHoursCard" class="restaurant-home-stat" type="button"><span>◴</span><strong>↗</strong><small>This week</small></button>
+      <button id="timeOffCard" class="restaurant-home-stat" type="button"><span>✈</span><strong>↗</strong><small>Time off</small><span id="timeOffCardText" class="hidden">Holidays and days off</span></button>
+    </div>
+    <h3 class="restaurant-home-heading">Needs attention <span id="pendingCount" class="restaurant-home-count">0</span></h3>
+    <div class="restaurant-home-attention"><div class="restaurant-home-attention-row"><strong>Pending approvals</strong><small>Shifts awaiting review</small></div><div id="workingList" class="restaurant-home-hidden-data"></div><div id="hoursList" class="restaurant-home-hidden-data"></div><div id="teamText" class="hidden"></div></div>
+    <div class="restaurant-home-extra"><button id="myClockCard" type="button">My Time Clock ↗</button></div>
   </div>
-  <div class="card"><div class="manager-v2-section-head"><div class="section-title">Who's Working</div><button id="managerWorkingViewAll" class="manager-v2-link" type="button">View team</button></div><div id="workingList" class="empty-state">Loading...</div></div>
-  <div class="card"><div class="manager-v2-section-head"><div class="section-title">This Week</div><button id="managerHoursViewAll" class="manager-v2-link" type="button">Staff Hours</button></div><div id="hoursList" class="empty-state">Loading...</div></div>
-  <div class="card"><div class="section-title">Quick Actions</div><div class="manager-quick-grid">
-    <button id="approvalsCard" class="manager-quick-card"><div class="manager-quick-icon">✓</div><strong>Approvals</strong><span id="approvalsText">Review completed shifts</span></button>
-    <button id="staffHoursCard" class="manager-quick-card"><div class="manager-quick-icon">◷</div><strong>Staff Hours</strong><span>Weekly hours and shifts</span></button>
-    <button id="teamCard" class="manager-quick-card"><div class="manager-quick-icon">◎</div><strong>Team</strong><span id="teamText">Active Hawthorne staff</span></button>
-    <button id="timesheetsCard" class="manager-quick-card"><div class="manager-quick-icon">▤</div><strong>Timesheets</strong><span>Weekly timesheets & PDF</span></button>
-    <button id="rosterCard" class="manager-quick-card"><div class="manager-quick-icon">▦</div><strong>Roster</strong><span>Plan the week · L / D or times</span></button>
-    <button id="timeOffCard" class="manager-quick-card"><div class="manager-quick-icon">✈</div><strong>Time off</strong><span id="timeOffCardText">Holidays and days off</span></button>
-    <button id="myClockCard" class="manager-quick-card"><div class="manager-quick-icon">◉</div><strong>My Time Clock</strong><span>Clock in, break and clock out</span></button>
-  </div></div>
   <div id="managerClockSection" class="hidden"><div class="card"><div class="section-title">My Time Clock</div><div class="status"><div class="status-label">Current status</div><div id="managerStatusValue" class="status-value">Off shift</div></div><button id="managerClockInBtn" class="btn primary hidden">Clock In</button><button id="managerStartBreakBtn" class="btn secondary hidden">Start Break</button><button id="managerEndBreakBtn" class="btn primary hidden">End Break</button><button id="managerClockOutBtn" class="btn danger hidden">Clock Out</button><div id="managerActionMessage" class="message"></div></div></div>
 </section>
 
