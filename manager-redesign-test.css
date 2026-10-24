@@ -59,3 +59,5 @@ body:has(#managerScreen:not(.hidden)){background:#f7f8f6}
 #managerScreen .restaurant-home-hidden-data{display:none}
 #managerScreen .restaurant-home-extra{margin-top:18px}
 #managerScreen .restaurant-home-extra button{border:1px solid #e4e9e6;background:#fff;border-radius:12px;padding:13px;color:#07533c;font-weight:700;width:100%}
+
+#managerScreen .restaurant-home-original-logo{display:block;width:195px;max-height:78px;object-fit:contain}
