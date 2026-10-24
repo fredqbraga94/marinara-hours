@@ -23,3 +23,39 @@ body:has(#managerScreen:not(.hidden)){background:#f7f8f6}
 #rosterScreen .roster-weekbar button,#rosterScreen .roster-tabs button{border-radius:10px}
 #managerScreen button:focus-visible,#teamScreen button:focus-visible,#approvalsScreen button:focus-visible,#rosterScreen button:focus-visible{outline:3px solid #81bca1;outline-offset:2px}
 @media(max-width:390px){#managerScreen .manager-quick-card{min-height:92px}#managerScreen .manager-v2-greeting{font-size:27px}}
+
+/* Restaurant-first Home — scoped to manager dashboard, no clock/PDF changes */
+#managerScreen.manager-v2{background:#f7f8f6;padding:0 0 110px;min-height:100vh}
+#managerScreen .restaurant-home-header{min-height:148px;background:linear-gradient(145deg,#090d0b,#1a251d 70%,#090d0b);color:white;display:flex;align-items:center;justify-content:center;position:relative;padding:30px 18px 24px}
+#managerScreen .restaurant-home-brand{display:flex;flex-direction:column;align-items:center;gap:6px}
+#managerScreen .restaurant-home-brand-name{font:italic 42px Georgia,serif;letter-spacing:-2px;border-bottom:1px solid #c23430;padding:0 12px 3px}
+#managerScreen .restaurant-home-brand-location{font-size:11px;letter-spacing:4px}
+#managerScreen .restaurant-home-header #managerLogoutBtn{position:absolute;right:13px;top:16px;color:#fff;border-color:#777;font-size:11px}
+#managerScreen .restaurant-home-content{padding:19px 16px 30px}
+#managerScreen .restaurant-home-intro{margin:2px 0 20px}
+#managerScreen .restaurant-home-intro h2{font-size:30px;margin:0 0 6px}
+#managerScreen .restaurant-home-intro p{font-size:13px;color:#747d78;margin:0}
+#managerScreen .restaurant-home-feature{background:#07533c;color:#fff;border-radius:14px;display:flex;align-items:center;gap:14px;padding:18px 16px;margin:14px 0 20px}
+#managerScreen .restaurant-home-feature-icon{font-size:25px}
+#managerScreen .restaurant-home-feature span:nth-child(2){flex:1}
+#managerScreen .restaurant-home-feature strong,#managerScreen .restaurant-home-feature small{display:block}
+#managerScreen .restaurant-home-feature small{font-size:11px;opacity:.82;margin-top:4px}
+#managerScreen .restaurant-home-heading{font:700 16px system-ui,sans-serif;margin:22px 0 12px;display:flex;align-items:center;gap:8px}
+#managerScreen .restaurant-home-modules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+#managerScreen .restaurant-home-module{display:flex;flex-direction:column;align-items:flex-start;text-align:left;gap:7px;min-height:111px;padding:15px;border:1px solid #e5e8e6;background:#fff;border-radius:14px;color:#19231d}
+#managerScreen .restaurant-home-module>span{font-size:23px;color:#07533c}
+#managerScreen .restaurant-home-module strong{font-size:15px}
+#managerScreen .restaurant-home-module small{font-size:11px;color:#768079;line-height:1.3}
+#managerScreen .restaurant-home-overview{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+#managerScreen .restaurant-home-stat{background:#fff;border:1px solid #e5e8e6;border-radius:13px;min-height:98px;padding:10px 5px;text-align:left;display:flex;flex-direction:column;gap:5px;color:#18251d}
+#managerScreen .restaurant-home-stat>span:first-child{font-size:13px;color:#07533c}
+#managerScreen .restaurant-home-stat strong{font-size:23px;line-height:1}
+#managerScreen .restaurant-home-stat small{font-size:10px;color:#7b827c}
+#managerScreen .restaurant-home-count{font:700 12px system-ui;background:#edf5ef;color:#07533c;padding:4px 8px;border-radius:20px}
+#managerScreen .restaurant-home-attention{background:#fff;border:1px solid #e5e8e6;border-radius:14px;padding:16px}
+#managerScreen .restaurant-home-attention-row{display:flex;justify-content:space-between;gap:8px}
+#managerScreen .restaurant-home-attention-row strong{font-size:13px}
+#managerScreen .restaurant-home-attention-row small{font-size:11px;color:#727b76}
+#managerScreen .restaurant-home-hidden-data{display:none}
+#managerScreen .restaurant-home-extra{margin-top:18px}
+#managerScreen .restaurant-home-extra button{border:1px solid #e4e9e6;background:#fff;border-radius:12px;padding:13px;color:#07533c;font-weight:700;width:100%}
