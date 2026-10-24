@@ -1,0 +1,25 @@
+/* Marinara Test — manager-only visual refinement, 2026-10-25.
+   No changes to clock, PDF, business logic, or the original logo. */
+:root{--green:#07533c;--green-dark:#063d2d;--green-light:#eaf5ef;--cream:#f8f8f6;--text:#17201b;--muted:#727b76;--border:#e7e9e7}
+body:has(#managerScreen:not(.hidden)){background:#f7f8f6}
+#managerScreen,#teamScreen,#approvalsScreen,#staffHoursScreen,#rosterScreen,#timeOffScreen,#timesheetsScreen{color:#17201b}
+#managerScreen .manager-v2-hero{background:#fff;border-radius:20px;padding:20px;margin-bottom:12px;border:1px solid #e9ebe8}
+#managerScreen .manager-v2-eyebrow{font-size:10px;letter-spacing:.16em;color:#718079}
+#managerScreen .manager-v2-greeting{font-family:Georgia,serif;font-size:30px;line-height:1.12;letter-spacing:-.04em}
+#managerScreen .summary-grid{gap:8px}
+#managerScreen .summary-card{border:1px solid #e7e9e7;background:#fff;border-radius:14px;padding:14px 12px;box-shadow:none}
+#managerScreen .summary-number{font-size:29px;font-weight:750;color:#07533c}
+#managerScreen .summary-label{font-size:12px;font-weight:700}
+#managerScreen .manager-summary-sub{font-size:11px}
+#managerScreen .card,#teamScreen .card,#approvalsScreen .card,#staffHoursScreen .card,#rosterScreen .card,#timeOffScreen .card,#timesheetsScreen .card{border:1px solid #e7e9e7;border-radius:18px;box-shadow:0 3px 18px rgba(0,0,0,.025);background:#fff}
+#managerScreen .manager-quick-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+#managerScreen .manager-quick-card{min-height:100px;background:#fbfcfb;border:1px solid #e8ebe8;border-radius:13px;box-shadow:none;text-align:left}
+#managerScreen .manager-quick-card strong{font-size:14px}
+#managerScreen .manager-quick-icon{color:#07533c}
+#teamScreen .manager-top h2,#approvalsScreen .manager-top h2,#rosterScreen .manager-top h2,#timeOffScreen .manager-top h2,#staffHoursScreen .manager-top h2,#timesheetsScreen .manager-top h2{font-family:Georgia,serif;font-size:34px;letter-spacing:-.04em;color:#17201b}
+#teamScreen .team-add-toggle,#approvalsScreen .btn.primary{background:#07533c;border-radius:13px}
+#teamScreen .team-list-card{padding:16px}
+#teamScreen #teamList>*,#approvalsScreen #approvalsList>.card{border-radius:13px}
+#rosterScreen .roster-weekbar button,#rosterScreen .roster-tabs button{border-radius:10px}
+#managerScreen button:focus-visible,#teamScreen button:focus-visible,#approvalsScreen button:focus-visible,#rosterScreen button:focus-visible{outline:3px solid #81bca1;outline-offset:2px}
+@media(max-width:390px){#managerScreen .manager-quick-card{min-height:92px}#managerScreen .manager-v2-greeting{font-size:27px}}
