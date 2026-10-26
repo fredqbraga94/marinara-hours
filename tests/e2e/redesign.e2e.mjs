@@ -63,6 +63,17 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#rmEditBack').click();await page.locator('#employeeDetailsScreen').waitFor({state:'visible'});assert.match(await page.locator('#rmEmployeeContent').innerText(),/No — roster only/);
  await page.locator('[data-manager-nav="operations"]').click();assert.equal(await page.locator('#employeeDetailsScreen').isVisible(),false);
  await page.evaluate(async()=>{const originalApi=managerApi;for(const status of ['working','break','off_shift']){managerApi=async action=>action==='manager_dashboard'?{manager:{id:'qa-clock',name:'QA Manager',role:'manager'},location:'QA fixture',working:status==='off_shift'?[]:[{staff_id:'qa-clock',name:'QA Manager',department:'Kitchen',status,shift_id:'qa-shift',clock_in:new Date().toISOString(),hours_so_far:0}]}:{pending:0};await loadManagerDashboard();const button=document.getElementById(status==='working'?'managerStartBreakBtn':status==='break'?'managerEndBreakBtn':'managerClockInBtn');if(button.classList.contains('hidden'))throw Error('Incorrect manager clock state: '+status);}managerApi=originalApi;});
+ // My Time Clock from More keeps the new look; More → Home goes back to the home, not the clock.
+ await page.evaluate(()=>{managerApi=async action=>action==='manager_dashboard'?{manager:{id:'qa-clock',name:'QA Manager',role:'manager'},location:'QA fixture',working:[]}:{pending:0};});
+ await page.locator('[data-manager-nav="more"]').click();await page.locator('#moreMyClockBtn').evaluate(b=>b.click());await page.locator('#managerClockSection').waitFor({state:'visible'});
+ assert.equal(await page.evaluate(()=>document.body.classList.contains('rm-mode')),true,'clock keeps the new look');
+ assert.equal(await page.locator('#managerBottomNav > button:visible').count(),5);
+ const navTops=await page.locator('#managerBottomNav > button:visible').evaluateAll(es=>es.map(e=>Math.round(e.getBoundingClientRect().top)));assert.equal(new Set(navTops).size,1,'all five tabs on one line');
+ await page.screenshot({path:`tmp/qa/${size}-clock.png`});
+ assert.equal(await page.locator('#managerBottomNav .active').getAttribute('data-manager-nav'),'more','clock is opened from More');
+ await page.locator('[data-manager-nav="more"]').click();await page.locator('#managerMoreScreen').waitFor({state:'visible'});
+ await page.locator('[data-manager-nav="home"]').click();await page.locator('#rmHome').waitFor({state:'visible'});
+ assert.equal(await page.locator('#managerClockSection').isVisible(),false,'Home shows the home, not the clock');
  await page.evaluate(()=>signOutAll());
  assert.equal(await page.locator("#operationsScreen").isVisible(),false,"sign-out hides custom screens");
  assert.equal(await page.locator("#loginScreen").isVisible(),true);
