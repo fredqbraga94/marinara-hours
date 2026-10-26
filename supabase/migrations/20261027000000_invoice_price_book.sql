@@ -3,6 +3,8 @@
 -- latest price went up or down compared with the last different price.
 -- Products are the same supplier + code, or the same description when the
 -- supplier prints no code. Fees (fuel, freight, delivery) are left out.
+-- Prices are per unit as printed; 'pack' says how many units make a carton
+-- when the supplier prints it (e.g. "12 Ctn [4]" = 12 units, 4 a carton).
 -- Administrator and Kitchen Manager only (mh_invoice_admin).
 -- Additive only: one new read-only function. Nothing existing changes.
 
@@ -55,6 +57,9 @@ begin
     select jsonb_agg(jsonb_build_object(
              'supplier', lt.supplier, 'product_key', lt.product_key,
              'code', lb.code, 'description', lb.description, 'unit', lb.unit,
+             -- Units to a carton when the supplier counts single units ("Ctn [4]").
+             'pack', (select max(((regexp_match(x.unit, '^\s*c(?:tn|arton)s?\s*\[(\d+)\]\s*$', 'i'))[1])::int)
+                        from lines x where x.supplier = lt.supplier and x.product_key = lt.product_key),
              'times', (select count(*) from per_invoice x where x.supplier = lt.supplier and x.product_key = lt.product_key),
              'last_price', lt.price, 'last_date', lt.invoice_date,
              'previous_price', pv.price, 'previous_date', pv.invoice_date,

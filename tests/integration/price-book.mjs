@@ -163,6 +163,20 @@ try {
     return "once: no change; removed: gone";
   });
 
+  await check("units counted singly with the carton size: pack found even when the latest line is not in cartons", async () => {
+    const mk = (number, date, qty, unit) => ({ supplier: "Test Wholesale", number, kind: "invoice", date, subtotal: qty * 22.33, gst: 0, total: qty * 22.33, checks_ok: true,
+      lines: [{ code: "TW-CHZ", description: "Test cheese blend 2kg", qty, unit, unit_price: 22.33, line_total: qty * 22.33, gst: 0 }] });
+    const a = await api(vNew, 1, gm, { action: "manager_invoice_save", invoice: mk("PB-C1", daysAgo(9), 12, "Ctn [4]") });
+    const b = await api(vNew, 1, gm, { action: "manager_invoice_save", invoice: mk("PB-C2", daysAgo(2), 2, "Bag") });
+    assert.equal(a.status, 200, JSON.stringify(a.body)); assert.equal(b.status, 200, JSON.stringify(b.body));
+    const chz = (await api(vNew, 1, gm, { action: "manager_invoice_price_book" })).body.data.products.find((p) => p.code === "TW-CHZ");
+    assert.equal(chz.pack, 4); assert.equal(chz.unit, "Bag"); assert.equal(Number(chz.last_price), 22.33); assert.equal(chz.times, 2);
+    const tom = (await api(vNew, 1, gm, { action: "manager_invoice_price_book" })).body.data.products.find((p) => p.code === "TST-TOM");
+    assert.equal(tom.pack, null, "kg lines have no carton size");
+    for (const r of [a, b]) assert.equal((await api(vNew, 1, gm, { action: "manager_invoice_remove", id: r.body.data.invoice.id })).status, 200);
+    return "pack 4 from the 'Ctn [4]' line; price stays per unit";
+  });
+
   await check("everything else still works on the new server", async () => {
     for (const action of ["manager_dashboard", "manager_invoice_list", "manager_invoice_usage", "manager_invoice_prices", "manager_ingredient_costs"]) {
       assert.equal((await api(vNew, 1, gm, { action })).status, 200, action);

@@ -58,16 +58,19 @@ function render(){
  box.innerHTML=rows.map(p=>{
   const key=`${p.supplier}|${p.product_key}`;const open=state.open===key;
   const chg=p.change_pct==null?'':`<em class="pb-chg ${up(p)?'up':'down'}">${up(p)?'▲':'▼'} ${pct(p.change_pct)}</em>`;
-  const unit=p.unit?`<small>/${t(p.unit.toLowerCase())}</small>`:'';
+  // Carton price first when the supplier counts single units ("Ctn [4]").
+  const pack=Number(p.pack)>1?Number(p.pack):1;const cm=v=>money(Number(v)*pack);
+  const unitLabel=pack>1?'ctn':String(p.unit||'').toLowerCase();
+  const unit=(unitLabel?`<small>/${t(unitLabel)}</small>`:'')+(pack>1?`<small>${t(money(p.last_price))} each · ${pack} a ctn</small>`:'');
   let hist='';
   if(open){
    const h=p.history||[];
    const lines=h.slice().reverse().map((x,i,arr)=>{const prev=arr[i+1];const diff=prev?Number(x.price)-Number(prev.price):0;
-     return `<li><span>${t(day(x.date))}</span><strong>${t(money(x.price))}</strong><span class="${diff>0?'up':diff<0?'down':''}">${!prev?'first time':diff?`${diff>0?'+':'−'}${t(money(Math.abs(diff)))}`:'same'}</span></li>`;}).join('');
+     return `<li><span>${t(day(x.date))}</span><strong>${t(cm(x.price))}</strong><span class="${diff>0?'up':diff<0?'down':''}">${!prev?'first time':diff?`${diff>0?'+':'−'}${t(cm(Math.abs(diff)))}`:'same'}</span></li>`;}).join('');
    const first=h[0];const total=first&&Number(first.price)?(Number(p.last_price)-Number(first.price))/Number(first.price)*100:0;
-   hist=`<div class="pb-hist">${h.length>1?`<p>Since ${t(day(first.date))}: ${t(money(first.price))} → ${t(money(p.last_price))}${Math.abs(total)>=0.05?` <b class="${total>0?'up':'down'}">(${total>0?'+':'−'}${pct(total)})</b>`:' (no change)'}</p>`:'<p>Bought once so far. The next invoice will show if the price changed.</p>'}<ul>${lines}</ul>${p.code?`<small>Code ${t(p.code)}</small>`:''}</div>`;
+   hist=`<div class="pb-hist">${h.length>1?`<p>Since ${t(day(first.date))}: ${t(cm(first.price))} → ${t(cm(p.last_price))}${pack>1?' a ctn':''}${Math.abs(total)>=0.05?` <b class="${total>0?'up':'down'}">(${total>0?'+':'−'}${pct(total)})</b>`:' (no change)'}</p>`:'<p>Bought once so far. The next invoice will show if the price changed.</p>'}<ul>${lines}</ul>${p.code?`<small>Code ${t(p.code)}</small>`:''}</div>`;
   }
-  return `<button type="button" class="pb-row${open?' open':''}" data-pb="${t(key)}" aria-expanded="${open}"><span class="pb-main"><strong>${t(p.description)}</strong><small>${t(p.supplier)} · ${p.times}× · last ${t(day(p.last_date))}</small></span><span class="pb-right"><strong>${t(money(p.last_price))}</strong>${unit}${chg}</span></button>${hist}`;
+  return `<button type="button" class="pb-row${open?' open':''}" data-pb="${t(key)}" aria-expanded="${open}"><span class="pb-main"><strong>${t(p.description)}</strong><small>${t(p.supplier)} · ${p.times}× · last ${t(day(p.last_date))}</small></span><span class="pb-right"><strong>${t(cm(p.last_price))}</strong>${unit}${chg}</span></button>${hist}`;
  }).join('');
 }
 // The Prices tab now shows the price book (the old "changes only" list is kept on the server).

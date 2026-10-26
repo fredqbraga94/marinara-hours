@@ -74,6 +74,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
      {supplier:'Test Produce Co',product_key:'tst-tom',code:'TST-TOM',description:'Test tomatoes',unit:'KG',times:3,last_price:4.6,last_date:d(3),previous_price:4,previous_date:d(10),change_pct:15,history:[{date:d(17),price:4},{date:d(10),price:4},{date:d(3),price:4.6}]},
      {supplier:'Test Produce Co',product_key:'test basil',code:null,description:'Test basil',unit:'ea',times:2,last_price:2.7,last_date:d(3),previous_price:3,previous_date:d(10),change_pct:-10,history:[{date:d(10),price:3},{date:d(3),price:2.7}]},
      {supplier:'Other Test Supplier',product_key:'ot-1',code:'OT-1',description:'Test olive oil',unit:'ea',times:1,last_price:9,last_date:d(40),previous_price:null,previous_date:null,change_pct:null,history:[{date:d(40),price:9}]},
+     {supplier:'Test Wholesale',product_key:'tw-chz',code:'TW-CHZ',description:'Test cheese blend 2kg',unit:'Bag',pack:4,times:2,last_price:22.33,last_date:d(20),previous_price:null,previous_date:null,change_pct:null,history:[{date:d(27),price:22.33},{date:d(20),price:22.33}]},
      {supplier:'Other Test Supplier',product_key:'ot-2',code:'OT-2',description:'Test flour',unit:'bag',times:4,last_price:30,last_date:d(30),previous_price:28,previous_date:d(37),change_pct:7.1,history:[{date:d(44),price:28},{date:d(37),price:28},{date:d(30),price:30}]}]}
      :action==='manager_dashboard'?{manager:{id:'m',name:'QA Manager',role:'manager'},location:'Hawthorne',working:[],counts:{}}:orig(action,...args);});
  await page.locator('[data-manager-nav="home"]').click();await page.evaluate(()=>{mhPricesReset();window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{name:'QA'},counts:{},working:[]}}));});
@@ -83,7 +84,9 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('.pb-row').first().waitFor();
  assert.equal(await page.locator('#pbChips [aria-pressed="true"]').innerText(),'Went up 2');assert.equal(await page.locator('.pb-row').count(),2);
  assert.match(await page.locator('.pb-row').first().innerText(),/Test tomatoes[\s\S]*\$4\.60[\s\S]*15%/);
- await page.locator('[data-pb-filter="all"]').click();assert.equal(await page.locator('.pb-row').count(),4);
+ await page.locator('[data-pb-filter="all"]').click();assert.equal(await page.locator('.pb-row').count(),5);
+ assert.match(await page.locator('.pb-row',{hasText:'Test cheese blend'}).innerText(),/\$89\.32[\s\S]*\/ctn[\s\S]*\$22\.33 each · 4 a ctn/,'carton price first');
+ assert.deepEqual(await page.evaluate(()=>[invQtyText(12,'Ctn [4]'),invPriceText(22.33,'Ctn [4]'),invQtyText(2,'Bag'),invQtyText(30,'Ctn [6]'),invPriceText(4.5,'kg')]),['3 ctn × 4 (12 un)','$89.32 / ctn · $22.33 each','2 Bag','5 ctn × 6 (30 un)','$4.50 / kg']);
  assert.match(await page.locator('.pb-row').first().innerText(),/Test flour/,'most bought first');
  await page.locator('.pb-row',{hasText:'Test tomatoes'}).click();const hist=await page.locator('.pb-hist').innerText();
  assert.match(hist,/\$4\.00 → \$4\.60/);assert.match(hist,/\+\$0\.60/);assert.match(hist,/first time/);
