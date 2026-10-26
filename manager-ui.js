@@ -10,11 +10,11 @@
   manager.append(original);
   const home=document.createElement('div');home.id='rmHome';
   home.innerHTML=`<div class="rm-intro"><div id="rmGreetingSlot"></div><button id="quickActionsBtn" aria-label="Quick actions" type="button">+</button></div><div id="rmMessageSlot"></div>
-  <button class="rm-scan" data-rm-go="invoicesCard" type="button">${icon('scan')}<span><strong>Scan Invoice</strong><small>Upload a supplier PDF</small></span><i>›</i></button>
+  <button class="rm-scan" id="rmScanInvoice" type="button">${icon('scan')}<span><strong>Scan Invoice</strong><small>Upload a supplier PDF</small></span><i>›</i></button>
   <h3>Restaurant Management</h3><div class="rm-modules" id="rmModules"></div>
   <h3>Restaurant Overview <button class="rm-link" id="rmWorkingToggle" aria-expanded="false">View all</button></h3>
-  <div class="rm-overview">${[['roster','On roster','rmRosterCount'],['team','Working','rmWorkingCount'],['coffee','On break','rmBreakCount'],['clock','Late','rmLateCount']].map(([ic,label,id])=>`<div class="rm-stat">${icon(ic)}<strong id="${id}">—</strong><small>${label}</small></div>`).join('')}</div><p class="rm-data-note" id="rmOverviewNote">Waiting for current operation data.</p>
-  <h3>Needs Attention</h3><div class="rm-attention" id="rmAttention"><p class="rm-data-note">Waiting for operation data.</p></div>
+  <div class="rm-overview">${[['roster','On roster','rmRosterCount'],['team','Working','rmWorkingCount'],['coffee','On break','rmBreakCount'],['clock','Late','rmLateCount']].map(([ic,label,id])=>`<div class="rm-stat">${icon(ic)}<strong id="${id}">—</strong><small>${label}</small></div>`).join('')}</div><p class="rm-data-note" id="rmOverviewNote"></p>
+  <h3>Needs Attention</h3><div class="rm-attention" id="rmAttention"><p class="rm-data-note" style="padding:0 12px">Loading…</p></div>
   <div id="rmWorkingPanel" class="hidden"><h3>Who's Working</h3><div id="rmWorkingSlot"></div></div>`;
   manager.prepend(home);
   for(const id of ['managerGreeting','managerRoleLine']) $('rmGreetingSlot').append($(id));
@@ -43,10 +43,10 @@
   function renderSettings(tab){
     settings.querySelectorAll('[role="tab"]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.rmSettings===tab)));
     const place=$('managerLocation').textContent;
-    $('rmSettingsContent').innerHTML=tab==='General'?`<h3>Business Information</h3><dl><dt>Restaurant</dt><dd>Marinara Ristorante Cafe</dd><dt>Unit</dt><dd>${escapeHtml(place)}</dd></dl><p class="rm-data-note">ABN, address, phone and email are not available from the current settings API.</p>`:tab==='Locations'?`<h3>${escapeHtml(place)}</h3><p>This is the unit associated with your current session.</p><p class="rm-data-note">Switching to Clayfield or Paddington requires verified location permissions and data isolation. Switching is not enabled.</p>`:tab==='Hours'?'<h3>Operating hours</h3><p class="rm-data-note">Business opening hours are not available from the current settings API. Shift schedules remain in Roster.</p>'+row('Roster','View weekly shifts','rosterCard','roster'):`<h3>Public Holidays</h3>${$('managerHolidayNotice').innerHTML || '<p class="rm-data-note">No holiday information has been loaded. Open Home to refresh.</p>'}`;
+    $('rmSettingsContent').innerHTML=tab==='General'?`<h3>Business Information</h3><dl><dt>Restaurant</dt><dd>Marinara Ristorante Cafe</dd><dt>Unit</dt><dd>${escapeHtml(place)}</dd></dl><p class="rm-data-note">Address, phone and ABN will be added here later.</p>`:tab==='Locations'?`<h3>${escapeHtml(place)}</h3><p>This is the unit associated with your current session.</p><p class="rm-data-note">Paddington and Clayfield will appear here when they join the app.</p>`:tab==='Hours'?'<h3>Service times</h3><p class="rm-data-note">Lunch and dinner times are set in the Roster.</p>'+row('Roster','View weekly shifts','rosterCard','roster'):`<h3>Public Holidays</h3>${$('managerHolidayNotice').innerHTML || '<p class="rm-data-note">No holiday information has been loaded. Open Home to refresh.</p>'}`;
   }
   settings.addEventListener('click',e=>{const b=e.target.closest('[data-rm-settings]');if(b)renderSettings(b.dataset.rmSettings);});
-  const dialog=document.createElement('dialog');dialog.id='quickActionsDialog';dialog.innerHTML=`<div class="rm-handle"></div><h2>Actions</h2><div class="rm-actions">${[['Invoices','Upload supplier PDF','invoicesCard','scan'],['Stock','Count and order','stockCard','stock'],['Add Staff','Create staff member','rmAddStaff','team'],['Create Shift','Open weekly roster','rosterCard','roster'],['Kitchen','Recipes and allergens','recipesCard','kitchen'],['Reports','Weekly timesheets','timesheetsCard','finance'],['Time Clock','Open time clock','moreMyClockBtn','clock'],['Settings','Restaurant information','rmOpenSettings','settings']].map(a=>row(...a)).join('')}</div><button type="button" id="rmCloseActions">Close</button>`;document.body.append(dialog);
+  const dialog=document.createElement('dialog');dialog.id='quickActionsDialog';dialog.innerHTML=`<div class="rm-handle"></div><h2>Actions</h2><div class="rm-actions">${[['Upload invoice','Choose the supplier PDF','rmScanInvoice','scan'],['Stock','Count and order','stockCard','stock'],['Add Staff','Create staff member','rmAddStaff','team'],['Create Shift','Open weekly roster','rosterCard','roster'],['Kitchen','Recipes and allergens','recipesCard','kitchen'],['Reports','Weekly timesheets','timesheetsCard','finance'],['Time Clock','Open time clock','moreMyClockBtn','clock'],['Settings','Restaurant information','rmOpenSettings','settings']].map(a=>row(...a)).join('')}</div><button type="button" id="rmCloseActions">Close</button>`;document.body.append(dialog);
   $('quickActionsBtn').onclick=()=>dialog.showModal();$('rmCloseActions').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
   $('rmWorkingToggle').onclick=()=>{const open=$('rmWorkingPanel').classList.toggle('hidden')===false;$('rmWorkingToggle').setAttribute('aria-expanded',String(open));};
   document.addEventListener('click',e=>{const b=e.target.closest('[data-rm-go]');if(!b)return;dialog.close();if(b.dataset.rmGo==='rmAddStaff'){go('teamCard');if($('addStaffPanel').classList.contains('hidden'))go('showAddStaffBtn');}else go(b.dataset.rmGo);});
@@ -64,20 +64,65 @@
     document.body.classList.toggle('rm-mode',signedIn&&!clock);document.body.classList.toggle('rm-clock',signedIn&&clock);
     const active=visible==='managerScreen'?'home':['teamScreen','employeeDetailsScreen'].includes(visible)?'team':visible==='invoicesScreen'?'finance':['managerMoreScreen','devicesScreen','restaurantSettingsScreen'].includes(visible)?'more':'operations';
     nav.querySelectorAll('[data-manager-nav]').forEach(b=>{b.classList.toggle('active',b.dataset.managerNav===active);if(b.dataset.managerNav===active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
-    const canInvoice=['manager','kitchen_manager'].includes(currentManagerRole);nav.querySelector('[data-manager-nav="finance"]').disabled=!canInvoice;document.querySelectorAll('[data-rm-go="invoicesCard"]').forEach(b=>{b.disabled=!canInvoice;b.title=canInvoice?'':'Finance is restricted to authorised managers';});
+    const canInvoice=['manager','kitchen_manager'].includes(currentManagerRole);nav.querySelector('[data-manager-nav="finance"]').disabled=!canInvoice;document.querySelectorAll('[data-rm-go="invoicesCard"], [data-rm-go="rmScanInvoice"], #rmScanInvoice').forEach(b=>{b.disabled=!canInvoice;b.hidden=!canInvoice&&b.id==='rmScanInvoice';b.title=canInvoice?'':'Finance is restricted to authorised managers';});
     $('rmLocation').textContent=($('managerLocation').textContent||'Current unit')+' ⌄';
   }
   for(const id of [...MANAGER_SCREEN_IDS,'managerBottomNav','managerClockSection'])new MutationObserver(syncShell).observe($(id),{attributes:true,attributeFilter:['class']});
   // Payload is supplied only after a successful, authorised dashboard request.
+  // Today from the roster: who is rostered, and who is late (rostered start
+  // passed by more than 10 minutes, still inside their shift, not clocked in).
+  const roster={at:0,data:null,loading:false};
+  const brisbaneNow=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Brisbane',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]));return{date:`${p.year}-${p.month}-${p.day}`,min:Number(p.hour)*60+Number(p.minute)};};
+  const toMin=t=>{const m=/^(\d{1,2}):(\d{2})/.exec(t||'');return m?Number(m[1])*60+Number(m[2]):null;};
+  async function loadRoster(){
+    if(roster.loading||Date.now()-roster.at<60000)return;
+    roster.loading=true;
+    try{roster.data=await managerApi('manager_roster_week');roster.at=Date.now();}catch(_){roster.data=null;}
+    finally{roster.loading=false;}
+    paint();
+  }
+  function today(){
+    const d=roster.data;if(!d)return null;
+    const now=brisbaneNow();
+    const team=Object.fromEntries((d.team||[]).map(m=>[m.id,m]));
+    const svc=(dep,code)=>(d.services||[]).find(s=>s.department===dep&&s.service===code);
+    const onLeave=new Set((d.leave||[]).filter(l=>l.status==='APPROVED'&&l.start_date<=now.date&&l.end_date>=now.date).map(l=>l.staff_id));
+    const entries=(d.entries||[]).filter(e=>e.work_date===now.date&&e.code!=='OFF'&&team[e.staff_id]&&!onLeave.has(e.staff_id));
+    const working=new Set(lastWorking.map(p=>p.staff_id));
+    const late=[];
+    for(const e of entries){
+      const m=team[e.staff_id];if(m.roster_only||working.has(e.staff_id))continue;
+      const windows=e.code==='SHIFT'?[[e.start_time,e.end_time]]:(e.code==='LD'?['L','D']:[e.code]).map(c=>{const sv=svc(m.department,c);return[e.start_time&&e.code!=='LD'?e.start_time:sv?.start_time,sv?.end_time||e.end_time];});
+      for(const [a,b] of windows){const st=toMin(a),en=toMin(b);if(st==null)continue;if(now.min>st+10&&(en==null||now.min<en)){late.push(m.name);break;}}
+    }
+    return{rostered:new Set(entries.map(e=>e.staff_id)).size,late};
+  }
+  let lastWorking=[],lastDash=null;
+  function paint(){
+    const d=lastDash;if(!d)return;
+    const t=today();
+    $('rmRosterCount').textContent=t?t.rostered:'—';
+    $('rmLateCount').textContent=t?t.late.length:'—';
+    $('rmLateCount').closest('.rm-stat').classList.toggle('alert',!!t&&t.late.length>0);
+    $('rmOverviewNote').textContent=t&&t.late.length?`Late: ${t.late.join(', ')}`:'';
+    const n=d.counts?.unapproved_shifts||0;
+    const off=Number($('homeTimeOffCount')?.textContent||0)||0;
+    const toOrder=typeof deskExtra!=='undefined'?deskExtra.toOrder:null;
+    const rows=[];
+    if(t&&t.late.length)rows.push(row(`${t.late.length} late`,t.late.join(', ')+' – rostered but not clocked in','teamCard','clock'));
+    if(n)rows.push(row(`${n} shift${n===1?'':'s'} awaiting approval`,'Review completed shifts','approvalsCard','check'));
+    if(off)rows.push(row(`${off} time off request${off===1?'':'s'}`,'Someone is waiting for an answer','timeOffCard','leave'));
+    if(toOrder)rows.push(row(`${toOrder} item${toOrder===1?'':'s'} to order`,'Below par at the last stock count','stockCard','stock'));
+    $('rmAttention').innerHTML=rows.length?rows.join(''):`<div class="rm-row rm-ok">${icon('check')}<span><strong>All caught up</strong><small>Nothing waiting for you right now.</small></span></div>`;
+  }
+  // Payload is supplied only after a successful, authorised dashboard request.
   window.addEventListener('marinara:dashboard',e=>{
-    const d=e.detail;const working=d.working||[];
+    const d=e.detail;const working=d.working||[];lastDash=d;lastWorking=working;
     $('rmWorkingCount').textContent=working.filter(p=>p.status!=='break').length;$('rmBreakCount').textContent=working.filter(p=>p.status==='break').length;
-    $('rmRosterCount').textContent=d.counts?.on_roster??'—';$('rmLateCount').textContent=d.counts?.late??'—';
-    $('rmOverviewNote').textContent='Working and break counts are live. Roster and lateness totals are not supplied by this API.';
     $('managerRoleLine').textContent=`Here's what's happening at ${d.location||'your restaurant'}.`;
-    const n=d.counts?.unapproved_shifts;
-    $('rmAttention').innerHTML=row(n==null?'Approvals unavailable':`${n} shift${n===1?'':'s'} awaiting approval`,'Review completed shifts','approvalsCard','check')+row('Time off requests','Open the latest requests','timeOffCard','leave')+row('Stock levels','Check your latest saved stock count','stockCard','stock');
     $('rmProfile').textContent=String(d.manager?.name||'M').slice(0,1).toUpperCase();syncShell();
+    paint();loadRoster();setTimeout(paint,2500);
   });
+  $('rmScanInvoice').onclick=()=>{dialog.close();go('invoicesCard');$('invFiles')?.click();};
   syncShell();
 })();

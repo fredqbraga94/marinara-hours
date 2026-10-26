@@ -21,6 +21,21 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('[data-manager-nav="home"]').click();await page.locator('#managerScreen').waitFor({state:'visible'});
  await page.locator('#quickActionsBtn').click();await page.locator('#quickActionsDialog').waitFor({state:'visible'});await page.keyboard.press('Escape');
  assert.equal(await page.locator('#quickActionsDialog').isVisible(),false);
+ // Home overview from real roster data: rostered today, late, needs attention.
+ const home=await page.evaluate(async()=>{
+   const p=Object.fromEntries(new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Brisbane',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+   const date=`${p.year}-${p.month}-${p.day}`;const now=Number(p.hour)*60+Number(p.minute);
+   const hm=m=>{m=Math.max(0,Math.min(23*60+59,m));return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');};
+   const team=[{id:'a',name:'QA Late',department:'Kitchen'},{id:'b',name:'QA Working',department:'Floor'},{id:'c',name:'QA Off',department:'Floor'},{id:'d',name:'QA Salaried',department:'Kitchen',roster_only:true}];
+   const entries=[{staff_id:'a',work_date:date,code:'SHIFT',start_time:hm(now-60),end_time:hm(now+120)},{staff_id:'b',work_date:date,code:'SHIFT',start_time:hm(now-60),end_time:hm(now+120)},{staff_id:'c',work_date:date,code:'OFF'},{staff_id:'d',work_date:date,code:'SHIFT',start_time:hm(now-60),end_time:hm(now+120)}];
+   const orig=managerApi;managerApi=async(action,...args)=>action==='manager_roster_week'?{team,entries,services:[],leave:[]}:orig(action,...args);
+   window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{name:'QA Manager'},counts:{unapproved_shifts:2},working:[{staff_id:'b',name:'QA Working',status:'working'}]}}));
+   for(let i=0;i<40&&document.getElementById('rmRosterCount').textContent==='—';i++)await new Promise(r=>setTimeout(r,50));
+   const out={rostered:document.getElementById('rmRosterCount').textContent,late:document.getElementById('rmLateCount').textContent,note:document.getElementById('rmOverviewNote').textContent,attention:document.getElementById('rmAttention').innerText.replace(/\s+/g,' ')};
+   managerApi=orig;return out;});
+ assert.equal(home.rostered,'3');assert.equal(home.late,'1');assert.equal(home.note,'Late: QA Late');
+ assert.match(home.attention,/1 late QA Late/);assert.match(home.attention,/2 shifts awaiting approval/);
+ assert.doesNotMatch(await page.locator('#rmHome').innerText(),/API|not supplied/i,'no technical text for the team');
  await page.evaluate(()=>document.querySelector('#managerMessage').textContent='QA: network blocked; no live staff data.');
  mkdirSync('tmp/qa',{recursive:true});await page.screenshot({path:`tmp/qa/${size}-home.png`,fullPage:true});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'no horizontal overflow');
@@ -42,5 +57,5 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.screenshot({path:`tmp/qa/${size}-safe-area.png`,fullPage:true});
  assert.deepEqual(errors,[]);await context.close();
 }
-console.log('PASS: five-tab navigation, screen isolation, roster access, quick action dialog, iPhone/desktop overflow and JavaScript errors.');
+console.log('PASS: roster/late overview and needs attention, five-tab navigation, screen isolation, roster access, quick action dialog, iPhone/desktop overflow and JavaScript errors.');
 }finally{await browser.close();server.close();}

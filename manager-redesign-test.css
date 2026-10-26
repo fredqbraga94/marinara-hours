@@ -74,3 +74,5 @@ body.rm-mode #teamScreen .who-avatar{width:36px;height:36px;min-width:36px;font-
 body.rm-mode #teamScreen .team-who{gap:9px;min-width:0}
 body.rm-mode #teamScreen .rm-staff-open{overflow-wrap:anywhere}
 }
+
+.rm-stat.alert strong{color:#b3261e}.rm-ok>svg{color:var(--green)}#rmOverviewNote:empty{display:none}
