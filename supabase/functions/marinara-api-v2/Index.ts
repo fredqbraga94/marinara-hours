@@ -326,9 +326,207 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   CANNOT_DEACTIVATE_SELF: [400, "You cannot deactivate your own manager account"],
   INVALID_ROLE: [400, "Invalid account role"],
   DEVICE_NOT_FOUND: [404, "Device not found"],
+  ON_LEAVE: [409, "This person is on approved leave that day."],
+  LEAVE_OVERLAP: [409, "There is already a request for some of these days."],
+  LEAVE_NOT_FOUND: [404, "Request not found"],
+  LEAVE_NOT_PENDING: [409, "This request was already decided."],
+  LEAVE_IN_PAST: [400, "Choose a date from today onwards."],
+  LEAVE_NOT_CANCELLABLE: [409, "This request can no longer be cancelled."],
   TOO_MANY_ACTIVE_CODES: [429, "Too many unused device codes. Wait for them to expire."],
   INVALID_INPUT: [400, "Invalid request"],
+  STOCK_ITEM_NOT_FOUND: [404, "Item not found"],
+  RECIPE_NOT_FOUND: [404, "Recipe not found"],
+  INVOICE_NOT_FOUND: [404, "Invoice not found"],
+  INVOICE_DUPLICATE: [409, "This invoice is already saved."],
+  INGREDIENT_NOT_FOUND: [404, "Ingredient not found"],
+  NAME_IS_A_DISH: [409, "There is already a dish with this name. Rename the ingredient first."],
 };
+
+// WEBPUSH-START
+// Web Push (RFC 8030) with VAPID (RFC 8292) and aes128gcm payload encryption
+// (RFC 8291 / 8188), using only WebCrypto - no extra library. Works on
+// Apple (iPhone home-screen apps), Google (Android/Chrome) and Mozilla push.
+function b64uToBytes(s: string): Uint8Array {
+  const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((s.length + 3) % 4);
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+function bytesToB64u(b: Uint8Array): string {
+  let s = "";
+  for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+  return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function concatBytes(...parts: Uint8Array[]): Uint8Array {
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let o = 0;
+  for (const p of parts) { out.set(p, o); o += p.length; }
+  return out;
+}
+
+async function hkdf(salt: Uint8Array, ikm: Uint8Array, info: Uint8Array, length: number) {
+  const key = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveBits"]);
+  const bits = await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt, info }, key, length * 8);
+  return new Uint8Array(bits);
+}
+
+// VAPID key pair: public = 65-byte uncompressed point, private = 32-byte d (both base64url).
+async function vapidAuthorization(endpoint: string, publicKey: string, privateKey: string, subject: string, nowSec: number) {
+  const pub = b64uToBytes(publicKey);
+  const jwk = {
+    kty: "EC", crv: "P-256", ext: true,
+    x: bytesToB64u(pub.slice(1, 33)), y: bytesToB64u(pub.slice(33, 65)), d: privateKey,
+  };
+  const key = await crypto.subtle.importKey("jwk", jwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const enc = new TextEncoder();
+  const header = bytesToB64u(enc.encode(JSON.stringify({ typ: "JWT", alg: "ES256" })));
+  const claims = bytesToB64u(enc.encode(JSON.stringify({
+    aud: new URL(endpoint).origin, exp: nowSec + 12 * 3600, sub: subject,
+  })));
+  const sig = new Uint8Array(await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, enc.encode(`${header}.${claims}`)));
+  return `vapid t=${header}.${claims}.${bytesToB64u(sig)}, k=${publicKey}`;
+}
+
+// Encrypt one message for one subscription (aes128gcm, a single record).
+async function encryptPushPayload(p256dh: string, authSecret: string, payload: Uint8Array, salt?: Uint8Array) {
+  const uaPublic = b64uToBytes(p256dh);
+  const auth = b64uToBytes(authSecret);
+  const local = await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const asPublic = new Uint8Array(await crypto.subtle.exportKey("raw", local.publicKey));
+  const uaKey = await crypto.subtle.importKey("raw", uaPublic, { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const shared = new Uint8Array(await crypto.subtle.deriveBits({ name: "ECDH", public: uaKey }, local.privateKey, 256));
+  const enc = new TextEncoder();
+  const ikm = await hkdf(auth, shared, concatBytes(enc.encode("WebPush: info\0"), uaPublic, asPublic), 32);
+  const s = salt || crypto.getRandomValues(new Uint8Array(16));
+  const cek = await hkdf(s, ikm, enc.encode("Content-Encoding: aes128gcm\0"), 16);
+  const nonce = await hkdf(s, ikm, enc.encode("Content-Encoding: nonce\0"), 12);
+  const aes = await crypto.subtle.importKey("raw", cek, "AES-GCM", false, ["encrypt"]);
+  const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, aes, concatBytes(payload, new Uint8Array([2]))));
+  const rs = new Uint8Array([0, 0, 16, 0]); // record size 4096
+  return concatBytes(s, rs, new Uint8Array([asPublic.length]), asPublic, cipher);
+}
+
+async function sendWebPush(
+  sub: { endpoint: string; p256dh: string; auth: string },
+  message: Record<string, unknown>,
+  vapid: { publicKey: string; privateKey: string; subject: string },
+) {
+  const body = await encryptPushPayload(sub.p256dh, sub.auth, new TextEncoder().encode(JSON.stringify(message)));
+  const authorization = await vapidAuthorization(sub.endpoint, vapid.publicKey, vapid.privateKey, vapid.subject, Math.floor(Date.now() / 1000));
+  const res = await fetch(sub.endpoint, {
+    method: "POST",
+    headers: {
+      Authorization: authorization,
+      "Content-Encoding": "aes128gcm",
+      "Content-Type": "application/octet-stream",
+      TTL: "86400",
+      Urgency: "normal",
+    },
+    body,
+  });
+  return { ok: res.status >= 200 && res.status < 300, status: res.status, gone: res.status === 404 || res.status === 410 };
+}
+// WEBPUSH-END
+
+// Only real push services: the server never posts to any other address.
+function isPushEndpoint(endpoint: string) {
+  try {
+    const u = new URL(endpoint);
+    return u.protocol === "https:" &&
+      /(^|\.)push\.apple\.com$|^fcm\.googleapis\.com$|(^|\.)push\.services\.mozilla\.com$|\.notify\.windows\.com$/.test(u.hostname);
+  } catch (_) {
+    return false;
+  }
+}
+
+// Notification keys. Normally created once by the server itself and kept in
+// the database (only the server can read them); edge secrets override them.
+let pushVapidCache: { publicKey: string; privateKey: string; subject: string } | null = null;
+async function pushVapid(supabase: any) {
+  const env = (globalThis as any).Deno?.env;
+  const subject = env?.get("VAPID_SUBJECT") || "https://fredqbraga94.github.io/marinara-hours/";
+  const envPublic = env?.get("VAPID_PUBLIC_KEY") || "";
+  const envPrivate = env?.get("VAPID_PRIVATE_KEY") || "";
+  if (envPublic && envPrivate) return { publicKey: envPublic, privateKey: envPrivate, subject };
+  if (pushVapidCache) return pushVapidCache;
+  try {
+    let { data, error } = await supabase.rpc("mh_push_keys", { p_public: null, p_private: null });
+    if (error) return null;
+    let row = Array.isArray(data) ? data[0] : data;
+    if (!row?.public_key) {
+      const pair: any = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+      const jwk: any = await crypto.subtle.exportKey("jwk", pair.privateKey);
+      const pub = bytesToB64u(concatBytes(new Uint8Array([4]), b64uToBytes(jwk.x), b64uToBytes(jwk.y)));
+      ({ data, error } = await supabase.rpc("mh_push_keys", { p_public: pub, p_private: jwk.d }));
+      if (error) return null;
+      row = Array.isArray(data) ? data[0] : data;
+    }
+    if (!row?.public_key || !row?.private_key) return null;
+    pushVapidCache = { publicKey: row.public_key, privateKey: row.private_key, subject };
+    return pushVapidCache;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Send to a list of phones and record each result. Never throws.
+async function deliverPush(supabase: any, targets: any[], message: Record<string, unknown>) {
+  if (!targets?.length) return { sent: 0 };
+  const vapid = await pushVapid(supabase);
+  if (!vapid) return { sent: 0 };
+  const send = (globalThis as any).__MH_PUSH_SEND || sendWebPush;
+  let sent = 0;
+  for (const t of targets) {
+    let r: any;
+    try {
+      const forPhone = typeof t.badge === "number" ? { ...message, badge: t.badge } : message;
+      r = await send({ endpoint: t.endpoint, p256dh: t.p256dh, auth: t.auth }, forPhone, vapid);
+    } catch (e) {
+      r = { ok: false, gone: false, status: 0, error: String((e as any)?.message || e).slice(0, 120) };
+    }
+    if (r.ok) sent++;
+    try {
+      await supabase.rpc("mh_push_result", {
+        p_id: t.id, p_ok: !!r.ok, p_gone: !!r.gone, p_error: r.ok ? null : `status ${r.status}${r.error ? " " + r.error : ""}`,
+      });
+    } catch (_) { /* best effort */ }
+  }
+  return { sent };
+}
+
+async function notifyDepartment(supabase: any, location: string, department: string, message: Record<string, unknown>) {
+  try {
+    const { data, error } = await supabase.rpc("mh_push_targets", { p_location: location, p_department: department });
+    if (error || !data?.length) return;
+    // Number for the app icon (optional: without it the notification still goes).
+    let badges: Record<string, number> = {};
+    try {
+      const b = await supabase.rpc("mh_push_badges", { p_location: location });
+      if (!b.error) for (const row of b.data || []) badges[row.id] = Number(row.pending) || 0;
+    } catch (_) { badges = {}; }
+    await deliverPush(supabase, data.map((t: any) => (t.id in badges ? { ...t, badge: badges[t.id] } : t)), message);
+  } catch (e) {
+    console.error("Push notify error:", (e as any)?.code || "");
+  }
+}
+
+// Run after the response (Supabase EdgeRuntime), or just let it run.
+function inBackground(p: Promise<unknown>) {
+  const er = (globalThis as any).EdgeRuntime;
+  if (er && typeof er.waitUntil === "function") er.waitUntil(p);
+  else p.catch(() => {});
+}
+
+function leaveRangeText(start: string, end: string) {
+  const f = (d: string, withMonth: boolean) => new Intl.DateTimeFormat("en-AU", {
+    timeZone: "UTC", day: "numeric", ...(withMonth ? { month: "short" } : {}),
+  }).format(new Date(`${d}T00:00:00Z`));
+  if (!end || end === start) return f(start, true);
+  return start.slice(0, 7) === end.slice(0, 7) ? `${f(start, false)}–${f(end, true)}` : `${f(start, true)} – ${f(end, true)}`;
+}
 
 // VISA-HOURS-START
 // Student visa (subclass 500, condition 8105): at most 48 worked hours per
@@ -404,11 +602,14 @@ function spanMinutes(start: string | null | undefined, end: string | null | unde
   return e > s ? e - s : e + 24 * 60 - s;
 }
 
-function plannedMinutes(entry: any, department: string, services: any[]) {
+// A person's role (Chef, Dishwasher...) can have its own service times; they
+// win over the department's.
+function plannedMinutes(entry: any, department: string, services: any[], position?: string | null) {
   if (!entry || !entry.code || entry.code === "OFF") return 0;
   if (entry.code === "SHIFT") return spanMinutes(entry.start_time, entry.end_time);
   const svc = (name: string) => {
-    const s = (services || []).find((x: any) => x.department === department && x.service === name);
+    const s = (position && (services || []).find((x: any) => x.position === position && x.service === name)) ||
+      (services || []).find((x: any) => !x.position && x.department === department && x.service === name);
     return s ? spanMinutes(s.start_time, s.end_time) : 0;
   };
   if (entry.code === "L") return svc("L");
@@ -465,7 +666,7 @@ function computeRosterHours(
   for (const m of team || []) {
     let weekPlanned = 0;
     for (let i = 0; i < 7; i++) {
-      weekPlanned += plannedMinutes(byCell[`${m.id}|${addDays(weekStart, i)}`], m.department, services);
+      weekPlanned += plannedMinutes(byCell[`${m.id}|${addDays(weekStart, i)}`], m.department, services, m.position);
     }
     planned[m.id] = r2(weekPlanned);
 
@@ -475,7 +676,7 @@ function computeRosterHours(
     for (let i = -7; i < 7; i++) {
       const date = addDays(weekStart, i);
       const dayStart = brisbaneDayStart(date);
-      const plan = plannedMinutes(byCell[`${m.id}|${date}`], m.department, services);
+      const plan = plannedMinutes(byCell[`${m.id}|${date}`], m.department, services, m.position);
       let minutes: number;
       if (dayStart + DAY_MS <= now) minutes = workedByDay(m.id, dayStart);
       else if (dayStart > now) minutes = plan;
@@ -780,6 +981,71 @@ Deno.serve(async (req) => {
 
     // STAFF MY HOURS:
     // Secure weekly history for the currently signed-in staff member only.
+    // STAFF TIME OFF: own holiday / day-off requests (session required).
+    if (
+      action === "session_leave_list" ||
+      action === "session_leave_request" ||
+      action === "session_leave_cancel"
+    ) {
+      try {
+        const token =
+          typeof body.token === "string" ? body.token.trim() : "";
+        const sessionResult =
+          await validateStaffSession(supabase, token, deviceHash);
+        if (!sessionResult.ok) {
+          return json({ success: false, action, error: sessionResult.error }, 401);
+        }
+        const staffId = sessionResult.staff.id;
+        const isDate = (v: unknown) =>
+          typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v.trim());
+
+        if (action === "session_leave_request") {
+          const kind = typeof body.kind === "string" ? body.kind.trim().toUpperCase() : "";
+          const start = typeof body.start_date === "string" ? body.start_date.trim() : "";
+          const end = typeof body.end_date === "string" && body.end_date.trim() ? body.end_date.trim() : start;
+          const note = typeof body.note === "string" ? body.note.trim().slice(0, 200) : "";
+          if (!["HOLIDAY", "DAY_OFF"].includes(kind) || !isDate(start) || !isDate(end)) {
+            return json({ error: "Choose the type and the dates.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("staff_leave_request", {
+            p_staff_id: staffId, p_kind: kind, p_start: start, p_end: end, p_note: note || null,
+          });
+          if (error) return managerDbError(error, "Unable to send the request");
+          // Tell the managers' phones (in the background; never delays or breaks the request).
+          inBackground((async () => {
+            const { data: who } = await supabase.from("staff").select("name, department, location").eq("id", staffId).single();
+            if (!who) return;
+            await notifyDepartment(supabase, who.location || "Hawthorne", who.department, {
+              title: kind === "HOLIDAY" ? "Holiday request" : "Day off request",
+              body: `${who.name} asked for ${kind === "HOLIDAY" ? "a holiday" : "a day off"} · ${leaveRangeText(start, end)}. Tap to approve or decline.`,
+              tag: `leave-${data?.id || start}`,
+              url: "./?open=timeoff",
+            });
+          })());
+          return json({ success: true, action, data: { request: data } });
+        }
+
+        if (action === "session_leave_cancel") {
+          const leaveId = typeof body.leave_id === "string" ? body.leave_id.trim() : "";
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leaveId)) {
+            return json({ error: "Request not found", code: "LEAVE_NOT_FOUND" }, 404);
+          }
+          const { data, error } = await supabase.rpc("staff_leave_cancel", {
+            p_staff_id: staffId, p_leave_id: leaveId,
+          });
+          if (error) return managerDbError(error, "Unable to cancel the request");
+          return json({ success: true, action, data: { request: data } });
+        }
+
+        const { data, error } = await supabase.rpc("staff_leave_list", { p_staff_id: staffId });
+        if (error) return managerDbError(error, "Unable to load your requests", 500);
+        return json({ success: true, action, data: { requests: data || [] } });
+      } catch (error) {
+        console.error("Staff leave error:", (error as any)?.code || "");
+        return json({ error: "Unable to complete the request" }, 500);
+      }
+    }
+
     if (action === "session_my_hours") {
       try {
         const token =
@@ -1142,6 +1408,39 @@ Deno.serve(async (req) => {
         "manager_set_student_visa",
         "manager_roster_week",
         "manager_roster_set",
+        "manager_leave_list",
+        "manager_leave_decide",
+        "manager_leave_create",
+        "manager_leave_count",
+        "manager_recipe_list",
+        "manager_invoice_save",
+        "manager_invoice_list",
+        "manager_invoice_get",
+        "manager_invoice_remove",
+        "manager_invoice_prices",
+        "manager_invoice_usage",
+        "manager_ingredient_costs",
+        "manager_ingredient_cost_save",
+        "manager_ingredient_make_recipe",
+        "manager_recipe_save",
+        "manager_recipe_remove",
+        "manager_recipe_ingredient_save",
+        "manager_set_roster_info",
+        "manager_push_config",
+        "manager_push_subscribe",
+        "manager_push_unsubscribe",
+        "manager_push_list",
+        "manager_push_remove",
+        "manager_push_test",
+        "manager_set_roster_order",
+        "manager_create_roster_person",
+        "manager_stock_list",
+        "manager_stock_item_save",
+        "manager_stock_item_remove",
+        "manager_stock_supplier_save",
+        "manager_stock_count_save",
+        "manager_stock_count_close",
+        "manager_stock_supplier_rename",
       ]);
 
     if (!managerActions.has(action)) {
@@ -1271,21 +1570,10 @@ Deno.serve(async (req) => {
 
     async function loadTeam() {
 
-      const { data, error } =
-        await supabase
+      const query = (columns: string) =>
+        supabase
           .from("staff")
-          .select(`
-            id,
-            name,
-            department,
-            location,
-            role,
-            active,
-            created_at,
-            pin_conflict_at,
-            student_visa,
-            visa_course_break
-          `)
+          .select(columns)
           .eq(
             "location",
             location
@@ -1298,6 +1586,27 @@ Deno.serve(async (req) => {
             "name",
             { ascending: true }
           );
+      const base = `
+            id,
+            name,
+            department,
+            location,
+            role,
+            active,
+            created_at,
+            pin_conflict_at,
+            student_visa,
+            visa_course_break`;
+
+      // Roster role and roster-only are read when the database has them; an
+      // older database (before 20261021010000) still gets the team.
+      let { data, error } = await query(base + ", position, roster_only, roster_order");
+      if (error && (error as any).code === "42703") {
+        ({ data, error } = await query(base + ", position, roster_only"));
+      }
+      if (error && (error as any).code === "42703") {
+        ({ data, error } = await query(base));
+      }
 
       if (error) {
         throw error;
@@ -1321,6 +1630,26 @@ Deno.serve(async (req) => {
       return team;
     }
 
+
+    // =========================
+    // PUBLIC HOLIDAYS
+    // =========================
+    // Queensland holidays from the public_holidays table. Every unit is in the
+    // Brisbane area, so Brisbane-only days (Ekka) count too. If the table is
+    // missing (older database), the app simply shows no holidays.
+    async function loadPublicHolidays(fromDate: string, toDate: string) {
+      const { data, error } = await supabase
+        .from("public_holidays")
+        .select("holiday_date, name, region, part_day")
+        .gte("holiday_date", fromDate)
+        .lte("holiday_date", toDate)
+        .order("holiday_date", { ascending: true });
+      if (error) {
+        console.error("Public holidays error:", error.code || "");
+        return [];
+      }
+      return data || [];
+    }
 
     // =========================
     // STUDENT VISA HOURS
@@ -2528,7 +2857,23 @@ Deno.serve(async (req) => {
           shifts = shiftRows || [];
         }
 
-        const services = thisWeek.data?.services || [];
+        // Role service times (Chef, Dishwasher...), best effort: without the
+        // table the department times are used, as before.
+        let roleServices: any[] = [];
+        {
+          const { data: rs, error: rsError } = await supabase
+            .from("roster_position_services")
+            .select("position, service, start_time, end_time")
+            .eq("location", thisWeek.data?.location || location);
+          if (!rsError) {
+            roleServices = (rs || []).map((r: any) => ({
+              position: r.position, service: r.service,
+              start_time: String(r.start_time || "").slice(0, 5), end_time: String(r.end_time || "").slice(0, 5),
+            }));
+          }
+        }
+        const services = [...(thisWeek.data?.services || []), ...roleServices];
+        const holidays = await loadPublicHolidays(weekStart, addDays(weekStart, 6));
         const entries = thisWeek.data?.entries || [];
         const hours = computeRosterHours(
           team,
@@ -2553,9 +2898,14 @@ Deno.serve(async (req) => {
               role: m.role,
               student_visa: !!m.student_visa,
               visa_course_break: !!m.visa_course_break,
+              position: m.position ?? null,
+              roster_only: !!m.roster_only,
+              roster_order: m.roster_order ?? null,
             })),
             entries,
             services,
+            leave: thisWeek.data?.leave || [],
+            holidays,
             planned_hours: hours.planned_hours,
             visa: hours.visa,
           },
@@ -2605,6 +2955,492 @@ Deno.serve(async (req) => {
         return json({ success: true, action, data: { cell } });
       }
 
+      // How many time-off requests are waiting (for the number on the app icon).
+      if (action === "manager_leave_count") {
+        const { data, error } = await supabase.rpc("manager_leave_list", {
+          p_manager_id: managerStatus.id, p_location: location, p_from: null, p_to: null,
+        });
+        if (error) return managerDbError(error, "Unable to load time off", 500);
+        return json({ success: true, action, data: { pending: (data || []).length } });
+      }
+
+      if (
+        action === "manager_leave_list" ||
+        action === "manager_leave_decide" ||
+        action === "manager_leave_create"
+      ) {
+        const isUuid = (v: string) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const isDate = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+
+        if (action === "manager_leave_decide") {
+          const leaveId = typeof body.leave_id === "string" ? body.leave_id.trim() : "";
+          const decision = typeof body.decision === "string" ? body.decision.trim().toUpperCase() : "";
+          if (!isUuid(leaveId) || !["APPROVE", "DECLINE", "CANCEL"].includes(decision)) {
+            return json({ error: "Invalid request", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_leave_decide", {
+            p_manager_id: managerStatus.id, p_leave_id: leaveId, p_decision: decision,
+          });
+          if (error) return managerDbError(error, "Unable to update the request");
+          return json({ success: true, action, data: { request: data } });
+        }
+
+        if (action === "manager_leave_create") {
+          const staffId = typeof body.staff_id === "string" ? body.staff_id.trim() : "";
+          const kind = typeof body.kind === "string" ? body.kind.trim().toUpperCase() : "";
+          const start = typeof body.start_date === "string" ? body.start_date.trim() : "";
+          const end = typeof body.end_date === "string" && body.end_date.trim() ? body.end_date.trim() : start;
+          const note = typeof body.note === "string" ? body.note.trim().slice(0, 200) : "";
+          if (!isUuid(staffId) || !["HOLIDAY", "DAY_OFF"].includes(kind) || !isDate(start) || !isDate(end)) {
+            return json({ error: "Choose the person, the type and the dates.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_leave_create", {
+            p_manager_id: managerStatus.id, p_staff_id: staffId, p_kind: kind,
+            p_start: start, p_end: end, p_note: note || null,
+          });
+          if (error) return managerDbError(error, "Unable to add the time off");
+          return json({ success: true, action, data: { request: data } });
+        }
+
+        // List: everything pending, plus pending/approved from today for 120 days.
+        const today = new Date(Date.now() + BRISBANE_OFFSET_MS).toISOString().slice(0, 10);
+        const until = new Date(Date.parse(`${today}T00:00:00Z`) + 120 * DAY_MS).toISOString().slice(0, 10);
+        const [pending, upcoming] = await Promise.all([
+          supabase.rpc("manager_leave_list", {
+            p_manager_id: managerStatus.id, p_location: location, p_from: null, p_to: null,
+          }),
+          supabase.rpc("manager_leave_list", {
+            p_manager_id: managerStatus.id, p_location: location, p_from: today, p_to: until,
+          }),
+        ]);
+        if (pending.error || upcoming.error) {
+          return managerDbError(pending.error || upcoming.error, "Unable to load time off", 500);
+        }
+        const team = (await loadTeam())
+          .filter((m: any) => m.active)
+          .map((m: any) => ({ id: m.id, name: m.name, department: m.department, role: m.role }));
+        return json({
+          success: true,
+          action,
+          data: {
+            manager: managerStatus,
+            location,
+            today,
+            pending: pending.data || [],
+            upcoming: (upcoming.data || []).filter((r: any) => r.status === "APPROVED"),
+            team,
+          },
+        });
+      }
+
+      // =========================
+      // ROSTER ROLE / ROSTER-ONLY PEOPLE
+      // =========================
+      // =========================
+      // PHONE NOTIFICATIONS
+      // =========================
+      if (action.startsWith("manager_push_")) {
+        const endpoint = typeof body.endpoint === "string" ? body.endpoint.trim() : "";
+        if (action === "manager_push_config") {
+          return json({ success: true, action, data: { public_key: (await pushVapid(supabase))?.publicKey || null } });
+        }
+        if (action === "manager_push_subscribe") {
+          const p256dh = typeof body.p256dh === "string" ? body.p256dh.trim() : "";
+          const auth = typeof body.auth === "string" ? body.auth.trim() : "";
+          const label = typeof body.label === "string" ? body.label.trim().slice(0, 80) : "";
+          if (!isPushEndpoint(endpoint) || !/^[A-Za-z0-9_-]{40,200}$/.test(p256dh) || !/^[A-Za-z0-9_-]{10,60}$/.test(auth)) {
+            return json({ error: "This phone's notification address was not accepted.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_push_subscribe", {
+            p_manager_id: managerStatus.id, p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth, p_label: label || null,
+          });
+          if (error) return managerDbError(error, "Unable to turn on notifications");
+          return json({ success: true, action, data: { subscription: data } });
+        }
+        if (action === "manager_push_unsubscribe") {
+          if (!endpoint) return json({ error: "Invalid request", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_push_unsubscribe", { p_manager_id: managerStatus.id, p_endpoint: endpoint });
+          if (error) return managerDbError(error, "Unable to turn off notifications");
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_push_list") {
+          const { data, error } = await supabase.rpc("manager_push_list", { p_manager_id: managerStatus.id });
+          if (error) return managerDbError(error, "Unable to load the phones", 500);
+          return json({ success: true, action, data: { subscriptions: data || [] } });
+        }
+        if (action === "manager_push_remove") {
+          const id = typeof body.id === "string" ? body.id.trim() : "";
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+            return json({ error: "Device not found", code: "DEVICE_NOT_FOUND" }, 404);
+          }
+          const { data, error } = await supabase.rpc("manager_push_remove", { p_manager_id: managerStatus.id, p_id: id });
+          if (error) return managerDbError(error, "Unable to turn off notifications");
+          return json({ success: true, action, data });
+        }
+        // manager_push_test: a test notification to the phones of the person signed in.
+        if (!(await pushVapid(supabase))) return json({ error: "Notifications are not set up on the server yet.", code: "INVALID_INPUT" }, 400);
+        const { data: mine, error: mineError } = await supabase.rpc("mh_push_for_staff", { p_staff_id: managerStatus.id });
+        if (mineError) return managerDbError(mineError, "Unable to send a test", 500);
+        const result = await deliverPush(supabase, mine || [], {
+          title: "Marinara Hours", body: "Notifications are on for this phone.", tag: "test", url: "./",
+        });
+        return json({ success: true, action, data: { phones: (mine || []).length, sent: result.sent } });
+      }
+
+      if (action === "manager_set_roster_order") {
+        const ids = Array.isArray(body.staff_ids) ? body.staff_ids : [];
+        const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!ids.length || ids.length > 200 || !ids.every((x: any) => typeof x === "string" && uuid.test(x)) ||
+            new Set(ids).size !== ids.length) {
+          return json({ error: "Invalid order", code: "INVALID_INPUT" }, 400);
+        }
+        const { data, error } = await supabase.rpc("manager_set_roster_order_audited", {
+          p_manager_id: managerStatus.id, p_staff_ids: ids,
+        });
+        if (error) return managerDbError(error, "Unable to save the order");
+        return json({ success: true, action, data });
+      }
+
+      if (action === "manager_set_roster_info" || action === "manager_create_roster_person") {
+        const positions: Record<string, string[]> = { Kitchen: ["Chef", "Dishwasher"], Floor: ["Floor", "Bar"] };
+        const position = typeof body.position === "string" && body.position.trim() ? body.position.trim() : null;
+        if (position && !["Chef", "Dishwasher", "Floor", "Bar"].includes(position)) {
+          return json({ error: "Choose Chef, Dishwasher, Floor or Bar.", code: "INVALID_INPUT" }, 400);
+        }
+        if (action === "manager_set_roster_info") {
+          const staffId = typeof body.staff_id === "string" ? body.staff_id.trim() : "";
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(staffId)) {
+            return json({ error: "Staff member not found" }, 404);
+          }
+          const { data, error } = await supabase.rpc("manager_set_roster_info_audited", {
+            p_manager_id: managerStatus.id, p_staff_id: staffId,
+            p_position: position, p_roster_only: body.roster_only === true,
+          });
+          if (error) return managerDbError(error, "Unable to save the roster details");
+          return json({ success: true, action, data: { staff: data } });
+        }
+        const name = typeof body.name === "string" ? body.name.trim().slice(0, 80) : "";
+        const department = managerDepartmentScope ||
+          (typeof body.department === "string" ? body.department.trim() : "");
+        if (!name || !positions[department] || (position && !positions[department].includes(position))) {
+          return json({ error: "Enter the name and choose the department and role.", code: "INVALID_INPUT" }, 400);
+        }
+        const { data, error } = await supabase.rpc("manager_create_roster_person_audited", {
+          p_manager_id: managerStatus.id, p_name: name, p_department: department, p_position: position,
+        });
+        if (error) return managerDbError(error, "Unable to add the person");
+        return json({ success: true, action, data: { staff: data } });
+      }
+
+      // =========================
+      // SUPPLIER INVOICES and INGREDIENT COSTS (Administrator, Kitchen Manager)
+      // =========================
+      if (action.startsWith("manager_invoice_") || action.startsWith("manager_ingredient_cost") || action === "manager_ingredient_make_recipe") {
+        const isUuid = (v: string) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const isDate = (v: any) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
+        const amount = (v: any, max = 1e7) => {
+          const n = typeof v === "number" ? v : Number(v);
+          return Number.isFinite(n) && Math.abs(n) < max ? Math.round(n * 10000) / 10000 : null;
+        };
+        const text = (v: any, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+
+        if (action === "manager_invoice_save") {
+          const inv = body.invoice && typeof body.invoice === "object" ? body.invoice : {};
+          const lines = Array.isArray(inv.lines) ? inv.lines : [];
+          const supplier = text(inv.supplier, 80), number = text(inv.number, 60);
+          const kind = inv.kind === "credit" ? "credit" : "invoice";
+          const subtotal = amount(inv.subtotal), gst = amount(inv.gst ?? 0), total = amount(inv.total);
+          const clean = lines.slice(0, 301).map((l: any) => ({
+            code: text(l?.code, 40), description: text(l?.description, 300),
+            qty: l?.qty == null ? null : amount(l.qty, 1e6), unit: text(l?.unit, 40),
+            unit_price: l?.unit_price == null ? null : amount(l.unit_price), line_total: amount(l?.line_total),
+            gst: amount(l?.gst ?? 0) ?? 0,
+          }));
+          if (!supplier || !number || !isDate(inv.date) || subtotal === null || gst === null || total === null ||
+              !clean.length || clean.length > 300 || clean.some((l: any) => l.line_total === null || !l.description)) {
+            return json({ error: "This invoice could not be read completely. Check it and try again.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_invoice_save", {
+            p_manager_id: managerStatus.id, p_location: location,
+            p_invoice: { supplier, number, kind, date: inv.date, subtotal, gst, total,
+              checks_ok: inv.checks_ok === true, file_name: text(inv.file_name, 200), lines: clean },
+          });
+          if (error) return managerDbError(error, "Unable to save the invoice");
+          return json({ success: true, action, data: { invoice: data } });
+        }
+
+        if (action === "manager_invoice_list") {
+          const today = new Date(Date.now() + BRISBANE_OFFSET_MS).toISOString().slice(0, 10);
+          const from = isDate(body.from) ? body.from : today.slice(0, 8) + "01";
+          const to = isDate(body.to) ? body.to : today;
+          const { data, error } = await supabase.rpc("manager_invoice_list", {
+            p_manager_id: managerStatus.id, p_location: location, p_from: from, p_to: to,
+          });
+          if (error) return managerDbError(error, "Unable to load invoices", 500);
+          return json({ success: true, action, data });
+        }
+
+        if (action === "manager_invoice_prices") {
+          const { data, error } = await supabase.rpc("manager_invoice_price_changes", {
+            p_manager_id: managerStatus.id, p_location: location,
+          });
+          if (error) return managerDbError(error, "Unable to load price changes", 500);
+          return json({ success: true, action, data: { changes: data || [] } });
+        }
+
+        if (action === "manager_ingredient_costs") {
+          const { data, error } = await supabase.rpc("manager_ingredient_costs", {
+            p_manager_id: managerStatus.id, p_location: location,
+          });
+          if (error) return managerDbError(error, "Unable to load ingredient costs", 500);
+          return json({ success: true, action, data });
+        }
+
+        if (action === "manager_ingredient_make_recipe") {
+          const id = typeof body.ingredient_id === "string" ? body.ingredient_id : "";
+          if (!isUuid(id)) return json({ error: "Ingredient not found", code: "INGREDIENT_NOT_FOUND" }, 404);
+          const { data, error } = await supabase.rpc("manager_ingredient_make_recipe", {
+            p_manager_id: managerStatus.id, p_location: location, p_ingredient_id: id,
+          });
+          if (error) return managerDbError(error, "Unable to make it a recipe");
+          return json({ success: true, action, data });
+        }
+
+        if (action === "manager_ingredient_cost_save") {
+          const id = typeof body.ingredient_id === "string" ? body.ingredient_id : "";
+          if (!isUuid(id)) return json({ error: "Ingredient not found", code: "INGREDIENT_NOT_FOUND" }, 404);
+          let link: any = null;
+          if (body.link && typeof body.link === "object") {
+            const l = body.link;
+            const count = amount(l.pack_count, 10001), size = amount(l.pack_size, 100001);
+            const unit = ["kg", "g", "l", "ml", "each"].includes(l.pack_unit) ? l.pack_unit : "";
+            link = { supplier: text(l.supplier, 80), product_key: text(l.product_key, 300), label: text(l.label, 300),
+              pack_count: count, pack_size: size, pack_unit: unit };
+            if (!link.supplier || !link.product_key || !unit || !count || count <= 0 || !size || size <= 0) {
+              return json({ error: "Check the product and what the price buys (e.g. 6 x 2 kg).", code: "INVALID_INPUT" }, 400);
+            }
+          }
+          const { data, error } = await supabase.rpc("manager_ingredient_cost_save", {
+            p_manager_id: managerStatus.id, p_location: location, p_ingredient_id: id, p_link: link,
+          });
+          if (error) return managerDbError(error, "Unable to save the ingredient cost");
+          return json({ success: true, action, data });
+        }
+
+        if (action === "manager_invoice_usage") {
+          const weeks = [4, 8, 12, 26].includes(Number(body.weeks)) ? Number(body.weeks) : 8;
+          const { data, error } = await supabase.rpc("manager_invoice_usage", {
+            p_manager_id: managerStatus.id, p_location: location, p_weeks: weeks,
+          });
+          if (error) return managerDbError(error, "Unable to load weekly use", 500);
+          return json({ success: true, action, data });
+        }
+
+        const id = typeof body.id === "string" ? body.id.trim() : "";
+        if (!isUuid(id)) return json({ error: "Invoice not found", code: "INVOICE_NOT_FOUND" }, 404);
+        const fn = action === "manager_invoice_get" ? "manager_invoice_get" : "manager_invoice_remove";
+        const { data, error } = await supabase.rpc(fn, { p_manager_id: managerStatus.id, p_location: location, p_id: id });
+        if (error) return managerDbError(error, "Unable to open the invoice");
+        return json({ success: true, action, data: action === "manager_invoice_get" ? { invoice: data } : data });
+      }
+
+      // =========================
+      // RECIPES AND ALLERGENS
+      // =========================
+      if (action.startsWith("manager_recipe_")) {
+        const isUuid = (v: string) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const text = (v: any, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+        const ALLERGENS = ["gluten", "wheat", "milk", "butter", "cream", "cheese", "yoghurt", "egg", "soy",
+          "peanut", "tree_nuts", "sesame", "fish", "crustacean", "mollusc", "lupin", "sulphites"];
+
+        if (action === "manager_recipe_list") {
+          const { data, error } = await supabase.rpc("manager_recipe_list", {
+            p_manager_id: managerStatus.id, p_location: location,
+          });
+          if (error) return managerDbError(error, "Unable to load the recipes", 500);
+          return json({ success: true, action, data });
+        }
+
+        if (action === "manager_recipe_save") {
+          const r = body.recipe && typeof body.recipe === "object" ? body.recipe : {};
+          const id = typeof r.id === "string" ? r.id.trim() : "";
+          if (id && !isUuid(id)) return json({ error: "Recipe not found", code: "RECIPE_NOT_FOUND" }, 404);
+          const lines = Array.isArray(r.lines) ? r.lines : [];
+          const clean = lines
+            .map((l: any) => ({ name: text(l?.name, 80), quantity: text(l?.quantity, 80) }))
+            .filter((l: any) => l.name);
+          const name = text(r.name, 80);
+          if (!name || !clean.length || lines.length > 60) {
+            return json({ error: "A recipe needs a name and at least one ingredient.", code: "INVALID_INPUT" }, 400);
+          }
+          const recipe = {
+            id: id || null, name, category: text(r.category, 40) || "Sauce",
+            makes: text(r.makes, 80), method: text(r.method, 6000), notes: text(r.notes, 1000), lines: clean,
+            dairy_free_note: text(r.dairy_free_note, 200), gluten_free_note: text(r.gluten_free_note, 200),
+          };
+          const { data, error } = await supabase.rpc("manager_recipe_save", {
+            p_manager_id: managerStatus.id, p_location: location, p_recipe: recipe,
+          });
+          if (error) return managerDbError(error, "Unable to save the recipe");
+          return json({ success: true, action, data: { recipe: data } });
+        }
+
+        if (action === "manager_recipe_remove") {
+          const id = typeof body.id === "string" ? body.id.trim() : "";
+          if (!isUuid(id)) return json({ error: "Recipe not found", code: "RECIPE_NOT_FOUND" }, 404);
+          const { data, error } = await supabase.rpc("manager_recipe_remove", {
+            p_manager_id: managerStatus.id, p_location: location, p_id: id,
+          });
+          if (error) return managerDbError(error, "Unable to remove the recipe");
+          return json({ success: true, action, data });
+        }
+
+        // manager_recipe_ingredient_save
+        const id = typeof body.id === "string" ? body.id.trim() : "";
+        const allergens = Array.isArray(body.allergens) ? body.allergens : null;
+        if (!isUuid(id) || !allergens || allergens.some((a: any) => !ALLERGENS.includes(a))) {
+          return json({ error: "Invalid request", code: "INVALID_INPUT" }, 400);
+        }
+        const { data, error } = await supabase.rpc("manager_recipe_ingredient_save", {
+          p_manager_id: managerStatus.id, p_location: location, p_id: id,
+          p_allergens: allergens, p_checked: body.checked === true, p_note: text(body.note, 200) || null,
+        });
+        if (error) return managerDbError(error, "Unable to save the ingredient");
+        return json({ success: true, action, data: { ingredient: data } });
+      }
+
+      // =========================
+      // STOCK PAR LEVEL
+      // =========================
+      if (action.startsWith("manager_stock_")) {
+        const isUuid = (v: string) =>
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const department =
+          typeof body.department === "string" && ["Floor", "Kitchen"].includes(body.department.trim())
+            ? body.department.trim() : null;
+        const num = (v: any) => {
+          if (v === null || v === undefined || v === "") return null;
+          const n = typeof v === "number" ? v : Number(String(v).trim());
+          return Number.isFinite(n) ? n : NaN;
+        };
+        const text = (v: any, max: number) =>
+          typeof v === "string" ? v.trim().slice(0, max) : "";
+
+        if (action === "manager_stock_list") {
+          const { data, error } = await supabase.rpc("manager_stock_list", {
+            p_manager_id: managerStatus.id, p_location: location, p_department: department,
+          });
+          if (error) return managerDbError(error, "Unable to load the stock list", 500);
+          return json({ success: true, action, data });
+        }
+
+        if (action === "manager_stock_item_save") {
+          const it = body.item && typeof body.item === "object" ? body.item : {};
+          const id = typeof it.id === "string" ? it.id.trim() : "";
+          if (id && !isUuid(id)) return json({ error: "Item not found", code: "STOCK_ITEM_NOT_FOUND" }, 404);
+          const par = num(it.par), parExtra = num(it.par_extra), caseSize = num(it.case_size), sortOrder = num(it.sort_order);
+          const orderBy = it.order_by === "box" ? "box" : "unit";
+          const name = text(it.name, 80), group = text(it.group_name, 40);
+          const bad = (n: number | null, max: number, whole = false) =>
+            n !== null && (Number.isNaN(n) || n < 0 || n > max || (whole && !Number.isInteger(n)));
+          if (!name || !group || par === null || bad(par, 9999) || bad(parExtra, 9999) ||
+              bad(caseSize, 999, true) || caseSize === 0 || bad(sortOrder, 1000000, true) ||
+              (orderBy === "box" && !caseSize)) {
+            return json({ error: "Check the item: name, group and par are needed; boxes need a box size.", code: "INVALID_INPUT" }, 400);
+          }
+          const item = {
+            id: id || null,
+            department: department ||
+              (typeof it.department === "string" && ["Floor", "Kitchen"].includes(it.department) ? it.department : null),
+            group_name: group, name,
+            supplier: text(it.supplier, 60) || null, unit: text(it.unit, 20) || null,
+            case_size: caseSize, order_by: orderBy, par, par_extra: parExtra,
+            extra_label: parExtra === null ? null : (text(it.extra_label, 20) || null),
+            note: text(it.note, 200) || null, sort_order: sortOrder,
+          };
+          const { data, error } = await supabase.rpc("manager_stock_item_save", {
+            p_manager_id: managerStatus.id, p_location: location, p_item: item,
+          });
+          if (error) return managerDbError(error, "Unable to save the item");
+          return json({ success: true, action, data: { item: data } });
+        }
+
+        if (action === "manager_stock_item_remove") {
+          const id = typeof body.item_id === "string" ? body.item_id.trim() : "";
+          if (!isUuid(id)) return json({ error: "Item not found", code: "STOCK_ITEM_NOT_FOUND" }, 404);
+          const { data, error } = await supabase.rpc("manager_stock_item_remove", {
+            p_manager_id: managerStatus.id, p_location: location, p_item_id: id,
+          });
+          if (error) return managerDbError(error, "Unable to remove the item");
+          return json({ success: true, action, data: { item: data } });
+        }
+
+        if (action === "manager_stock_supplier_save") {
+          const name = text(body.name, 60);
+          const minOrder = num(body.min_order);
+          if (!name || (minOrder !== null && (Number.isNaN(minOrder) || !Number.isInteger(minOrder) || minOrder < 1 || minOrder > 999))) {
+            return json({ error: "Enter the supplier name and a minimum order from 1 to 999 (or leave it empty).", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_stock_supplier_save", {
+            p_manager_id: managerStatus.id, p_location: location, p_department: department,
+            p_name: name, p_min_order: minOrder, p_note: text(body.note, 200) || null,
+          });
+          if (error) return managerDbError(error, "Unable to save the supplier");
+          return json({ success: true, action, data: { supplier: data } });
+        }
+
+        if (action === "manager_stock_supplier_rename") {
+          const from = text(body.from, 60), to = text(body.to, 60);
+          if (!from || !to) {
+            return json({ error: "Enter the new supplier name.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_stock_supplier_rename", {
+            p_manager_id: managerStatus.id, p_location: location, p_department: department,
+            p_old: from, p_new: to,
+          });
+          if (error) return managerDbError(error, "Unable to rename the supplier");
+          return json({ success: true, action, data: { supplier: data } });
+        }
+
+        if (action === "manager_stock_count_close") {
+          const { data, error } = await supabase.rpc("manager_stock_count_close", {
+            p_manager_id: managerStatus.id, p_location: location, p_department: department,
+          });
+          if (error) return managerDbError(error, "Unable to start a new count");
+          return json({ success: true, action, data });
+        }
+
+        // manager_stock_count_save
+        const raw = Array.isArray(body.lines) ? body.lines : null;
+        if (!raw || raw.length > 1000) {
+          return json({ error: "Nothing to save", code: "INVALID_INPUT" }, 400);
+        }
+        const lines: any[] = [];
+        for (const l of raw) {
+          const itemId = l && typeof l.item_id === "string" ? l.item_id.trim() : "";
+          const qty = num(l?.qty), qtyExtra = num(l?.qty_extra);
+          if (!isUuid(itemId)) continue;
+          for (const n of [qty, qtyExtra]) {
+            if (n !== null && (Number.isNaN(n) || n < 0 || n > 99999)) {
+              return json({ error: "Counts must be numbers from 0 up.", code: "INVALID_INPUT" }, 400);
+            }
+          }
+          if (qty === null && qtyExtra === null) continue;
+          lines.push({ item_id: itemId, qty, qty_extra: qtyExtra });
+        }
+        if (!lines.length) {
+          return json({ error: "Count at least one item before saving.", code: "INVALID_INPUT" }, 400);
+        }
+        const { data, error } = await supabase.rpc("manager_stock_count_save", {
+          p_manager_id: managerStatus.id, p_location: location, p_department: department, p_lines: lines,
+        });
+        if (error) return managerDbError(error, "Unable to save the count");
+        return json({ success: true, action, data: { count: data } });
+      }
+
       if (
         action ===
         "manager_toggle_staff"
@@ -2642,8 +3478,19 @@ Deno.serve(async (req) => {
       }
 
       // =========================
-      // AUTHORISED DEVICES (managers)
+      // AUTHORISED DEVICES (Administrator only, owner's decision 2026-10-20)
       // =========================
+
+      if (
+        (action === "manager_devices" ||
+          action === "manager_device_code" ||
+          action === "manager_device_revoke" ||
+          action === "manager_device_unlock" ||
+          action === "manager_device_rename") &&
+        !isGeneralManager
+      ) {
+        return json({ error: "Only the Administrator can manage devices", code: "GM_REQUIRED" }, 403);
+      }
 
       if (action === "manager_devices") {
         const { data, error } = await supabase.rpc("auth_list_devices", {
@@ -2651,6 +3498,47 @@ Deno.serve(async (req) => {
           p_current_device_hash: deviceHash,
         });
         if (error) return managerDbError(error, "Unable to load devices", 500);
+
+        // Who signed in on each device in the last 30 days (newest first), so the
+        // Administrator can tell a shared tablet (many names) from a phone (one).
+        // Read-only and best-effort: if it fails, the list still loads without it.
+        try {
+          const ids = (data?.devices || []).map((d: any) => d.id).filter(Boolean);
+          if (ids.length) {
+            const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+            const { data: rows, error: usedError } = await supabase
+              .from("staff_sessions")
+              .select("device_id, staff_id, created_at")
+              .in("device_id", ids)
+              .gte("created_at", since)
+              .order("created_at", { ascending: false });
+            if (usedError) throw usedError;
+            const staffIds = [...new Set((rows || []).map((r: any) => r.staff_id))];
+            const names: Record<string, string> = {};
+            if (staffIds.length) {
+              const { data: people, error: peopleError } = await supabase
+                .from("staff")
+                .select("id, name")
+                .in("id", staffIds);
+              if (peopleError) throw peopleError;
+              for (const p of people || []) names[p.id] = p.name;
+            }
+            const usedBy: Record<string, string[]> = {};
+            const seen: Record<string, Set<string>> = {};
+            for (const r of rows || []) {
+              const list = (usedBy[r.device_id] ||= []);
+              const ids2 = (seen[r.device_id] ||= new Set());
+              if (ids2.has(r.staff_id)) continue;
+              ids2.add(r.staff_id);
+              list.push(names[r.staff_id] || "Staff");
+            }
+            for (const d of data.devices) {
+              d.used_by = usedBy[d.id] || [];
+            }
+          }
+        } catch (usedErr) {
+          console.error("Device users unavailable:", (usedErr as any)?.code || "");
+        }
         return json({ success: true, action, data });
       }
 
@@ -2836,6 +3724,12 @@ Deno.serve(async (req) => {
 
           visa_hours:
             await loadVisaHours(team),
+
+          upcoming_holidays:
+            await (async () => {
+              const today = new Date(Date.now() + BRISBANE_OFFSET_MS).toISOString().slice(0, 10);
+              return loadPublicHolidays(today, addDays(today, 14));
+            })(),
 
           counts: {
 
