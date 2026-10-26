@@ -1419,6 +1419,7 @@ Deno.serve(async (req) => {
         "manager_invoice_remove",
         "manager_invoice_prices",
         "manager_invoice_usage",
+        "manager_invoice_price_book",
         "manager_ingredient_costs",
         "manager_ingredient_cost_save",
         "manager_ingredient_make_recipe",
@@ -3188,6 +3189,14 @@ Deno.serve(async (req) => {
           });
           if (error) return managerDbError(error, "Unable to load price changes", 500);
           return json({ success: true, action, data: { changes: data || [] } });
+        }
+
+        if (action === "manager_invoice_price_book") {
+          const { data, error } = await supabase.rpc("manager_invoice_price_book", {
+            p_manager_id: managerStatus.id, p_location: location,
+          });
+          if (error) return managerDbError(error, "Unable to load prices", 500);
+          return json({ success: true, action, data: { products: data?.products || [] } });
         }
 
         if (action === "manager_ingredient_costs") {
