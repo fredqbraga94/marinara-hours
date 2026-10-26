@@ -8477,7 +8477,7 @@ async function loadInvoices() {
           <span class="inv-amount">${escapeHtml(invMoney(inv.total))}</span>
         </button>
         ${open ? `<div class="inv-lines">${lines ? lines.map(l => `<div class="inv-line"><span>${escapeHtml(l.description)}</span><strong>${escapeHtml(invMoney(l.line_total))}</strong>
-            <small>${l.code ? escapeHtml(l.code) + " · " : ""}${l.qty ?? ""} ${escapeHtml(l.unit || "")}${l.unit_price != null ? " × " + escapeHtml(invMoney(l.unit_price)) : ""}${Number(l.gst) ? " · GST " + escapeHtml(invMoney(l.gst)) : ""}</small></div>`).join("") : "Loading…"}</div>
+            <small>${l.code ? escapeHtml(l.code) + " · " : ""}${invPack(l.unit) ? escapeHtml(invQtyText(l.qty, l.unit)) + " · " + escapeHtml(invPriceText(l.unit_price, l.unit)) : `${l.qty ?? ""} ${escapeHtml(l.unit || "")}${l.unit_price != null ? " × " + escapeHtml(invMoney(l.unit_price)) : ""}`}${Number(l.gst) ? " · GST " + escapeHtml(invMoney(l.gst)) : ""}</small></div>`).join("") : "Loading…"}</div>
           <button type="button" class="inv-remove" data-inv-remove="${escapeHtml(inv.id)}">Remove this invoice</button>` : ""}
       </div>`;
     }).join("") : "";
@@ -8504,6 +8504,23 @@ async function loadInvoicePrices() {
 }
 
 const invQty = n => { const v = Number(n) || 0; return Number.isInteger(v) ? String(v) : v.toFixed(v < 10 ? 2 : 1).replace(/\.?0+$/, ""); };
+// Some suppliers count single units and print the carton size in the unit:
+// "12 Ctn [4] × $22.33" = 12 units at $22.33 each, 4 to a carton = 3 cartons.
+// Shown in cartons first (how it is ordered), with the units and the unit price.
+function invPack(unit) {
+  const m = String(unit || "").match(/^\s*c(?:tn|arton)s?\s*\[(\d+)\]\s*$/i);
+  return m && Number(m[1]) > 1 ? Number(m[1]) : null;
+}
+function invQtyText(qty, unit) {
+  const n = invPack(unit);
+  if (!n || qty == null || !isFinite(Number(qty))) return `${qty == null ? "" : invQty(qty)} ${unit || ""}`.trim();
+  return `${invQty(Number(qty) / n)} ctn × ${n} (${invQty(qty)} un)`;
+}
+function invPriceText(price, unit) {
+  const n = invPack(unit);
+  if (price == null) return "";
+  return n ? `${invMoney(Number(price) * n)} / ctn · ${invMoney(price)} each` : `${invMoney(price)}${unit ? " / " + unit : ""}`;
+}
 const invShort = d => d ? new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", day: "numeric", month: "short" }).format(new Date(`${d}T00:00:00Z`)) : "";
 function invRenderUsage() {
   const data = invState.usage;
@@ -8540,10 +8557,10 @@ function invRenderUsage() {
     const unit = i.unit || "";
     return `<div class="inv-use">
       <div class="name"><span class="rank">${k + 1}.</span>${escapeHtml(i.description)}</div>
-      <div class="per"><strong>${escapeHtml(invQty(i.avg_per_week))}</strong> ${escapeHtml(unit)}<small>per week</small></div>
-      <div class="meta">${escapeHtml(i.supplier)}${i.code ? " · " + escapeHtml(i.code) : ""}${i.last_price != null ? " · last price " + escapeHtml(invMoney(i.last_price)) + (unit ? "/" + escapeHtml(unit) : "") : ""}</div>
+      <div class="per">${invPack(unit) ? `<strong>${escapeHtml(invQty(Number(i.avg_per_week) / invPack(unit)))}</strong> ctn<small>per week · ${escapeHtml(invQty(i.avg_per_week))} un</small>` : `<strong>${escapeHtml(invQty(i.avg_per_week))}</strong> ${escapeHtml(unit)}<small>per week</small>`}</div>
+      <div class="meta">${escapeHtml(i.supplier)}${i.code ? " · " + escapeHtml(i.code) : ""}${i.last_price != null ? " · last price " + (invPack(unit) ? escapeHtml(invPriceText(i.last_price, unit)) : escapeHtml(invMoney(i.last_price)) + (unit ? "/" + escapeHtml(unit) : "")) : ""}</div>
       ${weeks.length > 1 ? `<div class="inv-bars" title="Quantity each week">${weeks.map(w => `<i class="${Number(w) <= 0 ? "zero" : Number(w) === max ? "top" : ""}" style="height:${Math.max(6, Math.round(Number(w) / max * 100))}%"></i>`).join("")}</div>` : ""}
-      <div class="facts"><span>Busiest week ${escapeHtml(invQty(i.max_week))} ${escapeHtml(unit)}</span><span>Bought ${i.weeks_bought} of ${n} ${n === 1 ? "week" : "weeks"}</span><span>${escapeHtml(invMoney(i.spend_per_week))}/week</span></div>
+      <div class="facts"><span>Busiest week ${escapeHtml(invQtyText(i.max_week, unit))}</span><span>Bought ${i.weeks_bought} of ${n} ${n === 1 ? "week" : "weeks"}</span><span>${escapeHtml(invMoney(i.spend_per_week))}/week</span></div>
     </div>`;
   }).join("") : "Nothing matches.";
 }
