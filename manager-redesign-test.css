@@ -150,3 +150,22 @@ body.rm-mode #navMoreBadge{display:none!important}
 .pb-hist li span:first-child{color:var(--muted)}.pb-hist li span:last-child{text-align:right;color:var(--muted)}
 .pb-hist small{display:block;margin-top:6px;color:var(--muted)}
 }
+
+/* Overview: live dots and "who is it" */
+@media screen {
+body.rm-mode .rm-stat{position:relative;font:inherit;color:var(--text);background:#fff;text-align:left;cursor:pointer;align-items:flex-start}
+body.rm-mode .rm-stat[aria-expanded=true]{border-color:var(--green);box-shadow:0 0 0 1px var(--green) inset}
+.rm-live{display:none;position:absolute;top:11px;right:11px;width:10px;height:10px;border-radius:50%}
+.rm-stat.live-work .rm-live{display:block;background:#1f9d55;box-shadow:0 0 0 3px #1f9d5533;animation:rmPulse 2s ease-in-out infinite}
+.rm-stat.live-break .rm-live{display:block;background:#f29900;box-shadow:0 0 0 3px #f2990033}
+@keyframes rmPulse{50%{box-shadow:0 0 0 6px #1f9d5511}}
+@media (prefers-reduced-motion:reduce){.rm-stat.live-work .rm-live{animation:none}}
+.rm-stat-panel{margin-top:8px;border:1px solid var(--border);border-radius:12px;padding:6px 12px 8px;background:#fff}
+.rm-stat-panel.hidden{display:none}
+.rm-stat-head{display:flex;justify-content:space-between;align-items:center;padding:6px 0 4px}.rm-stat-head strong{font-size:13px}
+.rm-who{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border)}
+.rm-who>span:not(.who-av){flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.rm-who strong{font-size:13px}.rm-who small{font-size:11px;color:var(--muted)}
+.rm-who .who-av{width:34px;height:34px;min-width:34px;font-size:14px}
+.rm-who em{font-style:normal;font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap}
+.rm-who em.in{color:#07613b}.rm-who em.brk{color:#a35f00}.rm-who em.late{color:#b3261e}
+}
