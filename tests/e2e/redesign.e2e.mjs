@@ -31,7 +31,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
    const team=[{id:'a',name:'QA Late',department:'Kitchen'},{id:'b',name:'QA Working',department:'Floor'},{id:'c',name:'QA Off',department:'Floor'},{id:'d',name:'QA Salaried',department:'Kitchen',roster_only:true}];
    const entries=[{staff_id:'a',work_date:date,code:'SHIFT',start_time:hm(now-60),end_time:hm(now+120)},{staff_id:'b',work_date:date,code:'SHIFT',start_time:hm(now-60),end_time:hm(now+120)},{staff_id:'c',work_date:date,code:'OFF'},{staff_id:'d',work_date:date,code:'SHIFT',start_time:hm(now-60),end_time:hm(now+120)}];
    const orig=managerApi;managerApi=async(action,...args)=>action==='manager_roster_week'?{team,entries,services:[],leave:[]}:orig(action,...args);
-   window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{name:'QA Manager'},counts:{unapproved_shifts:2},working:[{staff_id:'b',name:'QA Working',status:'working'}]}}));
+   window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{name:'QA Manager'},counts:{unapproved_shifts:2},working:[{staff_id:'b',name:'QA Working',department:'Floor',status:'working',clock_in:new Date(Date.now()-3600e3).toISOString(),hours_so_far:1},{staff_id:'x',name:'QA Break',department:'Floor',status:'break',clock_in:new Date(Date.now()-7200e3).toISOString(),hours_so_far:2}]}}));
    for(let i=0;i<40&&document.getElementById('rmRosterCount').textContent==='—';i++)await new Promise(r=>setTimeout(r,50));
    const out={rostered:document.getElementById('rmRosterCount').textContent,late:document.getElementById('rmLateCount').textContent,note:document.getElementById('rmOverviewNote').textContent,attention:document.getElementById('rmAttention').innerText.replace(/\s+/g,' ')};
    managerApi=orig;return out;});
@@ -41,6 +41,19 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.evaluate(()=>showLeaveBadge(1));await page.waitForFunction(()=>document.getElementById('rmBellBadge').textContent==='4');
  assert.equal(await page.locator('#navMoreBadge').isVisible(),false,'no badge on More');await page.evaluate(()=>showLeaveBadge(0));assert.match(home.attention,/2 shifts awaiting approval/);
  assert.doesNotMatch(await page.locator('#rmHome').innerText(),/API|not supplied/i,'no technical text for the team');
+ // Live dots and "who is it" under the overview.
+ assert.equal(await page.locator('[data-rm-stat="working"]').evaluate(e=>e.classList.contains('live-work')),true,'green dot when someone works');
+ assert.equal(await page.locator('[data-rm-stat="break"]').evaluate(e=>e.classList.contains('live-break')),true,'orange dot when someone is on break');
+ assert.equal(await page.locator('[data-rm-stat="working"] .rm-live').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(31, 157, 85)');
+ assert.equal(await page.locator('[data-rm-stat="break"] .rm-live').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(242, 153, 0)');
+ await page.locator('[data-rm-stat="working"]').click();assert.match(await page.locator('#rmStatPanel').innerText(),/Working now[\s\S]*QA Working[\s\S]*in since/);assert.doesNotMatch(await page.locator('#rmStatPanel').innerText(),/QA Break/);
+ await page.locator('[data-rm-stat="break"]').click();assert.match(await page.locator('#rmStatPanel').innerText(),/On break[\s\S]*QA Break/);
+ await page.locator('[data-rm-stat="roster"]').click();const ros=await page.locator('#rmStatPanel').innerText();
+ assert.match(ros,/QA Late[\s\S]*Late/);assert.match(ros,/QA Working[\s\S]*Working/);assert.doesNotMatch(ros,/QA Off/,'off today is not on the roster list');
+ await page.locator('[data-rm-stat="late"]').click();assert.match(await page.locator('#rmStatPanel').innerText(),/QA Late[\s\S]*Not clocked in/);
+ await page.screenshot({path:`tmp/qa/${size}-who.png`});
+ await page.locator('[data-rm-stat="late"]').click();assert.equal(await page.locator('#rmStatPanel').isVisible(),false,'tap again closes');
+
  await page.evaluate(()=>document.querySelector('#managerMessage').textContent='QA: network blocked; no live staff data.');
  mkdirSync('tmp/qa',{recursive:true});await page.screenshot({path:`tmp/qa/${size}-home.png`,fullPage:true});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'no horizontal overflow');

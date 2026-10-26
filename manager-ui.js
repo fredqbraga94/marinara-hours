@@ -13,7 +13,7 @@
   <button class="rm-scan" id="rmScanInvoice" type="button">${icon('scan')}<span><strong>Scan Invoice</strong><small>Upload a supplier PDF</small></span><i>›</i></button>
   <h3>Restaurant Management</h3><div class="rm-modules" id="rmModules"></div>
   <h3>Restaurant Overview <button class="rm-link" id="rmWorkingToggle" aria-expanded="false">View all</button></h3>
-  <div class="rm-overview">${[['roster','On roster','rmRosterCount'],['team','Working','rmWorkingCount'],['coffee','On break','rmBreakCount'],['clock','Late','rmLateCount']].map(([ic,label,id])=>`<div class="rm-stat">${icon(ic)}<strong id="${id}">—</strong><small>${label}</small></div>`).join('')}</div><p class="rm-data-note" id="rmOverviewNote"></p>
+  <div class="rm-overview">${[['roster','On roster','rmRosterCount','roster'],['team','Working','rmWorkingCount','working'],['coffee','On break','rmBreakCount','break'],['clock','Late','rmLateCount','late']].map(([ic,label,id,key])=>`<button type="button" class="rm-stat" data-rm-stat="${key}" aria-expanded="false">${icon(ic)}<i class="rm-live" aria-hidden="true"></i><strong id="${id}">—</strong><small>${label}</small></button>`).join('')}</div><div id="rmStatPanel" class="rm-stat-panel hidden" aria-live="polite"></div><p class="rm-data-note" id="rmOverviewNote"></p>
   <h3>Needs Attention</h3><div class="rm-attention" id="rmAttention"><p class="rm-data-note" style="padding:0 12px">Loading…</p></div>
   <div id="rmWorkingPanel" class="hidden"><h3>Who's Working</h3><div id="rmWorkingSlot"></div></div>`;
   manager.prepend(home);
@@ -95,7 +95,14 @@
       const windows=e.code==='SHIFT'?[[e.start_time,e.end_time]]:(e.code==='LD'?['L','D']:[e.code]).map(c=>{const sv=svc(m.department,c);return[e.start_time&&e.code!=='LD'?e.start_time:sv?.start_time,sv?.end_time||e.end_time];});
       for(const [a,b] of windows){const st=toMin(a),en=toMin(b);if(st==null)continue;if(now.min>st+10&&(en==null||now.min<en)){late.push(m.name);break;}}
     }
-    return{rostered:new Set(entries.map(e=>e.staff_id)).size,late};
+    // Who is rostered today, one row per person (their first shift of the day).
+    const seen=new Set();const people=[];
+    for(const e of entries.slice().sort((a,b)=>String(a.start_time||'').localeCompare(String(b.start_time||'')))){
+      if(seen.has(e.staff_id))continue;seen.add(e.staff_id);const m=team[e.staff_id];
+      const when=e.code==='SHIFT'?[e.start_time,e.end_time].filter(Boolean).map(x=>String(x).slice(0,5)).join('–'):({L:'Lunch',D:'Dinner',LD:'Lunch + dinner'})[e.code]||e.code;
+      people.push({id:e.staff_id,name:m.name,department:m.department,when,late:late.includes(m.name)});
+    }
+    return{rostered:seen.size,late,people};
   }
   let lastWorking=[],lastDash=null;
   function paint(){
@@ -103,6 +110,10 @@
     const t=today();
     $('rmRosterCount').textContent=t?t.rostered:'—';
     $('rmLateCount').textContent=t?t.late.length:'—';
+    const nWork=lastWorking.filter(p=>p.status!=='break').length,nBreak=lastWorking.filter(p=>p.status==='break').length;
+    document.querySelector('[data-rm-stat="working"]').classList.toggle('live-work',nWork>0);
+    document.querySelector('[data-rm-stat="break"]').classList.toggle('live-break',nBreak>0);
+    if(openStat)renderStat(openStat);
     $('rmLateCount').closest('.rm-stat').classList.toggle('alert',!!t&&t.late.length>0);
     $('rmOverviewNote').textContent=t&&t.late.length?`Late: ${t.late.join(', ')}`:'';
     const n=d.counts?.unapproved_shifts||0;
@@ -121,6 +132,34 @@
     $('rmNotifications').setAttribute('aria-label',waiting?`Needs attention: ${waiting}`:'Nothing needs attention');
     $('rmAttention').innerHTML=rows.length?rows.join(''):`<div class="rm-row rm-ok">${icon('check')}<span><strong>All caught up</strong><small>Nothing waiting for you right now.</small></span></div>`;
   }
+  // Tap a number to see who it is.
+  let openStat=null;
+  const clock=v=>v?new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Brisbane',hour:'numeric',minute:'2-digit',hour12:true}).format(new Date(v)):'';
+  const person=(name,dept,status,line,extra='')=>`<div class="rm-who">${whoAvatar(name||'Staff',dept,status)}<span><strong>${escapeHtml(name||'Staff')}</strong><small>${escapeHtml(line)}</small></span>${extra}</div>`;
+  function renderStat(key){
+    const box=$('rmStatPanel');const t=today();let title,rows=[];
+    if(key==='working'||key==='break'){
+      const list=lastWorking.filter(p=>key==='break'?p.status==='break':p.status!=='break');
+      title=key==='break'?'On break':'Working now';
+      rows=list.map(p=>person(p.name,p.department,key==='break'?'break':'working',[p.department,p.clock_in?`in since ${clock(p.clock_in)}`:''].filter(Boolean).join(' · '),p.hours_so_far!=null?`<em>${escapeHtml(formatHours(p.hours_so_far))}</em>`:''));
+    }else if(key==='roster'){
+      title='On the roster today';
+      const working=new Map(lastWorking.map(p=>[p.staff_id,p.status]));
+      rows=(t?.people||[]).map(p=>person(p.name,p.department,working.get(p.id)||'',[p.department,p.when].filter(Boolean).join(' · '),p.late?'<em class="late">Late</em>':working.has(p.id)?`<em class="${working.get(p.id)==='break'?'brk':'in'}">${working.get(p.id)==='break'?'On break':'Working'}</em>`:''));
+    }else{
+      title='Late';
+      rows=(t?.people||[]).filter(p=>p.late).map(p=>person(p.name,p.department,'',`${p.department} · rostered ${p.when}`,'<em class="late">Not clocked in</em>'));
+    }
+    const empty=key==='roster'&&!t?'The roster is still loading.':{working:'Nobody is working right now.',break:'Nobody is on break.',roster:'Nobody is rostered today.',late:'Nobody is late.'}[key];
+    box.innerHTML=`<div class="rm-stat-head"><strong>${title}</strong><button type="button" class="rm-link" data-rm-stat-close>Close</button></div>${rows.length?rows.join(''):`<p class="rm-data-note">${empty}</p>`}`;
+  }
+  document.querySelector('.rm-overview').addEventListener('click',e=>{
+    const b=e.target.closest('[data-rm-stat]');if(!b)return;const key=b.dataset.rmStat;
+    openStat=openStat===key?null:key;
+    document.querySelectorAll('[data-rm-stat]').forEach(x=>x.setAttribute('aria-expanded',String(x.dataset.rmStat===openStat)));
+    $('rmStatPanel').classList.toggle('hidden',!openStat);if(openStat)renderStat(openStat);
+  });
+  $('rmStatPanel').addEventListener('click',e=>{if(e.target.closest('[data-rm-stat-close]')){openStat=null;$('rmStatPanel').classList.add('hidden');document.querySelectorAll('[data-rm-stat]').forEach(x=>x.setAttribute('aria-expanded','false'));}});
   // Payload is supplied only after a successful, authorised dashboard request.
   window.addEventListener('marinara:dashboard',e=>{
     const d=e.detail;const working=d.working||[];lastDash=d;lastWorking=working;
