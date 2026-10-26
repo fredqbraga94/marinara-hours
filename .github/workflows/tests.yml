@@ -49,6 +49,7 @@ jobs:
       - run: npm run test:recipes
       - run: npm run test:invoices
       - run: npm run test:ingredient-costs
+      - run: npm run test:price-book
   browser:
     runs-on: ubuntu-latest
     steps:

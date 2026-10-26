@@ -131,3 +131,22 @@ body.rm-mode #navMoreBadge{display:none!important}
 #rmNotifications{position:relative}
 .rm-bell-badge{position:absolute;top:-6px;right:-7px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#d93025;color:#fff;font-size:10px;font-weight:700;line-height:14px;text-align:center;border:2px solid #16251f;box-sizing:border-box;pointer-events:none}
 .rm-bell-badge.hidden{display:none}
+
+/* Price book (Invoices → Prices) */
+@media screen {
+#invPricesView .rm-chips{margin:4px 0 10px}
+#invPricesView .inv-search{margin-bottom:10px}
+.pb-card{padding:0!important;overflow:hidden}
+.pb-row{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:0;border-bottom:1px solid var(--border);background:#fff;text-align:left;color:var(--text);cursor:pointer}
+.pb-row:last-child{border-bottom:0}.pb-row.open{background:#fafbfb;border-bottom:0}
+.pb-main{display:flex;flex-direction:column;gap:3px;min-width:0}.pb-main strong{font-size:14px;overflow-wrap:anywhere}.pb-main small{font-size:11px;color:var(--muted)}
+.pb-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;text-align:right}.pb-right strong{font-size:14px}.pb-right small{font-size:10px;color:var(--muted)}
+.pb-chg{font-style:normal;font-size:11px;font-weight:700;border-radius:6px;padding:2px 6px;margin-top:2px;white-space:nowrap}
+.pb-chg.up{background:#fde3e1;color:#b3261e}.pb-chg.down{background:#e3f4ea;color:#07613b}
+.pb-hist{padding:4px 14px 12px;background:#fafbfb;border-bottom:1px solid var(--border);font-size:12px}
+.pb-hist p{margin:0 0 8px;color:var(--text)}.pb-hist b.up,.pb-hist span.up{color:#b3261e}.pb-hist b.down,.pb-hist span.down{color:#07613b}
+.pb-hist ul{list-style:none;margin:0;padding:0;border:1px solid var(--border);border-radius:9px;background:#fff}
+.pb-hist li{display:grid;grid-template-columns:1fr auto 80px;gap:10px;padding:8px 10px;border-bottom:1px solid var(--border)}.pb-hist li:last-child{border-bottom:0}
+.pb-hist li span:first-child{color:var(--muted)}.pb-hist li span:last-child{text-align:right;color:var(--muted)}
+.pb-hist small{display:block;margin-top:6px;color:var(--muted)}
+}
