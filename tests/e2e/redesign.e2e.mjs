@@ -2,10 +2,12 @@ import {createServer} from 'node:http';
 import {readFileSync,mkdirSync} from 'node:fs';
 import {resolve,extname} from 'node:path';
 import assert from 'node:assert/strict';
-import {chromium,devices} from 'playwright';
+import {createRequire} from 'node:module';
+const require=createRequire(import.meta.url);const pw=require(process.env.PLAYWRIGHT_PATH||'playwright');const {devices}=pw;
+const ENGINE=process.env.E2E_BROWSER==='webkit'?'webkit':'chromium';
 const server=createServer((req,res)=>{try{const p=resolve('.'+(req.url==='/'?'/index.html':req.url.split('?')[0]));res.setHeader('Content-Type',({'.js':'text/javascript','.css':'text/css','.png':'image/png'})[extname(p)]||'text/html');res.end(readFileSync(p));}catch{res.writeHead(404).end();}});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
-const browser=await chromium.launch();
+const browser=await pw[ENGINE].launch();
 try{
 for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewport:{width:1440,height:1000}}]]){
  const context=await browser.newContext({...options,serviceWorkers:'block'});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(String(e)));
@@ -66,6 +68,30 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#rmEditBack').click();await page.locator('#employeeDetailsScreen').waitFor({state:'visible'});assert.match(await page.locator('#rmEmployeeContent').innerText(),/No — roster only/);
  await page.locator('[data-manager-nav="operations"]').click();assert.equal(await page.locator('#employeeDetailsScreen').isVisible(),false);
  await page.evaluate(async()=>{const originalApi=managerApi;for(const status of ['working','break','off_shift']){managerApi=async action=>action==='manager_dashboard'?{manager:{id:'qa-clock',name:'QA Manager',role:'manager'},location:'QA fixture',working:status==='off_shift'?[]:[{staff_id:'qa-clock',name:'QA Manager',department:'Kitchen',status,shift_id:'qa-shift',clock_in:new Date().toISOString(),hours_so_far:0}]}:{pending:0};await loadManagerDashboard();const button=document.getElementById(status==='working'?'managerStartBreakBtn':status==='break'?'managerEndBreakBtn':'managerClockInBtn');if(button.classList.contains('hidden'))throw Error('Incorrect manager clock state: '+status);}managerApi=originalApi;});
+ // Price book: all products, rises, history; Home shows recent rises and opens them.
+ await page.evaluate(()=>{const d=n=>new Date(Date.now()+10*3600e3-n*864e5).toISOString().slice(0,10);const orig=managerApi;window.__origApi=orig;
+   managerApi=async(action,...args)=>action==='manager_invoice_price_book'?{products:[
+     {supplier:'Test Produce Co',product_key:'tst-tom',code:'TST-TOM',description:'Test tomatoes',unit:'KG',times:3,last_price:4.6,last_date:d(3),previous_price:4,previous_date:d(10),change_pct:15,history:[{date:d(17),price:4},{date:d(10),price:4},{date:d(3),price:4.6}]},
+     {supplier:'Test Produce Co',product_key:'test basil',code:null,description:'Test basil',unit:'ea',times:2,last_price:2.7,last_date:d(3),previous_price:3,previous_date:d(10),change_pct:-10,history:[{date:d(10),price:3},{date:d(3),price:2.7}]},
+     {supplier:'Other Test Supplier',product_key:'ot-1',code:'OT-1',description:'Test olive oil',unit:'ea',times:1,last_price:9,last_date:d(40),previous_price:null,previous_date:null,change_pct:null,history:[{date:d(40),price:9}]},
+     {supplier:'Other Test Supplier',product_key:'ot-2',code:'OT-2',description:'Test flour',unit:'bag',times:4,last_price:30,last_date:d(30),previous_price:28,previous_date:d(37),change_pct:7.1,history:[{date:d(44),price:28},{date:d(37),price:28},{date:d(30),price:30}]}]}
+     :action==='manager_dashboard'?{manager:{id:'m',name:'QA Manager',role:'manager'},location:'Hawthorne',working:[],counts:{}}:orig(action,...args);});
+ await page.locator('[data-manager-nav="home"]').click();await page.evaluate(()=>{mhPricesReset();window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{name:'QA'},counts:{},working:[]}}));});
+ await page.waitForFunction(()=>/1 price went up/.test(document.getElementById('rmAttention').innerText));
+ assert.match(await page.locator('#rmAttention').innerText(),/Test tomatoes \+15%/,'only the recent rise (flour rose 30 days ago)');
+ await page.locator('#rmAttention [data-rm-go="rmOpenPriceUps"]').click();await page.locator('#invPricesView').waitFor({state:'visible'});
+ await page.locator('.pb-row').first().waitFor();
+ assert.equal(await page.locator('#pbChips [aria-pressed="true"]').innerText(),'Went up 2');assert.equal(await page.locator('.pb-row').count(),2);
+ assert.match(await page.locator('.pb-row').first().innerText(),/Test tomatoes[\s\S]*\$4\.60[\s\S]*15%/);
+ await page.locator('[data-pb-filter="all"]').click();assert.equal(await page.locator('.pb-row').count(),4);
+ assert.match(await page.locator('.pb-row').first().innerText(),/Test flour/,'most bought first');
+ await page.locator('.pb-row',{hasText:'Test tomatoes'}).click();const hist=await page.locator('.pb-hist').innerText();
+ assert.match(hist,/\$4\.00 → \$4\.60/);assert.match(hist,/\+\$0\.60/);assert.match(hist,/first time/);
+ await page.locator('.pb-row',{hasText:'Test olive oil'}).click();assert.match(await page.locator('.pb-hist').innerText(),/Bought once/);
+ await page.locator('#pbSearch').fill('basil');assert.equal(await page.locator('.pb-row').count(),1);
+ assert.equal(await page.locator('[data-manager-nav="finance"]').getAttribute('aria-current'),'page');
+ await page.screenshot({path:`tmp/qa/${size}-prices.png`,fullPage:true});
+ await page.evaluate(()=>{managerApi=window.__origApi;});
  // My Time Clock from More keeps the new look; More → Home goes back to the home, not the clock.
  await page.evaluate(()=>{managerApi=async action=>action==='manager_dashboard'?{manager:{id:'qa-clock',name:'QA Manager',role:'manager'},location:'QA fixture',working:[]}:{pending:0};});
  await page.locator('[data-manager-nav="more"]').click();await page.locator('#moreMyClockBtn').evaluate(b=>b.click());await page.locator('#managerClockSection').waitFor({state:'visible'});
@@ -87,5 +113,5 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.screenshot({path:`tmp/qa/${size}-safe-area.png`,fullPage:true});
  assert.deepEqual(errors,[]);await context.close();
 }
-console.log('PASS: roster/late overview and needs attention, five-tab navigation, screen isolation, roster access, quick action dialog, iPhone/desktop overflow and JavaScript errors.');
+console.log(`PASS (${ENGINE}): roster/late overview and needs attention, five-tab navigation, screen isolation, roster access, quick action dialog, iPhone/desktop overflow and JavaScript errors.`);
 }finally{await browser.close();server.close();}
