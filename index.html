@@ -1770,6 +1770,7 @@ button:disabled{opacity:.6}
 <script defer src="./stock-pdf.js"></script>
 <script defer src="./roster-pdf.js"></script>
 <script defer src="./invoice-reader.js"></script>
+<link rel="stylesheet" href="./manager-redesign-test.css">
 </head>
 
 <body>
@@ -2935,10 +2936,12 @@ const MANAGER_ROLES = ["manager", "kitchen_manager", "floor_manager"];
 // One place for every request: adds the device secret, turns network
 // failures and non-JSON answers into clear messages.
 async function postApi(payload) {
-  let response;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
   try {
-    response = await fetch(API, {
+    const response = await fetch(API, {
       method:"POST",
+      signal:controller.signal,
       headers:{
         "Authorization":"Bearer " + SUPABASE_KEY,
         "apikey":SUPABASE_KEY,
@@ -2946,18 +2949,21 @@ async function postApi(payload) {
       },
       body:JSON.stringify({ ...payload, device:DEVICE_SECRET })
     });
+    let result = null;
+    try { result = await response.json(); }
+    catch (error) { if (controller.signal.aborted) throw error; }
+    return { response, result: result || {} };
   } catch (_) {
-    const error = new Error(
-      navigator.onLine === false
+    const error = new Error(controller.signal.aborted
+      ? "Request timed out. Check the current status before trying again."
+      : navigator.onLine === false
         ? "You are offline. Check your connection and try again."
-        : "Can't reach the server. Check your connection and try again."
-    );
+        : "Can't reach the server. Check your connection and try again.");
     error.network = true;
     throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  let result = null;
-  try { result = await response.json(); } catch (_) { result = null; }
-  return { response, result: result || {} };
 }
 
 // Plain-language versions of codes older servers send as the message.
@@ -3874,8 +3880,10 @@ async function loadManagerDashboard() {
 
     renderManagerClock(
       dashboard.manager?.status ||
+      dashboard.working?.find(person => person.staff_id === dashboard.manager?.id)?.status ||
       "off_shift"
     );
+    window.dispatchEvent(new CustomEvent("marinara:dashboard", {detail:dashboard}));
 
   }
 
@@ -6054,6 +6062,8 @@ async function loadTeamScreen() {
         ? `<button type="button" class="team-inactive-toggle" data-team-inactive-toggle>${teamShowInactive ? "Hide" : "Show"} inactive (${inactiveTeam.length})</button>` +
           (teamShowInactive ? inactiveTeam.map(person => renderTeamMember(person, visaById[person.id])).join("") : "")
         : "");
+    window.dispatchEvent(new CustomEvent("marinara:team", {detail:{team,visaById}}));
+
     teamList.querySelector("[data-team-inactive-toggle]")?.addEventListener("click", () => {
       teamShowInactive = !teamShowInactive;
       loadTeamScreen();
@@ -9358,6 +9368,15 @@ async function signOutAll() {
   showLeaveBadge(0);
   setManagerHeader(null);
 
+  // Hide every registered manager screen immediately, including extension screens.
+  // Network failure must never leave private content visible after sign-out.
+  showOnlyManagerScreen(null);
+  homeScreen.classList.add("hidden");
+  managerClockSection.classList.add("hidden");
+  document.querySelectorAll("dialog[open]").forEach(dialog => dialog.close());
+  hideManagerNav();
+  loginScreen.classList.remove("hidden");
+
   // Revoke the same session on the server.
   // Local sign-out still completes even if the network request fails.
   if (tokenToRevoke) {
@@ -9376,7 +9395,8 @@ async function signOutAll() {
           body:JSON.stringify({
             action:"session_logout",
             token:tokenToRevoke
-          })
+          }),
+          signal: AbortSignal.timeout(20000)
         }
       );
     } catch (error) {
@@ -9784,5 +9804,7 @@ restoreSession();
 checkDeviceStatus();
 </script>
 
+<script src="./manager-ui.js"></script>
+<script src="./manager-team-ui.js"></script>
 </body>
 </html>
