@@ -34,7 +34,10 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
    const out={rostered:document.getElementById('rmRosterCount').textContent,late:document.getElementById('rmLateCount').textContent,note:document.getElementById('rmOverviewNote').textContent,attention:document.getElementById('rmAttention').innerText.replace(/\s+/g,' ')};
    managerApi=orig;return out;});
  assert.equal(home.rostered,'3');assert.equal(home.late,'1');assert.equal(home.note,'Late: QA Late');
- assert.match(home.attention,/1 late QA Late/);assert.match(home.attention,/2 shifts awaiting approval/);
+ assert.match(home.attention,/1 late QA Late/);
+ assert.equal(await page.locator('#rmBellBadge').innerText(),'3','bell = 1 late + 2 shifts');
+ await page.evaluate(()=>showLeaveBadge(1));await page.waitForFunction(()=>document.getElementById('rmBellBadge').textContent==='4');
+ assert.equal(await page.locator('#navMoreBadge').isVisible(),false,'no badge on More');await page.evaluate(()=>showLeaveBadge(0));assert.match(home.attention,/2 shifts awaiting approval/);
  assert.doesNotMatch(await page.locator('#rmHome').innerText(),/API|not supplied/i,'no technical text for the team');
  await page.evaluate(()=>document.querySelector('#managerMessage').textContent='QA: network blocked; no live staff data.');
  mkdirSync('tmp/qa',{recursive:true});await page.screenshot({path:`tmp/qa/${size}-home.png`,fullPage:true});

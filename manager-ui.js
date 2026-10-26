@@ -53,7 +53,7 @@
   nav.addEventListener('click',e=>{const b=e.target.closest('[data-manager-nav]');if(!b)return;const key=b.dataset.managerNav;if(key==='home')$('managerClockSection').classList.add('hidden');if(key==='finance'||key==='operations'){e.stopImmediatePropagation();if(key==='finance')go('invoicesCard');else{showOnlyManagerScreen('operationsScreen');setManagerNavActive('operations');}window.scrollTo(0,0);}},true);
   const header=document.querySelector('.app > .header');
   $('headerLogo').src=document.querySelector('.login-original-logo').src;
-  const tools=document.createElement('div');tools.className='rm-header-tools';tools.innerHTML=`<button type="button" id="rmNotifications" aria-label="View pending tasks">${icon('bell')}</button><button type="button" id="rmProfile" aria-label="Manager profile">M</button>`;header.append(tools);
+  const tools=document.createElement('div');tools.className='rm-header-tools';tools.innerHTML=`<button type="button" id="rmNotifications" aria-label="View pending tasks">${icon('bell')}<span id="rmBellBadge" class="rm-bell-badge hidden"></span></button><button type="button" id="rmProfile" aria-label="Manager profile">M</button>`;header.append(tools);
   $('rmNotifications').onclick=()=>{nav.querySelector('[data-manager-nav="home"]').click();$('rmAttention').scrollIntoView({block:'center'});};$('rmProfile').onclick=()=>openManagerMore();
   const placeButton=document.createElement('button');placeButton.id='rmLocation';placeButton.type='button';placeButton.textContent='Current unit ⌄';placeButton.onclick=()=>{settingsBtn.click();renderSettings('Locations');};header.append(placeButton);
   const originalSet=setManagerNavActive;
@@ -113,6 +113,10 @@
     if(n)rows.push(row(`${n} shift${n===1?'':'s'} awaiting approval`,'Review completed shifts','approvalsCard','check'));
     if(off)rows.push(row(`${off} time off request${off===1?'':'s'}`,'Someone is waiting for an answer','timeOffCard','leave'));
     if(toOrder)rows.push(row(`${toOrder} item${toOrder===1?'':'s'} to order`,'Below par at the last stock count','stockCard','stock'));
+    // Bell: people waiting on the manager (late, shifts to approve, time off requests).
+    const waiting=(t?t.late.length:0)+n+off;const bell=$('rmBellBadge');
+    bell.textContent=waiting>99?'99+':String(waiting);bell.classList.toggle('hidden',!waiting);
+    $('rmNotifications').setAttribute('aria-label',waiting?`Needs attention: ${waiting}`:'Nothing needs attention');
     $('rmAttention').innerHTML=rows.length?rows.join(''):`<div class="rm-row rm-ok">${icon('check')}<span><strong>All caught up</strong><small>Nothing waiting for you right now.</small></span></div>`;
   }
   // Payload is supplied only after a successful, authorised dashboard request.
@@ -123,6 +127,8 @@
     $('rmProfile').textContent=String(d.manager?.name||'M').slice(0,1).toUpperCase();syncShell();
     paint();loadRoster();setTimeout(paint,2500);
   });
+  // The time-off count changes on its own (every 30 s); keep the bell in step.
+  const offCount=$('homeTimeOffCount');if(offCount)new MutationObserver(()=>paint()).observe(offCount,{childList:true,characterData:true,subtree:true});
   $('rmScanInvoice').onclick=()=>{dialog.close();go('invoicesCard');$('invFiles')?.click();};
   syncShell();
 })();

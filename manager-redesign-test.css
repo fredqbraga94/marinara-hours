@@ -125,3 +125,9 @@ body.rm-mode #teamScreen .team-edit-panel .team-toggle-btn{display:block}
 @media(max-width:400px){body.rm-mode #teamScreen .team-person-actions .rm-status{font-size:11px;padding:3px 7px}}
 @media(min-width:800px){#teamScreen,#employeeDetailsScreen{max-width:900px;margin-left:auto;margin-right:auto}}
 }
+
+/* The bell carries the "needs attention" number; the old badge on More is not used here. */
+body.rm-mode #navMoreBadge{display:none!important}
+#rmNotifications{position:relative}
+.rm-bell-badge{position:absolute;top:-6px;right:-7px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:#d93025;color:#fff;font-size:10px;font-weight:700;line-height:14px;text-align:center;border:2px solid #16251f;box-sizing:border-box;pointer-events:none}
+.rm-bell-badge.hidden{display:none}
