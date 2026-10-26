@@ -1,0 +1,25 @@
+/* Restaurant redesign (TEST branch) — visual layer only.
+   No markup, logic, clock or PDF changes besides the logo in the Home header. */
+:root{--green:#07533c;--green-dark:#063d2d;--green-light:#eaf5ef;--text:#17201b;--muted:#727b76;--border:#e7e9e7}
+body:has(#managerScreen:not(.hidden)){background:#f7f8f6}
+
+/* Dark Marinara header on Home */
+#managerScreen .manager-v2-hero{background:linear-gradient(145deg,#090d0b,#1a251d 70%,#090d0b);color:#fff;border-radius:0 0 22px 22px;margin:-4px -16px 16px;padding:34px 18px 20px;position:relative}
+#managerScreen .restaurant-home-original-logo{display:block;width:170px;max-height:70px;object-fit:contain;margin:0 auto 14px}
+#managerScreen .manager-v2-eyebrow{color:#c9d3cd;text-align:center;letter-spacing:.3em;font-size:10px}
+#managerScreen .manager-v2-greeting{font-family:Georgia,serif;font-size:28px;letter-spacing:-.03em;color:#fff}
+#managerScreen .manager-v2-role{color:#b9c4bd}
+#managerScreen .manager-v2-signout{color:#fff;border-color:#6f7a73;background:transparent}
+
+/* Cards, tiles and stats */
+#managerScreen .card,#teamScreen .card,#approvalsScreen .card,#staffHoursScreen .card,#rosterScreen .card,#timeOffScreen .card,#timesheetsScreen .card{border:1px solid var(--border);border-radius:16px;box-shadow:0 3px 18px rgba(0,0,0,.025);background:#fff}
+#managerScreen .home-tile.manager-quick-card,#managerScreen .home-stat{border:1px solid var(--border);border-radius:14px;box-shadow:none;background:#fff}
+#managerScreen .home-group{font-size:15px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--text);margin:22px 2px 10px}
+#managerScreen .home-stat-n{color:var(--green)}
+#managerScreen .manager-quick-icon{color:var(--green);background:var(--green-light)}
+#managerScreen .home-tile-k .manager-quick-icon{background:#fdecea;color:#b3261e}
+
+/* Titles on inner screens */
+#teamScreen .manager-top h2,#approvalsScreen .manager-top h2,#rosterScreen .manager-top h2,#timeOffScreen .manager-top h2,#staffHoursScreen .manager-top h2,#timesheetsScreen .manager-top h2{font-family:Georgia,serif;font-size:32px;letter-spacing:-.03em;color:var(--text)}
+#approvalsScreen .btn.primary,#teamScreen .team-add-toggle{background:var(--green);border-radius:12px}
+#managerScreen button:focus-visible,#teamScreen button:focus-visible,#approvalsScreen button:focus-visible,#rosterScreen button:focus-visible{outline:3px solid #81bca1;outline-offset:2px}

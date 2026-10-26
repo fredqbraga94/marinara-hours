@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&display=swap" rel="stylesheet">
-<title>Marinara Hours</title>
+<title>TEST · Marinara Hours</title>
 
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -1766,6 +1766,7 @@ button:disabled{opacity:.6}
   body.mgr-mode .home-tile.manager-quick-card, body.mgr-mode .home-tile.manager-quick-card:hover { transition: none; transform: none; }
 }
 </style>
+<link rel="stylesheet" href="./restaurant-redesign.css?v=20261026">
 <script defer src="./timesheet-pdf.js"></script>
 <script defer src="./stock-pdf.js"></script>
 <script defer src="./roster-pdf.js"></script>
@@ -1773,6 +1774,7 @@ button:disabled{opacity:.6}
 </head>
 
 <body>
+<div style="position:fixed;top:0;left:0;right:0;z-index:9999;background:#c62828;color:#fff;text-align:center;font:800 12px/1.6 system-ui;padding:2px 6px;padding-top:calc(2px + env(safe-area-inset-top))">TEST VERSION · test data only · not Hawthorne</div>
 
 <div class="app">
 
@@ -1937,6 +1939,7 @@ button:disabled{opacity:.6}
 <!-- MANAGER DASHBOARD -->
 <section id="managerScreen" class="hidden manager-v2">
   <div class="manager-v2-hero">
+    <img class="restaurant-home-original-logo" alt="Marinara Ristorante Cafe" id="restaurantHomeOriginalLogo"><script>document.addEventListener("DOMContentLoaded",function(){var a=document.querySelector(".login-original-logo"),b=document.getElementById("restaurantHomeOriginalLogo");if(a&&b)b.src=a.src;});</script>
     <div id="managerEyebrow" class="manager-v2-eyebrow">MARINARA · HAWTHORNE</div>
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
       <div><h2 id="managerGreeting" class="manager-v2-greeting">Good morning</h2><div id="managerRoleLine" class="manager-v2-role">Administrator · Hawthorne</div>
@@ -2580,10 +2583,10 @@ button:disabled{opacity:.6}
 <script>
 
 const API =
-"https://nnchgomdnnqsaovfivob.supabase.co/functions/v1/marinara-api-v2";
+"https://kskrkzxiaxesvghvvecp.supabase.co/functions/v1/marinara-api-v2"; // TEST PROJECT
 
 const SUPABASE_KEY =
-"sb_publishable_l2nVIXyk6NPWqjVBoJwdAg_IQ9_GlUM";
+"sb_publishable_Kyr09Y-NPhy9bwi-t-BIvg__QFMvEFM"; // TEST PROJECT
 
 let currentPin = "";
 let currentSessionToken =
