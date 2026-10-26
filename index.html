@@ -1765,6 +1765,111 @@ button:disabled{opacity:.6}
 @media (min-width: 1000px) and (prefers-reduced-motion: reduce) {
   body.mgr-mode .home-tile.manager-quick-card, body.mgr-mode .home-tile.manager-quick-card:hover { transition: none; transform: none; }
 }
+
+/* PHONE HOME (managers, below laptop width): green header with place and
+   initials, big first action, four areas, needs attention, today at a glance,
+   + Actions sheet. Staff screens unchanged. */
+.phone-only { display: none; }
+.action-sheet.hidden { display: none; }
+@media (max-width: 999px) {
+  body.mgr-mode .header {
+    background: #163829; display: flex; align-items: center; gap: 10px; text-align: left;
+    padding: calc(10px + env(safe-area-inset-top)) 16px 12px; border-radius: 0;
+  }
+  body.mgr-mode .header::after { display: none; }
+  body.mgr-mode .header-logo { width: 118px; margin: 0; }
+  body.mgr-mode .header h1 { display: none; }
+  body.mgr-mode .header .ph-loc {
+    display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: #fff; font-size: 14px; font-weight: 700;
+    padding: 7px 10px; border-radius: 12px; background: rgba(255,255,255,.08);
+  }
+  body.mgr-mode .ph-loc svg { width: 16px; height: 16px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  body.mgr-mode .header .ph-user {
+    display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%;
+    border: 0; background: #2a5a43; color: #fff; font-weight: 800; font-size: 14px; letter-spacing: .5px; cursor: pointer;
+  }
+  body.mgr-mode #managerScreen .manager-v2-eyebrow, body.mgr-mode #managerScreen .manager-v2-role,
+  body.mgr-mode #managerScreen #managerLogoutBtn,
+  body.mgr-mode #managerScreen > :is(.home-today, .home-group, .home-tiles) { display: none; }
+  body.mgr-mode #managerScreen .manager-v2-greeting { font-family: Inter, system-ui, sans-serif; font-weight: 800; font-size: 30px; letter-spacing: -.6px; }
+  body.mgr-mode .ph-sub { display: block; color: #5c5850; font-size: 17px; margin-top: 4px; }
+  body.mgr-mode #managerScreen .manager-v2-hero { margin: 4px 0 16px; }
+  body.mgr-mode #phoneHome { display: block; }
+  body.mgr-mode .ph-cta {
+    width: 100%; display: flex; align-items: center; gap: 16px; padding: 18px; border: 0; border-radius: 16px;
+    background: #163829; color: #fff; text-align: left; cursor: pointer;
+  }
+  body.mgr-mode .ph-cta-ico { display: flex; width: 46px; height: 46px; flex: 0 0 auto; }
+  body.mgr-mode .ph-cta strong { display: block; font-size: 19px; }
+  body.mgr-mode .ph-cta small { color: rgba(255,255,255,.82); font-size: 14px; }
+  body.mgr-mode .ph-cta i, body.mgr-mode .ph-card i { margin-left: auto; font-style: normal; font-size: 24px; opacity: .8; }
+  body.mgr-mode :is(.ph-cta-ico, .ph-card-ico, .action-ico, .nav-plus) svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  body.mgr-mode .ph-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  body.mgr-mode .ph-card {
+    position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 128px;
+    padding: 16px; border: 1px solid #e7e2d8; border-radius: 16px; background: #fff; color: var(--text); text-align: left; cursor: pointer;
+  }
+  body.mgr-mode .ph-card-ico { display: flex; width: 36px; height: 36px; margin-bottom: auto; color: #1f1f1f; }
+  body.mgr-mode .ph-card strong { font-size: 18px; margin-top: 12px; }
+  body.mgr-mode .ph-card small { color: #6b675f; font-size: 14px; }
+  body.mgr-mode .ph-card i { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); color: #3c3a36; }
+  body.mgr-mode .ph-card:active, body.mgr-mode .ph-cta:active { transform: scale(.98); }
+  body.mgr-mode .ph-att { margin-top: 18px; border-top: 1px solid #e7e2d8; }
+  body.mgr-mode .ph-att-head h3 { margin: 16px 2px 8px; font-size: 21px; font-weight: 800; }
+  body.mgr-mode .ph-att-row { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-top: 1px solid #efeae1; }
+  body.mgr-mode .ph-dot { width: 14px; height: 14px; border-radius: 50%; flex: 0 0 auto; }
+  body.mgr-mode .ph-dot.red { background: #9b1c25; }
+  body.mgr-mode .ph-dot.amber { background: #e0a100; }
+  body.mgr-mode .ph-att-t { flex: 1; font-size: 16px; font-weight: 600; }
+  body.mgr-mode .ph-att-btn { border: 1.5px solid #163829; background: #fff; color: #163829; border-radius: 10px; padding: 8px 14px; font-weight: 800; font-size: 14px; }
+  body.mgr-mode .ph-att-ok { display: flex; align-items: center; gap: 10px; padding: 10px 2px; font-weight: 700; color: #3c3a36; }
+  body.mgr-mode .ph-att-ok span { width: 28px; height: 28px; border-radius: 50%; background: #e6efe9; color: var(--basil); display: inline-flex; align-items: center; justify-content: center; }
+  body.mgr-mode .ph-glance {
+    display: flex; align-items: center; width: 100%; margin-top: 14px; padding: 14px 12px; border: 0; border-top: 1px solid #e7e2d8;
+    background: transparent; text-align: left; color: var(--text); cursor: pointer;
+  }
+  body.mgr-mode .ph-glance strong { display: block; font-size: 20px; font-weight: 800; }
+  body.mgr-mode .ph-glance small { color: #6b675f; font-size: 14px; }
+  body.mgr-mode .ph-glance i { margin-left: auto; font-style: normal; font-size: 22px; transition: transform .15s ease; }
+  body.mgr-mode #managerScreen.glance-open .ph-glance i { transform: rotate(180deg); }
+  body.mgr-mode #managerScreen:not(.glance-open) > :is(.desk-working, .desk-week) { display: none; }
+  /* bottom bar with + Actions */
+  body.mgr-mode .manager-bottom-nav { grid-template-columns: repeat(5, 1fr); }
+  body.mgr-mode .manager-nav-item.nav-actions { display: flex; }
+  body.mgr-mode .nav-plus {
+    display: flex; width: 40px; height: 40px; padding: 9px; border-radius: 50%; background: #163829; color: #fff; margin-top: -6px;
+    box-shadow: 0 4px 12px rgba(22,56,41,.3);
+  }
+  body.mgr-mode .nav-actions { color: #163829; }
+  /* action sheet */
+  .action-sheet { position: fixed; inset: 0; z-index: 10000; background: rgba(0,0,0,0); transition: background .18s ease; display: flex; align-items: flex-end; }
+  .action-sheet.open { background: rgba(0,0,0,.45); }
+  .action-sheet-panel {
+    width: 100%; max-width: 560px; margin: 0 auto; background: #fff; border-radius: 22px 22px 0 0;
+    padding: 10px 16px calc(18px + env(safe-area-inset-bottom)); transform: translateY(100%); transition: transform .18s ease;
+    max-height: 85vh; overflow-y: auto;
+  }
+  .action-sheet.open .action-sheet-panel { transform: none; }
+  .action-sheet-grab { width: 44px; height: 5px; border-radius: 3px; background: #d6d1c7; margin: 0 auto 6px; }
+  .action-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 6px 4px 10px; }
+  .action-sheet-head h2 { margin: 0; font-size: 26px; font-weight: 800; }
+  .action-sheet-close { border: 0; background: transparent; font-size: 22px; padding: 6px 8px; cursor: pointer; }
+  .action-sheet-list { border: 1px solid #e7e2d8; border-radius: 16px; overflow: hidden; }
+  .action-item { width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px; border: 0; border-top: 1px solid #efeae1; background: #fff; text-align: left; color: var(--text); cursor: pointer; }
+  .action-item:first-child { border-top: 0; }
+  .action-item:active { background: #f7f5f0; }
+  .action-ico { display: flex; width: 34px; height: 34px; flex: 0 0 auto; color: #1f1f1f; }
+  .action-ico svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .action-txt { flex: 1; }
+  .action-txt strong { display: block; font-size: 17px; }
+  .action-txt small { color: #6b675f; font-size: 14px; }
+  .action-item i { font-style: normal; font-size: 22px; color: #3c3a36; }
+  .action-item .count-badge { margin-left: auto; }
+  body.sheet-open { overflow: hidden; }
+}
+@media (max-width: 999px) and (prefers-reduced-motion: reduce) {
+  .action-sheet, .action-sheet-panel { transition: none; }
+}
 </style>
 <script defer src="./timesheet-pdf.js"></script>
 <script defer src="./stock-pdf.js"></script>
@@ -1781,6 +1886,8 @@ button:disabled{opacity:.6}
   <div class="brand">MARINARA</div>
   <h1>Hours</h1>
   <p>Hawthorne · Staff Time Clock</p>
+  <span class="ph-loc phone-only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg><span id="phLoc">Hawthorne</span></span>
+  <button type="button" id="phUser" class="ph-user phone-only" aria-label="More: your account, devices, sign out">M</button>
 </header>
 
 <main class="content">
@@ -1939,7 +2046,7 @@ button:disabled{opacity:.6}
   <div class="manager-v2-hero">
     <div id="managerEyebrow" class="manager-v2-eyebrow">MARINARA · HAWTHORNE</div>
     <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
-      <div><h2 id="managerGreeting" class="manager-v2-greeting">Good morning</h2><div id="managerRoleLine" class="manager-v2-role">Administrator · Hawthorne</div>
+      <div><h2 id="managerGreeting" class="manager-v2-greeting">Good morning</h2><div id="managerRoleLine" class="manager-v2-role">Administrator · Hawthorne</div><div class="ph-sub phone-only">What would you like to do?</div>
         <div class="desk-only desk-hero"><h2 class="desk-title">Restaurant overview</h2><p id="deskSubtitle">Everything you need to run Hawthorne.</p></div></div>
       <button id="managerLogoutBtn" class="manager-v2-signout">Sign Out</button>
       <span class="desk-only desk-loc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6.5-6-6.5-11a6.5 6.5 0 0 1 13 0c0 5-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg><span id="deskLocName">Hawthorne</span></span>
@@ -1955,6 +2062,7 @@ button:disabled{opacity:.6}
     <button type="button" class="home-stat st-off" data-home-go="timeOffCard"><span class="home-stat-ico desk-only"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 13.5L4 11l1.5-1.5 7 1 4-4c.8-.8 2.2-.8 3 0s.8 2.2 0 3l-4 4 1 7L16 21.5l-2.5-6.5-3 3V21l-1.5 1-1-4-4-1 1-1.5h3z"/></svg></span><span id="homeTimeOffCount" class="home-stat-n">0</span><span class="home-stat-l">Time off requests</span></button>
   </div>
 
+  <div id="phoneHome" class="phone-only"></div>
   <div id="deskStats" class="desk-only desk-stats"></div>
   <div id="deskAreas" class="desk-only desk-areas"></div>
   <div class="home-group">Team &amp; hours</div>
@@ -1975,6 +2083,7 @@ button:disabled{opacity:.6}
     <button id="myClockCard" class="manager-quick-card home-tile"><div class="manager-quick-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 9.5V13h3M9.5 3h5M12 3v2.5"/></svg></div><strong>My Clock</strong><span>Clock in / out</span></button>
   </div>
 
+  <button type="button" id="phGlance" class="ph-glance phone-only" aria-expanded="false"><span><strong>Today at a glance</strong><small id="phGlanceSub">—</small></span><i>⌄</i></button>
   <div class="card desk-working"><div class="manager-v2-section-head"><div class="section-title">Who's Working</div><button id="managerWorkingViewAll" class="manager-v2-link" type="button">View team</button></div><div id="workingList" class="empty-state">Loading...</div></div>
   <div id="deskAttention" class="card desk-only desk-attention"></div>
   <div id="deskToday" class="card desk-only desk-today"></div>
@@ -1985,6 +2094,7 @@ button:disabled{opacity:.6}
 <nav id="managerBottomNav" class="manager-bottom-nav hidden">
   <button type="button" class="manager-nav-item active" data-manager-nav="home"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-6.5 8 6.5V19.5a.5.5 0 0 1-.5.5H15v-5.5H9V20H4.5a.5.5 0 0 1-.5-.5z"/></svg></span><span>Home</span></button>
   <button type="button" class="manager-nav-item" data-manager-nav="approvals"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg></span><span>Approvals</span></button>
+  <button type="button" id="navActions" class="manager-nav-item nav-actions phone-only"><span class="nav-plus"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></span><span>Actions</span></button>
   <button type="button" class="manager-nav-item" data-manager-nav="team"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.8 14.6c2.3-.1 4.1 1.4 4.7 4.4"/></svg></span><span>Team</span></button>
   <div id="deskNavLinks" class="desk-only" style="flex-direction:column;gap:2px"></div>
   <button type="button" class="manager-nav-item" data-manager-nav="more"><span class="manager-nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/></svg></span><span>More</span><span id="navMoreBadge" class="count-badge nav hidden"></span></button>
@@ -8110,7 +8220,6 @@ async function deskGo(go, tab, after, key) {
 const deskExtra = { at: 0, toOrder: null, spend: null, loading: false };
 async function deskLoadExtra() {
   if (deskExtra.loading || Date.now() - deskExtra.at < 60000) return;
-  if (!window.matchMedia?.("(min-width: 1000px)").matches) return;
   deskExtra.loading = true;
   try {
     const role = currentManagerRole;
@@ -8208,6 +8317,7 @@ function renderDeskHome(fromExtra) {
     range.textContent = mon.getUTCMonth() === sun.getUTCMonth() ? `${mon.getUTCDate()} – ${f(sun)}` : `${f(mon)} – ${f(sun)}`;
   }
   buildDeskNav();
+  renderPhoneHome();
   if (!fromExtra) deskLoadExtra();
 }
 const DESK_CARD_KEY = { rosterCard: "moreRosterBtn", timeOffCard: "moreTimeOffBtn", staffHoursCard: "moreStaffHoursBtn",
@@ -8224,6 +8334,116 @@ document.getElementById("managerScreen")?.addEventListener("click", e => {
   const g = e.target.closest("[data-desk-goto]");
   if (g) deskGo(g.dataset.deskGoto, g.dataset.deskTab, g.dataset.deskAfter, g.dataset.deskGoto + (g.dataset.deskTab ? ":" + g.dataset.deskTab : g.dataset.deskAfter === "allergens" ? ":allergens" : ""));
 });
+
+
+/* PHONE HOME (managers on a phone): a big first action, four areas, what
+   needs attention, today at a glance, and the + Actions sheet. */
+const PH_ICONS = {
+  upload: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5A.5.5 0 0 1 6.5 20V4a.5.5 0 0 1 .5-.5z"/><path d="M14 3.5V8h4M12 17.5v-6M9.5 14l2.5-2.5 2.5 2.5"/></svg>',
+  clipboard: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5.5" y="4.5" width="13" height="16" rx="1.5"/><path d="M9 4.5V3h6v1.5M9 10h6M9 13.5h6M9 17h4"/></svg>',
+  calendar: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+  book: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.5c-2-1.6-5-2-8-1.5v13c3-.5 6-.1 8 1.5 2-1.6 5-2 8-1.5V5c-3-.5-6-.1-8 1.5z"/><path d="M12 6.5V19.5"/></svg>',
+  check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>',
+};
+function phIcon(k) { return PH_ICONS[k] || DESK_ICONS[k] || ""; }
+function phRole() {
+  const role = currentManagerRole;
+  return { role, floor: role === "floor_manager", canInv: ["manager", "kitchen_manager"].includes(role) };
+}
+function renderPhoneHome() {
+  const box = document.getElementById("phoneHome");
+  if (!box) return;
+  const { floor, canInv } = phRole();
+  const place = document.getElementById("managerLocation")?.textContent || "Hawthorne";
+  const loc = document.getElementById("phLoc"); if (loc) loc.textContent = place;
+  let identity = {};
+  try { identity = JSON.parse(sessionStorage.getItem("marinara_staff_identity") || "{}"); } catch (_) { /* ignore */ }
+  const name = String(identity.name || "Manager").trim();
+  const initials = name.split(/\s+/).slice(0, 2).map(w => w.charAt(0).toUpperCase()).join("") || "M";
+  const user = document.getElementById("phUser"); if (user) user.textContent = initials;
+  const working = Number(document.getElementById("workingNowCount")?.textContent || 0) || 0;
+  const onBreak = Number(document.getElementById("breakNowCount")?.textContent || 0) || 0;
+  const pending = deskPending, off = deskTimeOffCount(), toOrder = deskExtra.toOrder;
+  const cta = canInv
+    ? `<button type="button" class="ph-cta" data-ph-act="upload"><span class="ph-cta-ico">${phIcon("upload")}</span><span><strong>Upload invoice</strong><small>Choose the supplier PDF</small></span><i>›</i></button>`
+    : `<button type="button" class="ph-cta" data-desk-card="stockCard"><span class="ph-cta-ico">${phIcon("clipboard")}</span><span><strong>Count stock</strong><small>See what to order</small></span><i>›</i></button>`;
+  const card = (icon, title, sub, attrs, k) => `<button type="button" class="ph-card${k ? " k" : ""}" ${attrs}><span class="ph-card-ico">${phIcon(icon)}</span><strong>${escapeHtml(title)}</strong><small>${escapeHtml(sub)}</small><i>›</i></button>`;
+  const cards = [
+    card("people", "Team", "Roster & hours", `data-desk-card="rosterCard"`),
+    card("box", "Stock", "Count & order", `data-desk-card="stockCard"`, true),
+    floor ? card("chef", "Allergens", "What dishes contain", `data-desk-card="recipesCard"`, true)
+          : card("chef", "Kitchen", "Recipes & prep", `data-desk-card="recipesCard"`, true),
+    canInv ? card("receipt", "Invoices", "Spend & costs", `data-desk-card="invoicesCard"`, true)
+           : card("plane", "Time off", "Holidays & days off", `data-desk-card="timeOffCard"`),
+  ].join("");
+  const rows = [];
+  if (toOrder) rows.push({ dot: "red", t: `${toOrder} ${toOrder === 1 ? "item" : "items"} to order`, btn: "Check", go: "stockCard" });
+  if (pending) rows.push({ dot: "amber", t: `${pending} ${pending === 1 ? "shift" : "shifts"} to approve`, btn: "Review", go: "approvalsCard" });
+  if (off) rows.push({ dot: "amber", t: `${off} time off ${off === 1 ? "request" : "requests"}`, btn: "Answer", go: "timeOffCard" });
+  const attention = rows.length
+    ? rows.map(r => `<div class="ph-att-row"><span class="ph-dot ${r.dot}"></span><span class="ph-att-t">${escapeHtml(r.t)}</span><button type="button" class="ph-att-btn" data-desk-card="${r.go}">${r.btn} <span aria-hidden="true">›</span></button></div>`).join("")
+    : `<div class="ph-att-ok"><span>✓</span>All caught up</div>`;
+  box.innerHTML = `${cta}<div class="ph-cards">${cards}</div>
+    <div class="ph-att"><div class="ph-att-head"><h3>Needs attention</h3></div>${attention}</div>`;
+  const hours = [...document.querySelectorAll("#hoursList .hours-pill")].reduce((n, el) => n + (parseFloat(el.textContent) || 0), 0);
+  const sub = document.getElementById("phGlanceSub");
+  if (sub) sub.textContent = `${working} on shift${onBreak ? ` (${onBreak} on break)` : ""} · ${Math.round(hours * 10) / 10} hrs this week`;
+}
+document.getElementById("managerScreen")?.addEventListener("click", e => {
+  if (e.target.closest('[data-ph-act="upload"]')) { phUploadInvoice(); return; }
+  const g = e.target.closest("#phGlance");
+  if (g) {
+    const open = !document.getElementById("managerScreen").classList.contains("glance-open");
+    document.getElementById("managerScreen").classList.toggle("glance-open", open);
+    g.setAttribute("aria-expanded", String(open));
+    try { localStorage.setItem("mh_glance_open", open ? "1" : "0"); } catch (_) { /* ignore */ }
+  }
+});
+try { if (localStorage.getItem("mh_glance_open") === "1") { document.getElementById("managerScreen")?.classList.add("glance-open"); document.getElementById("phGlance")?.setAttribute("aria-expanded", "true"); } } catch (_) { /* ignore */ }
+function phUploadInvoice() {
+  document.getElementById("invoicesCard")?.click();
+  // the file picker must open inside the same tap
+  document.getElementById("invFiles")?.click();
+}
+document.getElementById("phUser")?.addEventListener("click", () => managerBottomNav?.querySelector('[data-manager-nav="more"]')?.click());
+
+// + Actions sheet
+// The sheet sits at the end of the page, after this script: look it up when used.
+const sheetEl = () => document.getElementById("actionSheet");
+function openActionSheet() {
+  const actionSheet = sheetEl();
+  if (!actionSheet) return;
+  const { floor, canInv } = phRole();
+  const item = (icon, t, s, attrs, badge) => `<button type="button" class="action-item" ${attrs}><span class="action-ico">${phIcon(icon)}</span><span class="action-txt"><strong>${escapeHtml(t)}</strong><small>${escapeHtml(s)}</small></span>${badge ? `<span class="count-badge">${badge}</span>` : ""}<i>›</i></button>`;
+  document.getElementById("actionSheetList").innerHTML = [
+    canInv ? item("upload", "Upload invoice", "Choose the supplier PDF", `data-ph-act="upload"`) : "",
+    item("clipboard", "Count stock", "Start or continue a count", `data-desk-card="stockCard"`),
+    item("calendar", "Open roster", "Plan the team's week", `data-desk-card="rosterCard"`),
+    item("check", "Approve shifts", "Check clock in and out", `data-desk-card="approvalsCard"`, deskPending || ""),
+    item("book", floor ? "Allergens" : "Find a recipe", floor ? "What each dish contains" : "Recipes and allergens", `data-desk-card="recipesCard"`),
+    item("clock", "My clock", "Clock in, break, clock out", `data-desk-card="myClockCard"`),
+  ].join("");
+  actionSheet.classList.remove("hidden");
+  requestAnimationFrame(() => actionSheet.classList.add("open"));
+  document.body.classList.add("sheet-open");
+}
+function closeActionSheet() {
+  const actionSheet = sheetEl();
+  if (!actionSheet) return;
+  actionSheet.classList.remove("open");
+  document.body.classList.remove("sheet-open");
+  setTimeout(() => actionSheet.classList.add("hidden"), 180);
+}
+document.getElementById("navActions")?.addEventListener("click", openActionSheet);
+document.addEventListener("click", e => {
+  const actionSheet = sheetEl();
+  if (!actionSheet || !actionSheet.contains(e.target)) return;
+  if (e.target === actionSheet || e.target.closest("[data-sheet-close]")) { closeActionSheet(); return; }
+  if (e.target.closest('[data-ph-act="upload"]')) { closeActionSheet(); phUploadInvoice(); return; }
+  const c = e.target.closest("[data-desk-card]");
+  if (c) { closeActionSheet(); document.getElementById(c.dataset.deskCard)?.click(); }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && sheetEl() && !sheetEl().classList.contains("hidden")) closeActionSheet(); });
 
 function setManagerNavActive(target = "home") {
   if (!managerBottomNav) return;
@@ -9784,5 +10004,12 @@ restoreSession();
 checkDeviceStatus();
 </script>
 
+<div id="actionSheet" class="action-sheet hidden" role="dialog" aria-modal="true" aria-labelledby="actionSheetTitle">
+  <div class="action-sheet-panel">
+    <div class="action-sheet-grab"></div>
+    <div class="action-sheet-head"><h2 id="actionSheetTitle">Quick actions</h2><button type="button" class="action-sheet-close" data-sheet-close aria-label="Close">✕</button></div>
+    <div id="actionSheetList" class="action-sheet-list"></div>
+  </div>
+</div>
 </body>
 </html>

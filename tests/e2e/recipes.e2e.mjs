@@ -107,35 +107,59 @@ try {
   const km = await phone();
   await km.login(PIN[ID(2)]);
 
-  await check("Home: restaurant header, today's numbers, grouped shortcuts; Recipes tile opens recipes", async () => {
+  await check("Phone home: green header, Upload invoice, four areas, needs attention, today at a glance", async () => {
     await km.page.waitForFunction(() => !/Loading/.test(document.getElementById("workingList").textContent));
-    const header = (await km.page.textContent(".header")).replace(/\s+/g, " ").trim();
-    const groups = await km.page.locator("#managerScreen .home-group:visible").allTextContents();
-    const stats = await km.page.locator("#managerScreen .home-stat-l:visible").allTextContents();
+    await km.page.waitForSelector("#phoneHome .ph-card");
+    const header = (await km.page.innerText(".header")).replace(/\s+/g, " ").trim();
+    const cta = (await km.page.innerText("#phoneHome .ph-cta")).replace(/\s+/g, " ");
+    const cards = (await km.page.locator("#phoneHome .ph-card strong").allInnerTexts());
+    const att = (await km.page.innerText("#phoneHome .ph-att")).replace(/\s+/g, " ");
+    const greet = await km.page.innerText("#managerGreeting");
     await km.shot("home_kitchen_manager");
-    assert.match(header, /Hawthorne Restaurant manager/);
-    assert.deepEqual(groups, ["Team & hours", "Kitchen & floor"]);
-    assert.deepEqual(stats, ["Working now", "To approve", "Time off requests"]);
-    // "Working now" scrolls to Who's Working on the same screen (no screen change).
-    await km.page.click('[data-home-scroll="workingList"]');
-    await km.page.waitForTimeout(700);
-    assert.equal(await km.page.locator("#managerScreen").isVisible(), true);
-    assert.equal(await km.page.locator("#teamScreen").isVisible(), false);
-    const top = await km.page.locator("#workingList").evaluate((e) => e.closest(".card").getBoundingClientRect().top);
-    assert.ok(top >= -2 && top < 200, String(top));
-    // The time-off dot on the tile: white number on red, readable size.
+    assert.match(header, /Hawthorne\s*TK/);
+    assert.match(greet, /^Good (morning|afternoon|evening), Test$/);
+    assert.match(cta, /Upload invoice/);
+    assert.deepEqual(cards, ["Team", "Stock", "Kitchen", "Invoices"]);
+    assert.match(att, /Needs attention 1 shift to approve Review/); // Kitchen Manager: kitchen shifts only
+    // the old tiles and numbers are not on the phone home any more
+    assert.equal(await km.page.locator("#managerScreen .home-tiles:visible").count(), 0);
+    // today at a glance: closed shows a summary; open shows who's working and this week
+    assert.match(await km.page.innerText("#phGlance"), /1 on shift · [\d.]+ hrs this week/);
+    assert.equal(await km.page.locator("#workingList").isVisible(), false);
+    await km.page.click("#phGlance");
+    assert.equal(await km.page.locator("#workingList").isVisible(), true);
+    assert.equal(await km.page.locator("#hoursList").isVisible(), true);
+    await km.shot("home_glance_open");
+    await km.page.click("#phGlance");
+    // time off requests appear in Needs attention
     await km.page.evaluate(() => showLeaveBadge(3));
-    const dot = await km.page.locator("#homeTimeOffBadge").evaluate((e) => { const c = getComputedStyle(e); return [e.textContent, c.color, c.backgroundColor, c.fontSize, c.display]; });
-    await km.shot("home_badge");
-    assert.deepEqual(dot, ["3", "rgb(255, 255, 255)", "rgb(217, 48, 37)", "12px", "flex"]);
+    await km.page.waitForFunction(() => /3 time off requests/.test(document.getElementById("phoneHome").textContent));
     await km.page.evaluate(() => showLeaveBadge(0));
-    assert.equal(await km.page.locator("#homeTimeOffBadge").isVisible(), false);
-    await km.page.click("#recipesCard");
+    // cards open their screens
+    await km.page.click('#phoneHome [data-desk-card="recipesCard"]');
     await km.page.waitForSelector("#recipesScreen:not(.hidden)");
-    await km.page.click("#backRecipesBtn");
     await km.page.click('[data-manager-nav="home"]');
     await km.page.waitForSelector("#managerScreen:not(.hidden)");
-    return header;
+    // + Actions sheet
+    await km.page.click("#navActions");
+    await km.page.waitForSelector("#actionSheet.open");
+    const actions = (await km.page.locator("#actionSheet .action-txt strong").allInnerTexts());
+    await km.shot("home_actions");
+    assert.deepEqual(actions, ["Upload invoice", "Count stock", "Open roster", "Approve shifts", "Find a recipe", "My clock"]);
+    await km.page.click('#actionSheet [data-desk-card="rosterCard"]');
+    await km.page.waitForSelector("#rosterScreen:not(.hidden)");
+    await km.page.waitForFunction(() => document.getElementById("actionSheet").classList.contains("hidden"));
+    await km.page.click("#navActions");
+    await km.page.waitForSelector("#actionSheet.open");
+    await km.page.click("[data-sheet-close]");
+    await km.page.waitForFunction(() => document.getElementById("actionSheet").classList.contains("hidden"));
+    // initials open More
+    await km.page.click("#phUser");
+    await km.page.waitForSelector("#managerMoreScreen:not(.hidden)");
+    await km.page.click('[data-manager-nav="home"]');
+    await km.page.waitForSelector("#managerScreen:not(.hidden)");
+    assert.deepEqual(km.errors, []);
+    return `${header} · ${cards.join(", ")} · ${actions.length} actions`;
   });
 
   await check("More screen: grouped menu with line icons", async () => {
@@ -398,16 +422,16 @@ try {
     return areas.join(", ");
   });
   // A phone never shows the extra links.
-  await check("Phone: bottom bar keeps 4 buttons", async () => {
+  await check("Phone: bottom bar is Home, Approvals, + Actions, Team, More", async () => {
     const ph = await phone();
     await ph.login(PIN[ID(1)]);
     assert.equal(await ph.page.locator("#deskNavLinks").isVisible(), false);
     assert.equal(await ph.page.locator("#deskAreas").isVisible(), false);
     assert.equal(await ph.page.locator(".desk-foot").isVisible(), false);
-    const visible = await ph.page.locator("#managerBottomNav [data-manager-nav]").evaluateAll((els) => els.filter((e) => e.offsetParent).length);
-    assert.equal(visible, 4);
+    const labels = await ph.page.locator("#managerBottomNav > .manager-nav-item").evaluateAll((els) => els.filter((e) => e.offsetParent).map((e) => e.innerText.replace(/\d+/g, "").trim()));
+    assert.deepEqual(labels, ["Home", "Approvals", "Actions", "Team", "More"]);
     await ph.close();
-    return "4";
+    return labels.join(", ");
   });
 } finally {
   await browser.close();
