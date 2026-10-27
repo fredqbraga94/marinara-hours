@@ -47,10 +47,10 @@ async function load(){
 }
 // Home: "N things to buy".
 function publish(){
- window.mhShopping={open:state.open.length,urgent:state.open.filter(i=>i.urgent).length,names:state.open.slice(0,2).map(i=>i.name)};
+ window.mhShopping={open:state.open.length,urgent:state.open.filter(i=>i.urgent).length,names:state.open.slice(0,2).map(i=>i.name),urgentNames:state.open.filter(i=>i.urgent).map(i=>i.name)};
  window.dispatchEvent(new CustomEvent('marinara:shopping'));
 }
-window.mhShopping={open:0,urgent:0,names:[]};
+window.mhShopping={open:0,urgent:0,names:[],urgentNames:[]};
 
 function itemLine(i,bought){
  const who=bought?`Bought by ${i.done_by||'—'} · ${day(i.done_at)}`:`Asked by ${i.created_by||'—'} · ${day(i.created_at)}`;
@@ -59,7 +59,7 @@ function itemLine(i,bought){
  const actions=bought
   ?`<button type="button" class="shop-small" data-shop-undo="${t(i.id)}">Undo</button>`
   :`<button type="button" class="shop-small" data-shop-edit="${t(i.id)}">Edit</button><button type="button" class="shop-small${removing?' danger':''}" data-shop-remove="${t(i.id)}">${removing?'Tap again to remove':'Remove'}</button>`;
- return `<div class="shop-item${bought?' done':''}">
+ return `<div class="shop-item${bought?' done':i.urgent?' urgent':''}">
   ${bought?`<span class="shop-tick done" aria-hidden="true">✓</span>`:`<button type="button" class="shop-tick" data-shop-bought="${t(i.id)}" aria-label="Mark ${t(i.name)} as bought"></button>`}
   <span class="shop-main"><strong>${t(i.name)}${i.urgent&&!bought?' <em class="shop-tag">Urgent</em>':''}</strong>${extra?`<small>${t(extra)}</small>`:''}<small>${t(who)}</small></span>
   <span class="shop-actions">${actions}</span></div>`;

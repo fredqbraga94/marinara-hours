@@ -53,7 +53,8 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#shopName').fill('QA paper towels');await page.locator('#shopQty').fill('2 packs');await page.locator('#shopNote').fill('the big ones');await page.locator('#shopUrgent').check();await page.locator('#shopSave').click();
  await page.waitForFunction(()=>document.querySelectorAll('#shopOpen .shop-item').length===2);
  const names=await page.locator('#shopOpen .shop-main strong').allInnerTexts();
- assert.match(names[0],/QA paper towels\s*Urgent/);assert.equal(names[1],'QA chef knife');
+ assert.match(names[0],/QA paper towels\s*Urgent/i);
+ assert.equal(await page.locator('#shopOpen .shop-item').first().evaluate(e=>e.classList.contains('urgent')),true,'urgent item in red');assert.equal(names[1],'QA chef knife');
  assert.match(await page.locator('#shopOpen').innerText(),/2 packs · the big ones[\s\S]*Asked by QA Kitchen Manager/);
  assert.equal(await page.locator('#shopOpenCount').innerText(),'(2)');
  assert.equal(await page.locator('#shopName').inputValue(),'','form cleared after adding');
@@ -85,8 +86,11 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
 
  // Home: "1 thing to buy · 1 urgent", tap opens the list.
  await page.locator('[data-manager-nav="home"]').click();await page.locator('#managerScreen').waitFor({state:'visible'});
- await page.locator('#rmAttention').filter({hasText:'1 thing to buy · 1 urgent'}).waitFor();
- assert.match(await page.locator('#rmAttention').innerText(),/QA paper towels/);
+ await page.locator('#rmAttention').filter({hasText:'1 thing to buy now'}).waitFor();
+ const first=page.locator('#rmAttention .rm-row').first();
+ assert.match(await first.innerText(),/urgent\s*1 thing to buy now[\s\S]*QA paper towels/i,'urgent first');
+ assert.equal(await first.evaluate(e=>e.classList.contains('rm-urgent')&&getComputedStyle(e).backgroundColor),'rgb(253, 236, 234)','urgent row in red');
+ await page.locator('#rmAttention').screenshot({path:`tmp/qa/${size}-home-urgent.png`});
  assert.equal(await page.locator('#rmBellBadge').isVisible(),false,'not on the bell (nobody is waiting on the manager)');
  await page.locator('#rmAttention [data-rm-go="rmOpenShopping"]').click();await page.locator('#shoppingScreen').waitFor({state:'visible'});
 

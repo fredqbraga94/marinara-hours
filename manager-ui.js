@@ -144,7 +144,10 @@
     const ups=(typeof window.mhPriceUps==='object'&&window.mhPriceUps)||[];
     if(ups.length&&can('invoices')&&['manager','kitchen_manager'].includes(currentManagerRole)){const names=ups.slice().sort((a,b)=>Number(b.change_pct)-Number(a.change_pct)).slice(0,2).map(p=>`${p.description} +${Number(p.change_pct).toLocaleString('en-AU',{maximumFractionDigits:1})}%`);rows.push(row(`${ups.length} price${ups.length===1?'':'s'} went up`,escapeHtml(names.join(', ')+(ups.length>2?` and ${ups.length-2} more`:'')),'rmOpenPriceUps','finance'));}
     const shop=window.mhShopping||{};
-    if(shop.open)rows.push(row(`${shop.open} thing${shop.open===1?'':'s'} to buy${shop.urgent?` · ${shop.urgent} urgent`:''}`,escapeHtml((shop.names||[]).join(', ')+(shop.open>2?` and ${shop.open-2} more`:'')),'rmOpenShopping','stock'));
+    // Urgent things to buy go to the top, in red.
+    if(shop.urgent){const u=shop.urgentNames||[];const rest=shop.open-shop.urgent;
+      rows.unshift(row(`<em class="rm-urgent-tag">Urgent</em> ${shop.urgent===1?'1 thing to buy now':`${shop.urgent} things to buy now`}`,escapeHtml(u.slice(0,3).join(', ')+(u.length>3?` and ${u.length-3} more`:''))+(rest?` · ${rest} more on the list`:''),'rmOpenShopping','stock').replace('class="rm-row"','class="rm-row rm-urgent"'));}
+    else if(shop.open)rows.push(row(`${shop.open} thing${shop.open===1?'':'s'} to buy`,escapeHtml((shop.names||[]).join(', ')+(shop.open>2?` and ${shop.open-2} more`:'')),'rmOpenShopping','stock'));
     if(toOrder)rows.push(row(`${toOrder} item${toOrder===1?'':'s'} to order`,'Below par at the last stock count','stockCard','stock'));
     // Bell: people waiting on the manager (late, shifts to approve, time off requests).
     const waiting=(t?t.late.length:0)+n+off;const bell=$('rmBellBadge');

@@ -241,3 +241,13 @@ body.rm-mode #managerHolidayNotice{display:none!important}
 #shopSave:disabled{opacity:.6}
 #shopCancel{border:0;border-radius:10px;padding:12px;font-weight:600;font-size:15px}
 .shop-small{border:0}
+
+/* Urgent: red on Home and on the list */
+.rm-attention .rm-row.rm-urgent{background:#fdecea;box-shadow:inset 4px 0 0 #b3261e}
+.rm-attention .rm-row.rm-urgent svg{background:#b3261e;color:#fff}
+.rm-attention .rm-row.rm-urgent strong{color:#8c1d18}
+.rm-attention .rm-row.rm-urgent small{color:#8c1d18}
+.rm-urgent-tag{font-style:normal;font-size:11px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;background:#b3261e;color:#fff;border-radius:6px;padding:2px 7px;margin-right:4px;vertical-align:1px}
+.shop-item.urgent{background:#fdecea;box-shadow:inset 4px 0 0 #b3261e}
+.shop-item.urgent .shop-tick{border-color:#b3261e}
+.shop-item.urgent .shop-tag{background:#b3261e;color:#fff;text-transform:uppercase;letter-spacing:.03em}
