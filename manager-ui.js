@@ -135,13 +135,15 @@
   // Tap a number to see who it is.
   let openStat=null;
   const clock=v=>v?new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Brisbane',hour:'numeric',minute:'2-digit',hour12:true}).format(new Date(v)):'';
+  // 2.66 → "2h 40m" (whole minutes).
+  const hm=h=>{const m=Math.max(0,Math.round(Number(h)*60));return m<60?`${m}m`:`${Math.floor(m/60)}h${m%60?` ${m%60}m`:''}`;};
   const person=(name,dept,status,line,extra='')=>`<div class="rm-who">${whoAvatar(name||'Staff',dept,status)}<span><strong>${escapeHtml(name||'Staff')}</strong><small>${escapeHtml(line)}</small></span>${extra}</div>`;
   function renderStat(key){
     const box=$('rmStatPanel');const t=today();let title,rows=[];
     if(key==='working'||key==='break'){
       const list=lastWorking.filter(p=>key==='break'?p.status==='break':p.status!=='break');
       title=key==='break'?'On break':'Working now';
-      rows=list.map(p=>person(p.name,p.department,key==='break'?'break':'working',[p.department,p.clock_in?`in since ${clock(p.clock_in)}`:''].filter(Boolean).join(' · '),p.hours_so_far!=null?`<em>${escapeHtml(formatHours(p.hours_so_far))}</em>`:''));
+      rows=list.map(p=>person(p.name,p.department,key==='break'?'break':'working',[p.department,p.clock_in?`in since ${clock(p.clock_in)}`:''].filter(Boolean).join(' · '),p.hours_so_far!=null?`<em>${escapeHtml(hm(p.hours_so_far))}</em>`:''));
     }else if(key==='roster'){
       title='On the roster today';
       const working=new Map(lastWorking.map(p=>[p.staff_id,p.status]));

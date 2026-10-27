@@ -70,6 +70,7 @@ jobs:
       - run: npm run test:e2e:recipes
       - run: npm run test:e2e:invoices
       - run: npm run test:e2e:redesign
+      - run: npm run test:e2e:update
   browser-webkit:
     # Safari's engine (what iPhones use) on Linux, with the iPhone 13 profile.
     runs-on: ubuntu-latest
@@ -90,6 +91,7 @@ jobs:
       - run: npm run test:e2e:recipes:webkit
       - run: npm run test:e2e:invoices:webkit
       - run: npm run test:e2e:redesign:webkit
+      - run: npm run test:e2e:update:webkit
   hardening:
     runs-on: ubuntu-latest
     steps:

@@ -1771,6 +1771,10 @@ button:disabled{opacity:.6}
 <script defer src="./roster-pdf.js"></script>
 <script defer src="./invoice-reader.js"></script>
 <link rel="stylesheet" href="./manager-redesign-test.css">
+<style>
+#appUpdateBar{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top,0px));z-index:10050;display:flex;align-items:center;gap:12px;padding:8px 8px 8px 16px;border-radius:999px;background:#12181b;color:#fff;font-size:14px;box-shadow:0 6px 24px #0004;max-width:calc(100% - 24px);white-space:nowrap}
+#appUpdateBar button{border:0;border-radius:999px;background:#00563d;color:#fff;font-weight:700;font-size:14px;padding:8px 14px;cursor:pointer}
+</style>
 </head>
 
 <body>
@@ -9819,6 +9823,40 @@ devicesScreen?.addEventListener("click", async event => {
 
 restoreSession();
 checkDeviceStatus();
+
+// New version check. GitHub Pages lets phones keep the app's files for up to
+// 10 minutes, so a release can take a while to show. When the app opens or comes
+// back to the screen, compare the copy this phone has with the published one; if
+// anything changed, offer a one-tap update (never reload on its own: someone may
+// be typing a PIN or clocking in). The session survives the reload.
+(() => {
+  const FILES = [location.pathname, "./manager-ui.js", "./manager-team-ui.js", "./manager-prices-ui.js", "./manager-redesign-test.css", "./invoice-reader.js"];
+  let checking = false, lastCheck = 0;
+  const text = (url, cache) => fetch(url, { cache }).then(r => (r.ok ? r.text() : null)).catch(() => null);
+  async function changed(url) {
+    const had = await text(url, "force-cache");   // the copy this phone is using
+    const now = await text(url, "no-cache");      // asks GitHub; also refreshes the phone's copy
+    return had != null && now != null && had !== now;
+  }
+  function offer() {
+    if (document.getElementById("appUpdateBar")) return;
+    const bar = document.createElement("div");
+    bar.id = "appUpdateBar";
+    bar.setAttribute("role", "status");
+    bar.innerHTML = `<span>A new version is ready</span><button type="button">Update</button>`;
+    bar.querySelector("button").onclick = () => location.reload();
+    document.body.append(bar);
+  }
+  async function check() {
+    if (checking || Date.now() - lastCheck < 60000 || !navigator.onLine) return;
+    checking = true; lastCheck = Date.now();
+    try {
+      for (const f of FILES) if (await changed(f)) { offer(); break; }
+    } finally { checking = false; }
+  }
+  setTimeout(check, 4000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+})();
 </script>
 
 <script src="./manager-ui.js"></script>

@@ -46,7 +46,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.equal(await page.locator('[data-rm-stat="break"]').evaluate(e=>e.classList.contains('live-break')),true,'orange dot when someone is on break');
  assert.equal(await page.locator('[data-rm-stat="working"] .rm-live').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(31, 157, 85)');
  assert.equal(await page.locator('[data-rm-stat="break"] .rm-live').evaluate(e=>getComputedStyle(e).backgroundColor),'rgb(242, 153, 0)');
- await page.locator('[data-rm-stat="working"]').click();assert.match(await page.locator('#rmStatPanel').innerText(),/Working now[\s\S]*QA Working[\s\S]*in since/);assert.doesNotMatch(await page.locator('#rmStatPanel').innerText(),/QA Break/);
+ await page.locator('[data-rm-stat="working"]').click();assert.match(await page.locator('#rmStatPanel').innerText(),/Working now[\s\S]*QA Working[\s\S]*in since/);assert.match(await page.locator('#rmStatPanel').innerText(),/\b1h\b/,'hours as 1h, not 1.00 hrs');assert.doesNotMatch(await page.locator('#rmStatPanel').innerText(),/QA Break/);
  await page.locator('[data-rm-stat="break"]').click();assert.match(await page.locator('#rmStatPanel').innerText(),/On break[\s\S]*QA Break/);
  await page.locator('[data-rm-stat="roster"]').click();const ros=await page.locator('#rmStatPanel').innerText();
  assert.match(ros,/QA Late[\s\S]*Late/);assert.match(ros,/QA Working[\s\S]*Working/);assert.doesNotMatch(ros,/QA Off/,'off today is not on the roster list');
