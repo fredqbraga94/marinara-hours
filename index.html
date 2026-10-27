@@ -1774,6 +1774,7 @@ button:disabled{opacity:.6}
 <style>
 #appUpdateBar{position:fixed;left:50%;transform:translateX(-50%);top:calc(10px + env(safe-area-inset-top,0px));z-index:10050;display:flex;align-items:center;gap:12px;padding:8px 8px 8px 16px;border-radius:999px;background:#12181b;color:#fff;font-size:14px;box-shadow:0 6px 24px #0004;max-width:calc(100% - 24px);white-space:nowrap}
 #appUpdateBar button{border:0;border-radius:999px;background:#00563d;color:#fff;font-weight:700;font-size:14px;padding:8px 14px;cursor:pointer}
+#invReview .inv-flag.dup{background:#eef1f4;color:#3c4650}
 </style>
 </head>
 
@@ -8424,6 +8425,7 @@ function invRenderReview() {
       <div class="inv-review-actions"><button type="button" data-inv-dismiss="${i}">Dismiss</button></div></div>`;
     const inv = r.invoice;
     const flag = r.saved ? `<div class="inv-flag ok">Saved</div>`
+      : r.duplicate ? `<div class="inv-flag dup">Already saved. Nothing to do.</div>`
       : inv.ok ? `<div class="inv-flag ok">Adds up: ${inv.lines.length} lines match the total</div>`
       : `<div class="inv-flag warn">Check: the lines don't add up to the total. Compare with the PDF before saving.</div>`;
     return `<div class="inv-review${inv.ok ? "" : " bad"}">
@@ -8433,11 +8435,22 @@ function invRenderReview() {
         <div class="inv-amount">${escapeHtml(invMoney(inv.total))}</div>
       </div>
       ${flag}
-      ${r.saved ? "" : `<div class="inv-review-actions">
+      ${r.saved ? "" : r.duplicate ? `<div class="inv-review-actions"><button type="button" data-inv-dismiss="${i}">Dismiss</button></div>` : `<div class="inv-review-actions">
         <button type="button" data-inv-dismiss="${i}">Don't save</button>
         <button type="button" class="save" data-inv-save="${i}">Save</button></div>`}
     </div>`;
   }).join("");
+}
+
+// Same supplier + type + number already saved (the server refuses it too)?
+// Looks around the invoice date (a reprinted invoice can carry another date).
+async function invAlreadySaved(inv) {
+  if (!inv?.number || !inv.date) return false;
+  try {
+    const shift = d => new Date(Date.parse(`${inv.date}T00:00:00Z`) + d * 86400000).toISOString().slice(0, 10);
+    const data = await managerApi("manager_invoice_list", { from: shift(-120), to: shift(60) });
+    return (data.invoices || []).some(x => x.supplier === inv.supplier && x.kind === inv.kind && String(x.number).trim() === String(inv.number).trim());
+  } catch (_) { return false; }   // cannot check now: the server still refuses a duplicate on Save
 }
 
 async function invReadFiles(files) {
@@ -8452,7 +8465,7 @@ async function invReadFiles(files) {
       const inv = await window.MarinaraInvoiceReader.readPdf(new Uint8Array(await f.arrayBuffer()), "./");
       slot.reading = false;
       if (inv.error) slot.error = "This supplier's layout isn't known yet. Send this PDF to Fred so it can be added.";
-      else slot.invoice = inv;
+      else { slot.invoice = inv; slot.duplicate = await invAlreadySaved(inv); }
     } catch (error) {
       slot.reading = false;
       slot.error = "Could not read this PDF. " + (error?.message || "");
@@ -8871,6 +8884,7 @@ invoicesScreen?.addEventListener("click", async e => {
       invMsg(`Saved: ${inv.supplier} #${inv.number}.`, true);
       loadInvoices();
     } catch (error) {
+      if (error.code === "INVOICE_DUPLICATE") { slot.duplicate = true; invRenderReview(); return; }
       save.disabled = false;
       invMsg(error.message || "Unable to save the invoice.", false);
     }

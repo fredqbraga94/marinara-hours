@@ -174,14 +174,24 @@ try {
     return sum.replace(/\s+/g, " ").trim();
   });
 
-  await check("the same invoice twice is refused", async () => {
+  await check("the same invoice twice: marked 'Already saved' when read, no Save button", async () => {
+    await gm.page.setInputFiles("#invFiles", [FILES.good]);
+    await waitRead(gm, 2);
+    await gm.page.waitForFunction(() => /Already saved/.test(document.querySelectorAll("#invReview .inv-review")[1]?.textContent || ""));
+    assert.equal(await gm.page.locator('#invReview [data-inv-save="1"]').count(), 0, "no Save for a duplicate");
+    await gm.page.click('#invReview [data-inv-dismiss="1"]');
+    return "marked before saving";
+  });
+
+  await check("if the check could not run, Save is still refused by the server and marked", async () => {
+    await gm.page.evaluate(() => { window.__realCheck = invAlreadySaved; invAlreadySaved = async () => false; });
     await gm.page.setInputFiles("#invFiles", [FILES.good]);
     await waitRead(gm, 2);
     await gm.page.click('#invReview [data-inv-save="1"]');
-    await gm.page.waitForSelector("#invMessage.error");
-    assert.match(await gm.page.textContent("#invMessage"), /already saved/);
+    await gm.page.waitForFunction(() => /Already saved/.test(document.querySelectorAll("#invReview .inv-review")[1]?.textContent || ""));
+    await gm.page.evaluate(() => { invAlreadySaved = window.__realCheck; });
     await gm.page.click('#invReview [data-inv-dismiss="1"]');
-    return "409 shown";
+    return "409 → marked";
   });
 
   await check("price changes: a dearer product on the next invoice", async () => {
