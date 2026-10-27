@@ -296,6 +296,17 @@ try {
     return r.body.data.holidays.map((h) => `${h.holiday_date} ${h.name}`).join("; ");
   });
 
+  await check("dashboard: the next 12 months of public holidays, in date order, from today", async () => {
+    const d = (await api(vNew, 1, gm, { action: "manager_dashboard" })).body.data;
+    const list = d.next_holidays;
+    assert.ok(Array.isArray(list) && list.length > 0, "there are holidays in the next 12 months");
+    const today = new Date(Date.now() + 10 * 3600000).toISOString().slice(0, 10);
+    const limit = new Date(Date.parse(`${today}T00:00:00Z`) + 365 * 86400000).toISOString().slice(0, 10);
+    assert.ok(list.every((h) => h.holiday_date >= today && h.holiday_date <= limit));
+    assert.deepEqual(list.map((h) => h.holiday_date), list.map((h) => h.holiday_date).slice().sort());
+    return `${list.length} holidays, next: ${list[0].holiday_date} ${list[0].name}`;
+  });
+
   await check("v38 still works with the new data in place (server rollback is safe)", async () => {
     const t = await login(v38, 5);
     const a = await api(v38, 5, t, { action: "session_status" });

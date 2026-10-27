@@ -167,6 +167,17 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.evaluate(()=>{currentManagerRole='manager';window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{name:'QA'},counts:{},working:[]}}));});
  assert.equal(await vis('#stockCard'),false,'(Home not visible now)');await page.locator('[data-manager-nav="home"]').click();assert.equal(await vis('#stockCard'),true,'everything back without permissions');
  await page.locator('[data-manager-nav="more"]').click();assert.equal(await vis('#managerMoreScreen [data-rm-go="rmOpenSettings"]'),true,'Administrator keeps Restaurant Settings');assert.equal(await vis('#managerMoreScreen [data-rm-go="moreDevicesBtn"]'),true);assert.equal(await page.locator('#rmLocation').isDisabled(),false);
+ // Next public holiday on Home, tap for the next 12 months; highlighted when close.
+ const hol=await page.evaluate(()=>{const d=n=>new Date(Date.now()+10*3600e3+n*864e5).toISOString().slice(0,10);window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{name:'QA'},counts:{},working:[],next_holidays:[{holiday_date:d(58),name:'Christmas Eve',region:'QLD',part_day:'6pm to midnight'},{holiday_date:d(59),name:'Christmas Day',region:'QLD',part_day:null},{holiday_date:d(200),name:'Ekka',region:'BRISBANE',part_day:null}]}}));return true;});
+ await page.locator('[data-manager-nav="home"]').click();
+ assert.match(await page.locator('#rmNextHoliday').innerText(),/Next public holiday[\s\S]*Christmas Eve[\s\S]*6pm to midnight[\s\S]*in 58 days/);
+ assert.equal(await page.locator('#rmNextHoliday').evaluate(e=>e.classList.contains('soon')),false);
+ await page.locator('#rmNextHoliday').click();assert.equal(await page.locator('#rmHolidayList .rm-hol').count(),3);assert.match(await page.locator('#rmHolidayList').innerText(),/Ekka[\s\S]*Brisbane only/);
+ await page.screenshot({path:`tmp/qa/${size}-holidays.png`,fullPage:true});
+ await page.locator('[data-hol-close]').click();assert.equal(await page.locator('#rmHolidayList').isVisible(),false);
+ await page.evaluate(()=>{const d=n=>new Date(Date.now()+10*3600e3+n*864e5).toISOString().slice(0,10);window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{name:'QA'},counts:{},working:[],next_holidays:[{holiday_date:d(3),name:'Labour Day',region:'QLD',part_day:null}]}}));});
+ assert.match(await page.locator('#rmNextHoliday').innerText(),/coming up[\s\S]*Labour Day[\s\S]*in 3 days[\s\S]*holiday pay/);
+ assert.equal(await page.locator('#rmNextHoliday').evaluate(e=>e.classList.contains('soon')),true);
  // My Time Clock from More keeps the new look; More → Home goes back to the home, not the clock.
  await page.evaluate(()=>{managerApi=async action=>action==='manager_dashboard'?{manager:{id:'qa-clock',name:'QA Manager',role:'manager'},location:'QA fixture',working:[]}:{pending:0};});
  await page.locator('[data-manager-nav="more"]').click();await page.locator('#moreMyClockBtn').evaluate(b=>b.click());await page.locator('#managerClockSection').waitFor({state:'visible'});
