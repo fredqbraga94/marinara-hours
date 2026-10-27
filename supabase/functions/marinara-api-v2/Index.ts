@@ -1449,6 +1449,9 @@ Deno.serve(async (req) => {
         "manager_shopping_list",
         "manager_shopping_save",
         "manager_shopping_mark",
+        "manager_maintenance_list",
+        "manager_maintenance_save",
+        "manager_maintenance_mark",
       ]);
 
     if (!managerActions.has(action)) {
@@ -3224,6 +3227,40 @@ Deno.serve(async (req) => {
             p_manager_id: managerStatus.id, p_id: body.id, p_status: status,
           });
           if (error) return managerDbError(error, "Unable to update the item");
+          return json({ success: true, action, data: { item: data } });
+        }
+      }
+
+      // =========================
+      // MAINTENANCE (every manager)
+      // =========================
+      if (action.startsWith("manager_maintenance_")) {
+        const isUuid = (v: any) => typeof v === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const text = (v: any, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+        if (action === "manager_maintenance_list") {
+          const { data, error } = await supabase.rpc("manager_maintenance_list", { p_manager_id: managerStatus.id });
+          if (error) return managerDbError(error, "Unable to load maintenance", 500);
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_maintenance_save") {
+          const it = body.item && typeof body.item === "object" ? body.item : {};
+          if (it.id != null && !isUuid(it.id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
+          const item: any = { equipment: text(it.equipment, 80), problem: text(it.problem, 300), urgent: it.urgent === true };
+          if (it.id) item.id = it.id;
+          if (!item.equipment) return json({ error: "Write which equipment needs fixing.", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_maintenance_save", { p_manager_id: managerStatus.id, p_item: item });
+          if (error) return managerDbError(error, "Unable to save");
+          return json({ success: true, action, data: { item: data } });
+        }
+        if (action === "manager_maintenance_mark") {
+          if (!isUuid(body.id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
+          const status = ["open", "in_progress", "fixed", "removed"].includes(body.status) ? body.status : "";
+          if (!status) return json({ error: "Invalid request", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_maintenance_mark", {
+            p_manager_id: managerStatus.id, p_id: body.id, p_status: status, p_note: text(body.note, 300),
+          });
+          if (error) return managerDbError(error, "Unable to update");
           return json({ success: true, action, data: { item: data } });
         }
       }

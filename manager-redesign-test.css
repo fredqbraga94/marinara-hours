@@ -251,3 +251,21 @@ body.rm-mode #managerHolidayNotice{display:none!important}
 .shop-item.urgent{background:#fdecea;box-shadow:inset 4px 0 0 #b3261e}
 .shop-item.urgent .shop-tick{border-color:#b3261e}
 .shop-item.urgent .shop-tag{background:#b3261e;color:#fff;text-transform:uppercase;letter-spacing:.03em}
+
+/* Maintenance (shares the Shopping look) */
+.shop-primary{border:0;border-radius:10px;padding:12px;background:var(--green);color:#fff;font-weight:700;font-size:15px}
+.shop-primary:disabled{opacity:.6}
+#maintenanceScreen .secondary{border:0;border-radius:10px;padding:12px;font-weight:600;font-size:15px;margin:0}
+#maintenanceScreen .shop-urgent{align-self:flex-start}
+.mnt-icon{flex-shrink:0;width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--green-light);color:var(--green);font-weight:700}
+.mnt-icon svg{width:18px;height:18px}
+.mnt-item.urgent .mnt-icon{background:#b3261e;color:#fff}
+.mnt-item.done .mnt-icon{background:var(--green);color:#fff}
+.mnt-item.done .shop-main strong{text-decoration:none}
+.mnt-tag{font-style:normal;font-size:11px;font-weight:700;background:#fff0d4;color:#8a5200;border-radius:6px;padding:2px 6px;margin-left:4px;vertical-align:1px}
+.mnt-item.busy:not(.urgent){box-shadow:inset 4px 0 0 #f29900}
+.mnt-note{color:var(--text)!important;font-style:italic}
+.shop-small.mnt-done{background:var(--green);color:#fff}
+.mnt-fixbox{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.mnt-fixbox input{width:100%;margin:0;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#fff;font-size:16px}
+.mnt-fixbox button{flex:1;margin:0;padding:10px;font-size:14px}

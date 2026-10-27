@@ -148,6 +148,11 @@
     if(shop.urgent){const u=shop.urgentNames||[];const rest=shop.open-shop.urgent;
       rows.unshift(row(`<em class="rm-urgent-tag">Urgent</em> ${shop.urgent===1?'1 thing to buy now':`${shop.urgent} things to buy now`}`,escapeHtml(u.slice(0,3).join(', ')+(u.length>3?` and ${u.length-3} more`:''))+(rest?` · ${rest} more on the list`:''),'rmOpenShopping','stock').replace('class="rm-row"','class="rm-row rm-urgent"'));}
     else if(shop.open)rows.push(row(`${shop.open} thing${shop.open===1?'':'s'} to buy`,escapeHtml((shop.names||[]).join(', ')+(shop.open>2?` and ${shop.open-2} more`:'')),'rmOpenShopping','stock'));
+    // Repairs: urgent ones at the very top, in red.
+    const mnt=window.mhMaintenance||{};
+    if(mnt.urgent){const u=mnt.urgentNames||[];const rest=mnt.open-mnt.urgent;
+      rows.unshift(row(`<em class="rm-urgent-tag">Urgent</em> ${mnt.urgent===1?'1 repair needed now':`${mnt.urgent} repairs needed now`}`,escapeHtml(u.slice(0,3).join(', ')+(u.length>3?` and ${u.length-3} more`:''))+(rest?` · ${rest} more to fix`:''),'rmOpenMaintenance','settings').replace('class="rm-row"','class="rm-row rm-urgent"'));}
+    else if(mnt.open)rows.push(row(`${mnt.open} repair${mnt.open===1?'':'s'} to do`,escapeHtml((mnt.names||[]).join(', ')+(mnt.open>2?` and ${mnt.open-2} more`:'')),'rmOpenMaintenance','settings'));
     if(toOrder)rows.push(row(`${toOrder} item${toOrder===1?'':'s'} to order`,'Below par at the last stock count','stockCard','stock'));
     // Bell: people waiting on the manager (late, shifts to approve, time off requests).
     const waiting=(t?t.late.length:0)+n+off;const bell=$('rmBellBadge');
@@ -230,6 +235,7 @@
   const offCount=$('homeTimeOffCount');if(offCount)new MutationObserver(()=>paint()).observe(offCount,{childList:true,characterData:true,subtree:true});
   window.addEventListener('marinara:prices',()=>paint());
   window.addEventListener('marinara:shopping',()=>paint());
+  window.addEventListener('marinara:maintenance',()=>paint());
   $('rmScanInvoice').onclick=()=>{dialog.close();go('invoicesCard');$('invFiles')?.click();};
   syncShell();
 })();
