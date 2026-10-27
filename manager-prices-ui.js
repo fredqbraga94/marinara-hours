@@ -19,15 +19,17 @@ async function load(force){
  if(!canSee())return [];
  if(!force&&state.at&&Date.now()-state.at<5*60e3)return state.products;
  if(state.loading)return state.loading;
- state.loading=managerApi('manager_invoice_price_book').then(d=>{state.products=d.products||[];state.at=Date.now();return state.products;}).finally(()=>{state.loading=null;});
+ const gen=state.gen||0;
+ state.loading=managerApi('manager_invoice_price_book').then(d=>{if(gen!==(state.gen||0))return [];state.products=d.products||[];state.at=Date.now();return state.products;}).finally(()=>{state.loading=null;});
  const list=await state.loading;
+ if(gen!==(state.gen||0))return [];
  window.mhPriceUps=list.filter(recentUp);
  window.dispatchEvent(new CustomEvent('marinara:prices'));
  return list;
 }
 window.mhPriceUps=[];
 // Forget the cached list (after an invoice is saved or removed).
-window.mhPricesReset=()=>{state.at=0;};
+window.mhPricesReset=(all)=>{state.at=0;if(all){state.gen=(state.gen||0)+1;state.products=[];state.open=null;window.mhPriceUps=[];}};
 
 /* ---------- Prices tab ---------- */
 let built=false;
@@ -83,6 +85,6 @@ loadInvoicePrices=async function(){
 window.mhOpenPriceUps=()=>{state.filter='up';state.open=null;const b=$('invoicesCard');if(b&&!b.disabled){b.click();invShowTab('prices');}};
 const opener=document.createElement('button');opener.type='button';opener.id='rmOpenPriceUps';opener.hidden=true;opener.onclick=()=>window.mhOpenPriceUps();document.body.append(opener);
 // Keep the Home alert current; a new invoice saved refreshes it.
-window.addEventListener('marinara:dashboard',()=>{if(canSee())load(false).catch(()=>{});});
+window.addEventListener('marinara:dashboard',()=>{if(canSee())load(false).catch(()=>{});else{window.mhPricesReset(true);}});
 document.addEventListener('click',e=>{if(e.target.closest('#invSaveBtn,[data-inv-save],[data-inv-remove]'))setTimeout(()=>window.mhPricesReset(),0);},true);
 })();
