@@ -134,9 +134,17 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.equal(await vis('#operationsScreen [data-rm-go="approvalsCard"]'),true,'approvals stay');assert.equal(await vis('#operationsScreen [data-rm-go="staffHoursCard"]'),true);assert.equal(await vis('#operationsScreen [data-rm-go="timesheetsCard"]'),true);
  for(const g of ['rosterCard','stockCard','recipesCard','timeOffCard'])assert.equal(await vis(`#operationsScreen [data-rm-go="${g}"]`),false,`hidden in Operations: ${g}`);
  await page.screenshot({path:`tmp/qa/${size}-restricted.png`,fullPage:true});
+ await page.locator('[data-manager-nav="more"]').click();
+ assert.equal(await vis('#managerMoreScreen [data-rm-go="rmOpenSettings"]'),false,'no Restaurant Settings for managers');
+ assert.equal(await vis('#managerMoreScreen [data-rm-go="moreDevicesBtn"]'),false,'no device settings for managers');
+ assert.equal(await vis('#managerMoreScreen [data-rm-go="approvalsCard"]'),true);
+ assert.equal(await page.locator('#rmLocation').isDisabled(),true,'the unit name does not open settings');
+ await page.evaluate(()=>document.querySelector('#operationsScreen [data-rm-go="rosterCard"]').click());
+ assert.equal(await page.locator('#rosterScreen').isVisible(),false,'a hidden shortcut opens nothing');
  if(size==='iphone'){const xs=await page.locator('#managerBottomNav > button:visible').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return [r.left,r.right];}));assert.equal(xs.length,3);const W=await page.evaluate(()=>innerWidth);assert.ok(xs[0][0]<25&&xs[2][1]>W-25,'three tabs fill the bar '+JSON.stringify(xs)+' '+W);}
  await page.evaluate(()=>{currentManagerRole='manager';window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{name:'QA'},counts:{},working:[]}}));});
  assert.equal(await vis('#stockCard'),false,'(Home not visible now)');await page.locator('[data-manager-nav="home"]').click();assert.equal(await vis('#stockCard'),true,'everything back without permissions');
+ await page.locator('[data-manager-nav="more"]').click();assert.equal(await vis('#managerMoreScreen [data-rm-go="rmOpenSettings"]'),true,'Administrator keeps Restaurant Settings');assert.equal(await vis('#managerMoreScreen [data-rm-go="moreDevicesBtn"]'),true);assert.equal(await page.locator('#rmLocation').isDisabled(),false);
  // My Time Clock from More keeps the new look; More → Home goes back to the home, not the clock.
  await page.evaluate(()=>{managerApi=async action=>action==='manager_dashboard'?{manager:{id:'qa-clock',name:'QA Manager',role:'manager'},location:'QA fixture',working:[]}:{pending:0};});
  await page.locator('[data-manager-nav="more"]').click();await page.locator('#moreMyClockBtn').evaluate(b=>b.click());await page.locator('#managerClockSection').waitFor({state:'visible'});
