@@ -27,6 +27,7 @@ const server = createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const url = `http://127.0.0.1:${server.address().port}/`;
+let step = "start";
 const browser = await pw[ENGINE].launch();
 try {
   const context = await browser.newContext({ ...pw.devices["iPhone 13"], serviceWorkers: "block" });
@@ -41,12 +42,14 @@ try {
   assert.equal(await page.locator("#appUpdateBar").count(), 0, "nothing changed: no offer");
 
   // A release happens while the phone still has version 1 in its cache.
+  step = "after release";
   published = 2;
   await page.goto(url + "?again"); // opening the app again (not a forced reload): cached files are used
   assert.equal(await page.evaluate(() => window.__publishedVersion), 1, "the phone runs its cached copy (the problem)");
   await page.locator("#appUpdateBar").waitFor({ state: "visible", timeout: 10000 });
   assert.match(await page.locator("#appUpdateBar").innerText(), /new version is ready/i);
 
+  step = "update tapped";
   await page.locator("#appUpdateBar button").click();
   await page.waitForLoadState("load");
   assert.equal(await page.evaluate(() => window.__publishedVersion), 2, "after Update the new version runs");
@@ -54,6 +57,9 @@ try {
   assert.equal(await page.locator("#appUpdateBar").count(), 0, "up to date: no offer");
   assert.deepEqual(errors, []);
   console.log(`PASS (${ENGINE}): cached old files are detected, one-tap update loads the new version, no false offers.`);
+} catch (e) {
+  if (process.env.GITHUB_ACTIONS) console.log(`::error title=update check ${ENGINE}::[${step}] ${String(e?.stack || e).replace(/\r?\n/g, " | ").slice(0, 900)}`);
+  throw e;
 } finally {
   await browser.close();
   server.close();
