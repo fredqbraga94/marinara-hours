@@ -143,6 +143,8 @@
     if(off)rows.push(row(`${off} time off request${off===1?'':'s'}`,'Someone is waiting for an answer','timeOffCard','leave'));
     const ups=(typeof window.mhPriceUps==='object'&&window.mhPriceUps)||[];
     if(ups.length&&can('invoices')&&['manager','kitchen_manager'].includes(currentManagerRole)){const names=ups.slice().sort((a,b)=>Number(b.change_pct)-Number(a.change_pct)).slice(0,2).map(p=>`${p.description} +${Number(p.change_pct).toLocaleString('en-AU',{maximumFractionDigits:1})}%`);rows.push(row(`${ups.length} price${ups.length===1?'':'s'} went up`,escapeHtml(names.join(', ')+(ups.length>2?` and ${ups.length-2} more`:'')),'rmOpenPriceUps','finance'));}
+    const shop=window.mhShopping||{};
+    if(shop.open)rows.push(row(`${shop.open} thing${shop.open===1?'':'s'} to buy${shop.urgent?` · ${shop.urgent} urgent`:''}`,escapeHtml((shop.names||[]).join(', ')+(shop.open>2?` and ${shop.open-2} more`:'')),'rmOpenShopping','stock'));
     if(toOrder)rows.push(row(`${toOrder} item${toOrder===1?'':'s'} to order`,'Below par at the last stock count','stockCard','stock'));
     // Bell: people waiting on the manager (late, shifts to approve, time off requests).
     const waiting=(t?t.late.length:0)+n+off;const bell=$('rmBellBadge');
@@ -224,6 +226,7 @@
   // The time-off count changes on its own (every 30 s); keep the bell in step.
   const offCount=$('homeTimeOffCount');if(offCount)new MutationObserver(()=>paint()).observe(offCount,{childList:true,characterData:true,subtree:true});
   window.addEventListener('marinara:prices',()=>paint());
+  window.addEventListener('marinara:shopping',()=>paint());
   $('rmScanInvoice').onclick=()=>{dialog.close();go('invoicesCard');$('invFiles')?.click();};
   syncShell();
 })();

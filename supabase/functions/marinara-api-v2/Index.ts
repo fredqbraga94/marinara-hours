@@ -341,6 +341,7 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   INVOICE_DUPLICATE: [409, "This invoice is already saved."],
   INGREDIENT_NOT_FOUND: [404, "Ingredient not found"],
   NAME_IS_A_DISH: [409, "There is already a dish with this name. Rename the ingredient first."],
+  ITEM_NOT_FOUND: [404, "Item not found"],
 };
 
 // WEBPUSH-START
@@ -1445,6 +1446,9 @@ Deno.serve(async (req) => {
         "manager_stock_count_save",
         "manager_stock_count_close",
         "manager_stock_supplier_rename",
+        "manager_shopping_list",
+        "manager_shopping_save",
+        "manager_shopping_mark",
       ]);
 
     if (!managerActions.has(action)) {
@@ -3188,6 +3192,40 @@ Deno.serve(async (req) => {
         });
         if (error) return managerDbError(error, "Unable to add the person");
         return json({ success: true, action, data: { staff: data } });
+      }
+
+      // =========================
+      // SHOPPING LIST (every manager)
+      // =========================
+      if (action.startsWith("manager_shopping_")) {
+        const isUuid = (v: any) => typeof v === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const text = (v: any, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+        if (action === "manager_shopping_list") {
+          const { data, error } = await supabase.rpc("manager_shopping_list", { p_manager_id: managerStatus.id });
+          if (error) return managerDbError(error, "Unable to load the shopping list", 500);
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_shopping_save") {
+          const it = body.item && typeof body.item === "object" ? body.item : {};
+          if (it.id != null && !isUuid(it.id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
+          const item: any = { name: text(it.name, 80), qty: text(it.qty, 40), note: text(it.note, 200), urgent: it.urgent === true };
+          if (it.id) item.id = it.id;
+          if (!item.name) return json({ error: "Write what needs to be bought.", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_shopping_save", { p_manager_id: managerStatus.id, p_item: item });
+          if (error) return managerDbError(error, "Unable to save the item");
+          return json({ success: true, action, data: { item: data } });
+        }
+        if (action === "manager_shopping_mark") {
+          if (!isUuid(body.id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
+          const status = ["bought", "open", "removed"].includes(body.status) ? body.status : "";
+          if (!status) return json({ error: "Invalid request", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_shopping_mark", {
+            p_manager_id: managerStatus.id, p_id: body.id, p_status: status,
+          });
+          if (error) return managerDbError(error, "Unable to update the item");
+          return json({ success: true, action, data: { item: data } });
+        }
       }
 
       // =========================
