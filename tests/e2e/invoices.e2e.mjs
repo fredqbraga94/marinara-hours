@@ -195,9 +195,13 @@ try {
   });
 
   await check("price changes: a dearer product on the next invoice", async () => {
-    await gm.page.setInputFiles("#invFiles", [FILES.dearer]);
-    await waitRead(gm, 2);
+    // The same PDF chosen twice: once one copy is saved, the other is marked.
+    await gm.page.setInputFiles("#invFiles", [FILES.dearer, FILES.dearer]);
+    await waitRead(gm, 3);
     await gm.page.click('#invReview [data-inv-save="1"]');
+    await gm.page.waitForFunction(() => /Already saved/.test(document.querySelectorAll("#invReview .inv-review")[2]?.textContent || ""));
+    assert.equal(await gm.page.locator('#invReview [data-inv-save="2"]').count(), 0, "the second copy cannot be saved");
+    await gm.page.click('#invReview [data-inv-dismiss="2"]');
     await gm.page.waitForFunction(() => /T-5003/.test(document.getElementById("invList").textContent));
     await gm.page.click('[data-inv-tab="prices"]');
     await gm.page.waitForSelector("#invPrices .inv-price");

@@ -263,6 +263,25 @@
   // Global Food and Wine (Gulli invoices). Item names wrap above and below the
   // row that holds the numbers, and an item can continue on the next page.
   // GST is its own line ("GST"); line totals are ex GST.
+  // Some of these PDFs print two cells as one piece of text: the unit with the
+  // item code ("Carton 33941990") or the unit with the price ("Carton $165.00").
+  // Split them back into their columns so the row is not skipped.
+  function splitGlobalFoodCells(rows) {
+    for (const r of rows) {
+      const out = [];
+      for (const it of r.items) {
+        let m;
+        if (it.x >= 75 && it.x < 115 && (m = it.s.match(/^(\S+(?: \[\d+\])?)\s+(\d{6,})$/))) {
+          out.push({ ...it, s: m[1] }, { ...it, s: m[2], x: 123 });
+        } else if (it.x >= 440 && it.x < 480 && (m = it.s.match(/^(\S+(?: \[\d+\])?)\s+(\$[\d,]+\.\d{2})$/))) {
+          out.push({ ...it, s: m[1] }, { ...it, s: m[2], x: 494 });
+        } else out.push(it);
+      }
+      r.items = out.sort((a, b) => a.x - b.x);
+    }
+    return rows;
+  }
+
   const globalFood = {
     supplier: "Global Food and Wine (Gulli)",
     test: t => /Global Food and Wine/.test(t) && /Payment due by/.test(t),
@@ -272,6 +291,7 @@
       let carry = null; // last item of the previous page, if its name runs on
       let number = null, date = null;
       for (const rows of pages) {
+        splitGlobalFoodCells(rows);
         const head = rows.find(r => r.items.some(i => /^INV[A-Z]*-/.test(i.s)));
         if (head && !number) {
           number = head.items.find(i => /^INV[A-Z]*-/.test(i.s)).s;

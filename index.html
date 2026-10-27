@@ -8880,6 +8880,11 @@ invoicesScreen?.addEventListener("click", async e => {
         subtotal: inv.subtotal, gst: inv.gst, total: inv.total, checks_ok: inv.ok, file_name: slot.file, lines: inv.lines,
       } });
       slot.saved = true;
+      // Other copies of the same invoice in this list: already saved now.
+      const key = x => `${x.supplier}|${x.kind}|${String(x.number || "").trim()}`;
+      for (const other of invState.review) {
+        if (other !== slot && other.invoice && !other.saved && key(other.invoice) === key(inv)) other.duplicate = true;
+      }
       invRenderReview();
       invMsg(`Saved: ${inv.supplier} #${inv.number}.`, true);
       loadInvoices();
