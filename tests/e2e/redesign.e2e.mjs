@@ -147,6 +147,9 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.evaluate(()=>{managerApi=window.__origPerm;currentManagerRole='kitchen_manager';window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{name:'QA Lead'},counts:{},working:[],permissions:{hours:true,team:false,roster:false,time_off:false,stock:false,recipes:false,invoices:false}}}));});
  await page.locator('[data-manager-nav="home"]').click();
  const vis=sel=>page.locator(sel).first().isVisible();
+ // Same phone, another person: nothing from the previous session (price rises) is shown.
+ assert.equal(await page.evaluate(()=>window.mhPriceUps.length),0,'previous person\'s price rises forgotten');
+ assert.doesNotMatch(await page.locator('#rmAttention').innerText(),/price/i,'no price alert for someone without invoices');
  for(const sel of ['#teamCard','#stockCard','#recipesCard','#invoicesCard','#rmScanInvoice','[data-manager-nav="finance"]','[data-manager-nav="team"]','[data-rm-stat="roster"]','[data-rm-stat="late"]'])assert.equal(await vis(sel),false,`hidden: ${sel}`);
  assert.equal(await vis('[data-rm-stat="working"]'),true);
  await page.locator('[data-manager-nav="operations"]').click();

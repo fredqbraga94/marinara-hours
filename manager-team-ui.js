@@ -198,5 +198,6 @@ details.addEventListener('click',e=>{
   setTimeout(()=>{if(rev===sequence&&st.isConnected&&st.disabled){const m=$('teamMessage').textContent;render().then(()=>{if(m)$('rmEmployeeContent').insertAdjacentHTML('afterbegin',`<div class="message show error">${escapeHtml(m)}</div>`);});}},8000);
  }
 });
+window.addEventListener('marinara:session-reset',()=>{people=[];visas={};person=null;accessCache=null;for(const k of Object.keys(pendingAccess))delete pendingAccess[k];sequence++;});
 paintQuick();
 })();

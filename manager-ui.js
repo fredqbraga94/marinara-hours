@@ -89,13 +89,13 @@
   // Payload is supplied only after a successful, authorised dashboard request.
   // Today from the roster: who is rostered, and who is late (rostered start
   // passed by more than 10 minutes, still inside their shift, not clocked in).
-  const roster={at:0,data:null,loading:false};
+  const roster={at:0,data:null,loading:false,gen:0};
   const brisbaneNow=()=>{const p=Object.fromEntries(new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Brisbane',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).map(x=>[x.type,x.value]));return{date:`${p.year}-${p.month}-${p.day}`,min:Number(p.hour)*60+Number(p.minute)};};
   const toMin=t=>{const m=/^(\d{1,2}):(\d{2})/.exec(t||'');return m?Number(m[1])*60+Number(m[2]):null;};
   async function loadRoster(){
     if(roster.loading||Date.now()-roster.at<60000)return;
-    roster.loading=true;
-    try{roster.data=await managerApi('manager_roster_week');roster.at=Date.now();}catch(_){roster.data=null;}
+    roster.loading=true;const gen=roster.gen;
+    try{const data=await managerApi('manager_roster_week');if(gen!==roster.gen)return;roster.data=data;roster.at=Date.now();}catch(_){if(gen===roster.gen)roster.data=null;}
     finally{roster.loading=false;}
     paint();
   }
@@ -141,7 +141,7 @@
     if(n)rows.push(row(`${n} shift${n===1?'':'s'} awaiting approval`,'Review completed shifts','approvalsCard','check'));
     if(off)rows.push(row(`${off} time off request${off===1?'':'s'}`,'Someone is waiting for an answer','timeOffCard','leave'));
     const ups=(typeof window.mhPriceUps==='object'&&window.mhPriceUps)||[];
-    if(ups.length&&['manager','kitchen_manager'].includes(currentManagerRole)){const names=ups.slice().sort((a,b)=>Number(b.change_pct)-Number(a.change_pct)).slice(0,2).map(p=>`${p.description} +${Number(p.change_pct).toLocaleString('en-AU',{maximumFractionDigits:1})}%`);rows.push(row(`${ups.length} price${ups.length===1?'':'s'} went up`,escapeHtml(names.join(', ')+(ups.length>2?` and ${ups.length-2} more`:'')),'rmOpenPriceUps','finance'));}
+    if(ups.length&&can('invoices')&&['manager','kitchen_manager'].includes(currentManagerRole)){const names=ups.slice().sort((a,b)=>Number(b.change_pct)-Number(a.change_pct)).slice(0,2).map(p=>`${p.description} +${Number(p.change_pct).toLocaleString('en-AU',{maximumFractionDigits:1})}%`);rows.push(row(`${ups.length} price${ups.length===1?'':'s'} went up`,escapeHtml(names.join(', ')+(ups.length>2?` and ${ups.length-2} more`:'')),'rmOpenPriceUps','finance'));}
     if(toOrder)rows.push(row(`${toOrder} item${toOrder===1?'':'s'} to order`,'Below par at the last stock count','stockCard','stock'));
     // Bell: people waiting on the manager (late, shifts to approve, time off requests).
     const waiting=(t?t.late.length:0)+n+off;const bell=$('rmBellBadge');
@@ -180,8 +180,21 @@
   });
   $('rmStatPanel').addEventListener('click',e=>{if(e.target.closest('[data-rm-stat-close]')){openStat=null;$('rmStatPanel').classList.add('hidden');document.querySelectorAll('[data-rm-stat]').forEach(x=>x.setAttribute('aria-expanded','false'));}});
   // Payload is supplied only after a successful, authorised dashboard request.
+  // Another person signed in on this phone (or someone signed out): forget
+  // everything kept from the previous person before showing anything.
+  let lastWho=null;
+  function forgetSession(){
+    roster.gen++;roster.at=0;roster.data=null;lastDash=null;lastWorking=[];openStat=null;
+    $('rmStatPanel')?.classList.add('hidden');
+    window.mhPriceUps=[];window.mhPricesReset?.(true);
+    window.dispatchEvent(new CustomEvent('marinara:session-reset'));
+  }
+  const signOutRaw=signOutAll;
+  signOutAll=function(...args){forgetSession();lastWho=null;return signOutRaw.apply(this,args);};
   window.addEventListener('marinara:dashboard',e=>{
-    const d=e.detail;const working=d.working||[];lastDash=d;lastWorking=working;
+    const d=e.detail;const who=(d.manager&&(d.manager.id||d.manager.name))||null;
+    if(who!==lastWho){if(lastWho!==null)forgetSession();lastWho=who;}
+    const working=d.working||[];lastDash=d;lastWorking=working;
     $('rmWorkingCount').textContent=working.filter(p=>p.status!=='break').length;$('rmBreakCount').textContent=working.filter(p=>p.status==='break').length;
     $('managerRoleLine').textContent=`Here's what's happening at ${d.location||'your restaurant'}.`;
     $('rmProfile').textContent=String(d.manager?.name||'M').slice(0,1).toUpperCase();syncShell();
