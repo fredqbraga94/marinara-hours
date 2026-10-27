@@ -121,3 +121,25 @@ test("Gulli credit note: columns found from the header, stored as negative", () 
   assert.equal(inv.kind, "credit"); assert.equal(inv.number, "CMGUL-TEST-1"); assert.equal(inv.total, -250);
   assert.deepEqual(inv.lines.map((l) => [l.code, l.qty, l.unit, l.unit_price, l.line_total]), [["90000006", 10, "Pkt", 25, -250]]);
 });
+
+test("Global Food and Wine (older layout): unit printed together with the code or the price", () => {
+  y = 0;
+  const words = [
+    ...row(["Invoice", 393], ["Date", 504]), ...row(["Global Food and Wine", 180]),
+    ...row(["INVGUL-TEST-2", 393], ["21 Oct 2026", 504]), ...row(["Payment due by", 393], ["28 Oct 2026", 490]),
+    ...row(["Order", 33], ["Item", 123], ["Ship", 410], ["Line", 560]),
+    ...row(["qty.", 33], ["code", 123], ["qty.", 410], ["total", 557]),
+    ...row(["Test Cheese 2kg", 177]),
+    ...row(["4", 33], ["Ctn [4]", 84], ["90000007", 123], ["4", 410], ["Ctn [4]", 455], ["$20.00", 494], ["$80.00", 545]),
+    // Merged cells: "Carton 90000008" and "Carton $150.00".
+    ...row(["Test Fish Portions 5kg", 177]),
+    ...row(["1", 33], ["Carton 90000008", 84], ["1", 410], ["Carton $150.00", 455], ["$150.00", 544]),
+    ...row(["1", 33], ["EA", 84], ["DELIVERY", 123], ["Delivery Fee", 177], ["1", 410], ["EA", 455], ["$4.95", 494], ["$4.95", 555]),
+    ...row(["Total", 478], ["$234.95", 546]),
+  ];
+  const inv = R.parse([R.toRows(words)]);
+  assert.equal(inv.ok, true, JSON.stringify(inv.checks));
+  assert.deepEqual(inv.lines.map((l) => [l.code, l.qty, l.unit, l.unit_price, l.line_total]), [
+    ["90000007", 4, "Ctn [4]", 20, 80], ["90000008", 1, "Carton", 150, 150], ["DELIVERY", 1, "EA", 4.95, 4.95],
+  ]);
+});
