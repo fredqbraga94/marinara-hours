@@ -322,32 +322,120 @@
     },
   };
 
-  // Gulli credit notes (refunds). Amounts are stored as negative.
+  // Gulli Food Distributors (Global Food and Wine renamed itself Gulli in Oct
+  // 2026): tax invoices and credit notes from the same system. Columns are found
+  // from the header row of each page ("Item … Qty/Quantity … Units … Rate/Price
+  // … Amount … WET … GST … Total/Gross $"), so a moved column still reads.
+  // Quantities are in the printed unit: "1 Ctn [5] × 200.00" is one carton of 5
+  // at $200 a carton. Cartons are stored as single units ("5 Ctn [5] × 40.00"),
+  // like the older Global Food and Wine invoices, so prices stay comparable
+  // across both layouts. Wine tax (WET) is part of the line total (ex GST).
+  // Item names wrap onto the next row. Credit notes are stored as negative.
+  const GULLI_COLS = [
+    ["item", /^Item$/], ["brand", /Brand$/], ["status", /^Status$/], ["qty", /^(Qty|Quantity)$/],
+    ["units", /^Units$/], ["rate", /^(Rate|Price)$/], ["crs", /^CRS$/], ["amount", /^Amount$/],
+    ["wet", /^WET$/], ["gst", /^GST$/], ["total", /^(Total|Gross \$)$/],
+  ];
+  function gulliRead(pages, credit) {
+    const lines = [];
+    let last = null;
+    for (const rows of pages) {
+      const hi = rows.findIndex(r => r.items.some(i => i.s === "Item") && r.items.some(i => /^(Qty|Quantity)$/.test(i.s)));
+      if (hi < 0) continue;
+      const cols = [];
+      for (const it of rows[hi].items) {
+        const c = GULLI_COLS.find(([, re]) => re.test(it.s));
+        if (c) cols.push({ key: c[0], x: it.x });
+      }
+      // Each word goes to the nearest column heading (numbers sit right-aligned
+      // under their heading, text left-aligned).
+      const cellsOf = r => {
+        const out = {};
+        for (const it of r.items) {
+          let best = null;
+          for (const c of cols) if (!best || Math.abs(c.x - it.x) < Math.abs(best.x - it.x)) best = c;
+          if (best) out[best.key] = out[best.key] ? `${out[best.key]} ${it.s}` : it.s;
+        }
+        return out;
+      };
+      for (const r of rows.slice(hi + 1)) {
+        const t = rowText(r);
+        if (/^(Subtotal|Subject to|Claims or returns|NEW BANK DETAILS)/.test(t) || r.items.some(i => /^(Subtotal|Page:)/.test(i.s))) break;
+        const c = cellsOf(r);
+        const m = String(c.item || "").match(/^(\d{6,})\s+(.*)$/);
+        const amount = money(c.amount);
+        if (m && amount != null) {
+          const rate = money(c.rate);
+          let qty = num(c.qty);
+          // Quantity a few points lower than the rest of the row: take it from
+          // the next row (below); until then amount / rate.
+          const qtyBelow = qty == null;
+          if (qty == null && rate) qty = r2(amount / rate);
+          let unit = String(c.units || "").trim();
+          let unitPrice = rate;
+          const pack = unit.match(/^c(?:tn|arton)s?\s*\[(\d+)\]$/i);
+          if (pack && Number(pack[1]) > 1 && qty != null && rate != null) {
+            const n = Number(pack[1]);
+            qty = r2(qty * n);
+            unitPrice = Math.round(rate / n * 10000) / 10000;
+          }
+          const sign = credit ? -1 : 1;
+          last = {
+            code: m[1], name: [m[2]], qty, unit, unit_price: unitPrice, qtyBelow, packN: pack ? Number(pack[1]) : 1,
+            line_total: sign * r2(amount + (money(c.wet) || 0)),
+            gst: sign * (money(c.gst) || 0),
+            brand: String(c.brand || "").trim(),
+          };
+          lines.push(last);
+        } else if (last && amount == null) {
+          if (c.item && !m) last.name.push(c.item);           // name continues on this row
+          const q = num(c.qty);
+          if (q != null && last.qtyBelow) { last.qty = r2(q * (last.packN > 1 ? last.packN : 1)); last.qtyBelow = false; }
+        }
+      }
+    }
+    for (const l of lines) {
+      l.description = l.name.join(" ").replace(/\s+/g, " ").trim() + (credit && l.brand ? ` · ${l.brand}` : "");
+      delete l.name; delete l.brand; delete l.qtyBelow; delete l.packN;
+    }
+    return lines;
+  }
+  const after = (pages, label) => String(valueAfter(pages, label) || "").replace(/^[:\s]+/, "").trim();
+
+  const gulliInvoice = {
+    supplier: "Global Food and Wine (Gulli)",   // same name as before, so price history continues
+    test: t => /Gulli Food Distributors/.test(t) && /Tax Invoice/.test(t) && /Amount Due/.test(t),
+    read(pages) {
+      const lines = gulliRead(pages, false);
+      const shipping = money(valueAfter(pages, "Shipping Cost"));
+      const gst = money(valueAfter(pages, "GST Total")) ?? 0;
+      if (shipping) {
+        const lineGst = r2(lines.reduce((a, l) => a + (l.gst || 0), 0));
+        lines.push({ code: "DELIVERY", description: "Delivery Fee", qty: 1, unit: "EA", unit_price: shipping,
+          line_total: shipping, gst: Math.max(0, r2(gst - lineGst)) });
+      }
+      const sub = money(valueAfter(pages, "Subtotal")), wet = money(valueAfter(pages, "WET Total")) || 0;
+      return {
+        number: after(pages, "Invoice Number") || null,
+        date: isoDate(after(pages, "Date")),
+        kind: "invoice",
+        lines,
+        subtotal: sub == null ? null : r2(sub + wet + (shipping || 0)),
+        gst,
+        total: money(valueAfter(pages, "Amount Due")),
+      };
+    },
+  };
+
   const gulliCredit = {
     supplier: "Global Food and Wine (Gulli)",
     test: t => /Gulli Food Distributors/.test(t) && /Credit Note/.test(t),
     read(pages) {
-      const lines = [];
-      for (const rows of pages) for (const r of rows) {
-        const first = r.items[0]?.s || "";
-        const m = first.match(/^(\d{6,})\s+(.*)$/);
-        const gross = money(firstIn(r, 770, 820));
-        if (!m || gross == null) continue;
-        const wet = money(firstIn(r, 660, 710)) || 0;
-        lines.push({
-          code: m[1],
-          description: [m[2], textIn(r, 300, 385)].filter(Boolean).join(" · "),
-          qty: num(firstIn(r, 385, 445)),
-          unit: textIn(r, 445, 500),
-          unit_price: money(firstIn(r, 500, 550)),
-          line_total: -r2((money(firstIn(r, 600, 660)) || 0) + wet),
-          gst: -(money(firstIn(r, 710, 760)) || 0),
-        });
-      }
+      const lines = gulliRead(pages, true);
       const sub = money(valueAfter(pages, "Subtotal")), wet = money(valueAfter(pages, "WET Total")) || 0;
       return {
-        number: String(valueAfter(pages, "Document Number") || "").replace(/^[:\s]+/, "") || null,
-        date: isoDate(String(valueAfter(pages, "Date") || "").replace(/^[:\s]+/, "")),
+        number: after(pages, "Document Number") || null,
+        date: isoDate(after(pages, "Date")),
         kind: "credit",
         lines,
         subtotal: sub == null ? null : -r2(sub + wet),
@@ -357,7 +445,7 @@
     },
   };
 
-  const READERS = [moco, pronto, angelos, globalFood, gulliCredit];
+  const READERS = [moco, pronto, angelos, globalFood, gulliInvoice, gulliCredit];
 
   // pages -> invoice, or { error } when the layout is not one we know.
   function parse(pages) {
