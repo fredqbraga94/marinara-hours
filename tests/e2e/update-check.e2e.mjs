@@ -44,19 +44,47 @@ try {
   // A release happens while the phone still has version 1 in its cache.
   step = "after release";
   published = 2;
-  await page.goto(url + "?again"); // opening the app again (not a forced reload): cached files are used
-  assert.equal(await page.evaluate(() => window.__publishedVersion), 1, "the phone runs its cached copy (the problem)");
-  await page.locator("#appUpdateBar").waitFor({ state: "visible", timeout: 10000 });
-  assert.match(await page.locator("#appUpdateBar").innerText(), /new version is ready/i);
-
-  step = "update tapped";
-  await page.locator("#appUpdateBar button").click();
-  await page.waitForLoadState("load");
-  assert.equal(await page.evaluate(() => window.__publishedVersion), 2, "after Update the new version runs");
+  await page.goto(url + "?again"); // opening the app again (not a forced reload)
+  const ranCached = (await page.evaluate(() => window.__publishedVersion)) === 1;
+  if (ranCached) {
+    // This engine kept the old file like a phone does: the offer must appear.
+    await page.locator("#appUpdateBar").waitFor({ state: "visible", timeout: 10000 });
+    assert.match(await page.locator("#appUpdateBar").innerText(), /new version is ready/i);
+    step = "update tapped";
+    await page.locator("#appUpdateBar button").click();
+    await page.waitForLoadState("load");
+    assert.equal(await page.evaluate(() => window.__publishedVersion), 2, "after Update the new version runs");
+  } else {
+    // This engine fetched the new file straight away (Playwright's WebKit does):
+    // the app is already up to date, so there must be no offer.
+    assert.equal(await page.evaluate(() => window.__publishedVersion), 2);
+  }
   await page.waitForTimeout(5500);
   assert.equal(await page.locator("#appUpdateBar").count(), 0, "up to date: no offer");
   assert.deepEqual(errors, []);
-  console.log(`PASS (${ENGINE}): cached old files are detected, one-tap update loads the new version, no false offers.`);
+
+  // Same logic in every engine, without relying on its cache: this phone's copy
+  // of manager-ui.js is older than the published one.
+  step = "stale copy (every engine)";
+  const stale = await context.newPage();
+  await stale.addInitScript(() => {
+    const real = window.fetch.bind(window);
+    window.fetch = (input, init = {}) => String(input).includes("manager-ui.js") && init.cache === "force-cache"
+      ? Promise.resolve(new Response("// the old copy this phone kept", { status: 200 }))
+      : real(input, init);
+  });
+  await stale.goto(url + "?stale");
+  await stale.locator("#appUpdateBar").waitFor({ state: "visible", timeout: 10000 });
+  assert.match(await stale.locator("#appUpdateBar").innerText(), /new version is ready/i);
+  assert.equal(await stale.locator("#appUpdateBar button").innerText(), "Update");
+  // Offline: no check, no offer, no error.
+  step = "offline";
+  const off = await context.newPage();
+  await off.addInitScript(() => { Object.defineProperty(navigator, "onLine", { get: () => false }); window.fetch = () => Promise.reject(new TypeError("offline")); });
+  await off.goto(url + "?off");
+  await off.waitForTimeout(5500);
+  assert.equal(await off.locator("#appUpdateBar").count(), 0);
+  console.log(`PASS (${ENGINE}): old copy detected and offered, one-tap update loads the new version, no offer when up to date or offline.`);
 } catch (e) {
   if (process.env.GITHUB_ACTIONS) console.log(`::error title=update check ${ENGINE}::[${step}] ${String(e?.stack || e).replace(/\r?\n/g, " | ").slice(0, 900)}`);
   throw e;
