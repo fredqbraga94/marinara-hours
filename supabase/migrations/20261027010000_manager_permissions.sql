@@ -5,7 +5,7 @@
 -- can only take access away: role rules still apply (e.g. a Floor Manager never
 -- sees invoices). The Administrator always has everything.
 -- Every change is written to staff_audit (who changed what, when).
--- Additive only: one new table and three new functions. Nothing existing changes.
+-- Additive only: one new table and four new functions. Nothing existing changes.
 
 create table if not exists public.manager_permissions (
   staff_id uuid primary key references public.staff(id),
@@ -127,9 +127,32 @@ begin
   return to_jsonb(v_new) - 'updated_by';
 end $function$;
 
+-- Edit a person and, in the same step, choose their access (used when someone
+-- becomes a Kitchen or Floor Manager, so they never get more than chosen, even
+-- for a moment). Both changes are saved together or not at all.
+create or replace function public.manager_update_staff_with_access(
+  p_manager_id uuid, p_staff_id uuid, p_name text, p_department text, p_new_pin text, p_role text, p_perms jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  v_out jsonb;
+begin
+  if not exists (select 1 from public.staff where id = p_manager_id and active and role = 'manager') then
+    raise exception 'GM_REQUIRED';
+  end if;
+  v_out := public.manager_update_staff_audited(p_manager_id, p_staff_id, p_name, p_department, p_new_pin, p_role);
+  perform public.manager_permissions_set(p_manager_id, p_staff_id, p_perms);
+  return v_out;
+end $function$;
+
 revoke all on function public.manager_permissions_mine(uuid) from public, anon, authenticated;
 revoke all on function public.manager_permissions_list(uuid) from public, anon, authenticated;
 revoke all on function public.manager_permissions_set(uuid, uuid, jsonb) from public, anon, authenticated;
+revoke all on function public.manager_update_staff_with_access(uuid, uuid, text, text, text, text, jsonb) from public, anon, authenticated;
 grant execute on function public.manager_permissions_mine(uuid) to service_role;
 grant execute on function public.manager_permissions_list(uuid) to service_role;
 grant execute on function public.manager_permissions_set(uuid, uuid, jsonb) to service_role;
+grant execute on function public.manager_update_staff_with_access(uuid, uuid, text, text, text, text, jsonb) to service_role;

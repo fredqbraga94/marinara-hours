@@ -49,6 +49,7 @@ function paintQuick(){
 }
 window.addEventListener('marinara:dashboard',e=>{pendingApprovals=e.detail?.counts?.unapproved_shifts||0;paintQuick();});
 window.addEventListener('marinara:team',e=>{
+ for(const k of Object.keys(pendingAccess))delete pendingAccess[k];accessCache=null;
  people=e.detail.team;visas=e.detail.visaById||{};
  for(const p of people){
   const row=$('teamList').querySelector(`[data-team-row="${p.id}"]`);if(!row)continue;
@@ -154,6 +155,28 @@ async function renderAccess(p,revision){
   catch(e){msg.className='rm-perm-msg err';msg.textContent=e.message||'Unable to save.';save.disabled=false;save.textContent='Save access';}
  };
 }
+/* Becoming a Kitchen/Floor Manager in the Edit form: choose access right there
+   (starts with Hours only). Saved together with the role change. */
+const MANAGER_ROLES=['kitchen_manager','floor_manager'];
+const pendingAccess={};
+function syncEditAccess(panel){
+ const id=panel?.dataset.editPanel;const sel=panel?.querySelector('.team-edit-role');if(!id||!sel)return;
+ const who=people.find(x=>x.id===id)||{};
+ const becoming=currentManagerRole==='manager'&&MANAGER_ROLES.includes(sel.value)&&!MANAGER_ROLES.includes(who.role);
+ let box=panel.querySelector('.rm-edit-access');
+ if(!becoming){box?.remove();delete pendingAccess[id];return;}
+ const floor=sel.value==='floor_manager';
+ const keep=pendingAccess[id]||{hours:true,team:false,roster:false,time_off:false,stock:false,recipes:false,invoices:false};
+ if(floor)keep.invoices=false;
+ pendingAccess[id]=keep;
+ if(!box){box=document.createElement('div');box.className='rm-edit-access';const anchor=panel.querySelector('.team-save-edit-btn')?.parentElement;anchor?anchor.before(box):panel.append(box);}
+ box.innerHTML=`<strong>Access for this manager</strong><small>Choose what they can use. You can change it later on their page.</small><div class="rm-perm-list">${AREAS.map(([k,l,d])=>{const off=floor&&k==='invoices';return `<label class="rm-perm${off?' off':''}"><span><strong>${l}</strong><small>${off?'Not for Floor Managers':d}</small></span><input type="checkbox" role="switch" data-new-perm="${k}" ${keep[k]&&!off?'checked':''} ${off?'disabled':''}></label>`;}).join('')}</div>`;
+}
+document.addEventListener('change',e=>{
+ const sel=e.target.closest('.team-edit-role');if(sel){syncEditAccess(sel.closest('[data-edit-panel]'));return;}
+ const sw=e.target.closest('[data-new-perm]');if(sw){const id=sw.closest('[data-edit-panel]').dataset.editPanel;(pendingAccess[id]||={})[sw.dataset.newPerm]=sw.checked;}
+});
+window.mhEditAccess=(staffId,role)=>MANAGER_ROLES.includes(role)&&pendingAccess[staffId]&&document.querySelector(`[data-edit-panel="${CSS.escape(staffId)}"] .rm-edit-access`)?{permissions:{...pendingAccess[staffId]}}:{};
 let confirmTimer=null;
 details.addEventListener('click',e=>{
  if(e.target.closest('[data-employee-back]')){sequence++;showOnlyManagerScreen('teamScreen');setManagerNavActive('team');return;}

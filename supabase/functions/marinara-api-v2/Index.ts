@@ -2792,8 +2792,11 @@ Deno.serve(async (req) => {
           return json({ error: "Access denied for this department" }, 403);
         }
 
+        // With "permissions" (Administrator, someone becoming a Kitchen/Floor
+        // Manager): the edit and the access are saved together.
+        const withAccess = !!body.permissions && typeof body.permissions === "object" && !Array.isArray(body.permissions);
         const { data: updated, error: updateStaffError } = await supabase.rpc(
-          "manager_update_staff_audited",
+          withAccess ? "manager_update_staff_with_access" : "manager_update_staff_audited",
           {
             p_manager_id: managerStatus.id,
             p_staff_id: staffId,
@@ -2801,11 +2804,12 @@ Deno.serve(async (req) => {
             p_department: department,
             p_new_pin: newPin || null,
             p_role: requestedRole || null,
+            ...(withAccess ? { p_perms: body.permissions } : {}),
           }
         );
         if (updateStaffError) {
           const code = dbErrorCode(updateStaffError);
-          if (["PIN_IN_USE", "DEPARTMENT_DENIED", "GM_REQUIRED", "STAFF_NOT_FOUND", "INVALID_ROLE"].includes(code)) {
+          if (["PIN_IN_USE", "DEPARTMENT_DENIED", "GM_REQUIRED", "STAFF_NOT_FOUND", "INVALID_ROLE", "NOT_A_MANAGER", "INVALID_INPUT"].includes(code)) {
             return managerDbError(updateStaffError, "Unable to update staff member");
           }
           console.error("Update staff error:", updateStaffError.code || "");

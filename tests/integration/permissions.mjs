@@ -76,7 +76,7 @@ try {
   for (const f of BEFORE.slice(-6)) { const r = db.psqlFile(f); assert.ok(r.ok, `${f}: ${r.stderr}`); }
   const vProd = await quiet(() => loadHandler(PROD_SERVER));
   const vNew = await quiet(() => loadHandler(NEW_SERVER));
-  const dev = Object.fromEntries([1, 2, 3].map((n) => [n, newDeviceSecret()]));
+  const dev = Object.fromEntries([1, 2, 3, 4].map((n) => [n, newDeviceSecret()]));
   const login = async (h, n) => {
     const r = await quiet(() => call(h, { action: "login", pin: PIN[ID(n)], device: dev[n] }));
     assert.equal(r.status, 200, `login ${n}: ${JSON.stringify(r.body)}`);
@@ -197,6 +197,24 @@ try {
     assert.equal((await set(1, gm, ID(2), { hours: true, team: true, roster: true, time_off: true, stock: true, recipes: true, invoices: true })).status, 200);
     assert.ok(allOk(await statuses(vNew, 2, km)));
     return "every area 200 again";
+  });
+
+  await check("someone becomes a Kitchen Manager with the access chosen in the same step", async () => {
+    const promote = (n, token, extra) => api(vNew, n, token, { action: "manager_update_staff", staff_id: ID(4), name: "Test Kitchen A", department: "Kitchen", ...extra });
+    // A Kitchen Manager cannot do it (role changes and access are for the Administrator).
+    assert.equal((await promote(2, km, { role: "kitchen_manager", permissions: { hours: true } })).status, 403);
+    // Access for someone who stays Staff is refused, and nothing is saved (not even the name).
+    const bad = await promote(1, gm, { name: "Changed Name", role: "staff", permissions: { hours: true } });
+    assert.equal(bad.status, 400, JSON.stringify(bad.body));
+    assert.equal(await one(db, `select name from public.staff where id = '${ID(4)}'`), "Test Kitchen A", "all or nothing");
+    // The real thing: Staff → Kitchen Manager with hours only.
+    const ok = await promote(1, gm, { role: "kitchen_manager", permissions: { hours: true, team: false, roster: false, time_off: false, stock: false, recipes: false, invoices: false } });
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+    assert.equal(await one(db, `select role from public.staff where id = '${ID(4)}'`), "kitchen_manager");
+    const t4 = await login(vNew, 4);
+    const s = await statuses(vNew, 4, t4);
+    assert.deepEqual(s, { hours: 200, approvals: 200, team: 200, roster: 403, time_off: 403, stock: 403, recipes: 403, invoices: 403, prices: 403, costs: 403 });
+    return "new Kitchen Manager: hours only from the first moment; refused cases saved nothing";
   });
 
   section("D. Rollback");

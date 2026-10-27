@@ -124,6 +124,25 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('[data-employee-back]').click();await page.getByRole('button',{name:'QA Floor Lead',exact:true}).click();await page.locator('#rmPermCard .rm-perm').first().waitFor();
  assert.equal(await page.locator('#rmPermCard [data-perm="invoices"]').isDisabled(),true,'floor managers never get invoices');
  await page.locator('[data-employee-back]').click();
+ // Becoming a Kitchen Manager in Edit: switches appear (Hours only) and go with the save.
+ await page.evaluate(()=>{const base=managerApi;window.__upd=null;managerApi=async(action,args={})=>action==='manager_update_staff'?(window.__upd=args,{staff:{}}):action==='manager_team'?{manager:{role:'manager'},team:[{id:'00000000-0000-4000-8000-0000000000s1',name:'QA Cook',department:'Kitchen',role:'staff',active:true}],visa_hours:[]}:base(action,args);});
+ await page.locator('[data-manager-nav="team"]').click();await page.getByRole('button',{name:'QA Cook',exact:true}).waitFor();
+ const cook='[data-edit-panel="00000000-0000-4000-8000-0000000000s1"]';
+ await page.locator('#teamList [data-team-row="00000000-0000-4000-8000-0000000000s1"] .team-edit-btn').click();
+ assert.equal(await page.locator(`${cook} .rm-edit-access`).count(),0,'no switches while staying Staff');
+ await page.locator(`${cook} .team-edit-role`).selectOption('kitchen_manager');
+ await page.locator(`${cook} .rm-edit-access`).waitFor();
+ assert.deepEqual(await page.locator(`${cook} [data-new-perm]`).evaluateAll(es=>es.filter(e=>e.checked).map(e=>e.dataset.newPerm)),['hours'],'starts with Hours only');
+ await page.locator(`${cook} .rm-perm:has([data-new-perm="stock"])`).click();
+ await page.screenshot({path:`tmp/qa/${size}-promote.png`,fullPage:true});
+ await page.locator(`${cook} .team-save-edit-btn`).click();await page.waitForFunction(()=>window.__upd);
+ assert.deepEqual(await page.evaluate(()=>window.__upd.permissions),{hours:true,team:false,roster:false,time_off:false,stock:true,recipes:false,invoices:false});
+ assert.equal(await page.evaluate(()=>window.__upd.role),'kitchen_manager');
+ // Back to Staff: switches go away and nothing extra is sent.
+ await page.evaluate(()=>{window.__upd=null;});
+ await page.locator('#teamList [data-team-row="00000000-0000-4000-8000-0000000000s1"] .team-edit-btn').click().catch(()=>{});
+ if(await page.locator(`${cook}`).isVisible()){await page.locator(`${cook} .team-edit-role`).selectOption('staff');assert.equal(await page.locator(`${cook} .rm-edit-access`).count(),0);await page.locator(`${cook} .team-save-edit-btn`).click();await page.waitForFunction(()=>window.__upd);assert.equal(await page.evaluate(()=>'permissions' in window.__upd),false,'nothing extra when staying Staff');}
+ await page.evaluate(()=>{managerApi=window.__origPerm;});
  // The restricted Kitchen Manager only sees hours.
  await page.evaluate(()=>{managerApi=window.__origPerm;currentManagerRole='kitchen_manager';window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{name:'QA Lead'},counts:{},working:[],permissions:{hours:true,team:false,roster:false,time_off:false,stock:false,recipes:false,invoices:false}}}));});
  await page.locator('[data-manager-nav="home"]').click();
