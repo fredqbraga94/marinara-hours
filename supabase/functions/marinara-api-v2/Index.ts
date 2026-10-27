@@ -3817,6 +3817,13 @@ Deno.serve(async (req) => {
               return loadPublicHolidays(today, addDays(today, 14));
             })(),
 
+          // The next 12 months of public holidays (Home: next one, tap for the list).
+          next_holidays:
+            await (async () => {
+              const today = new Date(Date.now() + BRISBANE_OFFSET_MS).toISOString().slice(0, 10);
+              return loadPublicHolidays(today, addDays(today, 365));
+            })(),
+
           counts: {
 
             active_staff:

@@ -14,6 +14,7 @@
   <h3>Restaurant Management</h3><div class="rm-modules" id="rmModules"></div>
   <h3>Restaurant Overview <button class="rm-link" id="rmWorkingToggle" aria-expanded="false">View all</button></h3>
   <div class="rm-overview">${[['roster','On roster','rmRosterCount','roster'],['team','Working','rmWorkingCount','working'],['coffee','On break','rmBreakCount','break'],['clock','Late','rmLateCount','late']].map(([ic,label,id,key])=>`<button type="button" class="rm-stat" data-rm-stat="${key}" aria-expanded="false">${icon(ic)}<i class="rm-live" aria-hidden="true"></i><strong id="${id}">—</strong><small>${label}</small></button>`).join('')}</div><div id="rmStatPanel" class="rm-stat-panel hidden" aria-live="polite"></div><p class="rm-data-note" id="rmOverviewNote"></p>
+  <button type="button" class="rm-holiday hidden" id="rmNextHoliday" aria-expanded="false"></button><div id="rmHolidayList" class="rm-stat-panel hidden"></div>
   <h3>Needs Attention</h3><div class="rm-attention" id="rmAttention"><p class="rm-data-note" style="padding:0 12px">Loading…</p></div>
   <div id="rmWorkingPanel" class="hidden"><h3>Who's Working</h3><div id="rmWorkingSlot"></div></div>`;
   manager.prepend(home);
@@ -43,7 +44,7 @@
   function renderSettings(tab){
     settings.querySelectorAll('[role="tab"]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.rmSettings===tab)));
     const place=$('managerLocation').textContent;
-    $('rmSettingsContent').innerHTML=tab==='General'?`<h3>Business Information</h3><dl><dt>Restaurant</dt><dd>Marinara Ristorante Cafe</dd><dt>Unit</dt><dd>${escapeHtml(place)}</dd></dl><p class="rm-data-note">Address, phone and ABN will be added here later.</p>`:tab==='Locations'?`<h3>${escapeHtml(place)}</h3><p>This is the unit associated with your current session.</p><p class="rm-data-note">Paddington and Clayfield will appear here when they join the app.</p>`:tab==='Hours'?'<h3>Service times</h3><p class="rm-data-note">Lunch and dinner times are set in the Roster.</p>'+row('Roster','View weekly shifts','rosterCard','roster'):`<h3>Public Holidays</h3>${$('managerHolidayNotice').innerHTML || '<p class="rm-data-note">No holiday information has been loaded. Open Home to refresh.</p>'}`;
+    $('rmSettingsContent').innerHTML=tab==='General'?`<h3>Business Information</h3><dl><dt>Restaurant</dt><dd>Marinara Ristorante Cafe</dd><dt>Unit</dt><dd>${escapeHtml(place)}</dd></dl><p class="rm-data-note">Address, phone and ABN will be added here later.</p>`:tab==='Locations'?`<h3>${escapeHtml(place)}</h3><p>This is the unit associated with your current session.</p><p class="rm-data-note">Paddington and Clayfield will appear here when they join the app.</p>`:tab==='Hours'?'<h3>Service times</h3><p class="rm-data-note">Lunch and dinner times are set in the Roster.</p>'+row('Roster','View weekly shifts','rosterCard','roster'):`<h3>Public Holidays</h3>${holidayListHtml() || '<p class="rm-data-note">Open Home to load the public holidays.</p>'}`;
   }
   settings.addEventListener('click',e=>{const b=e.target.closest('[data-rm-settings]');if(b)renderSettings(b.dataset.rmSettings);});
   const renderSettingsRaw=renderSettings;renderSettings=t=>{renderSettingsRaw(t);syncShell();};
@@ -180,6 +181,25 @@
   });
   $('rmStatPanel').addEventListener('click',e=>{if(e.target.closest('[data-rm-stat-close]')){openStat=null;$('rmStatPanel').classList.add('hidden');document.querySelectorAll('[data-rm-stat]').forEach(x=>x.setAttribute('aria-expanded','false'));}});
   // Payload is supplied only after a successful, authorised dashboard request.
+  // Public holidays: the next one on Home (always), tap for the next 12 months.
+  let holidays=[];
+  const daysTo=d=>Math.round((Date.parse(d)-Date.parse(brisbaneTodayInput()))/864e5);
+  const inDays=n=>n===0?'today':n===1?'tomorrow':`in ${n} days`;
+  const holidayLine=h=>`${holidayDayLabel(h.holiday_date)} — ${h.name}${h.part_day?` (${h.part_day})`:''}${h.region==='BRISBANE'?' · Brisbane only':''}`;
+  function holidayListHtml(){
+    if(!holidays.length)return '';
+    return `<div class="rm-hol-list">${holidays.map(h=>`<div class="rm-hol"><span><strong>${escapeHtml(h.name)}</strong><small>${escapeHtml(holidayDayLabel(h.holiday_date))}${h.part_day?` · ${escapeHtml(h.part_day)}`:''}${h.region==='BRISBANE'?' · Brisbane only':''}</small></span><em>${escapeHtml(inDays(daysTo(h.holiday_date)))}</em></div>`).join('')}</div><p class="rm-data-note">Queensland public holidays. Public holiday pay rates apply.</p>`;
+  }
+  function paintHoliday(){
+    const b=$('rmNextHoliday');const h=holidays[0];
+    b.classList.toggle('hidden',!h);if(!h){$('rmHolidayList').classList.add('hidden');return;}
+    const n=daysTo(h.holiday_date);const soon=n<=14;
+    b.classList.toggle('soon',soon);
+    b.innerHTML=`${icon('roster')}<span><small>${soon?'Public holiday coming up':'Next public holiday'}</small><strong>${escapeHtml(h.name)}</strong><small>${escapeHtml(holidayDayLabel(h.holiday_date))}${h.part_day?` · ${escapeHtml(h.part_day)}`:''} · ${escapeHtml(inDays(n))}${soon?' · plan the roster, holiday pay rates apply':''}</small></span><i aria-hidden="true">›</i>`;
+    if(!$('rmHolidayList').classList.contains('hidden'))$('rmHolidayList').innerHTML=`<div class="rm-stat-head"><strong>Next 12 months</strong><button type="button" class="rm-link" data-hol-close>Close</button></div>${holidayListHtml()}`;
+  }
+  $('rmNextHoliday').onclick=()=>{const p=$('rmHolidayList');const open=p.classList.toggle('hidden')===false;$('rmNextHoliday').setAttribute('aria-expanded',String(open));paintHoliday();};
+  $('rmHolidayList').addEventListener('click',e=>{if(e.target.closest('[data-hol-close]')){$('rmHolidayList').classList.add('hidden');$('rmNextHoliday').setAttribute('aria-expanded','false');}});
   // Another person signed in on this phone (or someone signed out): forget
   // everything kept from the previous person before showing anything.
   let lastWho=null;
@@ -195,6 +215,7 @@
     const d=e.detail;const who=(d.manager&&(d.manager.id||d.manager.name))||null;
     if(who!==lastWho){if(lastWho!==null)forgetSession();lastWho=who;}
     const working=d.working||[];lastDash=d;lastWorking=working;
+    holidays=Array.isArray(d.next_holidays)?d.next_holidays:(d.upcoming_holidays||[]);paintHoliday();
     $('rmWorkingCount').textContent=working.filter(p=>p.status!=='break').length;$('rmBreakCount').textContent=working.filter(p=>p.status==='break').length;
     $('managerRoleLine').textContent=`Here's what's happening at ${d.location||'your restaurant'}.`;
     $('rmProfile').textContent=String(d.manager?.name||'M').slice(0,1).toUpperCase();syncShell();
