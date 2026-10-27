@@ -50,6 +50,7 @@ jobs:
       - run: npm run test:invoices
       - run: npm run test:ingredient-costs
       - run: npm run test:price-book
+      - run: npm run test:permissions
   browser:
     runs-on: ubuntu-latest
     steps:

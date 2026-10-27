@@ -169,3 +169,22 @@ body.rm-mode .rm-stat[aria-expanded=true]{border-color:var(--green);box-shadow:0
 .rm-who em{font-style:normal;font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap}
 .rm-who em.in{color:#07613b}.rm-who em.brk{color:#a35f00}.rm-who em.late{color:#b3261e}
 }
+
+/* Access per manager */
+@media screen {
+body.rm-mode .rm-no-access{display:none!important}
+.rm-custom{font-size:11px;font-weight:600;color:#7a4b00;background:#fff4dc;border-radius:6px;padding:3px 8px}
+.rm-perm-list{display:flex;flex-direction:column;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin:8px 0 12px}
+.rm-perm{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 12px;border-bottom:1px solid var(--border);cursor:pointer;background:#fff}
+.rm-perm:last-child{border-bottom:0}.rm-perm span{display:flex;flex-direction:column;gap:2px;min-width:0}.rm-perm strong{font-size:14px}.rm-perm small{font-size:11px;color:var(--muted)}
+.rm-perm.off{opacity:.55;cursor:default}
+.rm-perm input{appearance:none;-webkit-appearance:none;flex-shrink:0;width:46px;height:28px;border-radius:14px;background:#d6d9dc;position:relative;cursor:pointer;transition:background .15s;margin:0}
+.rm-perm input::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px #0003;transition:transform .15s}
+.rm-perm input:checked{background:var(--green)}.rm-perm input:checked::after{transform:translateX(18px)}
+.rm-perm input:focus-visible{outline:3px solid #69ae93;outline-offset:2px}
+.rm-save{width:100%;border:0;border-radius:10px;background:var(--green);color:#fff;font-weight:700;font-size:14px;padding:13px}
+.rm-save:disabled{background:#c9cfcc}
+.rm-perm-msg{font-size:12px;margin:8px 0 0;min-height:1em}.rm-perm-msg.ok{color:#07613b}.rm-perm-msg.err{color:#b3261e}
+}
+/* Bottom bar: share the width among the tabs this manager can use. */
+@media screen {body.rm-mode .manager-bottom-nav{grid-template-columns:none!important;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}}

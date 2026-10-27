@@ -58,6 +58,11 @@
   const placeButton=document.createElement('button');placeButton.id='rmLocation';placeButton.type='button';placeButton.textContent='Current unit ⌄';placeButton.onclick=()=>{settingsBtn.click();renderSettings('Locations');};header.append(placeButton);
   const originalSet=setManagerNavActive;
   setManagerNavActive=function(target='home'){originalSet(target);syncShell();};
+  // Which area each button opens (for managers with switched-off areas).
+  const AREA_OF={teamCard:'team',rmAddStaff:'team',rosterCard:'roster',approvalsCard:'hours',staffHoursCard:'hours',timesheetsCard:'hours',timeOffCard:'time_off',stockCard:'stock',recipesCard:'recipes',invoicesCard:'invoices',rmScanInvoice:'invoices',rmOpenPriceUps:'invoices'};
+  let lastWorking=[],lastDash=null;
+  const can=a=>{const p=(lastDash&&lastDash.permissions)||{};return p[a]!==false;};
+  window.mhCan=can;
   function syncShell(){
     const visible=MANAGER_SCREEN_IDS.find(id=>!$(id)?.classList.contains('hidden'));
     const signedIn=!nav.classList.contains('hidden');const clock=visible==='managerScreen'&&!$('managerClockSection').classList.contains('hidden');
@@ -66,6 +71,13 @@
     nav.querySelectorAll('[data-manager-nav]').forEach(b=>{b.classList.toggle('active',b.dataset.managerNav===active);if(b.dataset.managerNav===active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
     const canInvoice=['manager','kitchen_manager'].includes(currentManagerRole);nav.querySelector('[data-manager-nav="finance"]').disabled=!canInvoice;document.querySelectorAll('[data-rm-go="invoicesCard"], [data-rm-go="rmScanInvoice"], #rmScanInvoice').forEach(b=>{b.disabled=!canInvoice;b.hidden=!canInvoice&&b.id==='rmScanInvoice';b.title=canInvoice?'':'Finance is restricted to authorised managers';});
     $('rmLocation').textContent=($('managerLocation').textContent||'Current unit')+' ⌄';
+    // Areas the Administrator switched off for this manager disappear (the server refuses them anyway).
+    document.querySelectorAll('[data-rm-go]').forEach(b=>{const a=AREA_OF[b.dataset.rmGo];b.classList.toggle('rm-no-access',!!a&&!can(a));});
+    for(const id of Object.keys(AREA_OF)){const el=$(id);if(el&&el.classList.contains('rm-module'))el.classList.toggle('rm-no-access',!can(AREA_OF[id]));}
+    $('rmScanInvoice').classList.toggle('rm-no-access',!can('invoices'));
+    nav.querySelector('[data-manager-nav="finance"]').classList.toggle('rm-no-access',!can('invoices'));
+    nav.querySelector('[data-manager-nav="team"]').classList.toggle('rm-no-access',!can('team'));
+    document.querySelectorAll('[data-rm-stat="roster"],[data-rm-stat="late"]').forEach(b=>b.classList.toggle('rm-no-access',!can('roster')));
   }
   for(const id of [...MANAGER_SCREEN_IDS,'managerBottomNav','managerClockSection'])new MutationObserver(syncShell).observe($(id),{attributes:true,attributeFilter:['class']});
   // Payload is supplied only after a successful, authorised dashboard request.
@@ -104,7 +116,6 @@
     }
     return{rostered:seen.size,late,people};
   }
-  let lastWorking=[],lastDash=null;
   function paint(){
     const d=lastDash;if(!d)return;
     const t=today();
