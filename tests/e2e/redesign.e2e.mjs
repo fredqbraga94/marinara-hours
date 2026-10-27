@@ -108,6 +108,62 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.equal(await page.locator('[data-manager-nav="finance"]').getAttribute('aria-current'),'page');
  await page.screenshot({path:`tmp/qa/${size}-prices.png`,fullPage:true});
  await page.evaluate(()=>{managerApi=window.__origApi;});
+ // Access per manager. Administrator: switches on a Kitchen Manager's page, saved to the server.
+ await page.evaluate(()=>{const orig=managerApi;window.__permSet=null;window.__origPerm=orig;
+   managerApi=async(action,args={})=>action==='manager_team'?{manager:{role:'manager',location:'QA fixture'},team:[{id:'00000000-0000-4000-8000-0000000000k1',name:'QA Kitchen Lead',department:'Kitchen',role:'kitchen_manager',active:true,roster_only:true},{id:'00000000-0000-4000-8000-0000000000f1',name:'QA Floor Lead',department:'Floor',role:'floor_manager',active:true}],visa_hours:[]}
+     :action==='manager_permissions_list'?{managers:[{staff_id:'00000000-0000-4000-8000-0000000000k1',custom:false,hours:true,team:true,roster:true,time_off:true,stock:true,recipes:true,invoices:true},{staff_id:'00000000-0000-4000-8000-0000000000f1',custom:false,hours:true,team:true,roster:true,time_off:true,stock:true,recipes:true,invoices:true}]}
+     :action==='manager_permissions_set'?(window.__permSet=args,{permissions:{staff_id:args.staff_id,...args.permissions}}):orig(action,args);});
+ await page.locator('[data-manager-nav="team"]').click();await page.getByRole('button',{name:'QA Kitchen Lead',exact:true}).click();
+ await page.locator('#rmPermCard .rm-perm').first().waitFor();
+ assert.equal(await page.locator('#rmPermCard [data-perm]').count(),7);assert.equal(await page.locator('#rmPermCard [data-perm]:checked').count(),7,'starts with what the role gives');
+ assert.equal(await page.locator('[data-perm-save]').isDisabled(),true,'nothing to save yet');
+ for(const k of ['team','roster','time_off','stock','recipes','invoices'])await page.locator(`#rmPermCard .rm-perm:has([data-perm="${k}"])`).click();
+ await page.locator('[data-perm-save]').click();await page.locator('.rm-perm-msg.ok').waitFor();
+ assert.deepEqual(await page.evaluate(()=>window.__permSet),{staff_id:'00000000-0000-4000-8000-0000000000k1',permissions:{hours:true,team:false,roster:false,time_off:false,stock:false,recipes:false,invoices:false}});
+ await page.screenshot({path:`tmp/qa/${size}-access.png`,fullPage:true});
+ await page.locator('[data-employee-back]').click();await page.getByRole('button',{name:'QA Floor Lead',exact:true}).click();await page.locator('#rmPermCard .rm-perm').first().waitFor();
+ assert.equal(await page.locator('#rmPermCard [data-perm="invoices"]').isDisabled(),true,'floor managers never get invoices');
+ await page.locator('[data-employee-back]').click();
+ // Becoming a Kitchen Manager in Edit: switches appear (Hours only) and go with the save.
+ await page.evaluate(()=>{const base=managerApi;window.__upd=null;managerApi=async(action,args={})=>action==='manager_update_staff'?(window.__upd=args,{staff:{}}):action==='manager_team'?{manager:{role:'manager'},team:[{id:'00000000-0000-4000-8000-0000000000s1',name:'QA Cook',department:'Kitchen',role:'staff',active:true}],visa_hours:[]}:base(action,args);});
+ await page.locator('[data-manager-nav="team"]').click();await page.getByRole('button',{name:'QA Cook',exact:true}).waitFor();
+ const cook='[data-edit-panel="00000000-0000-4000-8000-0000000000s1"]';
+ await page.locator('#teamList [data-team-row="00000000-0000-4000-8000-0000000000s1"] .team-edit-btn').click();
+ assert.equal(await page.locator(`${cook} .rm-edit-access`).count(),0,'no switches while staying Staff');
+ await page.locator(`${cook} .team-edit-role`).selectOption('kitchen_manager');
+ await page.locator(`${cook} .rm-edit-access`).waitFor();
+ assert.deepEqual(await page.locator(`${cook} [data-new-perm]`).evaluateAll(es=>es.filter(e=>e.checked).map(e=>e.dataset.newPerm)),['hours'],'starts with Hours only');
+ await page.locator(`${cook} .rm-perm:has([data-new-perm="stock"])`).click();
+ await page.screenshot({path:`tmp/qa/${size}-promote.png`,fullPage:true});
+ await page.locator(`${cook} .team-save-edit-btn`).click();await page.waitForFunction(()=>window.__upd);
+ assert.deepEqual(await page.evaluate(()=>window.__upd.permissions),{hours:true,team:false,roster:false,time_off:false,stock:true,recipes:false,invoices:false});
+ assert.equal(await page.evaluate(()=>window.__upd.role),'kitchen_manager');
+ // Back to Staff: switches go away and nothing extra is sent.
+ await page.evaluate(()=>{window.__upd=null;});
+ await page.locator('#teamList [data-team-row="00000000-0000-4000-8000-0000000000s1"] .team-edit-btn').click().catch(()=>{});
+ if(await page.locator(`${cook}`).isVisible()){await page.locator(`${cook} .team-edit-role`).selectOption('staff');assert.equal(await page.locator(`${cook} .rm-edit-access`).count(),0);await page.locator(`${cook} .team-save-edit-btn`).click();await page.waitForFunction(()=>window.__upd);assert.equal(await page.evaluate(()=>'permissions' in window.__upd),false,'nothing extra when staying Staff');}
+ await page.evaluate(()=>{managerApi=window.__origPerm;});
+ // The restricted Kitchen Manager only sees hours.
+ await page.evaluate(()=>{managerApi=window.__origPerm;currentManagerRole='kitchen_manager';window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{name:'QA Lead'},counts:{},working:[],permissions:{hours:true,team:false,roster:false,time_off:false,stock:false,recipes:false,invoices:false}}}));});
+ await page.locator('[data-manager-nav="home"]').click();
+ const vis=sel=>page.locator(sel).first().isVisible();
+ for(const sel of ['#teamCard','#stockCard','#recipesCard','#invoicesCard','#rmScanInvoice','[data-manager-nav="finance"]','[data-manager-nav="team"]','[data-rm-stat="roster"]','[data-rm-stat="late"]'])assert.equal(await vis(sel),false,`hidden: ${sel}`);
+ assert.equal(await vis('[data-rm-stat="working"]'),true);
+ await page.locator('[data-manager-nav="operations"]').click();
+ assert.equal(await vis('#operationsScreen [data-rm-go="approvalsCard"]'),true,'approvals stay');assert.equal(await vis('#operationsScreen [data-rm-go="staffHoursCard"]'),true);assert.equal(await vis('#operationsScreen [data-rm-go="timesheetsCard"]'),true);
+ for(const g of ['rosterCard','stockCard','recipesCard','timeOffCard'])assert.equal(await vis(`#operationsScreen [data-rm-go="${g}"]`),false,`hidden in Operations: ${g}`);
+ await page.screenshot({path:`tmp/qa/${size}-restricted.png`,fullPage:true});
+ await page.locator('[data-manager-nav="more"]').click();
+ assert.equal(await vis('#managerMoreScreen [data-rm-go="rmOpenSettings"]'),false,'no Restaurant Settings for managers');
+ assert.equal(await vis('#managerMoreScreen [data-rm-go="moreDevicesBtn"]'),false,'no device settings for managers');
+ assert.equal(await vis('#managerMoreScreen [data-rm-go="approvalsCard"]'),true);
+ assert.equal(await page.locator('#rmLocation').isDisabled(),true,'the unit name does not open settings');
+ await page.evaluate(()=>document.querySelector('#operationsScreen [data-rm-go="rosterCard"]').click());
+ assert.equal(await page.locator('#rosterScreen').isVisible(),false,'a hidden shortcut opens nothing');
+ if(size==='iphone'){const xs=await page.locator('#managerBottomNav > button:visible').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return [r.left,r.right];}));assert.equal(xs.length,3);const W=await page.evaluate(()=>innerWidth);assert.ok(xs[0][0]<25&&xs[2][1]>W-25,'three tabs fill the bar '+JSON.stringify(xs)+' '+W);}
+ await page.evaluate(()=>{currentManagerRole='manager';window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{name:'QA'},counts:{},working:[]}}));});
+ assert.equal(await vis('#stockCard'),false,'(Home not visible now)');await page.locator('[data-manager-nav="home"]').click();assert.equal(await vis('#stockCard'),true,'everything back without permissions');
+ await page.locator('[data-manager-nav="more"]').click();assert.equal(await vis('#managerMoreScreen [data-rm-go="rmOpenSettings"]'),true,'Administrator keeps Restaurant Settings');assert.equal(await vis('#managerMoreScreen [data-rm-go="moreDevicesBtn"]'),true);assert.equal(await page.locator('#rmLocation').isDisabled(),false);
  // My Time Clock from More keeps the new look; More → Home goes back to the home, not the clock.
  await page.evaluate(()=>{managerApi=async action=>action==='manager_dashboard'?{manager:{id:'qa-clock',name:'QA Manager',role:'manager'},location:'QA fixture',working:[]}:{pending:0};});
  await page.locator('[data-manager-nav="more"]').click();await page.locator('#moreMyClockBtn').evaluate(b=>b.click());await page.locator('#managerClockSection').waitFor({state:'visible'});

@@ -315,6 +315,7 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   STAFF_NOT_FOUND: [404, "Staff member not found"],
   DEPARTMENT_DENIED: [403, "Access denied for this department"],
   GM_REQUIRED: [403, "Only the General Manager can manage manager accounts"],
+  NOT_A_MANAGER: [400, "Permissions can only be set for Kitchen and Floor Managers"],
   MANAGER_REQUIRED: [403, "Manager access required"],
   SHIFT_APPROVED: [400, "Approved shifts cannot be changed. Reopen the shift first."],
   SHIFT_STILL_OPEN: [400, "Active shifts cannot be changed here"],
@@ -1420,6 +1421,8 @@ Deno.serve(async (req) => {
         "manager_invoice_prices",
         "manager_invoice_usage",
         "manager_invoice_price_book",
+        "manager_permissions_list",
+        "manager_permissions_set",
         "manager_ingredient_costs",
         "manager_ingredient_cost_save",
         "manager_ingredient_make_recipe",
@@ -1562,6 +1565,55 @@ Deno.serve(async (req) => {
 
     function departmentAllowed(department: string) {
       return !managerDepartmentScope || department === managerDepartmentScope;
+    }
+
+    // =========================
+    // PERMISSIONS PER MANAGER
+    // =========================
+    // The Administrator can switch areas off for a Kitchen/Floor Manager
+    // (manager_permissions). Switches only take access away: the role rules
+    // still apply. No row = everything the role gives. Before the migration
+    // the table does not exist and nothing changes.
+    const PERMISSION_OF: Record<string, string> = {
+      manager_hours: "hours", manager_approvals: "hours", manager_create_shift: "hours",
+      manager_approve_shift: "hours", manager_reopen_shift: "hours", manager_clock_out_staff: "hours",
+      manager_edit_shift: "hours", manager_delete_shift: "hours",
+      manager_team: "team_or_hours",
+      manager_create_staff: "team", manager_toggle_staff: "team", manager_update_staff: "team",
+      manager_set_student_visa: "team",
+      manager_roster_week: "roster", manager_roster_set: "roster", manager_set_roster_info: "roster",
+      manager_set_roster_order: "roster", manager_create_roster_person: "roster",
+      manager_leave_list: "time_off", manager_leave_decide: "time_off", manager_leave_create: "time_off",
+      manager_leave_count: "time_off",
+      manager_recipe_list: "recipes", manager_recipe_save: "recipes", manager_recipe_remove: "recipes",
+      manager_recipe_ingredient_save: "recipes",
+    };
+    const permissionOf = (a: string) =>
+      PERMISSION_OF[a] || (a.startsWith("manager_stock_") ? "stock"
+        : a.startsWith("manager_invoice_") || a.startsWith("manager_ingredient_") ? "invoices" : "");
+    const managerPermissions: Record<string, boolean> = {
+      hours: true, team: true, roster: true, time_off: true, stock: true, recipes: true, invoices: true,
+    };
+    if (!isGeneralManager) {
+      const { data: perm, error: permError } = await supabase.rpc("manager_permissions_mine", {
+        p_manager_id: managerStatus.id,
+      });
+      // Before the migration the function does not exist yet.
+      const notInstalled = permError && ["PGRST202", "42883"].includes(String((permError as any).code));
+      if (permError && !notInstalled) {
+        console.error("Permission check failed:", (permError as any).code || "", permError.message || "");
+        return json({ error: "Unable to check your permissions. Try again." }, 500);
+      }
+      if (perm && typeof perm === "object") Object.assign(managerPermissions, perm);
+    }
+    {
+      const needed = permissionOf(action);
+      const allowed = !needed ? true
+        : needed === "team_or_hours" ? (managerPermissions.team || managerPermissions.hours)
+        : managerPermissions[needed];
+      if (!allowed) {
+        return json({ error: "You don't have access to this. Ask the Administrator.", code: "NO_PERMISSION" }, 403);
+      }
     }
 
 
@@ -2740,8 +2792,11 @@ Deno.serve(async (req) => {
           return json({ error: "Access denied for this department" }, 403);
         }
 
+        // With "permissions" (Administrator, someone becoming a Kitchen/Floor
+        // Manager): the edit and the access are saved together.
+        const withAccess = !!body.permissions && typeof body.permissions === "object" && !Array.isArray(body.permissions);
         const { data: updated, error: updateStaffError } = await supabase.rpc(
-          "manager_update_staff_audited",
+          withAccess ? "manager_update_staff_with_access" : "manager_update_staff_audited",
           {
             p_manager_id: managerStatus.id,
             p_staff_id: staffId,
@@ -2749,11 +2804,12 @@ Deno.serve(async (req) => {
             p_department: department,
             p_new_pin: newPin || null,
             p_role: requestedRole || null,
+            ...(withAccess ? { p_perms: body.permissions } : {}),
           }
         );
         if (updateStaffError) {
           const code = dbErrorCode(updateStaffError);
-          if (["PIN_IN_USE", "DEPARTMENT_DENIED", "GM_REQUIRED", "STAFF_NOT_FOUND", "INVALID_ROLE"].includes(code)) {
+          if (["PIN_IN_USE", "DEPARTMENT_DENIED", "GM_REQUIRED", "STAFF_NOT_FOUND", "INVALID_ROLE", "NOT_A_MANAGER", "INVALID_INPUT"].includes(code)) {
             return managerDbError(updateStaffError, "Unable to update staff member");
           }
           console.error("Update staff error:", updateStaffError.code || "");
@@ -3616,6 +3672,25 @@ Deno.serve(async (req) => {
         return json({ success: true, action, data });
       }
 
+      if (action === "manager_permissions_list") {
+        const { data, error } = await supabase.rpc("manager_permissions_list", { p_manager_id: managerStatus.id });
+        if (error) return managerDbError(error, "Unable to load permissions", 500);
+        return json({ success: true, action, data: { managers: data || [] } });
+      }
+
+      if (action === "manager_permissions_set") {
+        const staffId = typeof body.staff_id === "string" ? body.staff_id.trim() : "";
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(staffId) ||
+            !body.permissions || typeof body.permissions !== "object" || Array.isArray(body.permissions)) {
+          return json({ error: "Invalid request", code: "INVALID_INPUT" }, 400);
+        }
+        const { data, error } = await supabase.rpc("manager_permissions_set", {
+          p_manager_id: managerStatus.id, p_staff_id: staffId, p_perms: body.permissions,
+        });
+        if (error) return managerDbError(error, "Unable to save permissions");
+        return json({ success: true, action, data: { permissions: data } });
+      }
+
       if (
         action ===
         "manager_team"
@@ -3729,7 +3804,9 @@ Deno.serve(async (req) => {
 
           working,
 
-          hours,
+          hours: managerPermissions.hours ? hours : { ...hours, summary: [], shifts: [] },
+
+          permissions: managerPermissions,
 
           visa_hours:
             await loadVisaHours(team),
@@ -3749,7 +3826,7 @@ Deno.serve(async (req) => {
               working.length,
 
             unapproved_shifts:
-              hours.shifts.filter(
+              !managerPermissions.hours ? 0 : hours.shifts.filter(
                 (shift: any) =>
                   !shift.approved &&
                   !!shift.clock_out

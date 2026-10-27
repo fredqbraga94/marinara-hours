@@ -6160,7 +6160,10 @@ async function loadTeamScreen() {
               name,
               department,
               new_pin: newPin,
-              role
+              role,
+              // Someone becoming a Kitchen/Floor Manager: the access chosen in this form
+              // is saved together with the change (manager-team-ui.js).
+              ...(typeof window.mhEditAccess === "function" ? window.mhEditAccess(staffId, role) : {})
             }
           );
 

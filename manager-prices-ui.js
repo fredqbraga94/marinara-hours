@@ -5,7 +5,7 @@
 const $=id=>document.getElementById(id);
 const RECENT_DAYS=14;
 const state={products:[],at:0,loading:null,filter:'all',open:null};
-const canSee=()=>['manager','kitchen_manager'].includes(typeof currentManagerRole==='undefined'?'':currentManagerRole);
+const canSee=()=>['manager','kitchen_manager'].includes(typeof currentManagerRole==='undefined'?'':currentManagerRole)&&(!window.mhCan||window.mhCan('invoices'));
 const money=n=>typeof invMoney==='function'?invMoney(n):'$'+Number(n).toFixed(2);
 const day=d=>d?new Intl.DateTimeFormat('en-AU',{timeZone:'UTC',day:'numeric',month:'short'}).format(new Date(`${d}T00:00:00Z`)):'';
 const daysSince=d=>Math.floor((Date.now()+10*3600e3-Date.parse(`${d}T00:00:00Z`))/864e5);

@@ -49,6 +49,7 @@ function paintQuick(){
 }
 window.addEventListener('marinara:dashboard',e=>{pendingApprovals=e.detail?.counts?.unapproved_shifts||0;paintQuick();});
 window.addEventListener('marinara:team',e=>{
+ for(const k of Object.keys(pendingAccess))delete pendingAccess[k];accessCache=null;
  people=e.detail.team;visas=e.detail.visaById||{};
  for(const p of people){
   const row=$('teamList').querySelector(`[data-team-row="${p.id}"]`);if(!row)continue;
@@ -105,10 +106,12 @@ async function render(){
   const v=visaInfo(p);
   let html=card('user','Basic Information',`<dl class="rm-fields">${field('Full name',t(p.name||'Staff'))+field('Department',p.role==='manager'?'All':t(p.department||''))+field('Role',t(isManager(p)?ROLE[p.role]:(p.position||'Staff')))+field('Status',p.active?'<span class="rm-dot"></span>Active':'Inactive')+field('PIN',`•••• ${editable?'<button type="button" class="rm-edit rm-mini" data-employee-edit>Reset</button>':''}`)+field('In the app since',t(dateOnly(p.created_at)))}</dl>`,editable);
   if(p.student_visa)html+=card('doc','Visa Information',`<dl class="rm-fields">${field('Visa type','Student visa')+(p.visa_course_break?field('Hours limit','No limit — course break'):field('Hours limit',`${t(fmt(v?.limit||48))} per fortnight`)+(v?field('Worked',`${t(fmt(v.used))} <small>last week + this week</small>`)+field('Hours remaining',t(fmt(v.left)),`rm-left-${v.level}`):''))}</dl>`,editable);
-  html+=card('lock','Permissions',`<dl class="rm-fields">${field('Can clock in/out',p.roster_only?'No — roster only':'Yes')+field('On the roster','Yes')+field('Can request time off',p.roster_only?'—':'Yes')+field('Management access',isManager(p)?t(ROLE[p.role]):'No')}</dl>`,editable);
+  const choose=currentManagerRole==='manager'&&['kitchen_manager','floor_manager'].includes(p.role);
+  html+=choose?`<div class="card rm-dcard" id="rmPermCard"><div class="rm-detail-title"><h3>${icon('lock')}Access</h3></div><p class="rm-data-note">Loading…</p></div>`
+   :card('lock','Permissions',`<dl class="rm-fields">${field('Can clock in/out',p.roster_only?'No — roster only':'Yes')+field('On the roster','Yes')+field('Can request time off',p.roster_only?'—':'Yes')+field('Management access',isManager(p)?t(ROLE[p.role]):'No')}</dl>`,editable);
   if(editable)html+=`<button type="button" class="rm-deactivate${p.active?'':' on'}" data-employee-status>${p.active?'Deactivate':'Activate'} ${t(p.name||'staff')}</button>`;
   if(p.pin_conflict_at&&p.active)html=`<div class="message show error">PIN shared with someone else — set a new PIN.</div>`+html;
-  box.innerHTML=html;return;
+  box.innerHTML=html;if(choose)renderAccess(p,revision);return;
  }
  box.innerHTML='<div class="card">Loading…</div>';
  try{
@@ -129,6 +132,51 @@ async function render(){
   }
  }catch(error){if(revision===sequence)box.innerHTML=`<div class="message show error">${escapeHtml(error.message||'Unable to load.')}</div>`;}
 }
+/* Access per manager: the Administrator switches areas off (the server enforces it). */
+const AREAS=[['hours','Hours','Approve, edit and add shifts, timesheets'],['team','Team','See and edit staff'],['roster','Roster','See and change the roster'],['time_off','Time off','Holidays and days off'],['stock','Stock','Counts and orders'],['recipes','Recipes','Recipes and allergens'],['invoices','Invoices','Invoices, prices and costs']];
+let accessCache=null;
+async function renderAccess(p,revision){
+ const box=$('rmPermCard');if(!box)return;
+ let all;
+ try{all=accessCache||(accessCache=Object.fromEntries(((await managerApi('manager_permissions_list')).managers||[]).map(m=>[m.staff_id,m])));}
+ catch(e){if(revision===sequence&&box.isConnected)box.querySelector('.rm-data-note').textContent='Access can be chosen here once the next update is published.';return;}
+ if(revision!==sequence||!box.isConnected)return;
+ const cur=all[p.id]||{};const floor=p.role==='floor_manager';
+ box.innerHTML=`<div class="rm-detail-title"><h3>${icon('lock')}Access</h3>${cur.custom?'<span class="rm-custom">Custom</span>':''}</div>
+ <p class="rm-data-note">Choose what ${t(p.name||'this manager')} can use (${floor?'floor':'kitchen'} team only). Devices and settings stay with you.</p>
+ <div class="rm-perm-list">${AREAS.map(([k,l,d])=>{const off=floor&&k==='invoices';return `<label class="rm-perm${off?' off':''}"><span><strong>${l}</strong><small>${off?'Not for Floor Managers':d}</small></span><input type="checkbox" role="switch" data-perm="${k}" ${!off&&cur[k]!==false?'checked':''} ${off?'disabled':''}></label>`;}).join('')}</div>
+ <button type="button" class="rm-save" data-perm-save disabled>Save access</button><p class="rm-perm-msg" aria-live="polite"></p>`;
+ const save=box.querySelector('[data-perm-save]');
+ box.addEventListener('change',()=>{save.disabled=false;box.querySelector('.rm-perm-msg').textContent='';});
+ save.onclick=async()=>{
+  const perms={};box.querySelectorAll('[data-perm]').forEach(i=>{if(!i.disabled)perms[i.dataset.perm]=i.checked;});
+  save.disabled=true;save.textContent='Saving…';const msg=box.querySelector('.rm-perm-msg');
+  try{await managerApi('manager_permissions_set',{staff_id:p.id,permissions:perms});accessCache=null;msg.className='rm-perm-msg ok';msg.textContent='Saved. It applies straight away.';save.textContent='Save access';box.querySelector('.rm-detail-title').insertAdjacentHTML('beforeend',box.querySelector('.rm-custom')?'':'<span class="rm-custom">Custom</span>');}
+  catch(e){msg.className='rm-perm-msg err';msg.textContent=e.message||'Unable to save.';save.disabled=false;save.textContent='Save access';}
+ };
+}
+/* Becoming a Kitchen/Floor Manager in the Edit form: choose access right there
+   (starts with Hours only). Saved together with the role change. */
+const MANAGER_ROLES=['kitchen_manager','floor_manager'];
+const pendingAccess={};
+function syncEditAccess(panel){
+ const id=panel?.dataset.editPanel;const sel=panel?.querySelector('.team-edit-role');if(!id||!sel)return;
+ const who=people.find(x=>x.id===id)||{};
+ const becoming=currentManagerRole==='manager'&&MANAGER_ROLES.includes(sel.value)&&!MANAGER_ROLES.includes(who.role);
+ let box=panel.querySelector('.rm-edit-access');
+ if(!becoming){box?.remove();delete pendingAccess[id];return;}
+ const floor=sel.value==='floor_manager';
+ const keep=pendingAccess[id]||{hours:true,team:false,roster:false,time_off:false,stock:false,recipes:false,invoices:false};
+ if(floor)keep.invoices=false;
+ pendingAccess[id]=keep;
+ if(!box){box=document.createElement('div');box.className='rm-edit-access';const anchor=panel.querySelector('.team-save-edit-btn')?.parentElement;anchor?anchor.before(box):panel.append(box);}
+ box.innerHTML=`<strong>Access for this manager</strong><small>Choose what they can use. You can change it later on their page.</small><div class="rm-perm-list">${AREAS.map(([k,l,d])=>{const off=floor&&k==='invoices';return `<label class="rm-perm${off?' off':''}"><span><strong>${l}</strong><small>${off?'Not for Floor Managers':d}</small></span><input type="checkbox" role="switch" data-new-perm="${k}" ${keep[k]&&!off?'checked':''} ${off?'disabled':''}></label>`;}).join('')}</div>`;
+}
+document.addEventListener('change',e=>{
+ const sel=e.target.closest('.team-edit-role');if(sel){syncEditAccess(sel.closest('[data-edit-panel]'));return;}
+ const sw=e.target.closest('[data-new-perm]');if(sw){const id=sw.closest('[data-edit-panel]').dataset.editPanel;(pendingAccess[id]||={})[sw.dataset.newPerm]=sw.checked;}
+});
+window.mhEditAccess=(staffId,role)=>MANAGER_ROLES.includes(role)&&pendingAccess[staffId]&&document.querySelector(`[data-edit-panel="${CSS.escape(staffId)}"] .rm-edit-access`)?{permissions:{...pendingAccess[staffId]}}:{};
 let confirmTimer=null;
 details.addEventListener('click',e=>{
  if(e.target.closest('[data-employee-back]')){sequence++;showOnlyManagerScreen('teamScreen');setManagerNavActive('team');return;}

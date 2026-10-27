@@ -46,10 +46,11 @@
     $('rmSettingsContent').innerHTML=tab==='General'?`<h3>Business Information</h3><dl><dt>Restaurant</dt><dd>Marinara Ristorante Cafe</dd><dt>Unit</dt><dd>${escapeHtml(place)}</dd></dl><p class="rm-data-note">Address, phone and ABN will be added here later.</p>`:tab==='Locations'?`<h3>${escapeHtml(place)}</h3><p>This is the unit associated with your current session.</p><p class="rm-data-note">Paddington and Clayfield will appear here when they join the app.</p>`:tab==='Hours'?'<h3>Service times</h3><p class="rm-data-note">Lunch and dinner times are set in the Roster.</p>'+row('Roster','View weekly shifts','rosterCard','roster'):`<h3>Public Holidays</h3>${$('managerHolidayNotice').innerHTML || '<p class="rm-data-note">No holiday information has been loaded. Open Home to refresh.</p>'}`;
   }
   settings.addEventListener('click',e=>{const b=e.target.closest('[data-rm-settings]');if(b)renderSettings(b.dataset.rmSettings);});
+  const renderSettingsRaw=renderSettings;renderSettings=t=>{renderSettingsRaw(t);syncShell();};
   const dialog=document.createElement('dialog');dialog.id='quickActionsDialog';dialog.innerHTML=`<div class="rm-handle"></div><h2>Actions</h2><div class="rm-actions">${[['Upload invoice','Choose the supplier PDF','rmScanInvoice','scan'],['Stock','Count and order','stockCard','stock'],['Add Staff','Create staff member','rmAddStaff','team'],['Create Shift','Open weekly roster','rosterCard','roster'],['Kitchen','Recipes and allergens','recipesCard','kitchen'],['Reports','Weekly timesheets','timesheetsCard','finance'],['Time Clock','Open time clock','moreMyClockBtn','clock'],['Settings','Restaurant information','rmOpenSettings','settings']].map(a=>row(...a)).join('')}</div><button type="button" id="rmCloseActions">Close</button>`;document.body.append(dialog);
   $('quickActionsBtn').onclick=()=>dialog.showModal();$('rmCloseActions').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
   $('rmWorkingToggle').onclick=()=>{const open=$('rmWorkingPanel').classList.toggle('hidden')===false;$('rmWorkingToggle').setAttribute('aria-expanded',String(open));};
-  document.addEventListener('click',e=>{const b=e.target.closest('[data-rm-go]');if(!b)return;dialog.close();if(b.dataset.rmGo==='rmAddStaff'){go('teamCard');if($('addStaffPanel').classList.contains('hidden'))go('showAddStaffBtn');}else go(b.dataset.rmGo);});
+  document.addEventListener('click',e=>{const b=e.target.closest('[data-rm-go]');if(!b)return;dialog.close();if(blocked(b.dataset.rmGo))return;if(b.dataset.rmGo==='rmAddStaff'){go('teamCard');if($('addStaffPanel').classList.contains('hidden'))go('showAddStaffBtn');}else go(b.dataset.rmGo);});
   nav.addEventListener('click',e=>{const b=e.target.closest('[data-manager-nav]');if(!b)return;const key=b.dataset.managerNav;if(key==='home')$('managerClockSection').classList.add('hidden');if(key==='finance'||key==='operations'){e.stopImmediatePropagation();if(key==='finance')go('invoicesCard');else{showOnlyManagerScreen('operationsScreen');setManagerNavActive('operations');}window.scrollTo(0,0);}},true);
   const header=document.querySelector('.app > .header');
   $('headerLogo').src=document.querySelector('.login-original-logo').src;
@@ -58,6 +59,15 @@
   const placeButton=document.createElement('button');placeButton.id='rmLocation';placeButton.type='button';placeButton.textContent='Current unit ⌄';placeButton.onclick=()=>{settingsBtn.click();renderSettings('Locations');};header.append(placeButton);
   const originalSet=setManagerNavActive;
   setManagerNavActive=function(target='home'){originalSet(target);syncShell();};
+  // Which area each button opens (for managers with switched-off areas).
+  const AREA_OF={teamCard:'team',rmAddStaff:'team',rosterCard:'roster',approvalsCard:'hours',staffHoursCard:'hours',timesheetsCard:'hours',timeOffCard:'time_off',stockCard:'stock',recipesCard:'recipes',invoicesCard:'invoices',rmScanInvoice:'invoices',rmOpenPriceUps:'invoices'};
+  let lastWorking=[],lastDash=null;
+  const can=a=>{const p=(lastDash&&lastDash.permissions)||{};return p[a]!==false;};
+  window.mhCan=can;
+  // Only the Administrator: restaurant settings and devices.
+  const ADMIN_ONLY=new Set(['rmOpenSettings','moreDevicesBtn']);
+  const isAdmin=()=>currentManagerRole==='manager';
+  const blocked=target=>(ADMIN_ONLY.has(target)&&!isAdmin())||(!!AREA_OF[target]&&!can(AREA_OF[target]));
   function syncShell(){
     const visible=MANAGER_SCREEN_IDS.find(id=>!$(id)?.classList.contains('hidden'));
     const signedIn=!nav.classList.contains('hidden');const clock=visible==='managerScreen'&&!$('managerClockSection').classList.contains('hidden');
@@ -66,6 +76,14 @@
     nav.querySelectorAll('[data-manager-nav]').forEach(b=>{b.classList.toggle('active',b.dataset.managerNav===active);if(b.dataset.managerNav===active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
     const canInvoice=['manager','kitchen_manager'].includes(currentManagerRole);nav.querySelector('[data-manager-nav="finance"]').disabled=!canInvoice;document.querySelectorAll('[data-rm-go="invoicesCard"], [data-rm-go="rmScanInvoice"], #rmScanInvoice').forEach(b=>{b.disabled=!canInvoice;b.hidden=!canInvoice&&b.id==='rmScanInvoice';b.title=canInvoice?'':'Finance is restricted to authorised managers';});
     $('rmLocation').textContent=($('managerLocation').textContent||'Current unit')+' ⌄';
+    // Areas the Administrator switched off for this manager disappear (the server refuses them anyway).
+    document.querySelectorAll('[data-rm-go]').forEach(b=>b.classList.toggle('rm-no-access',blocked(b.dataset.rmGo)));
+    $('rmLocation').disabled=!isAdmin();
+    for(const id of Object.keys(AREA_OF)){const el=$(id);if(el&&el.classList.contains('rm-module'))el.classList.toggle('rm-no-access',!can(AREA_OF[id]));}
+    $('rmScanInvoice').classList.toggle('rm-no-access',!can('invoices'));
+    nav.querySelector('[data-manager-nav="finance"]').classList.toggle('rm-no-access',!can('invoices'));
+    nav.querySelector('[data-manager-nav="team"]').classList.toggle('rm-no-access',!can('team'));
+    document.querySelectorAll('[data-rm-stat="roster"],[data-rm-stat="late"]').forEach(b=>b.classList.toggle('rm-no-access',!can('roster')));
   }
   for(const id of [...MANAGER_SCREEN_IDS,'managerBottomNav','managerClockSection'])new MutationObserver(syncShell).observe($(id),{attributes:true,attributeFilter:['class']});
   // Payload is supplied only after a successful, authorised dashboard request.
@@ -104,7 +122,6 @@
     }
     return{rostered:seen.size,late,people};
   }
-  let lastWorking=[],lastDash=null;
   function paint(){
     const d=lastDash;if(!d)return;
     const t=today();
