@@ -1,5 +1,6 @@
 // Isolated PostgreSQL and real current Edge handler. Never contacts production.
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {readdirSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {startProdLikeDb, root} from './pgenv.mjs';
@@ -62,6 +63,30 @@ try {
   assert.equal((await call(h,{action:'session_test',token:pinSessions[0],device:pinDevices[0]})).status,200,'keep the current session after PIN change');
   assert.equal((await call(h,{action:'session_test',token:pinSessions[1],device:pinDevices[1]})).status,401,'PIN change must revoke the other device session');
   console.log('PASS PIN change: wrong PIN preserves sessions; failed revocation rolls back PIN; success preserves current device and revokes others');
+  // Hold a successful PIN change uncommitted while an old-PIN login starts.
+  // The login must block on the same employee row, then recheck the new hash.
+  const controller=await db.admin.acquire();
+  let racingLogin; let loginFinished=false; let blocked=false;
+  try {
+    await controller.query('begin');
+    const hash=createHash('sha256').update(pinSessions[0]).digest('hex');
+    const changed=await controller.query(`select public.staff_change_pin_secure('${ID(5)}','486291','483719','${hash}')`);
+    assert.equal(JSON.parse(changed.rows[0][0]).ok,true);
+    racingLogin=call(h,{action:'login',pin:'486291',device:newDeviceSecret()}).then(r=>{loginFinished=true;return r;});
+    for(let i=0;i<200;i++) {
+      const r=await db.admin.query(`select exists(select 1 from pg_stat_activity where pid<>pg_backend_pid() and query like 'select to_json(public.auth_pin_login(%' and wait_event_type='Lock')`);
+      if(r.rows[0][0]==='t'){blocked=true;break;}
+      if(loginFinished)break;
+      await new Promise(r=>setTimeout(r,10));
+    }
+    assert.ok(blocked,'old-PIN login must wait for the PIN-change transaction, not issue a concurrent session');
+    await controller.query('commit');
+    assert.equal((await racingLogin).status,401,'old PIN must be rechecked after waiting');
+  } finally {
+    await controller.query('rollback');db.admin.release(controller);
+    if(racingLogin)await racingLogin;
+  }
+  console.log('PASS concurrent old-PIN login waits for PIN change and is refused afterwards');
   const acl=(await db.admin.query(`select count(*) from pg_proc p where p.pronamespace='public'::regnamespace and (has_function_privilege('anon',p.oid,'execute') or has_function_privilege('authenticated',p.oid,'execute'))`)).rows[0][0];
   assert.equal(acl,'0');
   console.log('PASS public roles cannot execute application RPCs');
