@@ -112,27 +112,29 @@ try {
     assert.equal((await eq(1, gm, { name: "", kind: "fridge" })).status, 400);
     assert.equal((await eq(1, gm, { name: "Test x", kind: "oven" })).status, 400);
     const d = await today();
-    assert.equal(d.missing, 3);
+    const afterTwo = new Date(Date.now() + 10 * 3600e3).getUTCHours() >= 14;
+    assert.equal(d.missing, afterTwo ? 6 : 3, "opening checks, plus closing from 2 pm");
     assert.equal(d.equipment.length, 3);
-    return "3 to check";
+    return `${d.missing} to check`;
   });
   await check("readings in range save with who and when; outside the range need a corrective action", async () => {
-    let r = await rec(2, km, { kind: "equipment", equipment_id: fridge.id, temp: "3.4" });
+    let r = await rec(2, km, { kind: "equipment", equipment_id: fridge.id, slot: "opening", temp: "3.4" });
     assert.equal(r.status, 200, JSON.stringify(r.body));
     assert.equal(r.body.data.record.ok, true);
     assert.equal(r.body.data.record.recorded_by, "Test Kitchen Manager");
-    r = await rec(1, gm, { kind: "equipment", equipment_id: freezer.id, temp: -10 });
+    r = await rec(1, gm, { kind: "equipment", equipment_id: freezer.id, slot: "opening", temp: -10 });
     assert.equal(r.status, 400); assert.equal(r.body.code, "ACTION_REQUIRED");
-    r = await rec(1, gm, { kind: "equipment", equipment_id: freezer.id, temp: -10, action: "Door left open; closed it and checked again in 30 min" });
+    r = await rec(1, gm, { kind: "equipment", equipment_id: freezer.id, slot: "opening", temp: -10, action: "Door left open; closed it and checked again in 30 min" });
     assert.equal(r.status, 200); assert.equal(r.body.data.record.ok, false);
-    r = await rec(3, fm, { kind: "equipment", equipment_id: bain.id, temp: 58 });
+    r = await rec(3, fm, { kind: "equipment", equipment_id: bain.id, slot: "opening", temp: 58 });
     assert.equal(r.body.code, "ACTION_REQUIRED");
-    r = await rec(3, fm, { kind: "equipment", equipment_id: bain.id, temp: 65 });
+    r = await rec(3, fm, { kind: "equipment", equipment_id: bain.id, slot: "opening", temp: 65 });
     assert.equal(r.body.data.record.ok, true);
-    assert.equal((await rec(1, gm, { kind: "equipment", equipment_id: fridge.id, temp: "hot" })).status, 400);
-    assert.equal((await rec(1, gm, { kind: "equipment", equipment_id: fridge.id, temp: 300 })).status, 400);
+    assert.equal((await rec(1, gm, { kind: "equipment", equipment_id: fridge.id, slot: "opening", temp: "hot" })).status, 400);
+    assert.equal((await rec(1, gm, { kind: "equipment", equipment_id: fridge.id, slot: "opening", temp: 300 })).status, 400);
+    assert.equal((await rec(1, gm, { kind: "equipment", equipment_id: fridge.id, temp: 3 })).status, 400, "opening or closing is required");
     const d = await today();
-    assert.equal(d.missing, 0);
+    assert.equal(d.equipment.every((e) => e.opening), true);
     assert.equal(d.today.length, 3);
     return "5°C, -15°C and 60°C limits";
   });
@@ -146,32 +148,46 @@ try {
     assert.equal((await rec(2, km, { kind: "receiving", item: "", food: "chilled", temp: 3 })).status, 400);
     return "2 deliveries";
   });
+  await check("the weekly sheet: Monday to Sunday, the latest reading of each cell (a second reading replaces the cell, both kept)", async () => {
+    await rec(2, km, { kind: "equipment", equipment_id: fridge.id, slot: "closing", temp: 4.1 });
+    await rec(2, km, { kind: "equipment", equipment_id: fridge.id, slot: "closing", temp: 3.9 });
+    const w = (await api(vNew, 1, gm, { action: "manager_temp_week" })).body.data;
+    const start = new Date(`${w.start}T00:00:00Z`);
+    assert.equal(start.getUTCDay(), 1, "starts on Monday");
+    assert.equal(w.equipment.length, 3);
+    const fc = w.cells.filter((c) => c.equipment_id === fridge.id && c.slot === "closing");
+    assert.equal(fc.length, 1); assert.equal(Number(fc[0].temp), 3.9);
+    assert.equal(w.cells.length, 4);
+    const prev = (await api(vNew, 1, gm, { action: "manager_temp_week", start: "2020-01-08" })).body.data;
+    assert.equal(prev.start, "2020-01-06"); assert.equal(prev.cells.length, 0);
+    return `week of ${w.start}: 4 cells`;
+  });
   await check("records cannot be changed or deleted, and there is no action for it", async () => {
     for (const action of ["manager_temp_delete", "manager_temp_edit"]) {
       const r = await api(vNew, 1, gm, { action });
       assert.ok(r.status >= 400, action);
     }
-    assert.equal(Number(await one(db, `select count(*) from public.temp_logs`)), 5);
-    return "5 records kept";
+    assert.equal(Number(await one(db, `select count(*) from public.temp_logs`)), 7);
+    return "7 records kept";
   });
   await check("history for the council; staff refused; other locations stay out", async () => {
     const h = (await api(vNew, 1, gm, { action: "manager_temp_history", days: 90 })).body.data;
-    assert.equal(h.records.length, 5);
+    assert.equal(h.records.length, 7);
     assert.equal(h.records.filter((x) => !x.ok).every((x) => x.action), true);
     const st = await login(vNew, 4);
     assert.ok((await api(vNew, 4, st, { action: "manager_temp_today" })).status >= 400);
     const other = await one(db, `insert into public.temp_equipment (location, name, kind) values ('Test Elsewhere', 'Other fridge', 'fridge') returning id::text`);
-    assert.equal((await rec(1, gm, { kind: "equipment", equipment_id: other, temp: 3 })).status, 404);
+    assert.equal((await rec(1, gm, { kind: "equipment", equipment_id: other, slot: "opening", temp: 3 })).status, 404);
     assert.equal((await today()).equipment.some((e) => e.name === "Other fridge"), false);
-    return "90 days: 5 records";
+    return "90 days: 7 records";
   });
   await check("equipment taken off the list keeps its records", async () => {
     const r = await eq(1, gm, { id: bain.id, active: false });
     assert.equal(r.status, 200);
     const d = await today();
     assert.equal(d.equipment.length, 2);
-    assert.equal((await api(vNew, 1, gm, { action: "manager_temp_history", days: 90 })).body.data.records.length, 5);
-    return "2 on the list, 5 records";
+    assert.equal((await api(vNew, 1, gm, { action: "manager_temp_history", days: 90 })).body.data.records.length, 7);
+    return "2 on the list, 7 records";
   });
 
   section("D. Rollback");
