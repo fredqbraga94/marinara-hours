@@ -39,6 +39,17 @@ try {
   assert.equal((await api(4,{action:'session_logout'})).status,200);
   assert.equal((await api(4,{action:'session_test'})).status,401);
   console.log('PASS staff privilege escalation denied; own clock/break flow; invalid and revoked sessions denied');
+  const pinDevices=[newDeviceSecret(),newDeviceSecret()];
+  const pinSessions=[];
+  for(const device of pinDevices) {
+    const r=await call(h,{action:'login',pin:PIN[ID(5)],device});
+    assert.equal(r.status,200);pinSessions.push(r.body.session.token);
+  }
+  const change=await call(h,{action:'change_pin',token:pinSessions[0],device:pinDevices[0],old_pin:PIN[ID(5)],new_pin:'486291'});
+  assert.equal(change.status,200,JSON.stringify(change.body));
+  assert.equal((await call(h,{action:'session_test',token:pinSessions[0],device:pinDevices[0]})).status,200,'keep the current session after PIN change');
+  assert.equal((await call(h,{action:'session_test',token:pinSessions[1],device:pinDevices[1]})).status,401,'PIN change must revoke the other device session');
+  console.log('PASS PIN change keeps the current device and revokes other sessions');
   const acl=(await db.admin.query(`select count(*) from pg_proc p where p.pronamespace='public'::regnamespace and (has_function_privilege('anon',p.oid,'execute') or has_function_privilege('authenticated',p.oid,'execute'))`)).rows[0][0];
   assert.equal(acl,'0');
   console.log('PASS public roles cannot execute application RPCs');
