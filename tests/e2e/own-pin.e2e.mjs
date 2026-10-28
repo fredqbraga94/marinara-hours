@@ -83,4 +83,4 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await context.close();
 }
 console.log(`PASS (${ENGINE}): choose own PIN at first sign-in (cannot skip), change later with the current PIN, one-time temporary PIN, no overflow, no JavaScript errors.`);
-}finally{await browser.close();server.close();}
+}catch(e){if(process.env.GITHUB_ACTIONS)console.log(`::error title=own PIN e2e (${ENGINE})::${String(e?.stack||e).replace(/\r?\n/g,' | ').slice(0,1500)}`);throw e;}finally{await browser.close();server.close();}
