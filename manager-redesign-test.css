@@ -323,3 +323,25 @@ body.rm-mode .manager-bottom-nav .manager-nav-item.active{background:var(--green
 body.rm-mode .manager-bottom-nav .manager-nav-icon,body.rm-mode .manager-bottom-nav .manager-nav-icon svg{width:22px;height:22px;display:inline-flex}
 body.rm-mode .manager-bottom-nav .count-badge{margin-left:auto}
 }
+/* Desktop and laptop, second pass: use the whole width. Slim top bar, no grey sides, Home in two columns. */
+@media screen and (min-width:1000px){
+body.rm-mode,body.rm-mode .app{background:#fff!important}
+body.rm-mode .app{max-width:none!important;margin:0!important;width:100%}
+body.rm-mode .app>.header{min-height:calc(76px + var(--rm-safe-top))!important;padding:calc(12px + var(--rm-safe-top)) 32px 12px!important;justify-content:flex-start!important;text-align:left}
+body.rm-mode .header-logo{height:52px!important;width:auto!important;margin:0!important}
+body.rm-mode .app>.header #headerLogo{max-height:52px}
+body.rm-mode .rm-header-tools{top:calc(22px + var(--rm-safe-top))!important;right:32px!important}
+body.rm-mode .content{padding:28px 40px 48px!important}
+body.rm-mode .content>section:not(#managerScreen),body.rm-mode #managerScreen>section{max-width:1100px}
+body.rm-mode #rmHome{max-width:1240px!important;margin:0!important;column-count:2;column-gap:44px;column-fill:balance}
+body.rm-mode #rmHome>*{break-inside:avoid}
+body.rm-mode #rmHome>.rm-intro,body.rm-mode #rmHome>#rmMessageSlot{column-span:all}
+body.rm-mode #rmHome>h3{margin-top:0}
+body.rm-mode #rmHome>h3:nth-of-type(2){break-before:column;padding-top:30px}
+body.rm-mode #rmHome>.rm-scan{margin-bottom:22px}
+body.rm-mode .rm-modules{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+body.rm-mode .rm-menu{max-width:none;margin:0}
+body.rm-mode .app>.header{gap:22px;align-items:center!important}
+body.rm-mode #rmLocation{position:static!important;transform:none!important;bottom:auto!important;left:auto!important;font-size:11px;padding:6px 10px;border-left:1px solid #ffffff40;border-radius:0}
+body.rm-mode #rmHome>.rm-scan{margin-top:30px}
+}
