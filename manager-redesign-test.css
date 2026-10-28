@@ -345,3 +345,19 @@ body.rm-mode .app>.header{gap:22px;align-items:center!important}
 body.rm-mode #rmLocation{position:static!important;transform:none!important;bottom:auto!important;left:auto!important;font-size:11px;padding:6px 10px;border-left:1px solid #ffffff40;border-radius:0}
 body.rm-mode #rmHome>.rm-scan{margin-top:30px}
 }
+#rmNavLogo{display:none}
+/* Desktop and laptop, third pass: black menu on the left with the logo on top; light top bar. */
+@media screen and (min-width:1000px){
+body.rm-mode .manager-bottom-nav{background:linear-gradient(180deg,#181a17,#16251f 55%,#111612)!important;border-right:0!important;padding-top:22px!important}
+body.rm-mode .manager-bottom-nav::before{content:none!important;display:none!important}
+body.rm-mode #rmNavLogo{display:block;width:170px;height:61px;object-fit:contain;margin:0 auto 26px}
+body.rm-mode .manager-bottom-nav .manager-nav-item{color:rgba(255,255,255,.72)!important}
+body.rm-mode .manager-bottom-nav .manager-nav-item:hover:not(:disabled){background:rgba(255,255,255,.07)!important}
+body.rm-mode .manager-bottom-nav .manager-nav-item.active{background:rgba(255,255,255,.12)!important;color:#fff!important;box-shadow:inset 3px 0 0 #69ae93!important}
+body.rm-mode .manager-bottom-nav .manager-nav-item:disabled{color:rgba(255,255,255,.35)!important}
+body.rm-mode .app>.header{background:#fff!important;border-bottom:1px solid var(--border);min-height:calc(64px + var(--rm-safe-top))!important}
+body.rm-mode .app>.header #headerLogo{display:none!important}
+body.rm-mode #rmLocation{color:var(--text)!important;border-left:0!important;padding-left:0!important;font-size:12px!important;font-weight:600}
+body.rm-mode .rm-header-tools{top:calc(16px + var(--rm-safe-top))!important}
+body.rm-mode .rm-header-tools button{color:var(--text);border-color:var(--border)}
+}
