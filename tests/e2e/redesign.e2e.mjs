@@ -81,6 +81,16 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#rmEditBack').click();await page.locator('#employeeDetailsScreen').waitFor({state:'visible'});assert.match(await page.locator('#rmEmployeeContent').innerText(),/No — roster only/);
  await page.locator('[data-manager-nav="operations"]').click();assert.equal(await page.locator('#employeeDetailsScreen').isVisible(),false);
  await page.evaluate(async()=>{const originalApi=managerApi;for(const status of ['working','break','off_shift']){managerApi=async action=>action==='manager_dashboard'?{manager:{id:'qa-clock',name:'QA Manager',role:'manager'},location:'QA fixture',working:status==='off_shift'?[]:[{staff_id:'qa-clock',name:'QA Manager',department:'Kitchen',status,shift_id:'qa-shift',clock_in:new Date().toISOString(),hours_so_far:0}]}:{pending:0};await loadManagerDashboard();const button=document.getElementById(status==='working'?'managerStartBreakBtn':status==='break'?'managerEndBreakBtn':'managerClockInBtn');if(button.classList.contains('hidden'))throw Error('Incorrect manager clock state: '+status);}managerApi=originalApi;});
+ // Clock Out from "Working now" opens the same clock-out form as View all.
+ await page.evaluate(async()=>{window.__origClk=managerApi;managerApi=async action=>action==='manager_dashboard'?{manager:{id:'qa-m',name:'QA Manager',role:'manager'},location:'Hawthorne',counts:{},working:[{staff_id:'qa-late',name:'QA Forgot',department:'Kitchen',status:'working',shift_id:'qa-shift-9',clock_in:new Date(Date.now()-14*3600e3).toISOString(),hours_so_far:14}]}:{pending:0};await loadManagerDashboard();});
+ await page.locator('[data-manager-nav="home"]').click();
+ await page.locator('[data-rm-stat="working"]').click();
+ await page.locator('#rmStatPanel [data-rm-clockout="qa-shift-9"]').click();
+ await page.locator('#clockout-qa-shift-9').waitFor({state:'visible'});
+ assert.equal(await page.locator('#rmWorkingPanel').isVisible(),true);
+ assert.match(await page.locator('#clockout-qa-shift-9').innerText(),/Clock out QA Forgot/);
+ await page.locator('#clockout-qa-shift-9 [data-cancel-clockout]').click();
+ await page.evaluate(()=>{managerApi=window.__origClk;document.getElementById('rmWorkingPanel').classList.add('hidden');});
  // Price book: all products, rises, history; Home shows recent rises and opens them.
  await page.evaluate(()=>{const d=n=>new Date(Date.now()+10*3600e3-n*864e5).toISOString().slice(0,10);const orig=managerApi;window.__origApi=orig;
    managerApi=async(action,...args)=>action==='manager_invoice_price_book'?{products:[

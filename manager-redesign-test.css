@@ -425,3 +425,4 @@ body.rm-mode .rm-header-tools button{color:var(--text);border-color:var(--border
 .tmp-rec .shop-small{margin:0;flex-shrink:0}
 .tmp-dedit{display:block}.tmp-dedit .shop-form{display:flex;flex-direction:column;gap:8px;background:none}
 .tmp-who{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;margin:4px 0 8px}.tmp-who select{flex:1;min-height:44px}
+.rm-who .rm-clockout{margin:0 0 0 8px;min-height:36px;padding:6px 12px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-weight:600;font-size:13px;color:#b3261e;flex-shrink:0}
