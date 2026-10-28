@@ -1768,6 +1768,7 @@ button:disabled{opacity:.6}
 </style>
 <script defer src="./timesheet-pdf.js"></script>
 <script defer src="./stock-pdf.js"></script>
+<script defer src="./temp-pdf.js"></script>
 <script defer src="./roster-pdf.js"></script>
 <script defer src="./invoice-reader.js"></script>
 <link rel="stylesheet" href="./manager-redesign-test.css">
@@ -9870,7 +9871,7 @@ checkDeviceStatus();
 // anything changed, offer a one-tap update (never reload on its own: someone may
 // be typing a PIN or clocking in). The session survives the reload.
 (() => {
-  const FILES = [location.pathname, "./manager-ui.js", "./manager-team-ui.js", "./manager-prices-ui.js", "./manager-top-ui.js", "./own-pin-ui.js", "./manager-photo-ui.js", "./manager-shopping-ui.js", "./manager-maintenance-ui.js", "./manager-temp-ui.js", "./manager-redesign-test.css", "./invoice-reader.js"];
+  const FILES = [location.pathname, "./manager-ui.js", "./manager-team-ui.js", "./manager-prices-ui.js", "./manager-top-ui.js", "./own-pin-ui.js", "./manager-photo-ui.js", "./manager-shopping-ui.js", "./manager-maintenance-ui.js", "./manager-temp-ui.js", "./temp-pdf.js", "./manager-redesign-test.css", "./invoice-reader.js"];
   let checking = false, lastCheck = 0;
   const text = (url, cache) => fetch(url, { cache }).then(r => (r.ok ? r.text() : null)).catch(() => null);
   async function changed(url) {

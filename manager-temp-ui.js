@@ -25,7 +25,7 @@ screen.innerHTML=`<div class="manager-top"><div><h2>Temperatures</h2><p>Temperat
 <div id="tmpDetail" class="rm-data-note tmp-detail" hidden></div>
 <h3 class="shop-h">Notes this week</h3>
 <div class="card shop-card"><div id="tmpNotes" class="empty-state">No readings outside the safe range this week.</div></div>
-<button type="button" class="shop-primary tmp-print-btn" id="tmpPrintWeek">Print this week (council sheet)</button>
+<button type="button" class="shop-primary tmp-print-btn" id="tmpPrintWeek">PDF of this week (council sheet)</button>
 <h3 class="shop-h">Delivery</h3>
 <form class="card shop-form" id="tmpDelivery" autocomplete="off">
  <input id="tmpItem" maxlength="80" placeholder="Product e.g. Cream, Prawns" aria-label="Product">
@@ -48,7 +48,7 @@ screen.innerHTML=`<div class="manager-top"><div><h2>Temperatures</h2><p>Temperat
 <div class="card shop-form"><p class="rm-data-note" style="margin:0">Keep at least 3 months. Records cannot be changed or deleted; a mistake is fixed with a new reading.</p>
  <button type="button" class="secondary" id="tmpHistBtn">Show the last 90 days</button></div>
 <div id="tmpRecords" class="hidden"><div class="tmp-print-head"><strong>Temperature records</strong><span id="tmpRecHead"></span></div>
- <button type="button" class="shop-primary tmp-print-btn" id="tmpPrint">Print or save as PDF</button>
+ <button type="button" class="shop-primary tmp-print-btn" id="tmpPrint">PDF of these records</button>
  <div id="tmpRecList"></div></div>`;
 document.querySelector('main').append(screen);MANAGER_SCREEN_IDS.push(screen.id);
 
@@ -204,18 +204,35 @@ $('tmpHistBtn').addEventListener('click',async()=>{
  catch(err){eqMsg(err.message||'Unable to load the records.');b.textContent='Show the last 90 days';}
  finally{b.disabled=false;}
 });
-// iPhone: print() does not wait, so the print class stays on until the person
-// leaves this screen (it only changes what is printed, not the screen).
-const PRINT_CLS=['tmp-printing','tmp-printing-week'];
-function printNow(cls){document.body.classList.remove(...PRINT_CLS);document.body.classList.add(cls);setTimeout(()=>window.print(),50);}
-new MutationObserver(()=>{if(screen.classList.contains('hidden'))document.body.classList.remove(...PRINT_CLS);}).observe(screen,{attributes:true,attributeFilter:['class']});
-$('tmpPrintWeek').addEventListener('click',()=>{
- const w=state.week;if(!w)return;let box=$('tmpWeekPrint');if(!box){box=document.createElement('div');box.id='tmpWeekPrint';document.body.append(box);}
- box.innerHTML=`<h2>Marinara ${t(w.location||'')} – Temperature Check list</h2><p>Week ${t(shortDate(w.start))} – ${t(shortDate(addDays(w.start,6)))} · Fridge 5°C or below · Freezer -15°C or below · Hot holding 60°C or above · initials = who checked</p>${sheetHtml(w,true)}<h3>Notes (readings outside the safe range and what was done)</h3>${notesHtml(w)||'<p>None.</p>'}<p class="tmp-print-foot">Printed ${t(dayLong(Date.now()))} from Marinara Hours. Every reading is saved with the name of who checked and the time; records cannot be changed.</p>`;
- printNow('tmp-printing-week');
-});
-$('tmpPrint').addEventListener('click',()=>printNow('tmp-printing'));
+// PDF (iPhone home-screen apps cannot print a page): Share > Print, or save.
+const LIMITS='Fridge 5°C or below · Freezer -15°C or below · Hot holding 60°C or above · initials = who checked · red = outside the safe range';
+const logo=()=>document.querySelector('.login-original-logo')?.src;
+const slotName=s=>s==='closing'?'Closing':'Opening';
+async function makePdf(btn,build){
+ if(!window.MarinaraTempPdf){eqMsg('PDF tools are still loading. Try again.');return;}
+ const label=btn.textContent;btn.disabled=true;btn.textContent='Making the PDF…';
+ try{await window.MarinaraTempPdf.open(build());}catch(err){eqMsg(err.message||'Unable to make the PDF.');}
+ finally{btn.disabled=false;btn.textContent=label;}
+}
+function weekReport(){
+ const w=state.week;const days=[...Array(7)].map((_,i)=>addDays(w.start,i));
+ const cell=new Map((w.cells||[]).map(c=>[`${c.equipment_id}|${c.day}|${c.slot}`,c]));
+ const v=c=>c?{t:`${Number(c.temp).toFixed(1)} ${initials(c.recorded_by)}`,bad:!c.ok}:null;
+ return {kind:'week',title:'TEMPERATURE CHECK LIST',place:`Marinara ${w.location||''}`,when:`${shortDate(w.start)} - ${shortDate(days[6])}`,limits:LIMITS,logo:logo(),fileDate:w.start,
+  foot:`Printed ${dayLong(Date.now())} from Marinara Hours. Every reading is saved with who checked and the time; records cannot be changed.`,
+  days:days.map(d=>{const [n,dd]=dayHead(d);return `${n} ${dd}`;}),
+  rows:(w.equipment||[]).map(e=>({name:e.name,sub:KIND[e.kind][1],cells:days.map(d=>({opening:v(cell.get(`${e.id}|${d}|opening`)),closing:v(cell.get(`${e.id}|${d}|closing`))}))})),
+  notes:(w.cells||[]).filter(c=>!c.ok).sort((a,b)=>a.recorded_at.localeCompare(b.recorded_at)).map(c=>{const [n,dd]=dayHead(c.day);return [`${n} ${dd}`,c.equipment||'',`${slotName(c.slot)} ${time(c.recorded_at)}`,deg(c.temp),c.action||'',c.recorded_by||''];})};
+}
+function recordsReport(){
+ const h=state.history||{};const recs=h.records||[];
+ return {kind:'records',title:'TEMPERATURE RECORDS',place:`Marinara ${h.location||''}`,when:`Last ${h.days||90} days`,limits:LIMITS,logo:logo(),fileDate:`last-${h.days||90}-days`,
+  foot:`Printed ${dayLong(Date.now())} from Marinara Hours. ${recs.length} record${recs.length===1?'':'s'}; records cannot be changed.`,
+  records:recs.map(r=>[dayLong(r.recorded_at),time(r.recorded_at),r.kind==='equipment'?`${r.equipment||'Equipment'} - ${slotName(r.slot)}`:`Delivery: ${r.item}${r.supplier?` (${r.supplier})`:''} - ${KIND[r.food]?.[0]||''}`,deg(r.temp),r.action||'',r.recorded_by||'',!r.ok])};
+}
+$('tmpPrintWeek').addEventListener('click',()=>{if(state.week)makePdf($('tmpPrintWeek'),weekReport);});
+$('tmpPrint').addEventListener('click',()=>{if(state.history)makePdf($('tmpPrint'),recordsReport);});
 
 window.addEventListener('marinara:dashboard',()=>{if(Date.now()-state.at>60e3)load().catch(()=>{});});
-window.addEventListener('marinara:session-reset',()=>{document.body.classList.remove(...PRINT_CLS);state.gen++;state.data=null;state.week=null;state.start=null;state.at=0;state.pending=null;state.sign=null;state.recheck=null;state.scrolled=false;state.removing=null;state.history=null;$('tmpDetail').hidden=true;$('tmpRecords').classList.add('hidden');$('tmpRecList').innerHTML='';for(const id of ['tmpEqMsg','tmpDMsg'])$(id).textContent='';publish();render();});
+window.addEventListener('marinara:session-reset',()=>{state.gen++;state.data=null;state.week=null;state.start=null;state.at=0;state.pending=null;state.sign=null;state.recheck=null;state.scrolled=false;state.removing=null;state.history=null;$('tmpDetail').hidden=true;$('tmpRecords').classList.add('hidden');$('tmpRecList').innerHTML='';for(const id of ['tmpEqMsg','tmpDMsg'])$(id).textContent='';publish();render();});
 })();
