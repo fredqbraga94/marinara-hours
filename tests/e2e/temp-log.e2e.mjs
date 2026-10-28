@@ -106,6 +106,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.equal(await page.locator('#tmpThis').isVisible(),true);
  await page.locator('#tmpThis').click();await page.locator('#tmpSheet [data-tmp-cell]').first().waitFor();
  await page.screenshot({path:`tmp/qa/${size}-temps-sheet.png`});
+ await page.waitForFunction(()=>{const w=document.getElementById('tmpSheetWrap'),th=w.querySelector('th.tmp-today'),r=th.getBoundingClientRect(),b=w.getBoundingClientRect();return r.right<=b.right+1&&r.left>=b.left;});
  // Delivery out of range needs an action.
  await page.locator('#tmpItem').fill('QA prawns');await page.locator('#tmpFood').selectOption('frozen');await page.locator('#tmpDTemp').fill('8');await page.locator('#tmpDSign').click();assert.equal(await page.locator('#tmpDTemp').inputValue(),'-8');
  assert.equal(await page.locator('#tmpDAction').isVisible(),true,'action field appears');

@@ -53,7 +53,7 @@ screen.innerHTML=`<div class="manager-top"><div><h2>Temperatures</h2><p>Temperat
 document.querySelector('main').append(screen);MANAGER_SCREEN_IDS.push(screen.id);
 
 const opener=document.createElement('button');opener.type='button';opener.id='rmOpenTemps';opener.hidden=true;
-opener.onclick=()=>{showOnlyManagerScreen(screen.id);setManagerNavActive('operations');window.scrollTo(0,0);state.start=null;render();load().catch(e=>eqMsg(e.message||'Unable to load.'));};
+opener.onclick=()=>{showOnlyManagerScreen(screen.id);setManagerNavActive('operations');window.scrollTo(0,0);state.start=null;render();requestAnimationFrame(showToday);load().catch(e=>eqMsg(e.message||'Unable to load.'));};
 document.body.append(opener);
 const menuRow=`<button type="button" class="rm-row" data-rm-go="rmOpenTemps">${THERMO}<span><strong>Temperatures</strong><small>Daily checks for the council</small></span><i aria-hidden="true">›</i></button>`;
 for(const menu of [document.querySelector('#operationsScreen .rm-menu'),document.querySelector('#managerMoreScreen .rm-menu'),document.querySelector('#quickActionsDialog .rm-actions')]){
@@ -109,6 +109,13 @@ function notesHtml(w){
  const bad=(w.cells||[]).filter(c=>!c.ok).sort((a,b)=>a.recorded_at.localeCompare(b.recorded_at));
  return bad.map(c=>{const [n,dd]=dayHead(c.day);return `<div class="tmp-rec bad"><span class="tmp-rec-main"><strong>${t(n)} ${dd} · ${t(c.equipment||'')} · ${c.slot==='closing'?'Closing':'Opening'}</strong><small>${t(time(c.recorded_at))} · ${t(c.recorded_by||'')} · Action: ${t(c.action||'—')}</small></span><b>${t(deg(c.temp))}</b></div>`;}).join('');
 }
+// Keep today's column in view (beside the sticky Equipment and Time columns).
+function showToday(){
+ const wrap=$('tmpSheetWrap'),th=wrap?.querySelector('th.tmp-today');if(!th||!wrap.clientWidth)return;
+ const sticky=[...wrap.querySelectorAll('thead .tmp-eqcol,thead .tmp-slotcol')].reduce((a,x)=>a+x.offsetWidth,0);
+ const left=th.offsetLeft-sticky,right=th.offsetLeft+th.offsetWidth-wrap.clientWidth;
+ if(wrap.scrollLeft>left||wrap.scrollLeft<right)wrap.scrollLeft=Math.max(0,left-(wrap.clientWidth-sticky-th.offsetWidth)/2);
+}
 function render(){
  const w=state.week,d=state.data;
  const box=$('tmpSheet');
@@ -120,7 +127,7 @@ function render(){
   $('tmpHint').hidden=!thisWeek;
   if(!(w.equipment||[]).length){box.className='empty-state';box.textContent='Add your fridges and freezers below (or the 7 from the paper sheet) to start the check list.';}
   else{box.className='';box.innerHTML=sheetHtml(w,false);
-   if(thisWeek&&!state.scrolled){state.scrolled=true;requestAnimationFrame(()=>{const th=box.querySelector('th.tmp-today');const wrap=$('tmpSheetWrap');if(th&&wrap)wrap.scrollLeft=Math.max(0,th.offsetLeft-wrap.clientWidth/2);});}}
+   if(thisWeek)requestAnimationFrame(showToday);}
   const notes=notesHtml(w);const nb=$('tmpNotes');
   if(notes){nb.className='';nb.innerHTML=notes;}else{nb.className='empty-state';nb.textContent='No readings outside the safe range this week.';}
  }
