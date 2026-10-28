@@ -1508,6 +1508,7 @@ Deno.serve(async (req) => {
         "manager_stock_count_close",
         "manager_stock_supplier_rename",
         "manager_temp_today",
+        "manager_temp_week",
         "manager_temp_equipment_save",
         "manager_temp_record",
         "manager_temp_history",
@@ -3324,6 +3325,12 @@ Deno.serve(async (req) => {
           if (error) return managerDbError(error, "Unable to load the temperature checks", 500);
           return json({ success: true, action, data });
         }
+        if (action === "manager_temp_week") {
+          const start = typeof body.start === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.start) ? body.start : null;
+          const { data, error } = await supabase.rpc("manager_temp_week", { p_manager_id: managerStatus.id, p_start: start });
+          if (error) return managerDbError(error, "Unable to load the temperature sheet", 500);
+          return json({ success: true, action, data });
+        }
         if (action === "manager_temp_history") {
           const days = Number.isInteger(body.days) ? body.days : 90;
           const { data, error } = await supabase.rpc("manager_temp_history", { p_manager_id: managerStatus.id, p_days: days });
@@ -3348,6 +3355,8 @@ Deno.serve(async (req) => {
           if (e.kind === "equipment") {
             if (!isUuid(e.equipment_id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
             entry.equipment_id = e.equipment_id;
+            entry.slot = ["opening", "closing"].includes(e.slot) ? e.slot : null;
+            if (!entry.slot) return json({ error: "Choose opening or closing.", code: "INVALID_INPUT" }, 400);
           } else if (e.kind === "receiving") {
             entry.item = text(e.item, 80); entry.supplier = text(e.supplier, 80);
             entry.food = ["chilled", "frozen"].includes(e.food) ? e.food : null;

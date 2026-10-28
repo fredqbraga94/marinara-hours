@@ -1,12 +1,13 @@
 -- Temperature records for the council (FSANZ Standard 3.2.2A): daily checks of
--- fridges, freezers and hot holding, and the temperature of chilled/frozen
--- deliveries. Every record keeps who made it and when (set by the database),
+-- fridges, freezers and hot holding at opening and at closing (the same sheet
+-- as on paper: equipment x Opening/Closing x Monday to Sunday), and the
+-- temperature of chilled/frozen deliveries. Every record keeps who made it and when (set by the database),
 -- and records cannot be edited or deleted: a mistake is fixed with a new record.
 -- A reading outside the safe range needs a corrective action written with it.
 -- Limits: fridge and chilled delivery 5°C or below; freezer and frozen delivery
 -- -15°C or below; hot holding 60°C or above.
 -- Any manager (Administrator, Kitchen or Floor Manager). One list per location.
--- Additive only: two new tables and six new functions. Nothing existing changes.
+-- Additive only: two new tables and seven new functions. Nothing existing changes.
 
 create table if not exists public.temp_equipment (
   id uuid primary key default gen_random_uuid(),
@@ -35,6 +36,11 @@ create table if not exists public.temp_logs (
   check ((kind = 'equipment' and equipment_id is not null) or (kind = 'receiving' and item is not null))
 );
 create index if not exists temp_logs_location_idx on public.temp_logs (location, recorded_at desc);
+-- Opening or closing check (equipment only).
+alter table public.temp_logs add column if not exists slot text;
+alter table public.temp_logs drop constraint if exists temp_logs_slot_check;
+alter table public.temp_logs add constraint temp_logs_slot_check
+  check ((kind = 'equipment' and slot in ('opening', 'closing')) or (kind = 'receiving' and slot is null)) not valid;
 
 alter table public.temp_equipment enable row level security;
 alter table public.temp_logs enable row level security;
@@ -53,14 +59,16 @@ create or replace function public.mh_temp_log_json(l public.temp_logs)
 returns jsonb language sql stable set search_path to 'public'
 as $function$
   select jsonb_build_object(
-    'id', l.id, 'kind', l.kind, 'equipment_id', l.equipment_id,
+    'id', l.id, 'kind', l.kind, 'equipment_id', l.equipment_id, 'slot', l.slot,
+    'day', (l.recorded_at at time zone 'Australia/Brisbane')::date,
     'equipment', (select e.name from public.temp_equipment e where e.id = l.equipment_id),
     'item', l.item, 'supplier', l.supplier, 'food', l.food, 'temp', l.temp, 'ok', l.ok, 'action', l.action,
     'recorded_at', l.recorded_at, 'recorded_by', (select s.name from public.staff s where s.id = l.recorded_by))
 $function$;
 
--- Today: every piece of equipment with its last check today (Brisbane day),
--- today's records, and how many checks are still missing.
+-- Today (Brisbane day): every piece of equipment with its opening and closing
+-- check, today's records, and how many checks are still missing (closing
+-- checks count as missing only from 2 pm).
 create or replace function public.manager_temp_today(p_manager_id uuid)
 returns jsonb
 language plpgsql
@@ -70,13 +78,16 @@ set search_path to 'public'
 as $function$
 declare
   mgr public.staff%rowtype := public.mh_manager(p_manager_id);
-  v_day date := (now() at time zone 'Australia/Brisbane')::date;
+  v_now timestamp := now() at time zone 'Australia/Brisbane';
+  v_day date := v_now::date;
 begin
   return (
     with eq as (
-      select e.*, (select l from public.temp_logs l
-                    where l.equipment_id = e.id and (l.recorded_at at time zone 'Australia/Brisbane')::date = v_day
-                    order by l.recorded_at desc limit 1) as last
+      select e.*,
+        (select l from public.temp_logs l where l.equipment_id = e.id and l.slot = 'opening'
+            and (l.recorded_at at time zone 'Australia/Brisbane')::date = v_day order by l.recorded_at desc limit 1) as op,
+        (select l from public.temp_logs l where l.equipment_id = e.id and l.slot = 'closing'
+            and (l.recorded_at at time zone 'Australia/Brisbane')::date = v_day order by l.recorded_at desc limit 1) as cl
         from public.temp_equipment e
        where e.location = mgr.location and e.active
     )
@@ -84,13 +95,53 @@ begin
       'day', v_day,
       'equipment', coalesce((select jsonb_agg(jsonb_build_object(
           'id', eq.id, 'name', eq.name, 'kind', eq.kind,
-          'today', case when (eq.last).id is null then null else public.mh_temp_log_json(eq.last) end)
-          order by eq.kind, lower(eq.name)) from eq), '[]'::jsonb),
-      'missing', (select count(*) from eq where (eq.last).id is null),
+          'opening', case when (eq.op).id is null then null else public.mh_temp_log_json(eq.op) end,
+          'closing', case when (eq.cl).id is null then null else public.mh_temp_log_json(eq.cl) end)
+          order by eq.created_at, lower(eq.name)) from eq), '[]'::jsonb),
+      'missing', (select count(*) filter (where (eq.op).id is null)
+                       + case when extract(hour from v_now) >= 14 then count(*) filter (where (eq.cl).id is null) else 0 end
+                    from eq),
       'today', coalesce((select jsonb_agg(public.mh_temp_log_json(l) order by l.recorded_at desc)
                            from public.temp_logs l
                           where l.location = mgr.location
                             and (l.recorded_at at time zone 'Australia/Brisbane')::date = v_day), '[]'::jsonb)));
+end $function$;
+
+-- The weekly sheet: Monday p_start to Sunday. Equipment on the list (and any
+-- removed one that has readings that week) and the latest reading of each
+-- cell (equipment x day x opening/closing).
+create or replace function public.manager_temp_week(p_manager_id uuid, p_start date)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path to 'public'
+as $function$
+declare
+  mgr public.staff%rowtype := public.mh_manager(p_manager_id);
+  v_today date := (now() at time zone 'Australia/Brisbane')::date;
+  v_start date := coalesce(p_start, v_today);
+begin
+  v_start := v_start - ((extract(isodow from v_start)::int - 1));
+  return (
+    with logs as (
+      select l.* from public.temp_logs l
+       where l.location = mgr.location and l.kind = 'equipment'
+         and (l.recorded_at at time zone 'Australia/Brisbane')::date between v_start and v_start + 6
+    ),
+    latest as (
+      select distinct on (equipment_id, (recorded_at at time zone 'Australia/Brisbane')::date, slot) *
+        from logs
+       order by equipment_id, (recorded_at at time zone 'Australia/Brisbane')::date, slot, recorded_at desc
+    )
+    select jsonb_build_object(
+      'start', v_start, 'today', v_today, 'location', mgr.location,
+      'equipment', coalesce((select jsonb_agg(jsonb_build_object('id', e.id, 'name', e.name, 'kind', e.kind, 'active', e.active)
+                                              order by e.created_at, lower(e.name))
+                               from public.temp_equipment e
+                              where e.location = mgr.location
+                                and (e.active or exists (select 1 from logs where logs.equipment_id = e.id))), '[]'::jsonb),
+      'cells', coalesce((select jsonb_agg(public.mh_temp_log_json(l)) from public.temp_logs l where l.id in (select id from latest)), '[]'::jsonb)));
 end $function$;
 
 -- Add or rename a piece of equipment, or take it off the list (active = false).
@@ -126,7 +177,7 @@ begin
 end $function$;
 
 -- Save one reading. p_entry:
---   {kind: 'equipment', equipment_id, temp, action?}
+--   {kind: 'equipment', equipment_id, slot: 'opening' | 'closing', temp, action?}
 --   {kind: 'receiving', item, supplier?, food: 'chilled' | 'frozen', temp, action?}
 -- Outside the safe range the corrective action is required (ACTION_REQUIRED).
 create or replace function public.manager_temp_record(p_manager_id uuid, p_entry jsonb)
@@ -145,6 +196,7 @@ declare
   v_item text;
   v_supplier text := nullif(left(trim(coalesce(p_entry->>'supplier', '')), 80), '');
   v_ok boolean;
+  v_slot text := p_entry->>'slot';
   v_row public.temp_logs%rowtype;
 begin
   begin
@@ -156,18 +208,20 @@ begin
     select * into v_eq from public.temp_equipment
      where id = (p_entry->>'equipment_id')::uuid and location = mgr.location and active;
     if not found then raise exception 'ITEM_NOT_FOUND'; end if;
+    if v_slot is null or v_slot not in ('opening', 'closing') then raise exception 'INVALID_INPUT'; end if;
     v_food := v_eq.kind;
   elsif v_kind = 'receiving' then
     v_item := nullif(left(trim(coalesce(p_entry->>'item', '')), 80), '');
     v_food := p_entry->>'food';
     if v_item is null or v_food is null or v_food not in ('chilled', 'frozen') then raise exception 'INVALID_INPUT'; end if;
+    v_slot := null;
   else
     raise exception 'INVALID_INPUT';
   end if;
   v_ok := public.mh_temp_ok(v_food, v_temp);
   if not v_ok and v_action is null then raise exception 'ACTION_REQUIRED'; end if;
-  insert into public.temp_logs (location, kind, equipment_id, item, supplier, food, temp, ok, action, recorded_by)
-  values (mgr.location, v_kind, v_eq.id, v_item, case when v_kind = 'receiving' then v_supplier end, v_food, v_temp, v_ok, v_action, p_manager_id)
+  insert into public.temp_logs (location, kind, equipment_id, slot, item, supplier, food, temp, ok, action, recorded_by)
+  values (mgr.location, v_kind, v_eq.id, v_slot, v_item, case when v_kind = 'receiving' then v_supplier end, v_food, v_temp, v_ok, v_action, p_manager_id)
   returning * into v_row;
   return public.mh_temp_log_json(v_row);
 end $function$;
@@ -193,12 +247,14 @@ end $function$;
 revoke all on function public.mh_temp_ok(text, numeric) from public, anon, authenticated;
 revoke all on function public.mh_temp_log_json(public.temp_logs) from public, anon, authenticated;
 revoke all on function public.manager_temp_today(uuid) from public, anon, authenticated;
+revoke all on function public.manager_temp_week(uuid, date) from public, anon, authenticated;
 revoke all on function public.manager_temp_equipment_save(uuid, jsonb) from public, anon, authenticated;
 revoke all on function public.manager_temp_record(uuid, jsonb) from public, anon, authenticated;
 revoke all on function public.manager_temp_history(uuid, integer) from public, anon, authenticated;
 grant execute on function public.mh_temp_ok(text, numeric) to service_role;
 grant execute on function public.mh_temp_log_json(public.temp_logs) to service_role;
 grant execute on function public.manager_temp_today(uuid) to service_role;
+grant execute on function public.manager_temp_week(uuid, date) to service_role;
 grant execute on function public.manager_temp_equipment_save(uuid, jsonb) to service_role;
 grant execute on function public.manager_temp_record(uuid, jsonb) to service_role;
 grant execute on function public.manager_temp_history(uuid, integer) to service_role;

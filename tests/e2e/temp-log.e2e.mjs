@@ -22,14 +22,25 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
   const eq=[],logs=[];let n=0;const id=()=>`00000000-0000-4000-8000-${String(++n).padStart(12,'0')}`;
   const ok=(f,v)=>f==='fridge'||f==='chilled'?v<=5:f==='freezer'||f==='frozen'?v<=-15:v>=60;
   const json=l=>({...l,equipment:(eq.find(e=>e.id===l.equipment_id)||{}).name||null});
+  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Australia/Brisbane'}).format(new Date());
+  const add=(iso,k)=>{const d=new Date(`${iso}T00:00:00Z`);d.setUTCDate(d.getUTCDate()+k);return d.toISOString().slice(0,10);};
+  const monday=iso=>add(iso,-((new Date(`${iso}T00:00:00Z`).getUTCDay()+6)%7));
+  window.__seedPast=()=>{const e=eq[0];logs.push({id:id(),kind:'equipment',equipment_id:e.id,slot:'closing',day:add(monday(today),-3),food:e.kind,temp:9,ok:false,action:'QA moved stock',recorded_at:new Date(Date.now()-5*864e5).toISOString(),recorded_by:'QA Past Manager'});};
   window.__printed=0;window.print=()=>{window.__printed++;};
+  window.__calls=[];
   const orig=managerApi;
   managerApi=async(action,extra={})=>{
-   if(action==='manager_temp_today'){const act=eq.filter(e=>e.active);return{day:'x',equipment:act.map(e=>({id:e.id,name:e.name,kind:e.kind,today:(()=>{const l=logs.filter(x=>x.equipment_id===e.id).at(-1);return l?json(l):null;})()})),missing:act.filter(e=>!logs.some(x=>x.equipment_id===e.id)).length,today:logs.slice().reverse().map(json)};}
+   window.__calls.push([action,JSON.parse(JSON.stringify(extra))]);
+   if(action==='manager_temp_today'){const act=eq.filter(e=>e.active);const last=(e,s)=>{const l=logs.filter(x=>x.equipment_id===e.id&&x.day===today&&x.slot===s).at(-1);return l?json(l):null;};
+    return{day:today,equipment:act.map(e=>({id:e.id,name:e.name,kind:e.kind,opening:last(e,'opening'),closing:last(e,'closing')})),missing:act.filter(e=>!last(e,'opening')).length,today:logs.filter(x=>x.day===today).reverse().map(json)};}
+   if(action==='manager_temp_week'){const start=monday(extra.start||today);const end=add(start,6);const inWeek=logs.filter(l=>l.kind==='equipment'&&l.day>=start&&l.day<=end);
+    const m=new Map();for(const l of inWeek)m.set(`${l.equipment_id}|${l.day}|${l.slot}`,json(l));
+    return{start,today,location:'Hawthorne',equipment:eq.filter(e=>e.active||inWeek.some(l=>l.equipment_id===e.id)),cells:[...m.values()]};}
    if(action==='manager_temp_equipment_save'){const it=extra.item;if(it.id){const e=eq.find(x=>x.id===it.id);e.active=it.active!==false;return{equipment:e};}const e={id:id(),name:it.name,kind:it.kind,active:true};eq.push(e);return{equipment:e};}
    if(action==='manager_temp_record'){const x=extra.entry;const e=eq.find(q=>q.id===x.equipment_id);const food=x.kind==='equipment'?e.kind:x.food;const good=ok(food,x.temp);
+    if(x.kind==='equipment'&&!['opening','closing'].includes(x.slot))throw new Error('Choose opening or closing.');
     if(!good&&!x.action){const er=new Error('The temperature is outside the safe range. Write what you did about it.');throw er;}
-    const l={id:id(),kind:x.kind,equipment_id:x.equipment_id||null,item:x.item||null,supplier:x.supplier||null,food,temp:x.temp,ok:good,action:x.action||null,recorded_at:new Date().toISOString(),recorded_by:'QA Kitchen Manager'};logs.push(l);return{record:json(l)};}
+    const l={id:id(),kind:x.kind,equipment_id:x.equipment_id||null,slot:x.kind==='equipment'?x.slot:null,day:today,item:x.item||null,supplier:x.supplier||null,food,temp:x.temp,ok:good,action:x.action||null,recorded_at:new Date().toISOString(),recorded_by:'QA Kitchen Manager'};logs.push(l);return{record:json(l)};}
    if(action==='manager_temp_history')return{days:90,location:'Hawthorne',records:logs.slice().reverse().map(json)};
    if(action==='manager_roster_week')return{team:[],entries:[],services:[],leave:[]};
    return orig(action,extra);};
@@ -37,48 +48,74 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen').waitFor({state:'visible'});
  assert.equal(await page.locator('#managerMoreScreen [data-rm-go="rmOpenTemps"]').count(),1,'in More');
  await page.getByRole('button',{name:'Temperatures Daily checks for the council'}).click();await page.locator('#tempScreen').waitFor({state:'visible'});
- await page.locator('#tmpEquip').filter({hasText:'Add your fridges'}).waitFor();
- // Add equipment.
- await page.locator('#tmpEqName').fill('QA cool room');await page.locator('#tmpEqKind').selectOption('fridge');await page.locator('#tmpEqSave').click();
- await page.locator('#tmpEquip .tmp-eq').first().waitFor();
- await page.locator('#tmpEqName').fill('QA freezer');await page.locator('#tmpEqKind').selectOption('freezer');await page.locator('#tmpEqSave').click();
- await page.waitForFunction(()=>document.querySelectorAll('#tmpEquip .tmp-eq').length===2);
- assert.equal(await page.locator('#tmpCount').innerText(),'(0 of 2 checked)');
- // Home shows the checks to do.
+ await page.locator('#tmpSheet').filter({hasText:'Add your fridges'}).waitFor();
+ // The 7 from the paper sheet in one tap.
+ await page.locator('#tmpSheetAdd').click();
+ await page.waitForFunction(()=>document.querySelectorAll('#tmpSheet tbody tr').length===14);
+ assert.equal(await page.locator('#tmpSheet thead th').count(),9,'Equipment, Time, MON-SUN');
+ assert.deepEqual((await page.locator('#tmpSheet thead th').allInnerTexts()).slice(2).map(x=>x.split('\n')[0]),['MON','TUE','WED','THU','FRI','SAT','SUN']);
+ assert.equal(await page.locator('#tmpSheet thead th.tmp-today').count(),1,'today highlighted');
+ assert.equal(await page.locator('#tmpSheet [data-tmp-cell]').count(),14,'only today can be typed');
+ assert.equal(await page.locator('#tmpSheetAdd').isVisible(),false);
+ // Home shows the opening checks to do.
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{id:'qa',name:'QA Kitchen Manager'},counts:{unapproved_shifts:0},working:[],permissions:{}}})));
  await page.waitForFunction(()=>/temperature checks to do today/.test(document.getElementById('rmAttention').innerText));
- assert.match(await page.locator('#rmAttention').innerText(),/2 temperature checks to do today/);
- // In range.
- const eqRows=page.locator('#tmpEquip .tmp-eq');
- const fridgeRow=eqRows.filter({hasText:'QA cool room'});
- await fridgeRow.locator('[data-tmp-temp]').fill('3,5');await fridgeRow.locator('[data-tmp-save]').click();
- await page.locator('#tmpEquip .tmp-eq').filter({hasText:'QA cool room'}).filter({hasText:'✓ 3.5°C'}).waitFor();
- // Out of range: needs an action first.
- const fz=()=>page.locator('#tmpEquip .tmp-eq').filter({hasText:'QA freezer'});
- await fz().locator('[data-tmp-temp]').fill('-10');await fz().locator('[data-tmp-save]').click();
- await fz().locator('.tmp-need').waitFor();
- assert.match(await fz().locator('.tmp-need').innerText(),/-10\.0°C is outside the safe range/);
+ assert.match(await page.locator('#rmAttention').innerText(),/7 temperature checks to do today/);
+ // In range: Pizza Prep Fridge, Opening.
+ const cell=(name,slot)=>page.locator(`[data-tmp-cell][aria-label="${name} ${slot} today °C"]`);
+ await cell('Pizza Prep Fridge','Opening').fill('3,5');await cell('Pizza Prep Fridge','Opening').press('Enter');
+ await page.locator('#tmpEqMsg').filter({hasText:'Pizza Prep Fridge · Opening: 3.5°C saved.'}).waitFor();
+ const rec=await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_temp_record').at(-1)[1].entry);
+ assert.equal(rec.slot,'opening');assert.equal(rec.temp,3.5);
+ await page.locator('#tmpSheet .tmp-val').filter({hasText:'3.5'}).waitFor();
+ assert.match(await page.locator('#tmpSheet .tmp-val').first().innerText(),/QKM/,'initials of who checked');
+ // Out of range: Freezer Closing -10 needs an action first.
+ await cell('Freezer','Closing').fill('-10');await cell('Freezer','Closing').press('Enter');
+ await page.locator('#tmpPending').waitFor({state:'visible'});
+ assert.match(await page.locator('#tmpPending').innerText(),/Freezer · Closing: -10\.0°C is outside the safe range/);
  await page.screenshot({path:`tmp/qa/${size}-temps-action.png`});
- await fz().locator('[data-tmp-action]').fill('Door left open; closed it, checked again in 30 min');await fz().locator('[data-tmp-save]').click();
- await page.locator('#tmpEquip .tmp-eq').filter({hasText:'QA freezer'}).filter({hasText:'⚠ -10.0°C'}).waitFor();
- assert.equal(await page.locator('#tmpCount').innerText(),'(2 of 2 checked)');
- assert.doesNotMatch(await page.locator('#rmAttention').innerText(),/temperature check/,'Home row gone when all checked');
+ await page.locator('#tmpPendSave').click();assert.match(await page.locator('#tmpEqMsg').innerText(),/Write what you did/);
+ await page.locator('#tmpPendAction').fill('Door left open; closed it, checked again in 30 min');await page.locator('#tmpPendSave').click();
+ await page.locator('#tmpSheet td.bad .tmp-val').waitFor();
+ assert.equal(await page.locator('#tmpPending').isVisible(),false);
+ assert.match(await page.locator('#tmpNotes').innerText(),/Freezer · Closing[\s\S]*Door left open/);
+ assert.match(await page.locator('#rmAttention').innerText(),/6 temperature checks to do today/);
+ // Tap a reading: who and when; check again replaces it.
+ await page.locator('#tmpSheet .tmp-val').filter({hasText:'3.5'}).click();
+ assert.match(await page.locator('#tmpDetail').innerText(),/Pizza Prep Fridge · Opening[^\n]*3\.5°C at [^\n]* by QA Kitchen Manager/);
+ await page.locator('[data-tmp-recheck]').click();
+ await cell('Pizza Prep Fridge','Opening').fill('4');await cell('Pizza Prep Fridge','Opening').press('Enter');
+ await page.locator('#tmpSheet .tmp-val').filter({hasText:'4.0'}).waitFor();
+ assert.equal(await page.locator('#tmpSheet .tmp-val').filter({hasText:'3.5'}).count(),0);
+ // Print the week like the paper sheet.
+ await page.locator('#tmpPrintWeek').click();assert.equal(await page.evaluate(()=>window.__printed),1);
+ assert.match(await page.locator('#tmpWeekPrint').innerText(),/Marinara Hawthorne – Temperature Check list/);
+ assert.equal(await page.locator('#tmpWeekPrint [data-tmp-cell]').count(),0,'print has no inputs');
+ // Last week: read only, shows the earlier reading.
+ await page.evaluate(()=>window.__seedPast());
+ await page.locator('#tmpPrev').click();
+ await page.locator('#tmpSheet .tmp-val').filter({hasText:'9.0'}).waitFor();
+ assert.equal(await page.locator('#tmpSheet [data-tmp-cell]').count(),0,'past week cannot be typed');
+ assert.match(await page.locator('#tmpNotes').innerText(),/QA moved stock/);
+ assert.equal(await page.locator('#tmpThis').isVisible(),true);
+ await page.locator('#tmpThis').click();await page.locator('#tmpSheet [data-tmp-cell]').first().waitFor();
+ await page.screenshot({path:`tmp/qa/${size}-temps-sheet.png`});
  // Delivery out of range needs an action.
  await page.locator('#tmpItem').fill('QA prawns');await page.locator('#tmpFood').selectOption('frozen');await page.locator('#tmpDTemp').fill('-8');
  assert.equal(await page.locator('#tmpDAction').isVisible(),true,'action field appears');
  await page.locator('#tmpDSave').click();assert.match(await page.locator('#tmpDMsg').innerText(),/Outside the safe range/);
  await page.locator('#tmpDAction').fill('Rejected, sent back with the driver');await page.locator('#tmpDSave').click();
  await page.locator('#tmpDMsg').filter({hasText:'QA prawns: -8.0°C saved.'}).waitFor();
- assert.equal(await page.locator('#tmpToday .tmp-rec').count(),3);
+ assert.equal(await page.locator('#tmpToday .tmp-rec').count(),4);
  assert.equal(await page.locator('#tmpToday .tmp-rec.bad').count(),2);
  // Records and print.
  await page.locator('#tmpHistBtn').click();await page.locator('#tmpRecords').waitFor({state:'visible'});
- assert.match(await page.locator('#tmpRecHead').innerText(),/Hawthorne · last 90 days · 3 records/);
- await page.locator('#tmpPrint').click();assert.equal(await page.evaluate(()=>window.__printed),1);
+ assert.match(await page.locator('#tmpRecHead').innerText(),/Hawthorne · last 90 days · 5 records/);
+ await page.locator('#tmpPrint').click();assert.equal(await page.evaluate(()=>window.__printed),2);
  await page.screenshot({path:`tmp/qa/${size}-temps.png`,fullPage:true});
  // Remove needs two taps; records stay.
  const rm=page.locator('#tmpList [data-tmp-remove]').first();await rm.click();assert.match(await rm.innerText(),/Tap again/);await rm.click();
- await page.waitForFunction(()=>document.querySelectorAll('#tmpEquip .tmp-eq').length===1);
+ await page.waitForFunction(()=>document.querySelectorAll('#tmpList [data-tmp-remove]').length===6);
  // Sign-out forgets it.
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('marinara:session-reset')));
  assert.equal(await page.locator('#tmpRecords').isVisible(),false);
@@ -86,5 +123,5 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.deepEqual(errors,[]);
  await context.close();
 }
-console.log(`PASS (${ENGINE}): temperatures: equipment, checks (action required out of range), deliveries, Home row, 90-day records, print, remove, sign-out, no overflow, no JavaScript errors.`);
+console.log(`PASS (${ENGINE}): temperatures: equipment, weekly sheet Opening/Closing × MON–SUN (only today typed, action required out of range, check again, past week read only, print), deliveries, Home row, 90-day records, print, remove, sign-out, no overflow, no JavaScript errors.`);
 }finally{await browser.close();server.close();}
