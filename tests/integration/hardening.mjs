@@ -534,7 +534,7 @@ try {
     const dup = await quiet(() => call(h38, { action: "manager_create_staff", token: gm, device: devB, name: "Test Dup", staff_pin: PIN[ID(5)], department: "Kitchen" }));
     const [x, y] = await quiet(() => Promise.all([
       call(h38, { action: "manager_create_staff", token: gm, device: devB, name: "Test Race 1", staff_pin: "987654", department: "Kitchen" }),
-      call(h38, { action: "manager_create_staff", token: km, device: devB, name: "Test Race 2", staff_pin: "987654", department: "Kitchen" }),
+      call(h38, { action: "manager_create_staff", token: gm, device: devB, name: "Test Race 2", staff_pin: "987654", department: "Kitchen" }),
     ]));
     assert.equal(dup.status, 409);
     assert.deepEqual([x.status, y.status].sort(), [200, 409]);

@@ -104,6 +104,16 @@ try {
     assert.equal(await one(db, `select count(*)::int from public.staff_audit where staff_ref = '${newStaff.id}'`) >= 1, true);
     return "6-digit temporary PIN, used by one person only";
   });
+  await check("only the Administrator adds people who sign in (Kitchen Manager refused, nothing created)", async () => {
+    const before = await one(db, `select count(*) from public.staff`);
+    for (const body of [{ name: "Test KM Adds", department: "Kitchen" }, { name: "Test KM Adds", department: "Kitchen", staff_pin: "836152" }]) {
+      const r = await api(vNew, 2, km, { action: "manager_create_staff", ...body });
+      assert.equal(r.status, 403, JSON.stringify(r.body));
+      assert.equal(r.body.code, "ADMIN_REQUIRED");
+    }
+    assert.equal(await one(db, `select count(*) from public.staff`), before);
+    return "403 ADMIN_REQUIRED";
+  });
   await check("with a PIN given, the old way still works and nothing must be changed", async () => {
     const r = await api(vNew, 1, gm, { action: "manager_create_staff", name: "Test Old Way", department: "Kitchen", staff_pin: "834251" });
     assert.equal(r.status, 200, JSON.stringify(r.body));
@@ -199,6 +209,8 @@ try {
   await check("rollback removes it; both servers still work for people with a normal PIN", async () => {
     const r = db.psqlFile(SHOP_DOWN); assert.ok(r.ok, r.stderr);
     assert.equal(await one(db, `select count(*) from information_schema.columns where table_name = 'staff' and column_name = 'pin_must_change'`), "0");
+    const n = await login(vNew, 3);
+    assert.equal((await api(vNew, 3, n, { action: "manager_dashboard" })).status, 200, "new server without the migration");
     const p = await login(vProd, 3);
     assert.equal((await api(vProd, 3, p, { action: "manager_dashboard" })).status, 200);
     return "Home 200 on the current server";

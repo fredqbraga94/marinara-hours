@@ -96,7 +96,8 @@ async function validateStaffSession(
     const { data: pending, error: pendingError } = await supabase.rpc("mh_pin_must_change", {
       p_staff_id: data.staff.id,
     });
-    if (pendingError) throw pendingError;
+    // Before the own-PIN migration (or after its rollback) nobody has a temporary PIN.
+    if (pendingError && !["42883", "PGRST202"].includes(String(pendingError.code || ""))) throw pendingError;
     if (pending) {
       return { ok: false, error: "Choose your own PIN to continue.", code: "PIN_CHANGE_REQUIRED" };
     }
@@ -2771,6 +2772,13 @@ Deno.serve(async (req) => {
         action ===
         "manager_create_staff"
       ) {
+        // Only the Administrator adds people who sign in.
+        if (!isGeneralManager) {
+          return json(
+            { error: "Only the Administrator can add people who sign in. Ask the Administrator.", code: "ADMIN_REQUIRED" },
+            403
+          );
+        }
         const name =
           typeof body.name === "string" ? body.name.trim() : "";
         const staffPin =
