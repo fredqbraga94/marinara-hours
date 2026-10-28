@@ -44,7 +44,9 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.deepEqual(ups,['QA flour','QA olive oil','QA cream'],'recent rise first, then the year (biggest first)');
  assert.match(await page.locator('#pbList .pb-row').nth(1).innerText(),/14\.5%\s*in the year/);
  await page.locator('#pbList .pb-row').nth(2).click();
- assert.match(await page.locator('#pbList .pb-hist').innerText(),/In the year \(supplier history\).*\+4\.9%/s);
+ const ht=await page.locator('#pbList .pb-hist').innerText();
+ assert.match(ht,/Since 29 Oct: \$107\.73 → \$113\.00 \(\+4\.9%\)/);
+ assert.match(ht,/29 Oct\s+\$107\.73\s+start of the year/);assert.match(ht,/\$113\.00\s+\+\$5\.27/);assert.doesNotMatch(ht,/first time/);
  await page.screenshot({path:`tmp/qa/${size}-prices-year.png`});
  await page.locator('[data-pb-filter="down"]').click();
  assert.deepEqual(await page.locator('#pbList .pb-row .pb-main strong').allInnerTexts(),['QA cocoa'],'weight-priced pork is left out');

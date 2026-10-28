@@ -37,10 +37,12 @@ function withYear(book,top){
  for(const x of top){
   if(!x.from_history)continue;
   const key=`${String(x.supplier).toLowerCase()}|${x.code}`;const have=byKey.get(key);
-  const hist=[{date:x.first_date,price:x.first_price},{date:x.last_date,price:x.last_price}].filter(h=>h.date&&h.price!=null);
+  const hist=[{date:x.first_date,price:x.first_price,fromHistory:true},{date:x.last_date,price:x.last_price,fromHistory:true}].filter((h,i,a)=>h.date&&h.price!=null&&(i===0||h.date!==a[0].date));
   if(have){
    // Keep a change the saved invoices already show; otherwise use the year.
-   if(have.change_pct==null&&realYear(x)){Object.assign(have,{change_pct:x.change_pct,previous_price:x.first_price,previous_date:x.first_date,year:true,times:Math.max(have.times||0,x.orders||0)});}
+   if(have.change_pct==null&&realYear(x)){Object.assign(have,{change_pct:x.change_pct,previous_price:x.first_price,previous_date:x.first_date,year:true,times:Math.max(have.times||0,x.orders||0),
+     // One timeline: the first price of the year from the history, then the saved invoices.
+     history:[{date:x.first_date,price:x.first_price,fromHistory:true},...(have.history||[]).filter(h=>h.date>x.first_date)]});}
    else have.times=Math.max(have.times||0,x.orders||0);
    continue;
   }
@@ -89,9 +91,9 @@ function render(){
   if(open){
    const h=p.history||[];
    const lines=h.slice().reverse().map((x,i,arr)=>{const prev=arr[i+1];const diff=prev?Number(x.price)-Number(prev.price):0;
-     return `<li><span>${t(day(x.date))}</span><strong>${t(cm(x.price))}</strong><span class="${diff>0?'up':diff<0?'down':''}">${!prev?'first time':diff?`${diff>0?'+':'−'}${t(cm(Math.abs(diff)))}`:'same'}</span></li>`;}).join('');
+     return `<li><span>${t(day(x.date))}</span><strong>${t(cm(x.price))}</strong><span class="${diff>0?'up':diff<0?'down':''}">${!prev?(x.fromHistory?'start of the year':'first time'):diff?`${diff>0?'+':'−'}${t(cm(Math.abs(diff)))}`:'same'}</span></li>`;}).join('');
    const first=h[0];const total=first&&Number(first.price)?(Number(p.last_price)-Number(first.price))/Number(first.price)*100:0;
-   hist=`<div class="pb-hist">${p.year?`<p>In the year (supplier history): ${t(cm(p.previous_price))} on ${t(day(p.previous_date))} → ${t(cm(p.last_price))} <b class="${up(p)?'up':'down'}">(${up(p)?'+':'−'}${pct(p.change_pct)})</b></p>`:p.from_history?`<p>From the supplier history: ${p.times} orders in the year. Items sold by weight change price with each carton.</p>`:h.length>1?`<p>Since ${t(day(first.date))}: ${t(cm(first.price))} → ${t(cm(p.last_price))}${pack>1?' a ctn':''}${Math.abs(total)>=0.05?` <b class="${total>0?'up':'down'}">(${total>0?'+':'−'}${pct(total)})</b>`:' (no change)'}</p>`:'<p>Bought once so far. The next invoice will show if the price changed.</p>'}<ul>${lines}</ul>${p.code?`<small>Code ${t(p.code)}</small>`:''}</div>`;
+   hist=`<div class="pb-hist">${p.from_history&&!p.year?`<p>From the supplier history: ${p.times} orders in the year. Items sold by weight change price with each carton.</p>`:h.length>1?`<p>Since ${t(day(first.date))}: ${t(cm(first.price))} → ${t(cm(p.last_price))}${pack>1?' a ctn':''}${Math.abs(total)>=0.05?` <b class="${total>0?'up':'down'}">(${total>0?'+':'−'}${pct(total)})</b>`:' (no change)'}</p>`:'<p>Bought once so far. The next invoice will show if the price changed.</p>'}<ul>${lines}</ul><small>${p.year?'Prices before October come from the supplier history (first price of the year). ':''}${p.code?`Code ${t(p.code)}`:''}</small></div>`;
   }
   return `<button type="button" class="pb-row${open?' open':''}" data-pb="${t(key)}" aria-expanded="${open}"><span class="pb-main"><strong>${t(p.description)}</strong><small>${t(p.supplier)} · ${p.times}× · last ${t(day(p.last_date))}</small></span><span class="pb-right"><strong>${t(cm(p.last_price))}</strong>${unit}${chg}</span></button>${hist}`;
  }).join('');
