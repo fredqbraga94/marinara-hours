@@ -420,3 +420,4 @@ body.rm-mode .rm-header-tools button{color:var(--text);border-color:var(--border
  #tmpWeekPrint .tmp-print-foot{margin-top:10px;font-size:9px}
 }
 .tmp-sheet td input[type=number]{-moz-appearance:textfield;appearance:textfield}.tmp-sheet td input::-webkit-outer-spin-button,.tmp-sheet td input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.tmp-sign{flex:0 0 52px!important;width:52px;min-height:44px;align-self:stretch;margin:0!important;padding:0!important;font-size:22px;font-weight:700;border:1.5px solid var(--border)!important;border-radius:10px!important;background:#fff!important;color:#111!important}
