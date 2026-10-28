@@ -2772,13 +2772,6 @@ Deno.serve(async (req) => {
         action ===
         "manager_create_staff"
       ) {
-        // Only the Administrator adds people who sign in.
-        if (!isGeneralManager) {
-          return json(
-            { error: "Only the Administrator can add people who sign in. Ask the Administrator.", code: "ADMIN_REQUIRED" },
-            403
-          );
-        }
         const name =
           typeof body.name === "string" ? body.name.trim() : "";
         const staffPin =
