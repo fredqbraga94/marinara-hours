@@ -49,6 +49,9 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  });
  await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen').waitFor({state:'visible'});
  assert.equal(await page.locator('#managerMoreScreen [data-rm-go="rmOpenTemps"]').count(),1,'in More');
+ // A tap on the reminder notification (?open=temps) opens Temperatures.
+ await page.evaluate(()=>{pendingOpenScreen='temps';openPendingScreen();});await page.locator('#tempScreen').waitFor({state:'visible'});
+ await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen').waitFor({state:'visible'});
  await page.getByRole('button',{name:'Temperatures Daily checks for the council'}).click();await page.locator('#tempScreen').waitFor({state:'visible'});
  await page.locator('#tmpSheet').filter({hasText:'Add your fridges'}).waitFor();
  // The 7 from the paper sheet in one tap.
