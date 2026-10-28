@@ -1,10 +1,11 @@
 -- Temperature check reminders on the managers' phones: at 11:00 if opening
 -- checks are missing, at 20:45 if closing checks are missing (Brisbane time,
 -- no daylight saving: 01:00 and 10:45 UTC). A reminder is sent at most once per
--- location, day and check, and only when something is still missing.
+-- location, day and check, and only when something is still missing. It goes to
+-- the kitchen: the Administrator and the Kitchen Managers (not the Floor).
 -- The database clock (pg_cron) calls the server with a private key kept in this
 -- database; the server sends the notifications (Web Push, as for time off).
--- Additive only: two new tables, four new functions, two scheduled jobs.
+-- Additive only: two new tables, two new functions, two scheduled jobs.
 
 create table if not exists public.temp_reminders (
   location text not null,
@@ -67,21 +68,6 @@ begin
   select t.location, t.missing, t.total, t.names from todo t join fresh f on f.location = t.location;
 end $function$;
 
--- Every manager's phone in a location (Administrator, Kitchen and Floor Managers).
-create or replace function public.mh_push_targets_managers(p_location text)
-returns table (id uuid, endpoint text, p256dh text, auth text)
-language sql
-stable
-security definer
-set search_path to 'public'
-as $function$
-  select p.id, p.endpoint, p.p256dh, p.auth
-    from public.push_subscriptions p
-    join public.staff s on s.id = p.staff_id
-   where p.active and s.active and p.location = p_location
-     and s.role in ('manager', 'admin', 'kitchen_manager', 'floor_manager')
-$function$;
-
 -- Called by the scheduled jobs: asks the server to send the reminders.
 create or replace function public.mh_temp_reminder_tick(p_slot text)
 returns void
@@ -101,10 +87,8 @@ begin
 end $function$;
 
 revoke all on function public.mh_temp_reminder_due(text, text) from public, anon, authenticated;
-revoke all on function public.mh_push_targets_managers(text) from public, anon, authenticated;
 revoke all on function public.mh_temp_reminder_tick(text) from public, anon, authenticated;
 grant execute on function public.mh_temp_reminder_due(text, text) to service_role;
-grant execute on function public.mh_push_targets_managers(text) to service_role;
 
 -- The clock: only where pg_cron and pg_net are available (Supabase); a plain
 -- PostgreSQL test database simply has no schedule.
