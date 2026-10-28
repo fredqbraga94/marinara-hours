@@ -197,7 +197,11 @@ $('tmpHistBtn').addEventListener('click',async()=>{
  catch(err){eqMsg(err.message||'Unable to load the records.');b.textContent='Show the last 90 days';}
  finally{b.disabled=false;}
 });
-function printNow(cls){document.body.classList.add(cls);const done=()=>{document.body.classList.remove(cls);window.removeEventListener('afterprint',done);};window.addEventListener('afterprint',done);window.print();setTimeout(done,60000);}
+// iPhone: print() does not wait, so the print class stays on until the person
+// leaves this screen (it only changes what is printed, not the screen).
+const PRINT_CLS=['tmp-printing','tmp-printing-week'];
+function printNow(cls){document.body.classList.remove(...PRINT_CLS);document.body.classList.add(cls);setTimeout(()=>window.print(),50);}
+new MutationObserver(()=>{if(screen.classList.contains('hidden'))document.body.classList.remove(...PRINT_CLS);}).observe(screen,{attributes:true,attributeFilter:['class']});
 $('tmpPrintWeek').addEventListener('click',()=>{
  const w=state.week;if(!w)return;let box=$('tmpWeekPrint');if(!box){box=document.createElement('div');box.id='tmpWeekPrint';document.body.append(box);}
  box.innerHTML=`<h2>Marinara ${t(w.location||'')} – Temperature Check list</h2><p>Week ${t(shortDate(w.start))} – ${t(shortDate(addDays(w.start,6)))} · Fridge 5°C or below · Freezer -15°C or below · Hot holding 60°C or above · initials = who checked</p>${sheetHtml(w,true)}<h3>Notes (readings outside the safe range and what was done)</h3>${notesHtml(w)||'<p>None.</p>'}<p class="tmp-print-foot">Printed ${t(dayLong(Date.now()))} from Marinara Hours. Every reading is saved with the name of who checked and the time; records cannot be changed.</p>`;
@@ -206,5 +210,5 @@ $('tmpPrintWeek').addEventListener('click',()=>{
 $('tmpPrint').addEventListener('click',()=>printNow('tmp-printing'));
 
 window.addEventListener('marinara:dashboard',()=>{if(Date.now()-state.at>60e3)load().catch(()=>{});});
-window.addEventListener('marinara:session-reset',()=>{state.gen++;state.data=null;state.week=null;state.start=null;state.at=0;state.pending=null;state.sign=null;state.recheck=null;state.scrolled=false;state.removing=null;state.history=null;$('tmpDetail').hidden=true;$('tmpRecords').classList.add('hidden');$('tmpRecList').innerHTML='';for(const id of ['tmpEqMsg','tmpDMsg'])$(id).textContent='';publish();render();});
+window.addEventListener('marinara:session-reset',()=>{document.body.classList.remove(...PRINT_CLS);state.gen++;state.data=null;state.week=null;state.start=null;state.at=0;state.pending=null;state.sign=null;state.recheck=null;state.scrolled=false;state.removing=null;state.history=null;$('tmpDetail').hidden=true;$('tmpRecords').classList.add('hidden');$('tmpRecList').innerHTML='';for(const id of ['tmpEqMsg','tmpDMsg'])$(id).textContent='';publish();render();});
 })();
