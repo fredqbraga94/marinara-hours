@@ -2263,8 +2263,9 @@ button:disabled{opacity:.6}
     </div>
     <button id="backInvoicesBtn" class="back-btn">Back</button>
   </div>
-  <div class="stock-tabs" id="invTabs" style="grid-template-columns:repeat(4,1fr)">
+  <div class="stock-tabs" id="invTabs" style="grid-template-columns:repeat(5,1fr)">
     <button type="button" data-inv-tab="list" class="selected">Invoices</button>
+    <button type="button" data-inv-tab="top">Top</button>
     <button type="button" data-inv-tab="usage">Weekly</button>
     <button type="button" data-inv-tab="prices">Prices</button>
     <button type="button" data-inv-tab="costs">Costs</button>
@@ -2306,6 +2307,7 @@ button:disabled{opacity:.6}
     <input id="invCostsSearch" class="inv-search" type="search" placeholder="Search an ingredient" autocomplete="off">
     <div class="card"><div id="invCosts" class="empty-state">Loading…</div></div>
   </div>
+  <div id="invTopView" class="hidden"></div>
   <div id="invPricesView" class="hidden">
     <p class="inv-hint">Products whose latest price is different from the time before, biggest change first.</p>
     <div class="card"><div id="invPrices" class="empty-state">Loading…</div></div>
@@ -8740,6 +8742,8 @@ function invShowTab(tab) {
   document.getElementById("invUsageView").classList.toggle("hidden", tab !== "usage");
   document.getElementById("invPricesView").classList.toggle("hidden", tab !== "prices");
   document.getElementById("invCostsView").classList.toggle("hidden", tab !== "costs");
+  document.getElementById("invTopView")?.classList.toggle("hidden", tab !== "top");
+  if (tab === "top") { window.mhTopProducts?.show(); return; }
   if (tab === "list") loadInvoices(); else if (tab === "usage") loadInvoiceUsage();
   else if (tab === "costs") loadIngredientCosts(); else loadInvoicePrices();
 }
@@ -9866,7 +9870,7 @@ checkDeviceStatus();
 // anything changed, offer a one-tap update (never reload on its own: someone may
 // be typing a PIN or clocking in). The session survives the reload.
 (() => {
-  const FILES = [location.pathname, "./manager-ui.js", "./manager-team-ui.js", "./manager-prices-ui.js", "./own-pin-ui.js", "./manager-photo-ui.js", "./manager-shopping-ui.js", "./manager-maintenance-ui.js", "./manager-redesign-test.css", "./invoice-reader.js"];
+  const FILES = [location.pathname, "./manager-ui.js", "./manager-team-ui.js", "./manager-prices-ui.js", "./manager-top-ui.js", "./own-pin-ui.js", "./manager-photo-ui.js", "./manager-shopping-ui.js", "./manager-maintenance-ui.js", "./manager-redesign-test.css", "./invoice-reader.js"];
   let checking = false, lastCheck = 0;
   const text = (url, cache) => fetch(url, { cache }).then(r => (r.ok ? r.text() : null)).catch(() => null);
   async function changed(url) {
@@ -9898,6 +9902,7 @@ checkDeviceStatus();
 <script src="./manager-ui.js"></script>
 <script src="./manager-team-ui.js"></script>
 <script src="./manager-prices-ui.js"></script>
+<script src="./manager-top-ui.js"></script>
 <script src="./own-pin-ui.js"></script>
 <script src="./manager-photo-ui.js"></script>
 <script src="./manager-shopping-ui.js"></script>

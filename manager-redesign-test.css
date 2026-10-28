@@ -361,3 +361,9 @@ body.rm-mode #rmLocation{color:var(--text)!important;border-left:0!important;pad
 body.rm-mode .rm-header-tools{top:calc(16px + var(--rm-safe-top))!important}
 body.rm-mode .rm-header-tools button{color:var(--text);border-color:var(--border)}
 }
+/* Invoices → Top */
+#invTopView .rm-chips{margin:4px 0 10px}#invTopView .inv-search{margin-bottom:10px}
+.tp-row{cursor:default;gap:10px}.tp-rank{flex:0 0 26px;font-size:12px;font-weight:700;color:var(--muted);text-align:right;align-self:flex-start;padding-top:2px;font-variant-numeric:tabular-nums}
+.tp-row .pb-main{flex:1}.tp-row .pb-main small .pb-chg{margin-left:4px}
+.tp-more{width:100%;margin-top:10px}
+#invTabs[style]{grid-template-columns:repeat(5,minmax(0,1fr))!important}
