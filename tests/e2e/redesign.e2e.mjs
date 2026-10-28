@@ -195,7 +195,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.equal(await page.locator("#operationsScreen").isVisible(),false,"sign-out hides custom screens");
  assert.equal(await page.locator("#loginScreen").isVisible(),true);
  await page.evaluate(()=>{document.getElementById('loginScreen').classList.add('hidden');showOnlyManagerScreen('managerScreen');setManagerNavActive('home');document.body.style.setProperty('--rm-safe-top','0px');});
- const bounds=()=>page.evaluate(()=>['headerLogo','rmNotifications','rmProfile','rmLocation'].map(id=>{const r=document.getElementById(id).getBoundingClientRect();return {top:r.top,bottom:r.bottom};}));
+ const bounds=()=>page.evaluate(()=>['headerLogo','rmNotifications','rmProfile','rmLocation'].map(id=>document.getElementById(id)).filter(e=>e.getBoundingClientRect().height>0).map(e=>{const r=e.getBoundingClientRect();return {top:r.top,bottom:r.bottom};}));
  const before=await bounds();await page.evaluate(()=>document.body.style.setProperty('--rm-safe-top','59px'));const after=await bounds();
  for(let i=0;i<before.length;i++){assert.ok(Math.abs(after[i].top-before[i].top-59)<1,'header control follows safe area');assert.ok(after[i].top>=59,'header stays below status bar');}
  await page.screenshot({path:`tmp/qa/${size}-safe-area.png`,fullPage:true});

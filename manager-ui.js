@@ -55,6 +55,7 @@
   nav.addEventListener('click',e=>{const b=e.target.closest('[data-manager-nav]');if(!b)return;const key=b.dataset.managerNav;if(key==='home')$('managerClockSection').classList.add('hidden');if(key==='finance'||key==='operations'){e.stopImmediatePropagation();if(key==='finance')go('invoicesCard');else{showOnlyManagerScreen('operationsScreen');setManagerNavActive('operations');}window.scrollTo(0,0);}},true);
   const header=document.querySelector('.app > .header');
   $('headerLogo').src=document.querySelector('.login-original-logo').src;
+  {const navLogo=document.createElement('img');navLogo.id='rmNavLogo';navLogo.alt='Marinara Ristorante Cafe';navLogo.src=$('headerLogo').src;nav.prepend(navLogo);}
   const tools=document.createElement('div');tools.className='rm-header-tools';tools.innerHTML=`<button type="button" id="rmNotifications" aria-label="View pending tasks">${icon('bell')}<span id="rmBellBadge" class="rm-bell-badge hidden"></span></button><button type="button" id="rmProfile" aria-label="Manager profile">M</button>`;header.append(tools);
   $('rmNotifications').onclick=()=>{nav.querySelector('[data-manager-nav="home"]').click();$('rmAttention').scrollIntoView({block:'center'});};$('rmProfile').onclick=()=>openManagerMore();
   const placeButton=document.createElement('button');placeButton.id='rmLocation';placeButton.type='button';placeButton.textContent='Current unit ⌄';placeButton.onclick=()=>{settingsBtn.click();renderSettings('Locations');};header.append(placeButton);
