@@ -71,7 +71,8 @@ function createSessionToken() {
 async function validateStaffSession(
   supabase: any,
   token: string,
-  deviceHash: string | null = null
+  deviceHash: string | null = null,
+  allowPendingPin = false
 ) {
   if (!token) {
     return { ok: false, error: "Session token is required" };
@@ -88,6 +89,17 @@ async function validateStaffSession(
   if (error) throw error;
   if (!data?.ok) {
     return { ok: false, error: data?.error || "Invalid or expired session" };
+  }
+
+  // A person who has only a temporary PIN must choose their own before anything else.
+  if (!allowPendingPin) {
+    const { data: pending, error: pendingError } = await supabase.rpc("mh_pin_must_change", {
+      p_staff_id: data.staff.id,
+    });
+    if (pendingError) throw pendingError;
+    if (pending) {
+      return { ok: false, error: "Choose your own PIN to continue.", code: "PIN_CHANGE_REQUIRED" };
+    }
   }
 
   return {
@@ -1198,6 +1210,43 @@ Deno.serve(async (req) => {
 
     const sessionRpc = sessionStaffActions[action];
 
+    // The person chooses or changes their own PIN (allowed while the PIN is temporary).
+    if (action === "change_pin") {
+      try {
+        const token = typeof body.token === "string" ? body.token.trim() : "";
+        const oldPin = typeof body.old_pin === "string" ? body.old_pin.trim() : "";
+        const newPin = typeof body.new_pin === "string" ? body.new_pin.trim() : "";
+        const session = await validateStaffSession(supabase, token, deviceHash, true);
+        if (!session.ok) {
+          return json({ error: session.error || "Invalid or expired session" }, 401);
+        }
+        if (!/^[0-9]{4,6}$/.test(newPin)) {
+          return json({ error: "PIN must contain 4 to 6 numbers", code: "BAD_FORMAT" }, 400);
+        }
+        const { data: changed, error: changeError } = await supabase.rpc("staff_change_pin", {
+          p_staff_id: session.staff.id,
+          p_old_pin: oldPin,
+          p_new_pin: newPin,
+        });
+        if (changeError || !changed) {
+          console.error("Change PIN error:", changeError?.code || "");
+          return json({ error: "Unable to change the PIN right now" }, 500);
+        }
+        if (changed.ok) return json({ success: true, action });
+        const messages: Record<string, [number, string]> = {
+          WRONG_OLD: [400, "The current PIN is not right."],
+          TOO_SIMPLE: [400, "Choose a different PIN. Avoid 1234 or repeated numbers."],
+          BAD_FORMAT: [400, "PIN must contain 4 to 6 numbers"],
+          TOO_MANY: [429, "Too many tries. Please wait an hour or ask a manager for a new PIN."],
+        };
+        const [status, message] = messages[changed.code] || [400, "Unable to change the PIN"];
+        return json({ error: message, code: changed.code }, status);
+      } catch (error) {
+        console.error("Change PIN error:", (error as any)?.code || "");
+        return json({ error: "Unable to change the PIN right now" }, 500);
+      }
+    }
+
     if (sessionRpc) {
       try {
         const token =
@@ -1332,13 +1381,18 @@ Deno.serve(async (req) => {
       });
 
       switch (result.result) {
-        case "ok":
+        case "ok": {
+          const { data: mustChange } = await supabase.rpc("mh_pin_must_change", {
+            p_staff_id: result.staff.staff_id,
+          });
           return json({
             success: true,
             action,
+            must_change: mustChange === true,
             data: [result.staff],
             session: { token: sessionToken, expires_at: expiresAt },
           });
+        }
         case "invalid_pin":
           if (Number(result.retry_after_seconds) > 0) {
             return pinLockedResponse(result.retry_after_seconds);
@@ -1391,6 +1445,7 @@ Deno.serve(async (req) => {
         "manager_working",
         "manager_team",
         "manager_create_staff",
+        "manager_staff_temp_pin",
         "manager_toggle_staff",
         "manager_update_staff",
         "manager_hours",
@@ -2726,7 +2781,9 @@ Deno.serve(async (req) => {
         if (!name) {
           return json({ error: "Name is required" }, 400);
         }
-        if (!/^[0-9]{4,6}$/.test(staffPin)) {
+        // No PIN given: the app makes a temporary one and the person chooses their own at first login.
+        const wantsTemporary = staffPin === "";
+        if (!wantsTemporary && !/^[0-9]{4,6}$/.test(staffPin)) {
           return json({ error: "PIN must contain 4 to 6 numbers" }, 400);
         }
         if (department !== "Kitchen" && department !== "Floor") {
@@ -2736,13 +2793,22 @@ Deno.serve(async (req) => {
           return json({ error: "Access denied for this department" }, 403);
         }
 
+        let startPin = staffPin;
+        if (wantsTemporary) {
+          const { data: freePin, error: freePinError } = await supabase.rpc("mh_random_free_pin");
+          if (freePinError || typeof freePin !== "string") {
+            console.error("Temporary PIN error:", freePinError?.code || "");
+            return json({ error: "Unable to create staff member" }, 400);
+          }
+          startPin = freePin;
+        }
         // Refuses a PIN that another active person already uses; writes an audit row.
         const { data: createdStaff, error: createStaffError } = await supabase.rpc(
           "manager_create_staff_audited",
           {
             p_manager_id: managerStatus.id,
             p_name: name,
-            p_pin: staffPin,
+            p_pin: startPin,
             p_department: department,
           }
         );
@@ -2754,11 +2820,43 @@ Deno.serve(async (req) => {
           console.error("Create staff error:", createStaffError.code || "");
           return json({ error: "Unable to create staff member" }, 400);
         }
+        let temporaryPin: string | null = null;
+        if (wantsTemporary) {
+          const { data: tempPin, error: tempPinError } = await supabase.rpc("manager_staff_temp_pin", {
+            p_manager_id: managerStatus.id,
+            p_staff_id: createdStaff.id,
+          });
+          if (tempPinError || typeof tempPin !== "string") {
+            console.error("Temporary PIN error:", tempPinError?.code || "");
+            return json({ error: "The person was added, but the temporary PIN failed. Use Reset PIN on their card." }, 500);
+          }
+          temporaryPin = tempPin;
+        }
         return json({
           success: true,
           action,
-          data: { staff: createdStaff },
+          data: { staff: createdStaff, temporary_pin: temporaryPin },
         });
+      }
+
+      if (action === "manager_staff_temp_pin") {
+        const staffId = typeof body.staff_id === "string" ? body.staff_id.trim() : "";
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(staffId)) {
+          return json({ error: "Staff member not found" }, 404);
+        }
+        const { data: tempPin, error: tempPinError } = await supabase.rpc("manager_staff_temp_pin", {
+          p_manager_id: managerStatus.id,
+          p_staff_id: staffId,
+        });
+        if (tempPinError || typeof tempPin !== "string") {
+          const code = dbErrorCode(tempPinError);
+          if (["DEPARTMENT_DENIED", "GM_REQUIRED", "STAFF_NOT_FOUND", "INVALID_INPUT"].includes(code)) {
+            return managerDbError(tempPinError, "Unable to reset the PIN");
+          }
+          console.error("Temporary PIN error:", tempPinError?.code || "");
+          return json({ error: "Unable to reset the PIN" }, 400);
+        }
+        return json({ success: true, action, data: { temporary_pin: tempPin } });
       }
 
       if (
