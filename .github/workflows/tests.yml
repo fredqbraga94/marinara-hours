@@ -52,6 +52,7 @@ jobs:
       - run: npm run test:price-book
       - run: npm run test:permissions
       - run: npm run test:shopping
+      - run: npm run test:own-pin
       - run: npm run test:maintenance
       - run: npm run test:photos-contacts
   browser:
@@ -76,6 +77,7 @@ jobs:
       - run: npm run test:e2e:redesign
       - run: npm run test:e2e:update
       - run: npm run test:e2e:shopping
+      - run: npm run test:e2e:own-pin
       - run: npm run test:e2e:maintenance
   browser-webkit:
     # Safari's engine (what iPhones use) on Linux, with the iPhone 13 profile.
@@ -99,6 +101,7 @@ jobs:
       - run: npm run test:e2e:redesign:webkit
       - run: npm run test:e2e:update:webkit
       - run: npm run test:e2e:shopping:webkit
+      - run: npm run test:e2e:own-pin:webkit
       - run: npm run test:e2e:maintenance:webkit
   hardening:
     runs-on: ubuntu-latest

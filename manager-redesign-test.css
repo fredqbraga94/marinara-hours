@@ -299,3 +299,14 @@ body.rm-mode #managerHolidayNotice{display:none!important}
 .mnt-item .shop-main{flex:1 1 0}
 .mnt-item .shop-actions{flex-direction:row;flex-wrap:wrap;align-items:center;width:100%;padding-left:42px;box-sizing:border-box}
 .mnt-item:has(.mh-thumb) .shop-actions{padding-left:64px}
+/* Own PIN */
+.op-dialog{border:0;border-radius:16px;padding:0;max-width:min(92vw,380px);width:100%;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.op-dialog::backdrop{background:rgba(0,0,0,.45)}
+.op-box{padding:20px 18px;display:flex;flex-direction:column;gap:12px}
+.op-box h3{margin:0;font-size:18px}
+.op-box label{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600}
+.op-box input{min-height:46px;border:1.5px solid var(--border,#ddd);border-radius:12px;padding:10px 12px;font-size:18px;letter-spacing:.2em;background:#fff}
+.op-msg{margin:0;min-height:18px;font-size:13px;color:#b3261e}
+.op-buttons{display:flex;gap:8px;justify-content:flex-end}
+.op-big{font-size:38px;font-weight:700;letter-spacing:.25em;text-align:center;padding:14px 0;background:#f6f6f7;border-radius:12px;font-variant-numeric:tabular-nums}
+.op-box label[hidden]{display:none}
