@@ -127,11 +127,12 @@ try {
     assert.equal(r.body.must_change, true);
     token = r.body.session.token;
     const s = await api(vNew, 20, token, { action: "session_status" });
-    assert.equal(s.status, 401, JSON.stringify(s.body));
+    assert.equal(s.status, 403, JSON.stringify(s.body));
+    assert.equal(s.body.code, "PIN_CHANGE_REQUIRED");
     assert.match(s.body.error, /own PIN/);
     const m = await api(vNew, 20, token, { action: "manager_dashboard" });
     assert.ok(m.status >= 400);
-    return "session_status 401 'Choose your own PIN'";
+    return "session_status 403 PIN_CHANGE_REQUIRED (not 401, so the app does not sign the person out)";
   });
   await check("wrong current PIN, simple PIN and a PIN someone else uses are refused with clear messages", async () => {
     const bad = (old, nw) => api(vNew, 20, token, { action: "change_pin", old_pin: old, new_pin: nw });
