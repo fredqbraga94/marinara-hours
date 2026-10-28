@@ -310,3 +310,16 @@ body.rm-mode #managerHolidayNotice{display:none!important}
 .op-buttons{display:flex;gap:8px;justify-content:flex-end}
 .op-big{font-size:38px;font-weight:700;letter-spacing:.25em;text-align:center;padding:14px 0;background:#f6f6f7;border-radius:12px;font-variant-numeric:tabular-nums}
 .op-box label[hidden]{display:none}
+/* Desktop and laptop: the five tabs become a menu on the left (the phone keeps the bottom bar). */
+@media screen and (min-width:1000px){
+body.rm-mode{padding-left:232px!important}
+body.rm-mode .manager-bottom-nav{display:flex!important;flex-direction:column;grid-template-columns:none!important;gap:4px;left:0!important;top:0!important;bottom:0!important;right:auto!important;transform:none!important;width:232px!important;max-width:232px!important;min-height:0;padding:26px 14px!important;border-top:0;border-right:1px solid var(--border);background:#fff;overflow-y:auto}
+body.rm-mode .manager-bottom-nav::before{content:"MARINARA";display:block;font:700 13px/1 Georgia,serif;letter-spacing:3px;color:var(--green);padding:2px 14px 22px}
+body.rm-mode .manager-bottom-nav .manager-nav-item{flex-direction:row!important;justify-content:flex-start;align-items:center;gap:12px;min-height:46px;padding:0 14px;border-radius:10px;font-size:14px!important;text-align:left;cursor:pointer}
+body.rm-mode .manager-bottom-nav .manager-nav-item>span:not(.manager-nav-icon){font-size:14px!important}
+body.rm-mode .manager-bottom-nav>[data-manager-nav="home"]>span:not(.manager-nav-icon){font-size:14px!important}
+body.rm-mode .manager-bottom-nav .manager-nav-item:hover:not(:disabled){background:#f3f5f4!important}
+body.rm-mode .manager-bottom-nav .manager-nav-item.active{background:var(--green-light,#e7f2ec)!important;color:var(--green)!important;font-weight:700;box-shadow:none!important}
+body.rm-mode .manager-bottom-nav .manager-nav-icon,body.rm-mode .manager-bottom-nav .manager-nav-icon svg{width:22px;height:22px;display:inline-flex}
+body.rm-mode .manager-bottom-nav .count-badge{margin-left:auto}
+}
