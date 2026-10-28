@@ -2,7 +2,7 @@
 // deliveries, Home "checks to do", the 90-day records and print. Synthetic data;
 // the server is replaced (checked in tests/integration/temp-log.mjs).
 import {createServer} from 'node:http';
-import {readFileSync,mkdirSync} from 'node:fs';
+import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
 import {resolve,extname} from 'node:path';
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -94,9 +94,13 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#tmpEqMsg').filter({hasText:'Freezer · Opening: -18.0°C saved.'}).waitFor();
  assert.equal(await page.locator('#tmpPending').isVisible(),false);
  // Print the week like the paper sheet.
- await page.locator('#tmpPrintWeek').click();await page.waitForFunction(()=>window.__printed===1);assert.equal(await page.evaluate(()=>document.body.classList.contains('tmp-printing-week')),true);
- assert.match(await page.locator('#tmpWeekPrint').innerText(),/Marinara Hawthorne – Temperature Check list/);
- assert.equal(await page.locator('#tmpWeekPrint [data-tmp-cell]').count(),0,'print has no inputs');
+ await page.locator('#tmpPrintWeek').click();
+ await page.locator('#tempPdfDialog').waitFor({state:'visible'});
+ {const b64=await page.evaluate(async()=>{const r=await fetch(document.getElementById('saveTempPdf').href);const a=new Uint8Array(await r.arrayBuffer());let s='';for(const x of a)s+=String.fromCharCode(x);return btoa(s);});const buf=Buffer.from(b64,'base64');assert.equal(buf.subarray(0,5).toString(),'%PDF-');writeFileSync(`tmp/qa/${size}-temps-week.pdf`,buf);}
+ assert.equal(await page.evaluate(()=>window.__printed),0,'no window.print');
+ await page.locator('#closeTempPdf').click();await page.locator('#tempPdfDialog').waitFor({state:'detached'});
+
+
  // Last week: read only, shows the earlier reading.
  await page.evaluate(()=>window.__seedPast());
  await page.locator('#tmpPrev').click();
@@ -118,7 +122,11 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  // Records and print.
  await page.locator('#tmpHistBtn').click();await page.locator('#tmpRecords').waitFor({state:'visible'});
  assert.match(await page.locator('#tmpRecHead').innerText(),/Hawthorne · last 90 days · 6 records/);
- await page.locator('#tmpPrint').click();await page.waitForFunction(()=>window.__printed===2);assert.equal(await page.evaluate(()=>document.body.classList.contains('tmp-printing')&&!document.body.classList.contains('tmp-printing-week')),true);
+ await page.locator('#tmpPrint').click();
+ await page.locator('#tempPdfDialog').waitFor({state:'visible'});
+ {const b64=await page.evaluate(async()=>{const r=await fetch(document.getElementById('saveTempPdf').href);const a=new Uint8Array(await r.arrayBuffer());let s='';for(const x of a)s+=String.fromCharCode(x);return btoa(s);});const buf=Buffer.from(b64,'base64');assert.equal(buf.subarray(0,5).toString(),'%PDF-');writeFileSync(`tmp/qa/${size}-temps-records.pdf`,buf);}
+ assert.equal(await page.evaluate(()=>window.__printed),0,'no window.print');
+ await page.locator('#closeTempPdf').click();await page.locator('#tempPdfDialog').waitFor({state:'detached'});
  await page.screenshot({path:`tmp/qa/${size}-temps.png`,fullPage:true});
  // Remove needs two taps; records stay.
  const rm=page.locator('#tmpList [data-tmp-remove]').first();await rm.click();assert.match(await rm.innerText(),/Tap again/);await rm.click();
@@ -126,10 +134,10 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  // Sign-out forgets it.
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('marinara:session-reset')));
  assert.equal(await page.locator('#tmpRecords').isVisible(),false);
- assert.equal(await page.evaluate(()=>document.body.className.includes('tmp-printing')),false,'print mode cleared');
+
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'no sideways scroll');
  assert.deepEqual(errors,[]);
  await context.close();
 }
-console.log(`PASS (${ENGINE}): temperatures: equipment, weekly sheet Opening/Closing × MON–SUN (only today typed, action required out of range, check again, past week read only, print), deliveries, Home row, 90-day records, print, remove, sign-out, no overflow, no JavaScript errors.`);
+console.log(`PASS (${ENGINE}): temperatures: equipment, weekly sheet Opening/Closing × MON–SUN (only today typed, action required out of range, check again, past week read only, week PDF), deliveries, Home row, 90-day records, PDF (share or open), remove, sign-out, no overflow, no JavaScript errors.`);
 }finally{await browser.close();server.close();}
