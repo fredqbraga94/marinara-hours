@@ -12,7 +12,7 @@ const daysSince=d=>Math.floor((Date.now()+10*3600e3-Date.parse(`${d}T00:00:00Z`)
 const pct=n=>`${Math.abs(Number(n)).toLocaleString('en-AU',{maximumFractionDigits:1})}%`;
 const t=v=>escapeHtml(String(v??''));
 const up=p=>Number(p.change_pct)>0, down=p=>Number(p.change_pct)<0;
-const recentUp=p=>up(p)&&daysSince(p.last_date)<=RECENT_DAYS;
+const recentUp=p=>up(p)&&!p.year&&daysSince(p.last_date)<=RECENT_DAYS;
 const OFTEN=3;
 
 async function load(force){
@@ -20,7 +20,9 @@ async function load(force){
  if(!force&&state.at&&Date.now()-state.at<5*60e3)return state.products;
  if(state.loading)return state.loading;
  const gen=state.gen||0;
- state.loading=managerApi('manager_invoice_price_book').then(d=>{if(gen!==(state.gen||0))return [];state.products=d.products||[];state.at=Date.now();return state.products;}).finally(()=>{state.loading=null;});
+ // The supplier history (Invoices → Top) adds the change over the year for
+ // products whose saved invoices do not show a change yet.
+ state.loading=Promise.all([managerApi('manager_invoice_price_book'),managerApi('manager_invoice_top_products').catch(()=>null)]).then(([d,top])=>{if(gen!==(state.gen||0))return [];state.products=withYear(d.products||[],top&&top.products||[]);state.at=Date.now();return state.products;}).finally(()=>{state.loading=null;});
  const list=await state.loading;
  if(gen!==(state.gen||0))return [];
  window.mhPriceUps=list.filter(recentUp);
@@ -28,6 +30,30 @@ async function load(force){
  return list;
 }
 window.mhPriceUps=[];
+// 40% or more is almost always a carton sold by weight, not a real price change.
+const realYear=x=>x.from_history&&x.change_pct!=null&&Number(x.change_pct)!==0&&Math.abs(Number(x.change_pct))<40;
+// One name style: the supplier history's brand and name when the product is in it.
+const histName=x=>x.brand?`${x.brand} · ${x.description}`:x.description;
+function withYear(book,top){
+ const out=book.slice();const byKey=new Map(out.map(p=>[`${String(p.supplier).toLowerCase()}|${p.code||p.product_key}`,p]));
+ for(const x of top){
+  if(!x.from_history)continue;
+  const key=`${String(x.supplier).toLowerCase()}|${x.code}`;const have=byKey.get(key);
+  const hist=[{date:x.first_date,price:x.first_price,fromHistory:true},{date:x.last_date,price:x.last_price,fromHistory:true}].filter((h,i,a)=>h.date&&h.price!=null&&(i===0||h.date!==a[0].date));
+  if(have){
+   have.description=histName(x);
+   // Keep a change the saved invoices already show; otherwise use the year.
+   if(have.change_pct==null&&realYear(x)){Object.assign(have,{change_pct:x.change_pct,previous_price:x.first_price,previous_date:x.first_date,year:true,times:Math.max(have.times||0,x.orders||0),
+     // One timeline: the first price of the year from the history, then the saved invoices.
+     history:[{date:x.first_date,price:x.first_price,fromHistory:true},...(have.history||[]).filter(h=>h.date>x.first_date)]});}
+   else have.times=Math.max(have.times||0,x.orders||0);
+   continue;
+  }
+  out.push({supplier:x.supplier,product_key:x.code,code:x.code,description:histName(x),unit:x.last_label||'',times:x.orders,last_price:x.last_price,last_date:x.last_date,
+   previous_price:realYear(x)?x.first_price:null,previous_date:realYear(x)?x.first_date:null,change_pct:realYear(x)?x.change_pct:null,history:hist,year:realYear(x),from_history:true});
+ }
+ return out;
+}
 // Forget the cached list (after an invoice is saved or removed).
 window.mhPricesReset=(all)=>{state.at=0;if(all){state.gen=(state.gen||0)+1;state.products=[];state.open=null;window.mhPriceUps=[];}};
 
@@ -35,7 +61,7 @@ window.mhPricesReset=(all)=>{state.at=0;if(all){state.gen=(state.gen||0)+1;state
 let built=false;
 function build(){
  if(built)return;built=true;
- $('invPricesView').innerHTML=`<p class="inv-hint">Every product on your saved invoices and the price you paid each time. Tap one to see its history.</p>
+ $('invPricesView').innerHTML=`<p class="inv-hint">Every product on your saved invoices and the supplier history, and the price you paid. Tap one to see its history.</p>
  <div class="rm-chips" id="pbChips"></div>
  <input id="pbSearch" class="inv-search" type="search" placeholder="Search a product or supplier" autocomplete="off">
  <div class="card pb-card"><div id="pbList" class="empty-state">Loading…</div></div>`;
@@ -50,8 +76,8 @@ function render(){
  const q=$('pbSearch').value.trim().toLowerCase();
  const f=FILTERS.find(x=>x[0]===state.filter)[2];
  let rows=list.filter(p=>f(p)&&(!q||`${p.description} ${p.supplier} ${p.code||''}`.toLowerCase().includes(q)));
- rows=rows.slice().sort(state.filter==='up'?(a,b)=>b.last_date.localeCompare(a.last_date)||Number(b.change_pct)-Number(a.change_pct)
-   :state.filter==='down'?(a,b)=>Number(a.change_pct)-Number(b.change_pct)
+ rows=rows.slice().sort(state.filter==='up'?(a,b)=>(!!a.year-!!b.year)||(a.year?Number(b.change_pct)-Number(a.change_pct):b.last_date.localeCompare(a.last_date)||Number(b.change_pct)-Number(a.change_pct))
+   :state.filter==='down'?(a,b)=>(!!a.year-!!b.year)||Number(a.change_pct)-Number(b.change_pct)
    :(a,b)=>b.times-a.times||String(a.description).localeCompare(String(b.description)));
  const box=$('pbList');
  if(!list.length){box.className='empty-state';box.textContent='No prices yet. They appear here as soon as you save supplier invoices.';return;}
@@ -59,7 +85,7 @@ function render(){
  box.className='';
  box.innerHTML=rows.map(p=>{
   const key=`${p.supplier}|${p.product_key}`;const open=state.open===key;
-  const chg=p.change_pct==null?'':`<em class="pb-chg ${up(p)?'up':'down'}">${up(p)?'▲':'▼'} ${pct(p.change_pct)}</em>`;
+  const chg=p.change_pct==null?'':`<em class="pb-chg ${up(p)?'up':'down'}">${up(p)?'▲':'▼'} ${pct(p.change_pct)}${p.year?' <span>in the year</span>':''}</em>`;
   // Carton price first when the supplier counts single units ("Ctn [4]").
   const pack=Number(p.pack)>1?Number(p.pack):1;const cm=v=>money(Number(v)*pack);
   const unitLabel=pack>1?'ctn':String(p.unit||'').toLowerCase();
@@ -68,9 +94,9 @@ function render(){
   if(open){
    const h=p.history||[];
    const lines=h.slice().reverse().map((x,i,arr)=>{const prev=arr[i+1];const diff=prev?Number(x.price)-Number(prev.price):0;
-     return `<li><span>${t(day(x.date))}</span><strong>${t(cm(x.price))}</strong><span class="${diff>0?'up':diff<0?'down':''}">${!prev?'first time':diff?`${diff>0?'+':'−'}${t(cm(Math.abs(diff)))}`:'same'}</span></li>`;}).join('');
+     return `<li><span>${t(day(x.date))}</span><strong>${t(cm(x.price))}</strong><span class="${diff>0?'up':diff<0?'down':''}">${!prev?(x.fromHistory?'start of the year':'first time'):diff?`${diff>0?'+':'−'}${t(cm(Math.abs(diff)))}`:'same'}</span></li>`;}).join('');
    const first=h[0];const total=first&&Number(first.price)?(Number(p.last_price)-Number(first.price))/Number(first.price)*100:0;
-   hist=`<div class="pb-hist">${h.length>1?`<p>Since ${t(day(first.date))}: ${t(cm(first.price))} → ${t(cm(p.last_price))}${pack>1?' a ctn':''}${Math.abs(total)>=0.05?` <b class="${total>0?'up':'down'}">(${total>0?'+':'−'}${pct(total)})</b>`:' (no change)'}</p>`:'<p>Bought once so far. The next invoice will show if the price changed.</p>'}<ul>${lines}</ul>${p.code?`<small>Code ${t(p.code)}</small>`:''}</div>`;
+   hist=`<div class="pb-hist">${p.from_history&&!p.year?`<p>From the supplier history: ${p.times} orders in the year. Items sold by weight change price with each carton.</p>`:h.length>1?`<p>Since ${t(day(first.date))}: ${t(cm(first.price))} → ${t(cm(p.last_price))}${pack>1?' a ctn':''}${Math.abs(total)>=0.05?` <b class="${total>0?'up':'down'}">(${total>0?'+':'−'}${pct(total)})</b>`:' (no change)'}</p>`:'<p>Bought once so far. The next invoice will show if the price changed.</p>'}<ul>${lines}</ul><small>${p.year?'Prices before October come from the supplier history (first price of the year). ':''}${p.code?`Code ${t(p.code)}`:''}</small></div>`;
   }
   return `<button type="button" class="pb-row${open?' open':''}" data-pb="${t(key)}" aria-expanded="${open}"><span class="pb-main"><strong>${t(p.description)}</strong><small>${t(p.supplier)} · ${p.times}× · last ${t(day(p.last_date))}</small></span><span class="pb-right"><strong>${t(cm(p.last_price))}</strong>${unit}${chg}</span></button>${hist}`;
  }).join('');

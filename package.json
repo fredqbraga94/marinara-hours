@@ -38,6 +38,8 @@
     "test:e2e:redesign": "node tests/e2e/redesign.e2e.mjs && node tests/e2e/request-timeout.e2e.mjs",
     "test:e2e:redesign:webkit": "E2E_BROWSER=webkit node tests/e2e/redesign.e2e.mjs",
     "test:e2e:update": "node tests/e2e/update-check.e2e.mjs",
+    "test:e2e:prices-year": "node tests/e2e/prices-year.e2e.mjs",
+    "test:e2e:prices-year:webkit": "E2E_BROWSER=webkit node tests/e2e/prices-year.e2e.mjs",
     "test:e2e:top-products": "node tests/e2e/top-products.e2e.mjs",
     "test:e2e:top-products:webkit": "E2E_BROWSER=webkit node tests/e2e/top-products.e2e.mjs",
     "test:e2e:own-pin": "node tests/e2e/own-pin.e2e.mjs",

@@ -80,6 +80,7 @@ jobs:
       - run: npm run test:e2e:shopping
       - run: npm run test:e2e:own-pin
       - run: npm run test:e2e:top-products
+      - run: npm run test:e2e:prices-year
       - run: npm run test:e2e:maintenance
   browser-webkit:
     # Safari's engine (what iPhones use) on Linux, with the iPhone 13 profile.
@@ -105,6 +106,7 @@ jobs:
       - run: npm run test:e2e:shopping:webkit
       - run: npm run test:e2e:own-pin:webkit
       - run: npm run test:e2e:top-products:webkit
+      - run: npm run test:e2e:prices-year:webkit
       - run: npm run test:e2e:maintenance:webkit
   hardening:
     runs-on: ubuntu-latest
