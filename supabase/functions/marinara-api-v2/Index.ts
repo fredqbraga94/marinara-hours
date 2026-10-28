@@ -1235,10 +1235,11 @@ Deno.serve(async (req) => {
         if (!/^[0-9]{4,6}$/.test(newPin)) {
           return json({ error: "PIN must contain 4 to 6 numbers", code: "BAD_FORMAT" }, 400);
         }
-        const { data: changed, error: changeError } = await supabase.rpc("staff_change_pin", {
+        const { data: changed, error: changeError } = await supabase.rpc("staff_change_pin_secure", {
           p_staff_id: session.staff.id,
           p_old_pin: oldPin,
           p_new_pin: newPin,
+          p_token_hash: await sha256Hex(token),
         });
         if (changeError || !changed) {
           console.error("Change PIN error:", changeError?.code || "");
