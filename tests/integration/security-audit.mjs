@@ -45,11 +45,23 @@ try {
     const r=await call(h,{action:'login',pin:PIN[ID(5)],device});
     assert.equal(r.status,200);pinSessions.push(r.body.session.token);
   }
+  const pinRequest={action:'change_pin',token:pinSessions[0],device:pinDevices[0],old_pin:PIN[ID(5)],new_pin:'486291'};
+  assert.equal((await call(h,{...pinRequest,old_pin:'0000'})).status,400);
+  assert.equal((await call(h,{action:'session_test',token:pinSessions[1],device:pinDevices[1]})).status,200,'failed PIN changes must preserve other sessions');
+  // Fail revocation inside PostgreSQL: changing the PIN must roll back too.
+  await db.admin.query(`create function public.test_revoke_failure() returns trigger language plpgsql as $$begin raise exception 'SYNTHETIC_REVOKE_FAILURE'; end$$; create trigger test_revoke_failure before update of revoked_at on public.staff_sessions for each row execute function public.test_revoke_failure();`);
+  try {
+    assert.equal((await call(h,pinRequest)).status,500);
+    const unchanged=(await db.admin.query(`select pin_hash=extensions.crypt('9105',pin_hash) from public.staff where id='${ID(5)}'`)).rows[0][0];
+    assert.equal(unchanged,'t','revocation failure must roll back PIN change');
+  } finally {
+    await db.admin.query('drop trigger test_revoke_failure on public.staff_sessions; drop function public.test_revoke_failure();');
+  }
   const change=await call(h,{action:'change_pin',token:pinSessions[0],device:pinDevices[0],old_pin:PIN[ID(5)],new_pin:'486291'});
   assert.equal(change.status,200,JSON.stringify(change.body));
   assert.equal((await call(h,{action:'session_test',token:pinSessions[0],device:pinDevices[0]})).status,200,'keep the current session after PIN change');
   assert.equal((await call(h,{action:'session_test',token:pinSessions[1],device:pinDevices[1]})).status,401,'PIN change must revoke the other device session');
-  console.log('PASS PIN change keeps the current device and revokes other sessions');
+  console.log('PASS PIN change: wrong PIN preserves sessions; failed revocation rolls back PIN; success preserves current device and revokes others');
   const acl=(await db.admin.query(`select count(*) from pg_proc p where p.pronamespace='public'::regnamespace and (has_function_privilege('anon',p.oid,'execute') or has_function_privilege('authenticated',p.oid,'execute'))`)).rows[0][0];
   assert.equal(acl,'0');
   console.log('PASS public roles cannot execute application RPCs');

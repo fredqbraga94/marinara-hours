@@ -1,100 +1,97 @@
 # Marinara Security Audit — 29/10/2026 (Brisbane)
 
-## Resultado e limites
+## Resultado
 
-Auditoria técnica com correções reais; validação integral ainda pendente. Produção não alterada. Nenhuma credencial privilegiada, acesso administrativo indevido ou vazamento público foi confirmado nos controles examinados. Isso não prova ausência dessas falhas.
+Auditoria com correções na branch `security/audit-hardening-20261029`, PR [#55](https://github.com/fredqbraga94/marinara-hours/pull/55). **Produção preservada: nenhum merge, deploy ou migration aplicada.** Referência funcional: `4ec51c3e69cd15a1ab5bb39c2d8234c76596b536`, main na coleta. A Edge Function publicada v57 importa esse commit por SHA.
 
-Referência preservada: `4ec51c3e69cd15a1ab5bb39c2d8234c76596b536` (`main` na coleta). A Edge Function publicada, versão 57, importa exatamente esse commit. `verify_jwt=false` é compatível com a autenticação própria de PIN/sessão; não é, isoladamente, uma vulnerabilidade. Branch: `security/audit-hardening-20261029`. Nenhum dado de funcionário foi consultado ou alterado. Consultas de produção limitaram-se a metadados, código de função e configuração não secreta.
+**Status: apto com ressalvas para revisão e publicação controlada, condicionado à validação final do CI e à revisão da mudança de autenticação.** Nenhuma vulnerabilidade crítica foi confirmada. Não há evidência suficiente para certificar o aplicativo inteiro como seguro. iPhone físico/PWA instalado e a matriz completa de autorização de todos os módulos continuam pendentes.
 
-**Status: apto com ressalvas para revisão; publicação desta branch deve aguardar os testes obrigatórios pendentes.** Não há bloqueio por vulnerabilidade crítica confirmada. PR em rascunho; sem merge, deploy ou migration em produção.
+**5 descobertas confirmadas em código/configuração; 5 com correção proposta na branch; 0 dessas correções em produção.** Duas são falhas reproduzidas com impacto de privacidade/autenticação; três são configurações preventivas ou riscos condicionais, sem exploração externa demonstrada. Sete áreas não foram verificadas integralmente; não são sete vulnerabilidades confirmadas.
 
 ## Security score
 
-**68/100 para a produção examinada**, estimativa conservadora, não certificação. Pontos refletem controles observados e desconto por cobertura incompleta, não probabilidade estatística de invasão. As correções propostas ainda não contam como proteção em produção.
+**65/100 para a produção examinada**, estimativa conservadora, não certificação nem probabilidade de invasão. A branch não recebe crédito como proteção de produção antes de ser publicada. Critérios explícitos:
 
-| Critério | Pontos | Evidência/limitação |
+| Critério | Pontos | Base |
 |---|---:|---|
-| Autenticação e sessões | 18/25 | Dispositivos em enforce, limites PIN, tokens aleatórios/hasheados, expiração/revogação no SQL; integração SQL não executada localmente |
-| Autorização e isolamento | 15/25 | Guarda central de gerente, escopo derivado da sessão, testes de fronteira; cobertura completa de escritas entre três unidades pendente |
-| Banco e integridade | 14/15 | 42 tabelas RLS; nenhum grant direto público; índices únicos e exclusão de sobreposição; alerta pg_net |
-| PWA e privacidade | 8/15 | Sessão em sessionStorage, logout local imediato; quatro problemas abaixo e validação real de iPhone pendente |
-| Dependências e código | 8/10 | npm audit sem avisos; histórico varrido sem correspondências de padrões; importação ESM só fixa versão major |
-| Operação e implantação | 5/10 | CI com contents:read; proteção de branches, permissões de deploy e ambiente Vercel não verificados |
+| Autenticação e sessões | 15/25 | Dispositivos enforce, limites PIN, token aleatório/hasheado, expiração; troca do próprio PIN conserva outras sessões na versão publicada |
+| Autorização e isolamento | 15/25 | Guarda central, unidade da sessão e teste SQL das três unidades; matriz de todas as escritas ainda incompleta |
+| Banco e integridade | 14/15 | 42 tabelas com RLS, sem grants públicos ou RPC pública; constraints e locks; aviso pg_net |
+| PWA e privacidade | 8/15 | sessionStorage e logout local imediato; cache legado, logs e notificações exigem hardening; iPhone físico pendente |
+| Dependências e código | 8/10 | npm audit sem avisos, scanner de histórico sem candidatos privilegiados; importação ESM major-only |
+| Operação e implantação | 5/10 | CI contents:read; regras de branch, permissões individuais e cobertura dos logs de infraestrutura não verificadas |
 
-## Descobertas confirmadas
+## Descobertas e evidências
 
-Contagem: **4 confirmadas; 4 corrigidas na branch; 0 correções publicadas; 0 confirmadas sem correção proposta.** Há ainda **7 frentes não verificadas integralmente**, listadas abaixo. Não equivalem a sete vulnerabilidades.
-
-| ID / gravidade | Local | Evidência e impacto | Correção e teste |
+| ID / gravidade | Local e evidência | Impacto / limite | Correção / teste |
 |---|---|---|---|
-| SEC-01 / Baixo | `Index.ts`, função `json` | Respostas JSON não tinham Cache-Control. O teste recebeu header ausente. Risco preventivo de persistência de respostas sensíveis; nenhum cache real de dados ou vazamento foi demonstrado. | `Cache-Control: no-store` e `X-Content-Type-Options: nosniff`; teste comportamental do handler passou. |
-| SEC-02 / Médio, condicionado a instalação antiga | `sw.js`, eventos fetch/activate; `push-sw.js`, activate | Worker legado interceptava qualquer GET e gravava resposta sem limitar origem ou recurso. Teste demonstrou interceptação de GET privado. O app atual registra push-sw.js, que não intercepta fetch; não foi demonstrado que algum iPhone ainda usa o legado nem que houve cache de dados reais. | Worker legado retirado do cache; ambos os workers removem apenas caches `marinara-hours-shell-*`. Testes de não interceptação e limpeza seletiva passaram. |
-| SEC-03 / Baixo | `push-sw.js`, notificationclick | URL de notificação podia abrir destino externo. Teste abriu domínio fictício externo. Exploração exige influência sobre payload de push; não foi demonstrada obtenção dessa influência por usuário comum. | Restringe origem e caminho ao escopo do app; destinos externos, javascript e fora do app caem na home; destino interno preservado. |
-| SEC-04 / Médio | `Index.ts`, catches e `managerDbError` | Erros completos e mensagens SQL eram enviados ao console. Falha injetada com nome e segredo fictícios apareceu nos logs. Não foram lidos logs de funcionários nem confirmado incidente real; impacto é exposição secundária a quem acessa logs. | Mensagens completas substituídas por contexto fixo e código diagnóstico limitado. Falha de sessão continua 500 e não registra os dados fictícios; teste passou. |
+| SEC-01 / Baixo | `supabase/functions/marinara-api-v2/Index.ts`, `json`: resposta sem Cache-Control; teste falhou no original | Possível persistência de respostas privadas. Nenhum cache real/vazamento demonstrado | `no-store` e `nosniff`; testes do handler aprovados |
+| SEC-02 / Médio, condicional | `sw.js`, fetch/activate; worker legado interceptava qualquer GET e armazenava resposta sem restringir origem/recurso | Exige instalação antiga do worker. App atual registra `push-sw.js`; não foi demonstrado uso do legado em iPhone nem cache de dados reais | Retira interceptação e limpa somente caches `marinara-hours-shell-*`, também ao ativar push worker; testes comportamentais aprovados |
+| SEC-03 / Baixo | `push-sw.js`, notificationclick: payload podia abrir destino externo fictício | Exige influência sobre payload; acesso de usuário comum a esse controle não demonstrado | Destino limitado à origem/caminho do app; testes de URL externa, javascript e navegação interna aprovados |
+| SEC-04 / Médio | `Index.ts`, catches e `managerDbError`: erro SQL fictício com informação privada aparecia no console | Exposição secundária a quem acessa logs. Nenhum incidente real comprovado; logs de funcionários não foram extraídos | Contexto fixo e código diagnóstico limitado, sem mensagens/detalhes SQL; falha continua retornando erro genérico; testes aprovados |
+| SEC-05 / Alto, exige sessão anterior | `supabase/migrations/20261028030000_own_pin.sql`, `staff_change_pin`, e `Index.ts`, change_pin: segundo dispositivo continuou com HTTP 200 após troca de PIN | Uma sessão previamente comprometida, com seu segredo de dispositivo, continua utilizável até expirar/revogar. Não é um bypass inicial de login | Nova RPC server-only `staff_change_pin_secure`: troca e revogação de outras sessões em uma transação, mantendo a sessão atual. Reprodução SQL original retornou 200 quando esperado 401; correção passou no CI. Teste adicional injeta falha na revogação e exige rollback do PIN |
 
-Todos os testes de descoberta falharam antes da respectiva correção. Reproduções usaram somente código local e dados fictícios. SEC-01 e SEC-03 são defesas preventivas, sem cadeia de exploração externa confirmada.
+A reprodução de SEC-05 está no [run 152](https://github.com/fredqbraga94/marinara-hours/actions/runs/40788326253), job security-audit: `PIN change must revoke the other device session`, `200 !== 401`. O [run 154](https://github.com/fredqbraga94/marinara-hours/actions/runs/40788646724) aprovou a correção inicial e a suíte SQL. Não se confundem esses testes isolados com acesso real a contas de funcionários.
 
-## Supabase: evidências de produção
+## Supabase — evidência somente de leitura
 
-- Projeto correto: `nnchgomdnnqsaovfivob`, região Sydney, PostgreSQL 17.
-- Catálogo `pg_class`: todas as 42 tabelas públicas com `relrowsecurity=true`; sem views públicas retornadas.
-- `pg_policies`: nenhuma política pública. Isso mantém negação por padrão; a aplicação usa service role no servidor. Não foram criadas políticas permissivas para eliminar avisos.
-- `information_schema.role_table_grants`: nenhum grant público para anon/authenticated.
-- `has_function_privilege` em todas as funções públicas: nenhuma executável por anon/authenticated, incluindo SECURITY DEFINER.
-- Sem buckets nem políticas de Storage retornados.
-- `auth_settings`: device_mode=enforce; desconhecidos 5/15 tentativas por janela/dia; autorizados 5/20. Nenhuma tentativa de PIN foi feita em produção.
-- Código de `auth_session(text,text)` consultado: token_hash, expiração, revoked_at, staff ativo e vínculo do dispositivo conferidos; leitura da configuração não inclui segredos.
-- Índices únicos impedem mais de um turno aberto por funcionário e mais de um intervalo aberto por turno. Constraints EXCLUDE impedem sobreposições; CHECK impede término anterior ao início. Presença confirmada; corridas reais não reproduzidas localmente.
-- Advisor: 42 avisos informativos de RLS sem política e um WARN de `pg_net` em public. O WARN não demonstra exploração. Migração de extensão não aplicada para evitar impacto no cron.
+- 42 tabelas públicas com RLS. Zero views públicas na consulta de catálogo; zero tabelas sem RLS.
+- Zero grants SELECT/INSERT/UPDATE/DELETE diretos a anon/authenticated no schema public; ambos sem CREATE no schema.
+- 139 rotinas públicas: zero executáveis por anon/authenticated, incluindo SECURITY DEFINER.
+- Ausência de políticas públicas é negação por padrão, coerente com service role na Edge. Não foram criadas políticas permissivas para eliminar alertas.
+- `auth_settings`: modo enforce; dispositivo autorizado 5 tentativas por janela de 15 minutos e 20/dia; desconhecido 5/15. Nenhuma tentativa de PIN em produção.
+- `auth_pin_login` usa crypt/bcrypt; tokens de 32 bytes aleatórios, armazenados como SHA-256; Edge limita sessão a 12h. `auth_session` confere expiração, revogação, staff ativo e vínculo do dispositivo.
+- Guardas de gerente executadas no servidor; unidade e ID do funcionário derivam da sessão. RPCs revisadas incluem escopo de localização/departamento.
+- Constraints de integridade e locks existem para turnos/intervalos. CI existente cobre duplicação, concorrência e preservação de invariantes em dados sintéticos; não houve teste de carga em produção.
+- Advisor: 42 avisos informativos de RLS sem política e um WARN de pg_net em public. Este último exige avaliação de compatibilidade com cron; não comprova exploração e não foi alterado automaticamente.
+- `verify_jwt=false` observado: sistema usa PIN e sessão próprios. Não é vulnerabilidade isoladamente. A chave publicável do frontend não é uma service role.
 
-## Código, GitHub, PWA e dependências
+## Repositório, hosting e navegador
 
-- Comparação da referência da Edge e HEAD confirma que a análise estática incide sobre o backend publicado.
-- Service role vem de variável de ambiente da Edge; nenhum valor privilegiado encontrado pela varredura de padrões do histórico alcançável. Scanner cobriu blobs de todos os refs obtidos no clone: chaves privadas PEM, tokens GitHub, sb_secret, padrões OpenAI e JWTs com classificação de role. Nenhuma correspondência; isso não cobre commits apagados, segredos com formato desconhecido, Actions secrets ou logs externos.
-- `npm ci --ignore-scripts` e `npm audit --json`: 0 vulnerabilidades reportadas nas 28 dependências enumeradas. Isso não abrange importação remota ESM nem garante segurança dos pacotes.
-- Importação Supabase ESM usa `@2`, sem pin de patch/integridade. Pendente avaliar pin com compatibilidade e cadeia de dependências.
-- Workflow tem `permissions: contents: read`; segredo de deploy e proteção de branch não foram verificados.
-- Sessão no navegador usa sessionStorage; dispositivo usa segredo em localStorage. Logout apaga token/identidade localmente e tenta revogar no servidor. Falha de rede pode impedir revogação remota; dispositivo compartilhado e dados em memória/DOM precisam de validação completa.
-- CORS `*` observado. Requisições usam token no corpo, sem cookie de sessão automático; wildcard isolado não demonstra bypass ou CSRF. Não foi imposta allowlist sem inventário completo das origens legítimas.
-- Não foi introduzida CSP rígida: há scripts inline e a mudança precisa de teste de navegador para não bloquear o aplicativo.
-- PDFs, index.html, layout e comportamento do Time Clock permanecem byte a byte inalterados nesta branch.
+- Scanner limitado ao histórico alcançável: 125 commits / 399 blobs, padrões PEM privados, tokens GitHub, sb_secret, padrões OpenAI e JWT service_role. Zero candidatos privilegiados. Não cobre refs apagados, formatos desconhecidos, Actions secrets ou logs externos. Nenhum segredo completo é publicado neste relatório.
+- `npm audit --json`: zero advisories na árvore de 28 dependências. Não abrange a importação remota `https://esm.sh/@supabase/supabase-js@2`, sem pin de patch/integridade.
+- GitHub Actions: `permissions: contents: read`. Não foram confirmados todos os branch rulesets, colaboradores ou acessos de deploy.
+- Vercel ligado ao repositório: `marinara-hours-test`, `prj_HjsJHfxdYkEVKg8NoPBdS0oc8wml`; preview READY observado. Configuração informa SSO para all_except_custom_domains e sem password protection. Isso não comprova proteção dos aliases ou que esse projeto é a produção utilizada. Nenhum login no preview contra o Supabase real foi realizado.
+- CORS `*` observado. Token vai no corpo, sem cookie automático de sessão: wildcard isolado não comprova bypass/CSRF. Origens legítimas ainda precisam de inventário.
+- Sessão em sessionStorage; segredo de dispositivo em localStorage. Logout remove identidade/token local e tenta revogar no servidor; falha de rede ainda requer avaliação do cenário compartilhado.
+- `escapeHtml` escapa aspas e caracteres de marcação; revisão de todos os sinks e provas de XSS persistente permanecem incompletas. Não se afirma ausência de XSS/SQL injection em todo o app.
+- Não foi imposta CSP rígida: app possui scripts inline e precisa de uma política compatível validada em navegador.
+- `index.html`, Time Clock, logo e arquivos de PDFs não foram modificados. PDFs de teste são reais, com pessoas fictícias; os layouts originais permanecem no código.
 
-## Testes e cobertura
+## Testes verificáveis
 
-| Execução local | Resultado | Limite |
-|---|---|---|
-| `npm test` | 32/32 passaram | Suite diferencial histórica v36/v37, não certifica backend atual |
-| `npm run test:security:edge` | 11/11 passaram | Handler atual e workers; banco simulado nos testes de fronteira |
-| Testes atuais visa-hours, roster-hours, invoice-reader, webpush e pdf-regression | 28/28 passaram | Helpers/contratos, não geração visual de todos os PDFs |
-| `node tests/e2e/request-timeout.e2e.mjs` | Passou | Clock Out interrompido termina e não repete escrita incerta; sem navegador |
-| `npm audit --json` | 0 avisos | Apenas árvore npm |
-| `git diff --check` | Passou | Formatação do diff |
-| `npm run test:integration` | Bloqueado antes das assertions | PostgreSQL/user pgtest indisponíveis; instalação local falhou por permissões |
-| `npm run test:e2e` | Bloqueado no launch | Chromium: socket() Operation not permitted |
-| `npm run test:pdf:webkit` | Bloqueado no launch | Bibliotecas WebKit ausentes |
+| Teste | Resultado / limite |
+|---|---|
+| `npm test` | 32 testes passaram; suite histórica v36/v37, não certifica o handler atual |
+| Helpers atuais + contrato PDF | 28 testes passaram; visa-hours, roster-hours, invoice-reader, webpush, pdf-regression |
+| `npm run test:security:edge` | 11 passaram: handler atual/workers, 79 operações gerenciais sem sessão ou com role forjada; RPC controlado, não SQL real |
+| `tests/edge/audit-privacy.test.mjs` | 2 passaram; primeiro falharam no original |
+| Chromium `test:pdf` + check-pdf scripts | Passaram localmente: salvar, compartilhar/cancelar, voltar, limpeza; 1 página A4 e relatório grande de 14 páginas; 7 pessoas/21 turnos/totais conferidos |
+| PostgreSQL local | Bloqueado: runtime sem PostgreSQL utilizável e sem permissão para trocar usuário Unix. Executado pelo CI isolado |
+| WebKit local | Bloqueado por bibliotecas ausentes. Suites WebKit e PDFs passaram no CI inicial; não substitui iPhone físico |
+| CI run 151 | api, database, integration, hardening, features e security-audit passaram; resultados finais de navegador precisam ser consultados no link |
+| CI run 154 | security-audit e jobs de banco/API/hardening passaram na correção inicial; atualização final dos testes ainda requer seu próprio run |
 
-Os testes novos verificam: todas as operações registradas de gerente rejeitam ausência de sessão e privilégios forjados de funcionário; ações de ponto usam ID da sessão; listagem de equipe usa unidade da sessão. O RPC de autenticação é controlado nesses testes: isso valida a autorização da Edge, não o login SQL real, nem todas as escritas por objeto.
+A suíte SQL nova usa estrutura do repositório, todas as migrations e somente dados fictícios. Confere login de funcionário/gerentes, Hawthorne/Clayfield/Paddington, tentativa de mudar unidade/ID por payload, bloqueio de escrita de escala fora da unidade, clock/break, logout, sessão inválida e permissões públicas. Não prova todos os objetos/endpoints do aplicativo.
 
-## Sete frentes pendentes (não são vulnerabilidades confirmadas)
+## Sete áreas ainda não verificadas integralmente
 
-1. Login real SQL de funcionário/gerente, limites, expiração/revogação, reset PIN, concorrência e rollback em PostgreSQL isolado atualizado com todas as migrations.
-2. Matriz completa de BOLA/IDOR e autorização de leitura/escrita, inclusive aprovação, roster e todos os módulos para Hawthorne, Clayfield e Paddington.
-3. XSS persistente/refletido em todos os sinks DOM, validação de payloads/limites e CSP compatível com a UI.
-4. Headers efetivos de hospedagem, HTTPS/redirecionamentos, CORS por origem, análise completa de CSRF e limites de consumo por ação. Não foram feitos testes de carga.
-5. Safari em iPhone físico, instalação/atualização PWA, logout em dispositivo compartilhado e comparação visual/funcional dos PDFs originais.
-6. Proteção de branch, regras de merge, identidade/permissões de deploy, variáveis e logs de infraestrutura. Hospedagem atual deve ser identificada antes de assumir Vercel.
-7. Importações remotas sem pin completo, varredura adicional de segredos com outros formatos e aplicabilidade/remediação do WARN pg_net.
+1. Matriz BOLA/IDOR de todas as escritas/leitura e revogação em corridas de login/troca de PIN; fingerprints completos entre snapshot e banco atual.
+2. Todos os sinks XSS, limites de payload/consumo por ação e CSP compatível. Sem ataques de carga.
+3. Headers efetivos de todos os domínios, redirecionamentos HTTPS, allowlist CORS/CSRF conforme inventário de origens.
+4. iPhone físico, PWA instalado/atualizado, cache antigo real e logout offline em dispositivo compartilhado.
+5. Comparação visual de todos os PDFs, inclusive cada variante de roster; testes de timesheet não cobrem todas as combinações.
+6. Rulesets GitHub, identidade/permissões de deploy e variáveis/logs externos; confirmação do domínio efetivamente usado como produção.
+7. Pin/integridade de importações remotas, varredura de segredos além dos padrões pesquisados e compatibilidade do aviso pg_net.
 
-## Arquivos e publicação
+## Implementação e liberação
 
-Mudanças de produção propostas: `supabase/functions/marinara-api-v2/Index.ts`, `sw.js`, `push-sw.js`. Testes/CI: `tests/edge/security-audit.test.mjs`, `tests/edge/harness.mjs`, `package.json`, `.github/workflows/tests.yml`. Documentação: este arquivo.
+Commits remotos de referência: `f7e9b7b` (logs/headers e regressão SQL), `eea2d97` (reprodução de sessão persistente), `a4bf69c` (workers e fronteiras de autorização), `d8865f4` (revogação transacional). Os commits finais de evidência/teste ficam no histórico do PR.
 
-A aplicação de headers/logs da Edge requer deploy explícito: a função publicada permanece presa ao commit antigo mesmo após merge. Não reimplantar automaticamente. Rollback dos arquivos pode ser feito revertendo o commit; caches legados eliminados não são recriados. Sem alteração de schema/dados/credenciais/permissões de usuários.
+Código: `Index.ts`, `sw.js`, `push-sw.js`, nova migration `20261028233534_pin_session_revocation.sql` e seu rollback. Testes: `audit-privacy.test.mjs`, `security-audit.test.mjs`, `tests/integration/security-audit.mjs`, `own-pin.mjs`, `tests/edge/harness.mjs`; CI/package.json; este relatório.
 
-Próxima validação: CI do PR com PostgreSQL e navegadores. Até haver resultados verificáveis, nenhuma integração ou execução em Safari/PWA deve ser marcada como aprovada.
+**Não publicar automaticamente a alteração de autenticação.** Após CI/revisão: aplicar somente a migration aprovada; depois publicar a Edge apontando para o commit revisado; publicar os workers pelo fluxo existente. Não presumir que merge da main atualiza a função: a versão atual está presa a um SHA remoto.
 
-Referências: https://owasp.org/www-project-top-ten/ ; https://api-security.owasp.org/editions/2023/en/0x11-t10/ ; https://supabase.com/docs/guides/database/postgres/row-level-security . A coleta de changelog markdown foi tentada, mas a ferramenta de busca recusou o content-type.
+Nova RPC é exclusiva de service_role. Não altera PINs, horários, usuários nem sessões ao aplicar a migration: revoga outras sessões somente quando o usuário troca seu PIN com sucesso. Sem a migration, o handler novo falha de forma fechada na troca de PIN; as outras ações não usam a nova RPC. Rollback: restaurar primeiro o handler anterior e depois remover somente a RPC nova; isso reintroduz SEC-05. Sessões já revogadas não devem ser reativadas. Não há DROP de tabela nem remoção de registros.
 
-## Continuidade do PR existente
-
-O PR #55 já continha os commits de privacidade e uma reprodução SQL de sessões persistentes após mudança de PIN. Essas alterações foram preservadas. A redação de logs e headers desta entrega reutiliza a implementação `safeErrorCode` existente no PR. Os testes `tests/edge/audit-privacy.test.mjs` e `tests/integration/security-audit.mjs` foram mantidos. A reprodução de revogação após mudança de PIN precisa ser avaliada no CI; ainda não foi validada localmente por esta execução. Não há alteração dessa regra de autenticação nesta entrega.
+Referências: [OWASP Top 10](https://owasp.org/www-project-top-ten/), [OWASP API Security Top 10](https://api-security.owasp.org/editions/2023/en/0x11-t10/), [Supabase RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [Supabase Edge authentication](https://supabase.com/docs/guides/functions/auth). Changelog markdown tentou ser consultado; o mecanismo de busca recusou o content-type.
