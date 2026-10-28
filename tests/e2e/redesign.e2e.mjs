@@ -81,6 +81,21 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#rmEditBack').click();await page.locator('#employeeDetailsScreen').waitFor({state:'visible'});assert.match(await page.locator('#rmEmployeeContent').innerText(),/No — roster only/);
  await page.locator('[data-manager-nav="operations"]').click();assert.equal(await page.locator('#employeeDetailsScreen').isVisible(),false);
  await page.evaluate(async()=>{const originalApi=managerApi;for(const status of ['working','break','off_shift']){managerApi=async action=>action==='manager_dashboard'?{manager:{id:'qa-clock',name:'QA Manager',role:'manager'},location:'QA fixture',working:status==='off_shift'?[]:[{staff_id:'qa-clock',name:'QA Manager',department:'Kitchen',status,shift_id:'qa-shift',clock_in:new Date().toISOString(),hours_so_far:0}]}:{pending:0};await loadManagerDashboard();const button=document.getElementById(status==='working'?'managerStartBreakBtn':status==='break'?'managerEndBreakBtn':'managerClockInBtn');if(button.classList.contains('hidden'))throw Error('Incorrect manager clock state: '+status);}managerApi=originalApi;});
+ // Units: the Administrator looks at another unit (banner, own clock hidden) and switches.
+ await page.evaluate(()=>{currentManagerRole='manager';window.__origUnit=managerApi;managerApi=async(action,extra)=>{if(action==='manager_units')return{home:'Hawthorne',current:'Hawthorne',units:[{location:'Hawthorne',people:12},{location:'Paddington',people:0},{location:'Clayfield',people:0}]};if(action==='manager_unit_set'){try{sessionStorage.setItem('qaUnitSet',extra.location);}catch(_){}return{current:extra.location};}return window.__origUnit(action,extra);};});
+ await page.locator('[data-manager-nav="home"]').click();
+ await page.locator('#rmLocation').click();await page.locator('#restaurantSettingsScreen .rm-unit').first().waitFor();
+ assert.deepEqual(await page.locator('#restaurantSettingsScreen .rm-unit strong').allInnerTexts(),['Hawthorne','Paddington','Clayfield']);
+ assert.match(await page.locator('#restaurantSettingsScreen .rm-unit.current').innerText(),/Hawthorne[\s\S]*Your unit[\s\S]*Viewing/);
+ await page.screenshot({path:`tmp/qa/${size}-units.png`});
+ await page.evaluate(()=>{window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Paddington',home_location:'Hawthorne',manager:{id:'qa-m',name:'QA Manager'},counts:{},working:[]}}));});
+ await page.locator('[data-manager-nav="home"]').click();
+ assert.match(await page.locator('#rmUnitBanner').innerText(),/You are looking at Paddington[\s\S]*Back to Hawthorne/);
+ assert.equal(await page.evaluate(()=>document.body.classList.contains('rm-other-unit')),true);
+ await page.screenshot({path:`tmp/qa/${size}-unit-banner.png`});
+ await page.evaluate(()=>{window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',home_location:'Hawthorne',manager:{id:'qa-m',name:'QA Manager'},counts:{},working:[]}}));});
+ assert.equal(await page.locator('#rmUnitBanner').isVisible(),false);assert.equal(await page.evaluate(()=>document.body.classList.contains('rm-other-unit')),false);
+ await page.evaluate(()=>{managerApi=window.__origUnit;});
  // Clock Out from "Working now" opens the same clock-out form as View all.
  await page.evaluate(async()=>{window.__origClk=managerApi;managerApi=async action=>action==='manager_dashboard'?{manager:{id:'qa-m',name:'QA Manager',role:'manager'},location:'Hawthorne',counts:{},working:[{staff_id:'qa-late',name:'QA Forgot',department:'Kitchen',status:'working',shift_id:'qa-shift-9',clock_in:new Date(Date.now()-14*3600e3).toISOString(),hours_so_far:14}]}:{pending:0};await loadManagerDashboard();});
  await page.locator('[data-manager-nav="home"]').click();

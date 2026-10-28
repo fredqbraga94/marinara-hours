@@ -426,3 +426,11 @@ body.rm-mode .rm-header-tools button{color:var(--text);border-color:var(--border
 .tmp-dedit{display:block}.tmp-dedit .shop-form{display:flex;flex-direction:column;gap:8px;background:none}
 .tmp-who{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;margin:4px 0 8px}.tmp-who select{flex:1;min-height:44px}
 .rm-who .rm-clockout{margin:0 0 0 8px;min-height:36px;padding:6px 12px;border-radius:10px;border:1.5px solid var(--border);background:#fff;font-weight:600;font-size:13px;color:#b3261e;flex-shrink:0}
+/* Units (Administrator) */
+.rm-units{display:flex;flex-direction:column;gap:8px;margin:10px 0}
+.rm-unit{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;padding:14px 16px;border:1.5px solid var(--border);border-radius:14px;background:#fff;margin:0;color:inherit;font:inherit}
+.rm-unit span{display:flex;flex-direction:column;gap:2px}.rm-unit small{font-size:12px;color:var(--muted)}
+.rm-unit em{font-style:normal;font-weight:700;font-size:13px;color:#07613b}.rm-unit.current{border-color:#07613b;background:#f1f8f4}.rm-unit.current em{color:#07613b}
+.rm-unit-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;margin:0 0 14px;border-radius:14px;background:#fff4e0;border:1.5px solid #e2b98f}
+.rm-unit-banner span{display:flex;flex-direction:column;gap:2px}.rm-unit-banner small{font-size:12px;color:#5c4a2e}.rm-unit-banner .rm-link{white-space:nowrap;margin:0}
+body.rm-other-unit #managerClockSection{display:none!important}

@@ -56,6 +56,7 @@ jobs:
       - run: npm run test:top-products
       - run: npm run test:temp-log
       - run: npm run test:temp-reminder
+      - run: npm run test:unit-switch
       - run: npm run test:maintenance
       - run: npm run test:photos-contacts
   browser:

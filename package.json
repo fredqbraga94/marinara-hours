@@ -33,6 +33,7 @@
     "test:top-products": "node tests/integration/top-products.mjs",
     "test:temp-log": "node tests/integration/temp-log.mjs",
     "test:temp-reminder": "node tests/integration/temp-reminder.mjs",
+    "test:unit-switch": "node tests/integration/unit-switch.mjs",
     "test:maintenance": "node tests/integration/maintenance.mjs",
     "test:photos-contacts": "node tests/integration/photos-contacts.mjs",
     "test:e2e:invoices": "node tests/e2e/invoices.e2e.mjs",

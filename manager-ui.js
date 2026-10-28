@@ -9,7 +9,7 @@
   while(manager.firstChild) original.append(manager.firstChild);
   manager.append(original);
   const home=document.createElement('div');home.id='rmHome';
-  home.innerHTML=`<div class="rm-intro"><div id="rmGreetingSlot"></div><button id="quickActionsBtn" aria-label="Quick actions" type="button">+</button></div><div id="rmMessageSlot"></div>
+  home.innerHTML=`<div class="rm-intro"><div id="rmGreetingSlot"></div><button id="quickActionsBtn" aria-label="Quick actions" type="button">+</button></div><div id="rmMessageSlot"></div><div id="rmUnitBanner" class="rm-unit-banner hidden"></div>
   <button class="rm-scan" id="rmScanInvoice" type="button">${icon('scan')}<span><strong>Scan Invoice</strong><small>Upload a supplier PDF</small></span><i>›</i></button>
   <h3>Restaurant Management</h3><div class="rm-modules" id="rmModules"></div>
   <h3>Restaurant Overview <button class="rm-link" id="rmWorkingToggle" aria-expanded="false">View all</button></h3>
@@ -44,12 +44,31 @@
   function renderSettings(tab){
     settings.querySelectorAll('[role="tab"]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.rmSettings===tab)));
     const place=$('managerLocation').textContent;
-    $('rmSettingsContent').innerHTML=tab==='General'?`<h3>Business Information</h3><dl><dt>Restaurant</dt><dd>Marinara Ristorante Cafe</dd><dt>Unit</dt><dd>${escapeHtml(place)}</dd></dl><p class="rm-data-note">Address, phone and ABN will be added here later.</p>`:tab==='Locations'?`<h3>${escapeHtml(place)}</h3><p>This is the unit associated with your current session.</p><p class="rm-data-note">Paddington and Clayfield will appear here when they join the app.</p>`:tab==='Hours'?'<h3>Service times</h3><p class="rm-data-note">Lunch and dinner times are set in the Roster.</p>'+row('Roster','View weekly shifts','rosterCard','roster'):`<h3>Public Holidays</h3>${holidayListHtml() || '<p class="rm-data-note">Open Home to load the public holidays.</p>'}`;
+    $('rmSettingsContent').innerHTML=tab==='General'?`<h3>Business Information</h3><dl><dt>Restaurant</dt><dd>Marinara Ristorante Cafe</dd><dt>Unit</dt><dd>${escapeHtml(place)}</dd></dl><p class="rm-data-note">Address, phone and ABN will be added here later.</p>`:tab==='Locations'?unitsHtml(place):tab==='Hours'?'<h3>Service times</h3><p class="rm-data-note">Lunch and dinner times are set in the Roster.</p>'+row('Roster','View weekly shifts','rosterCard','roster'):`<h3>Public Holidays</h3>${holidayListHtml() || '<p class="rm-data-note">Open Home to load the public holidays.</p>'}`;
   }
-  settings.addEventListener('click',e=>{const b=e.target.closest('[data-rm-settings]');if(b)renderSettings(b.dataset.rmSettings);});
+  // Units: the Administrator can look at Paddington or Clayfield; everything
+  // then works in that unit (their own clock stays in their own unit).
+  let units=null;
+  function unitsHtml(place){
+    if(!isAdmin())return `<h3>${escapeHtml(place)}</h3><p>This is your unit.</p>`;
+    if(!units){loadUnits();return '<h3>Units</h3><p class="rm-data-note">Loading…</p>';}
+    return `<h3>Units</h3><p class="rm-data-note">Choose the unit to look at. Team, hours, roster, stock, temperatures and new people are in the unit you choose. Your own clock-in stays in ${escapeHtml(units.home)}.</p><div class="rm-units">${units.units.map(u=>`<button type="button" class="rm-unit${u.location===units.current?' current':''}" data-rm-unit="${escapeHtml(u.location)}" ${u.location===units.current?'aria-current="true"':''}><span><strong>${escapeHtml(u.location)}</strong><small>${u.location===units.home?'Your unit · ':''}${u.people} ${u.people===1?'person':'people'}</small></span><em>${u.location===units.current?'Viewing':'Switch'}</em></button>`).join('')}</div><p class="rm-data-note" id="rmUnitMsg" aria-live="polite"></p>`;
+  }
+  async function loadUnits(){
+    try{units=await managerApi('manager_units');}catch(e){units={home:'',current:'',units:[]};}
+    if(!settings.classList.contains('hidden'))renderSettings('Locations');
+  }
+  async function switchUnit(loc){
+    const m=$('rmUnitMsg');if(m)m.textContent=`Opening ${loc}…`;
+    try{await managerApi('manager_unit_set',{location:loc});forgetSession();location.reload();}
+    catch(e){if(m)m.textContent=e.message||'Unable to change the unit.';}
+  }
+  window.mhSwitchUnit=switchUnit;
+  settings.addEventListener('click',e=>{const u=e.target.closest('[data-rm-unit]');if(u){if(!u.classList.contains('current')){u.disabled=true;switchUnit(u.dataset.rmUnit);}return;}const b=e.target.closest('[data-rm-settings]');if(b)renderSettings(b.dataset.rmSettings);});
   const renderSettingsRaw=renderSettings;renderSettings=t=>{renderSettingsRaw(t);syncShell();};
   const dialog=document.createElement('dialog');dialog.id='quickActionsDialog';dialog.innerHTML=`<div class="rm-handle"></div><h2>Actions</h2><div class="rm-actions">${[['Upload invoice','Choose the supplier PDF','rmScanInvoice','scan'],['Stock','Count and order','stockCard','stock'],['Add Staff','Create staff member','rmAddStaff','team'],['Create Shift','Open weekly roster','rosterCard','roster'],['Kitchen','Recipes and allergens','recipesCard','kitchen'],['Reports','Weekly timesheets','timesheetsCard','finance'],['Time Clock','Open time clock','moreMyClockBtn','clock'],['Settings','Restaurant information','rmOpenSettings','settings']].map(a=>row(...a)).join('')}</div><button type="button" id="rmCloseActions">Close</button>`;document.body.append(dialog);
   $('quickActionsBtn').onclick=()=>dialog.showModal();$('rmCloseActions').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
+  $('rmUnitBanner').addEventListener('click',e=>{const b=e.target.closest('[data-rm-unit-back]');if(b){b.disabled=true;switchUnit(b.dataset.rmUnitBack);}});
   $('rmWorkingToggle').onclick=()=>{const open=$('rmWorkingPanel').classList.toggle('hidden')===false;$('rmWorkingToggle').setAttribute('aria-expanded',String(open));};
   document.addEventListener('click',e=>{const b=e.target.closest('[data-rm-go]');if(!b)return;dialog.close();if(blocked(b.dataset.rmGo))return;if(b.dataset.rmGo==='rmAddStaff'){go('teamCard');if($('addStaffPanel').classList.contains('hidden'))go('showAddStaffBtn');}else go(b.dataset.rmGo);});
   nav.addEventListener('click',e=>{const b=e.target.closest('[data-manager-nav]');if(!b)return;const key=b.dataset.managerNav;if(key==='home')$('managerClockSection').classList.add('hidden');if(key==='finance'||key==='operations'){e.stopImmediatePropagation();if(key==='finance')go('invoicesCard');else{showOnlyManagerScreen('operationsScreen');setManagerNavActive('operations');}window.scrollTo(0,0);}},true);
@@ -58,7 +77,7 @@
   {const navLogo=document.createElement('img');navLogo.id='rmNavLogo';navLogo.alt='Marinara Ristorante Cafe';navLogo.src=$('headerLogo').src;nav.prepend(navLogo);}
   const tools=document.createElement('div');tools.className='rm-header-tools';tools.innerHTML=`<button type="button" id="rmNotifications" aria-label="View pending tasks">${icon('bell')}<span id="rmBellBadge" class="rm-bell-badge hidden"></span></button><button type="button" id="rmProfile" aria-label="Manager profile">M</button>`;header.append(tools);
   $('rmNotifications').onclick=()=>{nav.querySelector('[data-manager-nav="home"]').click();$('rmAttention').scrollIntoView({block:'center'});};$('rmProfile').onclick=()=>openManagerMore();
-  const placeButton=document.createElement('button');placeButton.id='rmLocation';placeButton.type='button';placeButton.textContent='Current unit ⌄';placeButton.onclick=()=>{settingsBtn.click();renderSettings('Locations');};header.append(placeButton);
+  const placeButton=document.createElement('button');placeButton.id='rmLocation';placeButton.type='button';placeButton.textContent='Current unit ⌄';placeButton.onclick=()=>{settingsBtn.click();units=null;renderSettings('Locations');};header.append(placeButton);
   const originalSet=setManagerNavActive;
   setManagerNavActive=function(target='home'){originalSet(target);syncShell();};
   // Which area each button opens (for managers with switched-off areas).
@@ -242,6 +261,11 @@
     holidays=Array.isArray(d.next_holidays)?d.next_holidays:(d.upcoming_holidays||[]);paintHoliday();
     $('rmWorkingCount').textContent=working.filter(p=>p.status!=='break').length;$('rmBreakCount').textContent=working.filter(p=>p.status==='break').length;
     $('managerRoleLine').textContent=`Here's what's happening at ${d.location||'your restaurant'}.`;
+    // Looking at another unit: say so on Home, with the way back; the own clock stays in the own unit.
+    const other=!!(d.home_location&&d.location&&d.location!==d.home_location);
+    document.body.classList.toggle('rm-other-unit',other);
+    $('rmUnitBanner').classList.toggle('hidden',!other);
+    $('rmUnitBanner').innerHTML=other?`<span><strong>You are looking at ${escapeHtml(d.location)}</strong><small>Everything you see and add is in ${escapeHtml(d.location)}. Your own clock-in is in ${escapeHtml(d.home_location)}.</small></span><button type="button" class="rm-link" data-rm-unit-back="${escapeHtml(d.home_location)}">Back to ${escapeHtml(d.home_location)}</button>`:'';
     $('rmProfile').textContent=String(d.manager?.name||'M').slice(0,1).toUpperCase();syncShell();
     paint();loadRoster();setTimeout(paint,2500);
   });

@@ -1535,6 +1535,8 @@ Deno.serve(async (req) => {
         "manager_stock_count_save",
         "manager_stock_count_close",
         "manager_stock_supplier_rename",
+        "manager_units",
+        "manager_unit_set",
         "manager_temp_today",
         "manager_temp_week",
         "manager_temp_equipment_save",
@@ -1654,6 +1656,15 @@ Deno.serve(async (req) => {
         },
         500
       );
+    }
+
+    // The Administrator can look at another unit (manager_unit_view): every
+    // manager action then works in that unit. Before the migration the
+    // function does not exist and the Administrator stays in their own unit.
+    const homeLocation = managerStatus.location || "Hawthorne";
+    if (managerStatus.role === "manager") {
+      const { data: unit, error: unitError } = await supabase.rpc("mh_unit_of", { p_staff_id: managerStatus.id });
+      if (!unitError && typeof unit === "string" && unit) managerStatus.location = unit;
     }
 
     const location =
@@ -3343,6 +3354,18 @@ Deno.serve(async (req) => {
       }
 
       // =========================
+      // UNITS (Administrator: look at Hawthorne, Paddington or Clayfield)
+      // =========================
+      if (action === "manager_units" || action === "manager_unit_set") {
+        if (!isGeneralManager) return json({ error: "Only the Administrator can change the unit.", code: "GM_REQUIRED" }, 403);
+        const { data, error } = action === "manager_units"
+          ? await supabase.rpc("manager_units", { p_manager_id: managerStatus.id })
+          : await supabase.rpc("manager_unit_set", { p_manager_id: managerStatus.id, p_location: typeof body.location === "string" ? body.location : null });
+        if (error) return managerDbError(error, "Unable to change the unit");
+        return json({ success: true, action, data });
+      }
+
+      // =========================
       // TEMPERATURE RECORDS (every manager; Standard 3.2.2A)
       // =========================
       if (action.startsWith("manager_temp_")) {
@@ -4143,6 +4166,10 @@ Deno.serve(async (req) => {
             managerStatus,
 
           location,
+
+          // The Administrator's own unit (when looking at another one).
+          home_location:
+            homeLocation,
 
           generated_at:
             new Date()
