@@ -1,7 +1,13 @@
 /* Marinara Hours: phone notifications only. No caching and no fetch handling,
    so the app always loads fresh from the server exactly as before. */
 self.addEventListener("install", () => self.skipWaiting());
-self.addEventListener("activate", event => event.waitUntil(self.clients.claim()));
+self.addEventListener("activate", event => event.waitUntil((async () => {
+  // Also clean up caches left by the retired sw.js on existing phones.
+  const keys = await caches.keys();
+  await Promise.all(keys.filter(key => key.startsWith("marinara-hours-shell-"))
+    .map(key => caches.delete(key)));
+  await self.clients.claim();
+})()));
 
 self.addEventListener("push", event => {
   let data = {};
@@ -27,7 +33,13 @@ self.addEventListener("push", event => {
 
 self.addEventListener("notificationclick", event => {
   event.notification.close();
-  const url = new URL((event.notification.data && event.notification.data.url) || "./", self.registration.scope).href;
+  // Notification payloads are untrusted navigation input.
+  const scope = new URL(self.registration.scope);
+  let url = scope.href;
+  try {
+    const target = new URL((event.notification.data && event.notification.data.url) || "./", scope);
+    if (target.origin === scope.origin && target.pathname.startsWith(scope.pathname)) url = target.href;
+  } catch (_) { /* malformed destinations open the app home */ }
   event.waitUntil((async () => {
     const list = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     for (const client of list) {

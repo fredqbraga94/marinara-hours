@@ -19,6 +19,7 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm test
       - run: node --test tests/edge/audit-privacy.test.mjs
+      - run: npm run test:security:edge
   database:
     runs-on: ubuntu-latest
     steps:

@@ -1,40 +1,11 @@
-const CACHE_NAME = "marinara-hours-shell-v1";
-const APP_SHELL = ["./", "./index.html", "./manifest.webmanifest"];
-
-self.addEventListener("install", event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
-  );
-  self.skipWaiting();
-});
-
+/* Retirement of the legacy caching worker. Private responses must never be
+   intercepted or stored. Existing installations receive this on SW update. */
+self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", event => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(
-        keys
-          .filter(key => key !== CACHE_NAME)
-          .map(key => caches.delete(key))
-      )
-    )
-  );
-  self.clients.claim();
-});
-
-self.addEventListener("fetch", event => {
-  if (event.request.method !== "GET") return;
-
-  event.respondWith(
-    fetch(event.request)
-      .then(response => {
-        const copy = response.clone();
-
-        caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, copy);
-        });
-
-        return response;
-      })
-      .catch(() => caches.match(event.request))
-  );
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key.startsWith("marinara-hours-shell-"))
+      .map(key => caches.delete(key)));
+    await self.clients.claim();
+  })());
 });
