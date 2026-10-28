@@ -1,7 +1,7 @@
 /* Test-only administrative shell. Existing actions, auth, clock and PDF functions remain authoritative. */
 (() => {
   const $ = id => document.getElementById(id);
-  const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${({home:'<path d="m3 10 9-7 9 7v11h-6v-7H9v7H3z"/>',team:'<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 5"/>',stock:'<path d="m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10M7 4l9 5"/>',kitchen:'<path d="M6 13a4 4 0 0 1-2-7 4 4 0 0 1 5-2 4 4 0 0 1 6 0 4 4 0 0 1 5 2 4 4 0 0 1-2 7v8H6zM6 16h12"/>',finance:'<path d="M5 3h10l4 4v14H5zM15 3v5h4M9 12h6M9 16h6"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/>',roster:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6M17 2v6M3 11h18"/>',check:'<circle cx="12" cy="12" r="9"/><path d="m7 12 3 3 7-7"/>',more:'<circle cx="4" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="20" cy="12" r="1"/>',scan:'<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5M3 12h18M8 7h8v10H8"/>',bell:'<path d="M5 9a7 7 0 0 1 14 0v7l2 2H3l2-2zM9 21h6"/>',settings:'<circle cx="12" cy="12" r="4"/><path d="m9 2-1 3-3 1-3 3 2 3-2 3 3 3 3 1 1 3h6l1-3 3-1 3-3-2-3 2-3-3-3-3-1-1-3z"/>',leave:'<path d="m3 11 8 2 2 8 3-6 5-12-12 5zM11 13l10-10"/>',coffee:'<path d="M3 8h13v7a6 6 0 0 1-12 0V8M16 9h2a3 3 0 0 1 0 6h-2M6 3v2M11 3v2M2 22h18"/>'})[name] || '<path d="M12 4v16M4 12h16"/>'}</svg>`;
+  const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${({home:'<path d="m3 10 9-7 9 7v11h-6v-7H9v7H3z"/>',team:'<circle cx="9" cy="8" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M17 4a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 5"/>',stock:'<path d="m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10M7 4l9 5"/>',kitchen:'<path d="M6 13a4 4 0 0 1-2-7 4 4 0 0 1 5-2 4 4 0 0 1 6 0 4 4 0 0 1 5 2 4 4 0 0 1-2 7v8H6zM6 16h12"/>',finance:'<path d="M5 3h10l4 4v14H5zM15 3v5h4M9 12h6M9 16h6"/>',clock:'<circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/>',roster:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6M17 2v6M3 11h18"/>',check:'<circle cx="12" cy="12" r="9"/><path d="m7 12 3 3 7-7"/>',more:'<circle cx="4" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="20" cy="12" r="1"/>',scan:'<path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5M3 12h18M8 7h8v10H8"/>',bell:'<path d="M5 9a7 7 0 0 1 14 0v7l2 2H3l2-2zM9 21h6"/>',settings:'<circle cx="12" cy="12" r="4"/><path d="m9 2-1 3-3 1-3 3 2 3-2 3 3 3 3 1 1 3h6l1-3 3-1 3-3-2-3 2-3-3-3-3-1-1-3z"/>',leave:'<path d="m3 11 8 2 2 8 3-6 5-12-12 5zM11 13l10-10"/>',wrench:'<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',coffee:'<path d="M3 8h13v7a6 6 0 0 1-12 0V8M16 9h2a3 3 0 0 1 0 6h-2M6 3v2M11 3v2M2 22h18"/>'})[name] || '<path d="M12 4v16M4 12h16"/>'}</svg>`;
   const go = (id) => { const button=$(id); if(button && !button.disabled) button.click(); };
   const row = (title,subtitle,target,glyph) => `<button type="button" class="rm-row" data-rm-go="${target}">${icon(glyph)}<span><strong>${title}</strong><small>${subtitle}</small></span><i aria-hidden="true">›</i></button>`;
   const manager = $('managerScreen');
@@ -143,6 +143,16 @@
     if(off)rows.push(row(`${off} time off request${off===1?'':'s'}`,'Someone is waiting for an answer','timeOffCard','leave'));
     const ups=(typeof window.mhPriceUps==='object'&&window.mhPriceUps)||[];
     if(ups.length&&can('invoices')&&['manager','kitchen_manager'].includes(currentManagerRole)){const names=ups.slice().sort((a,b)=>Number(b.change_pct)-Number(a.change_pct)).slice(0,2).map(p=>`${p.description} +${Number(p.change_pct).toLocaleString('en-AU',{maximumFractionDigits:1})}%`);rows.push(row(`${ups.length} price${ups.length===1?'':'s'} went up`,escapeHtml(names.join(', ')+(ups.length>2?` and ${ups.length-2} more`:'')),'rmOpenPriceUps','finance'));}
+    const shop=window.mhShopping||{};
+    // Urgent things to buy go to the top, in red.
+    if(shop.urgent){const u=shop.urgentNames||[];const rest=shop.open-shop.urgent;
+      rows.unshift(row(`<em class="rm-urgent-tag">Urgent</em> ${shop.urgent===1?'1 thing to buy now':`${shop.urgent} things to buy now`}`,escapeHtml(u.slice(0,3).join(', ')+(u.length>3?` and ${u.length-3} more`:''))+(rest?` · ${rest} more on the list`:''),'rmOpenShopping','stock').replace('class="rm-row"','class="rm-row rm-urgent"'));}
+    else if(shop.open)rows.push(row(`${shop.open} thing${shop.open===1?'':'s'} to buy`,escapeHtml((shop.names||[]).join(', ')+(shop.open>2?` and ${shop.open-2} more`:'')),'rmOpenShopping','stock'));
+    // Repairs: urgent ones at the very top, in red.
+    const mnt=window.mhMaintenance||{};
+    if(mnt.urgent){const u=mnt.urgentNames||[];const rest=mnt.open-mnt.urgent;
+      rows.unshift(row(`<em class="rm-urgent-tag">Urgent</em> ${mnt.urgent===1?'1 repair needed now':`${mnt.urgent} repairs needed now`}`,escapeHtml(u.slice(0,3).join(', ')+(u.length>3?` and ${u.length-3} more`:''))+(rest?` · ${rest} more to fix`:''),'rmOpenMaintenance','wrench').replace('class="rm-row"','class="rm-row rm-urgent"'));}
+    else if(mnt.open)rows.push(row(`${mnt.open} repair${mnt.open===1?'':'s'} to do`,escapeHtml((mnt.names||[]).join(', ')+(mnt.open>2?` and ${mnt.open-2} more`:'')),'rmOpenMaintenance','wrench'));
     if(toOrder)rows.push(row(`${toOrder} item${toOrder===1?'':'s'} to order`,'Below par at the last stock count','stockCard','stock'));
     // Bell: people waiting on the manager (late, shifts to approve, time off requests).
     const waiting=(t?t.late.length:0)+n+off;const bell=$('rmBellBadge');
@@ -224,6 +234,8 @@
   // The time-off count changes on its own (every 30 s); keep the bell in step.
   const offCount=$('homeTimeOffCount');if(offCount)new MutationObserver(()=>paint()).observe(offCount,{childList:true,characterData:true,subtree:true});
   window.addEventListener('marinara:prices',()=>paint());
+  window.addEventListener('marinara:shopping',()=>paint());
+  window.addEventListener('marinara:maintenance',()=>paint());
   $('rmScanInvoice').onclick=()=>{dialog.close();go('invoicesCard');$('invFiles')?.click();};
   syncShell();
 })();
