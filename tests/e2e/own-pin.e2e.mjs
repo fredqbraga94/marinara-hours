@@ -32,6 +32,12 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  const dlg=page.locator('#ownPinDialog');await dlg.waitFor({state:'visible'});
  assert.equal(await page.locator('#opOldWrap').isVisible(),false,'no current PIN field when forced');
  await page.screenshot({path:`tmp/qa/${size}-own-pin-first.png`});
+ // The 5-second background refresh runs while the person is thinking: the server answers
+ // 403 PIN_CHANGE_REQUIRED and the dialog must stay open (this used to sign the person out).
+ await page.evaluate(()=>{const was=postApi;postApi=async p=>{if(p.action==='change_pin')return was(p);window.__sent.push(p);return{response:{ok:false,status:403},result:{success:false,error:'Choose your own PIN to continue.',code:'PIN_CHANGE_REQUIRED'}};};});
+ await page.evaluate(async()=>{await syncCurrentView();await syncCurrentView();});
+ assert.equal(await dlg.isVisible(),true,'dialog stays open during background refresh');
+ assert.equal(await page.evaluate(()=>currentSessionToken),'qa-token','session kept');
  await page.locator('#opNew').fill('12');await page.locator('#opNew2').fill('12');await page.locator('#opSave').click();
  assert.match(await page.locator('#opMsg').innerText(),/4 to 6 numbers/);
  await page.locator('#opNew').fill('482913');await page.locator('#opNew2').fill('482914');await page.locator('#opSave').click();

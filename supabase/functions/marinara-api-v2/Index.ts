@@ -960,8 +960,9 @@ Deno.serve(async (req) => {
               success: false,
               action: "session_test",
               error: result.error,
+              code: result.code,
             },
-            401
+            result.code ? 403 : 401
           );
         }
 
@@ -1008,7 +1009,7 @@ Deno.serve(async (req) => {
         const sessionResult =
           await validateStaffSession(supabase, token, deviceHash);
         if (!sessionResult.ok) {
-          return json({ success: false, action, error: sessionResult.error }, 401);
+          return json({ success: false, action, error: sessionResult.error, code: sessionResult.code }, sessionResult.code ? 403 : 401);
         }
         const staffId = sessionResult.staff.id;
         const isDate = (v: unknown) =>
@@ -1077,8 +1078,9 @@ Deno.serve(async (req) => {
               success: false,
               action,
               error: sessionResult.error,
+              code: sessionResult.code,
             },
-            401
+            sessionResult.code ? 403 : 401
           );
         }
 
@@ -1264,8 +1266,9 @@ Deno.serve(async (req) => {
               success: false,
               action,
               error: sessionResult.error,
+              code: sessionResult.code,
             },
-            401
+            sessionResult.code ? 403 : 401
           );
         }
 
@@ -1567,8 +1570,9 @@ Deno.serve(async (req) => {
             error:
               managerSession.error ||
               "Invalid or expired session",
+            code: managerSession.code,
           },
-          401
+          managerSession.code ? 403 : 401
         );
       }
 
