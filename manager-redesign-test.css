@@ -419,3 +419,4 @@ body.rm-mode .rm-header-tools button{color:var(--text);border-color:var(--border
  #tmpWeekPrint .tmp-rec-main small{color:#000}
  #tmpWeekPrint .tmp-print-foot{margin-top:10px;font-size:9px}
 }
+.tmp-sheet td input[type=number]{-moz-appearance:textfield;appearance:textfield}.tmp-sheet td input::-webkit-outer-spin-button,.tmp-sheet td input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}

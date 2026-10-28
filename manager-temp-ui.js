@@ -30,7 +30,7 @@ screen.innerHTML=`<div class="manager-top"><div><h2>Temperatures</h2><p>Temperat
 <form class="card shop-form" id="tmpDelivery" autocomplete="off">
  <input id="tmpItem" maxlength="80" placeholder="Product e.g. Cream, Prawns" aria-label="Product">
  <input id="tmpSupplier" maxlength="80" placeholder="Supplier (optional)" aria-label="Supplier">
- <div class="shop-form-row"><select id="tmpFood" aria-label="Chilled or frozen"><option value="chilled">Chilled · 5°C or below</option><option value="frozen">Frozen · -15°C or below</option></select><input id="tmpDTemp" inputmode="decimal" maxlength="6" placeholder="°C" aria-label="Temperature in °C"></div>
+ <div class="shop-form-row"><select id="tmpFood" aria-label="Chilled or frozen"><option value="chilled">Chilled · 5°C or below</option><option value="frozen">Frozen · -15°C or below</option></select><input id="tmpDTemp" type="number" step="0.1" min="-40" max="120" placeholder="°C" aria-label="Temperature in °C"></div>
  <input id="tmpDAction" maxlength="200" placeholder="What did you do? e.g. Rejected, sent back" aria-label="Corrective action" hidden>
  <button type="submit" class="shop-primary" id="tmpDSave">Save delivery</button>
  <p class="rm-data-note" id="tmpDMsg" aria-live="polite"></p>
@@ -99,7 +99,7 @@ function sheetHtml(w,forPrint){
  const rows=(w.equipment||[]).map(e=>SLOTS.map(([slot,label],si)=>`<tr class="${si?'tmp-closing':''}">${si?'':`<th rowspan="2" class="tmp-eqcol" scope="rowgroup"><span>${t(e.name)}</span><small>${t(KIND[e.kind][1])}</small></th>`}<td class="tmp-slotcol">${label}</td>${days.map(d=>{
    const c=cell.get(`${e.id}|${d}|${slot}`);const key=`${e.id}|${d}|${slot}`;
    const editable=!forPrint&&d===w.today&&e.active;const pend=state.pending&&state.pending.key===key;
-   if(editable&&(!c||state.recheck===key||pend))return `<td class="tmp-today${pend?' bad':''}"><input inputmode="decimal" maxlength="6" placeholder="°C" aria-label="${t(e.name)} ${label} today °C" data-tmp-cell="${t(key)}" value="${pend?t(state.pending.temp):''}"></td>`;
+   if(editable&&(!c||state.recheck===key||pend))return `<td class="tmp-today${pend?' bad':''}"><input type="number" step="0.1" min="-40" max="120" placeholder="°C" aria-label="${t(e.name)} ${label} today °C" data-tmp-cell="${t(key)}" value="${pend?t(state.pending.temp):''}"></td>`;
    if(!c)return `<td class="${d===w.today?'tmp-today':''}${d<w.today&&!forPrint?' tmp-missed':''}"></td>`;
    return `<td class="${d===w.today?'tmp-today ':''}${c.ok?'':'bad'}"><button type="button" class="tmp-val" data-tmp-show="${t(key)}" ${forPrint?'tabindex="-1"':''}>${t(Number(c.temp).toFixed(1))}<small>${t(initials(c.recorded_by))}</small></button></td>`;
  }).join('')}</tr>`).join('')).join('');

@@ -63,7 +63,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.match(await page.locator('#rmAttention').innerText(),/7 temperature checks to do today/);
  // In range: Pizza Prep Fridge, Opening.
  const cell=(name,slot)=>page.locator(`[data-tmp-cell][aria-label="${name} ${slot} today °C"]`);
- await cell('Pizza Prep Fridge','Opening').fill('3,5');await cell('Pizza Prep Fridge','Opening').press('Enter');
+ await cell('Pizza Prep Fridge','Opening').fill('3.5');await cell('Pizza Prep Fridge','Opening').press('Enter');
  await page.locator('#tmpEqMsg').filter({hasText:'Pizza Prep Fridge · Opening: 3.5°C saved.'}).waitFor();
  const rec=await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_temp_record').at(-1)[1].entry);
  assert.equal(rec.slot,'opening');assert.equal(rec.temp,3.5);
