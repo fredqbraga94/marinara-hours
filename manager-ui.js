@@ -154,6 +154,9 @@
     if(mnt.urgent){const u=mnt.urgentNames||[];const rest=mnt.open-mnt.urgent;
       rows.unshift(row(`<em class="rm-urgent-tag">Urgent</em> ${mnt.urgent===1?'1 repair needed now':`${mnt.urgent} repairs needed now`}`,escapeHtml(u.slice(0,3).join(', ')+(u.length>3?` and ${u.length-3} more`:''))+(rest?` · ${rest} more to fix`:''),'rmOpenMaintenance','wrench').replace('class="rm-row"','class="rm-row rm-urgent"'));}
     else if(mnt.open)rows.push(row(`${mnt.open} repair${mnt.open===1?'':'s'} to do`,escapeHtml((mnt.names||[]).join(', ')+(mnt.open>2?` and ${mnt.open-2} more`:'')),'rmOpenMaintenance','wrench'));
+    // Temperature checks still to do today (Standard 3.2.2A).
+    const tmp=window.mhTemps||{};
+    if(tmp.total&&tmp.missing)rows.push(row(`${tmp.missing} temperature check${tmp.missing===1?'':'s'} to do today`,escapeHtml((tmp.names||[]).slice(0,3).join(', ')+((tmp.names||[]).length>3?` and ${(tmp.names||[]).length-3} more`:'')),'rmOpenTemps','clock'));
     if(toOrder)rows.push(row(`${toOrder} item${toOrder===1?'':'s'} to order`,'Below par at the last stock count','stockCard','stock'));
     // Bell: people waiting on the manager (late, shifts to approve, time off requests).
     const waiting=(t?t.late.length:0)+n+off;const bell=$('rmBellBadge');
@@ -172,7 +175,7 @@
     if(key==='working'||key==='break'){
       const list=lastWorking.filter(p=>key==='break'?p.status==='break':p.status!=='break');
       title=key==='break'?'On break':'Working now';
-      rows=list.map(p=>person(p.name,p.department,key==='break'?'break':'working',[p.department,p.clock_in?`in since ${clock(p.clock_in)}`:''].filter(Boolean).join(' · '),p.hours_so_far!=null?`<em>${escapeHtml(hm(p.hours_so_far))}</em>`:''));
+      rows=list.map(p=>person(p.name,p.department,key==='break'?'break':'working',[p.department,p.clock_in?`in since ${clock(p.clock_in)}`:''].filter(Boolean).join(' · '),(p.hours_so_far!=null?`<em>${escapeHtml(hm(p.hours_so_far))}</em>`:'')+(p.shift_id?`<button type="button" class="rm-clockout" data-rm-clockout="${escapeHtml(p.shift_id)}">Clock Out</button>`:'')));
     }else if(key==='roster'){
       title='On the roster today';
       const working=new Map(lastWorking.map(p=>[p.staff_id,p.status]));
@@ -189,6 +192,16 @@
     openStat=openStat===key?null:key;
     document.querySelectorAll('[data-rm-stat]').forEach(x=>x.setAttribute('aria-expanded',String(x.dataset.rmStat===openStat)));
     $('rmStatPanel').classList.toggle('hidden',!openStat);if(openStat)renderStat(openStat);
+  });
+  // Clock Out from "Working now": open the Who's Working list on that person's
+  // clock-out form (the same form and checks as View all).
+  $('rmStatPanel').addEventListener('click',e=>{
+    const c=e.target.closest('[data-rm-clockout]');if(!c)return;
+    $('rmWorkingPanel').classList.remove('hidden');$('rmWorkingToggle').setAttribute('aria-expanded','true');
+    const btn=[...document.querySelectorAll('#workingList [data-close-shift]')].find(x=>x.dataset.closeShift===c.dataset.rmClockout);
+    if(!btn)return;const panel=document.getElementById('clockout-'+btn.dataset.closeShift);
+    if(panel?.classList.contains('hidden'))btn.click();
+    (panel||btn).scrollIntoView({behavior:'smooth',block:'center'});
   });
   $('rmStatPanel').addEventListener('click',e=>{if(e.target.closest('[data-rm-stat-close]')){openStat=null;$('rmStatPanel').classList.add('hidden');document.querySelectorAll('[data-rm-stat]').forEach(x=>x.setAttribute('aria-expanded','false'));}});
   // Payload is supplied only after a successful, authorised dashboard request.
@@ -237,6 +250,7 @@
   window.addEventListener('marinara:prices',()=>paint());
   window.addEventListener('marinara:shopping',()=>paint());
   window.addEventListener('marinara:maintenance',()=>paint());
+  window.addEventListener('marinara:temps',()=>paint());
   $('rmScanInvoice').onclick=()=>{dialog.close();go('invoicesCard');$('invFiles')?.click();};
   syncShell();
 })();
