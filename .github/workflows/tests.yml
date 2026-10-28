@@ -53,6 +53,7 @@ jobs:
       - run: npm run test:permissions
       - run: npm run test:shopping
       - run: npm run test:maintenance
+      - run: npm run test:photos-contacts
   browser:
     runs-on: ubuntu-latest
     steps:

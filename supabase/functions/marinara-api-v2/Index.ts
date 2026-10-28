@@ -1452,6 +1452,12 @@ Deno.serve(async (req) => {
         "manager_maintenance_list",
         "manager_maintenance_save",
         "manager_maintenance_mark",
+        "manager_photo_set",
+        "manager_photo_get",
+        "manager_photo_remove",
+        "manager_contact_list",
+        "manager_contact_save",
+        "manager_contact_remove",
       ]);
 
     if (!managerActions.has(action)) {
@@ -3262,6 +3268,58 @@ Deno.serve(async (req) => {
           });
           if (error) return managerDbError(error, "Unable to update");
           return json({ success: true, action, data: { item: data } });
+        }
+      }
+
+      // =========================
+      // PHOTOS on Shopping/Maintenance items, MAINTENANCE CONTACTS (every manager)
+      // =========================
+      if (action.startsWith("manager_photo_") || action.startsWith("manager_contact_")) {
+        const isUuid = (v: any) => typeof v === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const text = (v: any, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+        const jpeg = (v: any, max: number) =>
+          typeof v === "string" && v.length <= max && /^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(v);
+        if (action.startsWith("manager_photo_")) {
+          const kind = ["shopping", "maintenance"].includes(body.kind) ? body.kind : "";
+          if (!kind || !isUuid(body.item_id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
+          if (action === "manager_photo_set") {
+            if (!jpeg(body.thumb, 40000) || !jpeg(body.photo, 700000)) {
+              return json({ error: "This photo could not be used. Try another one.", code: "INVALID_INPUT" }, 400);
+            }
+            const { data, error } = await supabase.rpc("manager_photo_set", {
+              p_manager_id: managerStatus.id, p_kind: kind, p_item_id: body.item_id, p_thumb: body.thumb, p_photo: body.photo,
+            });
+            if (error) return managerDbError(error, "Unable to save the photo");
+            return json({ success: true, action, data });
+          }
+          const fn = action === "manager_photo_get" ? "manager_photo_get" : "manager_photo_remove";
+          const { data, error } = await supabase.rpc(fn, { p_manager_id: managerStatus.id, p_kind: kind, p_item_id: body.item_id });
+          if (error) return managerDbError(error, "Unable to load the photo");
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_contact_list") {
+          const { data, error } = await supabase.rpc("manager_contact_list", { p_manager_id: managerStatus.id });
+          if (error) return managerDbError(error, "Unable to load contacts", 500);
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_contact_save") {
+          const c = body.contact && typeof body.contact === "object" ? body.contact : {};
+          if (c.id != null && !isUuid(c.id)) return json({ error: "Contact not found", code: "ITEM_NOT_FOUND" }, 404);
+          const contact: any = { trade: text(c.trade, 60), name: text(c.name, 80), phone: text(c.phone, 30), note: text(c.note, 200) };
+          if (c.id) contact.id = c.id;
+          if (!contact.trade || contact.phone.length < 3 || !/^[0-9+() .-]+$/.test(contact.phone)) {
+            return json({ error: "Write the service and a phone number.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_contact_save", { p_manager_id: managerStatus.id, p_contact: contact });
+          if (error) return managerDbError(error, "Unable to save the contact");
+          return json({ success: true, action, data: { contact: data } });
+        }
+        if (action === "manager_contact_remove") {
+          if (!isUuid(body.id)) return json({ error: "Contact not found", code: "ITEM_NOT_FOUND" }, 404);
+          const { data, error } = await supabase.rpc("manager_contact_remove", { p_manager_id: managerStatus.id, p_id: body.id });
+          if (error) return managerDbError(error, "Unable to remove the contact");
+          return json({ success: true, action, data });
         }
       }
 

@@ -30,6 +30,7 @@
     "test:permissions": "node tests/integration/permissions.mjs",
     "test:shopping": "node tests/integration/shopping.mjs",
     "test:maintenance": "node tests/integration/maintenance.mjs",
+    "test:photos-contacts": "node tests/integration/photos-contacts.mjs",
     "test:e2e:invoices": "node tests/e2e/invoices.e2e.mjs",
     "test:e2e:invoices:webkit": "E2E_BROWSER=webkit node tests/e2e/invoices.e2e.mjs",
     "test:e2e:redesign": "node tests/e2e/redesign.e2e.mjs && node tests/e2e/request-timeout.e2e.mjs",

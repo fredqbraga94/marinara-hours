@@ -29,6 +29,9 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
    if(action==='manager_shopping_list')return{open:items.filter(i=>i.status==='open').sort((a,b)=>b.urgent-a.urgent).map(pub),bought:items.filter(i=>i.status==='bought').map(pub)};
    if(action==='manager_shopping_save'){const it=extra.item;if(it.id){const i=items.find(x=>x.id===it.id);Object.assign(i,{name:it.name,qty:it.qty,note:it.note,urgent:it.urgent});return{item:pub(i)};}
     const i={id:`00000000-0000-4000-8000-${String(++n).padStart(12,'0')}`,name:it.name,qty:it.qty||null,note:it.note||null,urgent:it.urgent,status:'open',created_by:'QA Kitchen Manager',created_at:now(),done_by:null,done_at:null};items.push(i);return{item:pub(i)};}
+   if(action==='manager_photo_set'){const i=items.find(x=>x.id===extra.item_id);if(!/^data:image\/jpeg;base64,/.test(extra.thumb)||!/^data:image\/jpeg;base64,/.test(extra.photo))throw new Error('not a jpeg');i.thumb=extra.thumb;i.__photo=extra.photo;window.__photoSizes=[extra.thumb.length,extra.photo.length];return{thumb:extra.thumb};}
+   if(action==='manager_photo_get'){const i=items.find(x=>x.id===extra.item_id);return{photo:i.__photo};}
+   if(action==='manager_photo_remove'){const i=items.find(x=>x.id===extra.item_id);i.thumb=null;i.__photo=null;return{removed:true};}
    if(action==='manager_shopping_mark'){const i=items.find(x=>x.id===extra.id);i.status=extra.status;i.done_by=extra.status==='open'?null:'QA Kitchen Manager';i.done_at=extra.status==='open'?null:now();return{item:pub(i)};}
    if(action==='manager_roster_week')return{team:[],entries:[],services:[],leave:[]};
    return orig(action,extra);
@@ -58,6 +61,32 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.match(await page.locator('#shopOpen').innerText(),/2 packs · the big ones[\s\S]*Asked by QA Kitchen Manager/);
  assert.equal(await page.locator('#shopOpenCount').innerText(),'(2)');
  assert.equal(await page.locator('#shopName').inputValue(),'','form cleared after adding');
+ // Photo on an item: pick, preview in the list, tap opens the larger copy.
+ const pic=await page.screenshot({type:'jpeg',quality:80});
+ const chooser=page.waitForEvent('filechooser');
+ await page.locator('#shopOpen .shop-item').nth(1).locator('[data-shop-addphoto]').click();
+ await (await chooser).setFiles({name:'knife.jpg',mimeType:'image/jpeg',buffer:pic});
+ await page.locator('#shopOpen .shop-item').nth(1).locator('.mh-thumb img').waitFor();
+ const [thumbLen,photoLen]=await page.evaluate(()=>window.__photoSizes);
+ assert.ok(thumbLen<40000&&photoLen<700000,`shrunk on the phone: ${thumbLen}/${photoLen}`);
+ assert.equal(await page.locator('#shopOpen .shop-item').nth(1).locator('[data-shop-addphoto]').count(),0,'no Add photo once there is one');
+ await page.locator('#shopOpen .shop-item').nth(1).locator('.mh-thumb').click();
+ await page.locator('#mhPhotoViewer').waitFor({state:'visible'});
+ await page.waitForFunction(()=>document.getElementById('mhPhotoImg').src.length>2000&&!document.getElementById('mhPhotoMsg').textContent);
+ await page.screenshot({path:`tmp/qa/${size}-shopping-photo.png`});
+ await page.locator('#mhPhotoClose').click();assert.equal(await page.locator('#mhPhotoViewer').isVisible(),false);
+ // A photo chosen while adding is saved with the new item.
+ await page.locator('#shopName').fill('QA mop');
+ const chooser2=page.waitForEvent('filechooser');await page.locator('#shopPhotoBtn').click();
+ await (await chooser2).setFiles({name:'mop.jpg',mimeType:'image/jpeg',buffer:pic});
+ await page.locator('#shopPhotoPrev').waitFor({state:'visible'});
+ await page.locator('#shopSave').click();
+ await page.locator('#shopOpen .shop-item').filter({hasText:'QA mop'}).locator('.mh-thumb').waitFor();
+ assert.equal(await page.locator('#shopPhotoPrev').isVisible(),false,'form photo cleared');
+ // Remove the mop again (two taps) so the rest of the test sees two items.
+ const mop=page.locator('#shopOpen .shop-item').filter({hasText:'QA mop'});
+ await mop.locator('[data-shop-remove]').click();await mop.locator('[data-shop-remove]').click();
+ await page.waitForFunction(()=>document.querySelectorAll('#shopOpen .shop-item').length===2);
  mkdirSync('tmp/qa',{recursive:true});await page.screenshot({path:`tmp/qa/${size}-shopping.png`,fullPage:true});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,'no horizontal overflow');
 
@@ -104,5 +133,5 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.deepEqual(errors,[],'no JavaScript errors');
  await context.close();
 }
-console.log(`PASS (${ENGINE}): shopping list add, edit, bought, undo, remove (two taps), Home count, menus, iPhone/desktop overflow, no JavaScript errors.`);
+console.log(`PASS (${ENGINE}): shopping list add, photo (shrunk, preview, open), edit, bought, undo, remove (two taps), Home count, menus, iPhone/desktop overflow, no JavaScript errors.`);
 }finally{await browser.close();server.close();}
