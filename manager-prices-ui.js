@@ -32,6 +32,8 @@ async function load(force){
 window.mhPriceUps=[];
 // 40% or more is almost always a carton sold by weight, not a real price change.
 const realYear=x=>x.from_history&&x.change_pct!=null&&Number(x.change_pct)!==0&&Math.abs(Number(x.change_pct))<40;
+// One name style: the supplier history's brand and name when the product is in it.
+const histName=x=>x.brand?`${x.brand} · ${x.description}`:x.description;
 function withYear(book,top){
  const out=book.slice();const byKey=new Map(out.map(p=>[`${String(p.supplier).toLowerCase()}|${p.code||p.product_key}`,p]));
  for(const x of top){
@@ -39,6 +41,7 @@ function withYear(book,top){
   const key=`${String(x.supplier).toLowerCase()}|${x.code}`;const have=byKey.get(key);
   const hist=[{date:x.first_date,price:x.first_price,fromHistory:true},{date:x.last_date,price:x.last_price,fromHistory:true}].filter((h,i,a)=>h.date&&h.price!=null&&(i===0||h.date!==a[0].date));
   if(have){
+   have.description=histName(x);
    // Keep a change the saved invoices already show; otherwise use the year.
    if(have.change_pct==null&&realYear(x)){Object.assign(have,{change_pct:x.change_pct,previous_price:x.first_price,previous_date:x.first_date,year:true,times:Math.max(have.times||0,x.orders||0),
      // One timeline: the first price of the year from the history, then the saved invoices.
@@ -46,7 +49,7 @@ function withYear(book,top){
    else have.times=Math.max(have.times||0,x.orders||0);
    continue;
   }
-  out.push({supplier:x.supplier,product_key:x.code,code:x.code,description:x.description,unit:x.last_label||'',times:x.orders,last_price:x.last_price,last_date:x.last_date,
+  out.push({supplier:x.supplier,product_key:x.code,code:x.code,description:histName(x),unit:x.last_label||'',times:x.orders,last_price:x.last_price,last_date:x.last_date,
    previous_price:realYear(x)?x.first_price:null,previous_date:realYear(x)?x.first_date:null,change_pct:realYear(x)?x.change_pct:null,history:hist,year:realYear(x),from_history:true});
  }
  return out;

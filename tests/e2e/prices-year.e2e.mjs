@@ -28,7 +28,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
     {supplier:S,product_key:'QA4',code:'QA4',description:'QA flour',unit:'CTN',times:3,last_price:17,last_date:today,previous_price:16,previous_date:today,change_pct:6.3,history:[{date:today,price:16},{date:today,price:17}]}]};
    if(action==='manager_invoice_top_products')return{products:[
     {supplier:S,code:'QA1',description:'QA cream',orders:130,spend:37000,last_date:today,last_price:113,last_label:'Carton',first_price:107.73,first_date:'2025-10-29',change_pct:4.9,from_history:true},
-    {supplier:S,code:'QA2',description:'QA olive oil',orders:13,spend:1500,last_date:'2026-09-14',last_price:102.5,last_label:'Box',first_price:89.5,first_date:'2026-03-11',change_pct:14.5,from_history:true},
+    {supplier:S,code:'QA2',brand:'QA Brand',description:'QA olive oil',orders:13,spend:1500,last_date:'2026-09-14',last_price:102.5,last_label:'Box',first_price:89.5,first_date:'2026-03-11',change_pct:14.5,from_history:true},
     {supplier:S,code:'QA3',description:'QA pork by weight',orders:117,spend:19000,last_date:'2026-10-12',last_price:156.9,last_label:'Carton',first_price:313.88,first_date:'2025-10-29',change_pct:-50,from_history:true},
     {supplier:S,code:'QA5',description:'QA cocoa',orders:3,spend:1000,last_date:'2026-09-10',last_price:297,last_label:'Carton',first_price:330,first_date:'2026-02-11',change_pct:-10,from_history:true}]};
    if(action==='manager_invoice_list')return{invoices:[]};
@@ -41,7 +41,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.equal(await page.locator('#pbList .pb-row').count(),5,'scanned products plus the history-only ones');
  await page.locator('[data-pb-filter="up"]').click();
  const ups=await page.locator('#pbList .pb-row .pb-main strong').allInnerTexts();
- assert.deepEqual(ups,['QA flour','QA olive oil','QA cream'],'recent rise first, then the year (biggest first)');
+ assert.deepEqual(ups,['QA flour','QA Brand · QA olive oil','QA cream'],'recent rise first, then the year (biggest first)');
  assert.match(await page.locator('#pbList .pb-row').nth(1).innerText(),/14\.5%\s*in the year/);
  await page.locator('#pbList .pb-row').nth(2).click();
  const ht=await page.locator('#pbList .pb-hist').innerText();
