@@ -91,6 +91,15 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.match(await page.locator('#clockout-qa-shift-9').innerText(),/Clock out QA Forgot/);
  await page.locator('#clockout-qa-shift-9 [data-cancel-clockout]').click();
  await page.evaluate(()=>{managerApi=window.__origClk;document.getElementById('rmWorkingPanel').classList.add('hidden');});
+ // One screen at a time: Operations does not stay open under the next tab.
+ await page.evaluate(()=>{currentManagerRole='manager';});
+ for(const next of ['finance','team','more','home']){
+  await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen').waitFor({state:'visible'});
+  await page.locator(`[data-manager-nav="${next}"]`).click();await page.waitForTimeout(50);
+  const open=await page.evaluate(()=>MANAGER_SCREEN_IDS.filter(id=>{const e=document.getElementById(id);return e&&!e.classList.contains('hidden');}));
+  assert.equal(open.length,1,`after Operations → ${next}: ${open.join(', ')}`);
+  assert.equal(open.includes('operationsScreen'),false,`Operations still open under ${next}`);
+ }
  // Price book: all products, rises, history; Home shows recent rises and opens them.
  await page.evaluate(()=>{const d=n=>new Date(Date.now()+10*3600e3-n*864e5).toISOString().slice(0,10);const orig=managerApi;window.__origApi=orig;
    managerApi=async(action,...args)=>action==='manager_invoice_price_book'?{products:[
