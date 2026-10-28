@@ -1512,6 +1512,7 @@ Deno.serve(async (req) => {
         "manager_temp_equipment_save",
         "manager_temp_record",
         "manager_temp_history",
+        "manager_temp_delivery_edit",
         "manager_shopping_list",
         "manager_shopping_save",
         "manager_shopping_mark",
@@ -3352,6 +3353,7 @@ Deno.serve(async (req) => {
           const temp = typeof e.temp === "number" ? e.temp : Number(String(e.temp ?? "").replace(",", "."));
           if (!Number.isFinite(temp) || temp < -40 || temp > 120) return json({ error: "Type the temperature in °C.", code: "INVALID_INPUT" }, 400);
           const entry: any = { kind: e.kind, temp, action: text(e.action, 200) };
+          if (e.checked_by != null && e.checked_by !== "") { if (!isUuid(e.checked_by)) return json({ error: "Choose who did the check.", code: "INVALID_INPUT" }, 400); entry.checked_by = e.checked_by; }
           if (e.kind === "equipment") {
             if (!isUuid(e.equipment_id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
             entry.equipment_id = e.equipment_id;
@@ -3364,6 +3366,18 @@ Deno.serve(async (req) => {
           } else return json({ error: "Invalid request", code: "INVALID_INPUT" }, 400);
           const { data, error } = await supabase.rpc("manager_temp_record", { p_manager_id: managerStatus.id, p_entry: entry });
           if (error) return managerDbError(error, "Unable to save the temperature");
+          return json({ success: true, action, data: { record: data } });
+        }
+        if (action === "manager_temp_delivery_edit") {
+          const e = body.entry && typeof body.entry === "object" ? body.entry : {};
+          if (!isUuid(body.id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
+          const temp = typeof e.temp === "number" ? e.temp : Number(String(e.temp ?? "").replace(",", "."));
+          if (!Number.isFinite(temp) || temp < -40 || temp > 120) return json({ error: "Type the temperature in °C.", code: "INVALID_INPUT" }, 400);
+          const entry: any = { item: text(e.item, 80), supplier: text(e.supplier, 80), food: ["chilled", "frozen"].includes(e.food) ? e.food : null, temp, action: text(e.action, 200) };
+          if (e.checked_by != null && e.checked_by !== "") { if (!isUuid(e.checked_by)) return json({ error: "Choose who did the check.", code: "INVALID_INPUT" }, 400); entry.checked_by = e.checked_by; }
+          if (!entry.item || !entry.food) return json({ error: "Write the product and choose chilled or frozen.", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_temp_delivery_edit", { p_manager_id: managerStatus.id, p_id: body.id, p_entry: entry });
+          if (error) return managerDbError(error, "Unable to save the change");
           return json({ success: true, action, data: { record: data } });
         }
       }

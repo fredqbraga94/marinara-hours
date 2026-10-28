@@ -2,12 +2,13 @@
 -- fridges, freezers and hot holding at opening and at closing (the same sheet
 -- as on paper: equipment x Opening/Closing x Monday to Sunday), and the
 -- temperature of chilled/frozen deliveries. Every record keeps who made it and when (set by the database),
--- and records cannot be edited or deleted: a mistake is fixed with a new record.
+-- and checks cannot be edited or deleted: a mistake is fixed with a new reading.
+-- A delivery can be corrected; its first values are kept with who changed it and when.
 -- A reading outside the safe range needs a corrective action written with it.
 -- Limits: fridge and chilled delivery 5°C or below; freezer and frozen delivery
 -- -15°C or below; hot holding 60°C or above.
 -- Any manager (Administrator, Kitchen or Floor Manager). One list per location.
--- Additive only: two new tables and seven new functions. Nothing existing changes.
+-- Additive only: two new tables and nine new functions. Nothing existing changes.
 
 create table if not exists public.temp_equipment (
   id uuid primary key default gen_random_uuid(),
@@ -41,6 +42,13 @@ alter table public.temp_logs add column if not exists slot text;
 alter table public.temp_logs drop constraint if exists temp_logs_slot_check;
 alter table public.temp_logs add constraint temp_logs_slot_check
   check ((kind = 'equipment' and slot in ('opening', 'closing')) or (kind = 'receiving' and slot is null)) not valid;
+-- Deliveries can be corrected (a typo in the product or supplier, a wrong
+-- number); the first values are kept in "original" with who changed it and when.
+alter table public.temp_logs add column if not exists edited_at timestamptz;
+alter table public.temp_logs add column if not exists edited_by uuid references public.staff(id);
+alter table public.temp_logs add column if not exists original jsonb;
+-- Who did the check (an employee of the same location); recorded_by is who typed it.
+alter table public.temp_logs add column if not exists checked_by uuid references public.staff(id);
 
 alter table public.temp_equipment enable row level security;
 alter table public.temp_logs enable row level security;
@@ -63,8 +71,25 @@ as $function$
     'day', (l.recorded_at at time zone 'Australia/Brisbane')::date,
     'equipment', (select e.name from public.temp_equipment e where e.id = l.equipment_id),
     'item', l.item, 'supplier', l.supplier, 'food', l.food, 'temp', l.temp, 'ok', l.ok, 'action', l.action,
-    'recorded_at', l.recorded_at, 'recorded_by', (select s.name from public.staff s where s.id = l.recorded_by))
+    'recorded_at', l.recorded_at, 'recorded_by', (select s.name from public.staff s where s.id = l.recorded_by),
+    'checked_by_id', coalesce(l.checked_by, l.recorded_by),
+    'checked_by', (select s.name from public.staff s where s.id = coalesce(l.checked_by, l.recorded_by)),
+    'edited_at', l.edited_at, 'edited_by', (select s.name from public.staff s where s.id = l.edited_by), 'original', l.original)
 $function$;
+
+-- The employee who did the check: active, same location; empty = the manager.
+create or replace function public.mh_temp_checker(p_mgr public.staff, p_value text)
+returns uuid language plpgsql stable set search_path to 'public'
+as $function$
+declare v_id uuid;
+begin
+  if p_value is null or p_value = '' then return p_mgr.id; end if;
+  begin v_id := p_value::uuid; exception when others then raise exception 'INVALID_INPUT'; end;
+  if not exists (select 1 from public.staff s where s.id = v_id and s.active and s.location = p_mgr.location) then
+    raise exception 'INVALID_INPUT';
+  end if;
+  return v_id;
+end $function$;
 
 -- Today (Brisbane day): every piece of equipment with its opening and closing
 -- check, today's records, and how many checks are still missing (closing
@@ -98,6 +123,8 @@ begin
           'opening', case when (eq.op).id is null then null else public.mh_temp_log_json(eq.op) end,
           'closing', case when (eq.cl).id is null then null else public.mh_temp_log_json(eq.cl) end)
           order by eq.created_at, lower(eq.name)) from eq), '[]'::jsonb),
+      'people', coalesce((select jsonb_agg(jsonb_build_object('id', s.id, 'name', s.name) order by lower(s.name))
+                            from public.staff s where s.active and s.location = mgr.location), '[]'::jsonb),
       'missing', (select count(*) filter (where (eq.op).id is null)
                        + case when extract(hour from v_now) >= 14 then count(*) filter (where (eq.cl).id is null) else 0 end
                     from eq),
@@ -197,6 +224,7 @@ declare
   v_supplier text := nullif(left(trim(coalesce(p_entry->>'supplier', '')), 80), '');
   v_ok boolean;
   v_slot text := p_entry->>'slot';
+  v_checker uuid := public.mh_temp_checker(mgr, p_entry->>'checked_by');
   v_row public.temp_logs%rowtype;
 begin
   begin
@@ -220,8 +248,52 @@ begin
   end if;
   v_ok := public.mh_temp_ok(v_food, v_temp);
   if not v_ok and v_action is null then raise exception 'ACTION_REQUIRED'; end if;
-  insert into public.temp_logs (location, kind, equipment_id, slot, item, supplier, food, temp, ok, action, recorded_by)
-  values (mgr.location, v_kind, v_eq.id, v_slot, v_item, case when v_kind = 'receiving' then v_supplier end, v_food, v_temp, v_ok, v_action, p_manager_id)
+  insert into public.temp_logs (location, kind, equipment_id, slot, item, supplier, food, temp, ok, action, recorded_by, checked_by)
+  values (mgr.location, v_kind, v_eq.id, v_slot, v_item, case when v_kind = 'receiving' then v_supplier end, v_food, v_temp, v_ok, v_action, p_manager_id, v_checker)
+  returning * into v_row;
+  return public.mh_temp_log_json(v_row);
+end $function$;
+
+-- Correct a delivery from the last 7 days. p_entry: {item, supplier?, food, temp, action?}.
+-- The first values stay in "original"; outside the safe range needs the action.
+create or replace function public.manager_temp_delivery_edit(p_manager_id uuid, p_id uuid, p_entry jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path to 'public'
+as $function$
+declare
+  mgr public.staff%rowtype := public.mh_manager(p_manager_id);
+  v_old public.temp_logs%rowtype;
+  v_row public.temp_logs%rowtype;
+  v_item text := nullif(left(trim(coalesce(p_entry->>'item', '')), 80), '');
+  v_supplier text := nullif(left(trim(coalesce(p_entry->>'supplier', '')), 80), '');
+  v_food text := p_entry->>'food';
+  v_action text := nullif(left(trim(coalesce(p_entry->>'action', '')), 200), '');
+  v_temp numeric;
+  v_ok boolean;
+  v_checker uuid := public.mh_temp_checker(mgr, p_entry->>'checked_by');
+begin
+  begin
+    v_temp := round((p_entry->>'temp')::numeric, 1);
+  exception when others then raise exception 'INVALID_INPUT';
+  end;
+  if v_temp is null or v_temp < -40 or v_temp > 120 or v_item is null
+     or v_food is null or v_food not in ('chilled', 'frozen') then raise exception 'INVALID_INPUT'; end if;
+  select * into v_old from public.temp_logs
+   where id = p_id and kind = 'receiving' and location = mgr.location
+     and recorded_at > now() - interval '7 days'
+   for update;
+  if not found then raise exception 'ITEM_NOT_FOUND'; end if;
+  v_ok := public.mh_temp_ok(v_food, v_temp);
+  if not v_ok and v_action is null then raise exception 'ACTION_REQUIRED'; end if;
+  update public.temp_logs
+     set item = v_item, supplier = v_supplier, food = v_food, temp = v_temp, ok = v_ok, action = v_action,
+         checked_by = v_checker, edited_at = now(), edited_by = p_manager_id,
+         original = coalesce(original, jsonb_build_object('item', v_old.item, 'supplier', v_old.supplier,
+                                                          'food', v_old.food, 'temp', v_old.temp, 'action', v_old.action,
+                                                          'checked_by', (select s.name from public.staff s where s.id = coalesce(v_old.checked_by, v_old.recorded_by))))
+   where id = p_id
   returning * into v_row;
   return public.mh_temp_log_json(v_row);
 end $function$;
@@ -245,16 +317,20 @@ begin
 end $function$;
 
 revoke all on function public.mh_temp_ok(text, numeric) from public, anon, authenticated;
+revoke all on function public.mh_temp_checker(public.staff, text) from public, anon, authenticated;
 revoke all on function public.mh_temp_log_json(public.temp_logs) from public, anon, authenticated;
 revoke all on function public.manager_temp_today(uuid) from public, anon, authenticated;
 revoke all on function public.manager_temp_week(uuid, date) from public, anon, authenticated;
 revoke all on function public.manager_temp_equipment_save(uuid, jsonb) from public, anon, authenticated;
 revoke all on function public.manager_temp_record(uuid, jsonb) from public, anon, authenticated;
 revoke all on function public.manager_temp_history(uuid, integer) from public, anon, authenticated;
+revoke all on function public.manager_temp_delivery_edit(uuid, uuid, jsonb) from public, anon, authenticated;
 grant execute on function public.mh_temp_ok(text, numeric) to service_role;
+grant execute on function public.mh_temp_checker(public.staff, text) to service_role;
 grant execute on function public.mh_temp_log_json(public.temp_logs) to service_role;
 grant execute on function public.manager_temp_today(uuid) to service_role;
 grant execute on function public.manager_temp_week(uuid, date) to service_role;
 grant execute on function public.manager_temp_equipment_save(uuid, jsonb) to service_role;
 grant execute on function public.manager_temp_record(uuid, jsonb) to service_role;
 grant execute on function public.manager_temp_history(uuid, integer) to service_role;
+grant execute on function public.manager_temp_delivery_edit(uuid, uuid, jsonb) to service_role;

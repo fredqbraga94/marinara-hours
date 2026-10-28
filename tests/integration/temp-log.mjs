@@ -148,6 +148,46 @@ try {
     assert.equal((await rec(2, km, { kind: "receiving", item: "", food: "chilled", temp: 3 })).status, 400);
     return "2 deliveries";
   });
+  await check("who did the check: an employee of the location, typed by the manager; others refused", async () => {
+    const d0 = await today();
+    assert.ok(d0.people.some((p) => p.id === ID(4)), "the team is listed");
+    let r = await rec(1, gm, { kind: "equipment", equipment_id: fridge.id, slot: "opening", temp: 3, checked_by: ID(4) });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.equal(r.body.data.record.checked_by_id, ID(4));
+    const firstId = r.body.data.record.id;
+    assert.notEqual(r.body.data.record.checked_by, r.body.data.record.recorded_by);
+    r = await rec(1, gm, { kind: "equipment", equipment_id: fridge.id, slot: "opening", temp: 3, checked_by: "x" });
+    assert.equal(r.status, 400);
+    const other = await one(db, `insert into public.staff (id, name, pin_hash, department, location, role, active, created_at) select gen_random_uuid(), 'Test Other Place', 'unused-' || gen_random_uuid(), department, 'Test Elsewhere', 'staff', true, now() from public.staff where id = '${ID(4)}' returning id::text`);
+    r = await rec(1, gm, { kind: "equipment", equipment_id: fridge.id, slot: "opening", temp: 3, checked_by: other });
+    assert.equal(r.status, 400, "staff from another location refused");
+    const plain = (await rec(2, km, { kind: "equipment", equipment_id: fridge.id, slot: "opening", temp: 3.4 })).body.data.record;
+    assert.equal(plain.checked_by, plain.recorded_by, "empty = the manager");
+    await one(db, `delete from public.temp_logs where id in ('${firstId}', '${plain.id}')`);
+    return "checked by the employee";
+  });
+  await check("a delivery can be corrected; the first values are kept with who and when; checks cannot", async () => {
+    const cream = (await api(vNew, 1, gm, { action: "manager_temp_history", days: 1 })).body.data.records.find((x) => x.item === "Test cream");
+    const edit = (n, token, id, entry) => api(vNew, n, token, { action: "manager_temp_delivery_edit", id, entry });
+    let r = await edit(3, fm, cream.id, { item: "Test cream", supplier: "Test Wholesale Co", food: "chilled", temp: 4.5 });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const x = r.body.data.record;
+    assert.equal(x.supplier, "Test Wholesale Co"); assert.equal(Number(x.temp), 4.5);
+    assert.equal(x.edited_by, "Test Floor Manager"); assert.ok(x.edited_at);
+    assert.equal(x.original.supplier, "Test Wholesale"); assert.equal(Number(x.original.temp), 4);
+    assert.equal(x.recorded_by, "Test Kitchen Manager", "who recorded it stays");
+    r = await edit(3, fm, cream.id, { item: "Test cream", supplier: "Test Wholesale Co", food: "chilled", temp: 7 });
+    assert.equal(r.body.code, "ACTION_REQUIRED");
+    r = await edit(1, gm, cream.id, { item: "Test cream", supplier: "Test Wholesale Co", food: "chilled", temp: 4.2 });
+    assert.equal(r.body.data.record.original.supplier, "Test Wholesale", "the first values are never overwritten");
+    const check0 = (await today()).today.find((l) => l.kind === "equipment");
+    assert.equal((await edit(1, gm, check0.id, { item: "x", food: "chilled", temp: 3 })).status, 404, "checks cannot be edited");
+    assert.equal((await edit(1, gm, "not-an-id", { item: "x", food: "chilled", temp: 3 })).status, 404);
+    await one(db, `update public.temp_logs set recorded_at = now() - interval '8 days' where id = '${cream.id}'`);
+    assert.equal((await edit(1, gm, cream.id, { item: "Test cream", food: "chilled", temp: 4 })).status, 404, "only the last 7 days");
+    await one(db, `update public.temp_logs set recorded_at = now() where id = '${cream.id}'`);
+    return "supplier and temperature fixed; original kept";
+  });
   await check("the weekly sheet: Monday to Sunday, the latest reading of each cell (a second reading replaces the cell, both kept)", async () => {
     await rec(2, km, { kind: "equipment", equipment_id: fridge.id, slot: "closing", temp: 4.1 });
     await rec(2, km, { kind: "equipment", equipment_id: fridge.id, slot: "closing", temp: 3.9 });
@@ -162,8 +202,8 @@ try {
     assert.equal(prev.start, "2020-01-06"); assert.equal(prev.cells.length, 0);
     return `week of ${w.start}: 4 cells`;
   });
-  await check("records cannot be changed or deleted, and there is no action for it", async () => {
-    for (const action of ["manager_temp_delete", "manager_temp_edit"]) {
+  await check("records cannot be deleted, and checks have no edit action", async () => {
+    for (const action of ["manager_temp_delete", "manager_temp_edit", "manager_temp_record_edit"]) {
       const r = await api(vNew, 1, gm, { action });
       assert.ok(r.status >= 400, action);
     }
