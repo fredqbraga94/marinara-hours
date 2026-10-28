@@ -104,15 +104,14 @@ try {
     assert.equal(await one(db, `select count(*)::int from public.staff_audit where staff_ref = '${newStaff.id}'`) >= 1, true);
     return "6-digit temporary PIN, used by one person only";
   });
-  await check("only the Administrator adds people who sign in (Kitchen Manager refused, nothing created)", async () => {
-    const before = await one(db, `select count(*) from public.staff`);
-    for (const body of [{ name: "Test KM Adds", department: "Kitchen" }, { name: "Test KM Adds", department: "Kitchen", staff_pin: "836152" }]) {
-      const r = await api(vNew, 2, km, { action: "manager_create_staff", ...body });
-      assert.equal(r.status, 403, JSON.stringify(r.body));
-      assert.equal(r.body.code, "ADMIN_REQUIRED");
-    }
-    assert.equal(await one(db, `select count(*) from public.staff`), before);
-    return "403 ADMIN_REQUIRED";
+  await check("a Kitchen Manager still adds staff of their own area, as before (with a temporary PIN); other areas refused", async () => {
+    const ok = await api(vNew, 2, km, { action: "manager_create_staff", name: "Test KM Adds", department: "Kitchen" });
+    assert.equal(ok.status, 200, JSON.stringify(ok.body));
+    assert.match(ok.body.data.temporary_pin, /^[0-9]{6}$/);
+    assert.equal(ok.body.data.staff.role, "staff", "new people are always staff; only the Administrator makes managers");
+    const other = await api(vNew, 2, km, { action: "manager_create_staff", name: "Test KM Floor", department: "Floor" });
+    assert.equal(other.status, 403, JSON.stringify(other.body));
+    return "own area 200, other area 403";
   });
   await check("with a PIN given, the old way still works and nothing must be changed", async () => {
     const r = await api(vNew, 1, gm, { action: "manager_create_staff", name: "Test Old Way", department: "Kitchen", staff_pin: "834251" });
