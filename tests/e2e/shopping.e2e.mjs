@@ -42,6 +42,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
 
  // Operations → Shopping (also in More and the + menu).
  assert.equal(await page.locator('#managerMoreScreen [data-rm-go="rmOpenShopping"]').count(),1,'in More');
+ assert.equal(await page.locator('#rmModules .rm-module[data-rm-go="rmOpenShopping"]').count(),1,'card on Home');
  assert.equal(await page.locator('#quickActionsDialog [data-rm-go="rmOpenShopping"]').count(),1,'in the + menu');
  await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen').waitFor({state:'visible'});
  await page.getByRole('button',{name:'Shopping Things to buy'}).click();await page.locator('#shoppingScreen').waitFor({state:'visible'});
