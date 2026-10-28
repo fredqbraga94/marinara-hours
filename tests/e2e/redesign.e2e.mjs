@@ -183,7 +183,9 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('[data-manager-nav="more"]').click();await page.locator('#moreMyClockBtn').evaluate(b=>b.click());await page.locator('#managerClockSection').waitFor({state:'visible'});
  assert.equal(await page.evaluate(()=>document.body.classList.contains('rm-mode')),true,'clock keeps the new look');
  assert.equal(await page.locator('#managerBottomNav > button:visible').count(),5);
- const navTops=await page.locator('#managerBottomNav > button:visible').evaluateAll(es=>es.map(e=>Math.round(e.getBoundingClientRect().top)));assert.equal(new Set(navTops).size,1,'all five tabs on one line');
+ const navBoxes=await page.locator('#managerBottomNav > button:visible').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return [Math.round(r.left),Math.round(r.top)];}));
+ if(size==='desktop'){assert.equal(new Set(navBoxes.map(b=>b[0])).size,1,'desktop: tabs stacked in the left menu');assert.equal(new Set(navBoxes.map(b=>b[1])).size,5);assert.ok(navBoxes[0][0]<40,'menu on the left edge');}
+ else assert.equal(new Set(navBoxes.map(b=>b[1])).size,1,'all five tabs on one line');
  await page.screenshot({path:`tmp/qa/${size}-clock.png`});
  assert.equal(await page.locator('#managerBottomNav .active').getAttribute('data-manager-nav'),'more','clock is opened from More');
  await page.locator('[data-manager-nav="more"]').click();await page.locator('#managerMoreScreen').waitFor({state:'visible'});
@@ -193,7 +195,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.equal(await page.locator("#operationsScreen").isVisible(),false,"sign-out hides custom screens");
  assert.equal(await page.locator("#loginScreen").isVisible(),true);
  await page.evaluate(()=>{document.getElementById('loginScreen').classList.add('hidden');showOnlyManagerScreen('managerScreen');setManagerNavActive('home');document.body.style.setProperty('--rm-safe-top','0px');});
- const bounds=()=>page.evaluate(()=>['headerLogo','rmNotifications','rmProfile','rmLocation'].map(id=>{const r=document.getElementById(id).getBoundingClientRect();return {top:r.top,bottom:r.bottom};}));
+ const bounds=()=>page.evaluate(()=>['headerLogo','rmNotifications','rmProfile','rmLocation'].map(id=>document.getElementById(id)).filter(e=>e.getBoundingClientRect().height>0).map(e=>{const r=e.getBoundingClientRect();return {top:r.top,bottom:r.bottom};}));
  const before=await bounds();await page.evaluate(()=>document.body.style.setProperty('--rm-safe-top','59px'));const after=await bounds();
  for(let i=0;i<before.length;i++){assert.ok(Math.abs(after[i].top-before[i].top-59)<1,'header control follows safe area');assert.ok(after[i].top>=59,'header stays below status bar');}
  await page.screenshot({path:`tmp/qa/${size}-safe-area.png`,fullPage:true});
