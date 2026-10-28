@@ -8752,8 +8752,7 @@ function invShowTab(tab) {
 }
 
 async function openInvoicesScreen() {
-  [managerMoreScreen, managerScreen, approvalsScreen, staffHoursScreen, teamScreen, rosterScreen, timeOffScreen,
-    timesheetsScreen, devicesScreen, stockScreen, recipesScreen].forEach(el => el?.classList.add("hidden"));
+  showOnlyManagerScreen("invoicesScreen");
   invClearMsg();
   invoicesScreen.classList.remove("hidden");
   setManagerNavActive("more");
