@@ -4,7 +4,7 @@
 (() => {
 const $=id=>document.getElementById(id);
 const t=v=>escapeHtml(String(v??''));
-const WRENCH='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0 5 5L21 13a6 6 0 0 1-7.6 1.6L6 22l-4-4 7.4-7.4A6 6 0 0 1 11 3l1.7 1.3a4 4 0 0 0 2 2z"/></svg>';
+const WRENCH='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>';
 const state={open:[],fixed:[],at:0,gen:0,editing:null,removing:null,fixing:null};
 const day=v=>v?new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Brisbane',day:'numeric',month:'short'}).format(new Date(v)):'';
 
