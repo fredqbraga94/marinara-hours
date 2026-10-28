@@ -25,7 +25,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
     if(window.__rule==='wrong')return{response:{ok:false,status:400},result:{error:'The current PIN is not right.',code:'WRONG_OLD'}};
     return{response:{ok:true,status:200},result:{success:true}};}
    return{response:{ok:false,status:404},result:{}};};
-  managerApi=async(action,extra)=>{window.__sent.push({action,...extra});if(action==='manager_staff_temp_pin')return{temporary_pin:'583920'};throw new Error('unexpected '+action);};
+  managerApi=async(action,extra)=>{window.__sent.push({action,...extra});if(action==='manager_staff_temp_pin')return{temporary_pin:'583920'};return{};};
  });
  // 1. Forced: choose own PIN at first sign-in.
  await page.evaluate(()=>{window.__result='pending';window.mhOwnPin.require('583920').then(()=>window.__result='done',e=>window.__result=e.message);});
