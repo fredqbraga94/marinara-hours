@@ -6,7 +6,6 @@ begin
   end if;
 end $do$;
 drop function if exists public.mh_temp_reminder_tick(text);
-drop function if exists public.mh_push_targets_managers(text);
 drop function if exists public.mh_temp_reminder_due(text, text);
 drop table if exists public.mh_cron_config;
 drop table if exists public.temp_reminders;

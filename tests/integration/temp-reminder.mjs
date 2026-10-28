@@ -89,6 +89,7 @@ try {
     for (const role of ["anon", "authenticated"]) {
       assert.equal(await one(db, `select has_table_privilege('${role}', 'public.mh_cron_config', 'select')`), "f", role);
       assert.equal(await one(db, `select has_function_privilege('${role}', 'public.mh_temp_reminder_due(text,text)', 'execute')`), "f", role);
+      assert.equal(await one(db, `select has_function_privilege('${role}', 'public.mh_temp_reminder_tick(text)', 'execute')`), "f", role);
     }
     const key = await one(db, `select key from public.mh_cron_config`);
     assert.ok(/^[0-9a-f]{64}$/.test(key), "a random key");
@@ -102,8 +103,9 @@ try {
   section("B. Reminders");
   const gm = await login(vNew, 1);
   const km = await login(vNew, 2);
+  const fm = await login(vNew, 3);
   const key = await one(db, `select key from public.mh_cron_config`);
-  for (const [n, token] of [[1, gm], [2, km]]) {
+  for (const [n, token] of [[1, gm], [2, km], [3, fm]]) {
     const r = await api(vNew, n, token, { action: "manager_push_subscribe", ...sub(n), label: `QA phone ${n}` });
     assert.equal(r.status, 200, JSON.stringify(r.body));
   }
@@ -120,14 +122,15 @@ try {
     assert.equal(r.status, 200); assert.equal(r.body.data.locations, 0); assert.equal(sent.length, 0);
     return "silent";
   });
-  await check("opening missing: every manager's phone gets one reminder that opens Temperatures; a second call the same day sends nothing", async () => {
+  await check("opening missing: the kitchen (Administrator and Kitchen Manager, not the Floor Manager) gets one reminder that opens Temperatures; a second call the same day sends nothing", async () => {
     fridge = (await api(vNew, 2, km, { action: "manager_temp_equipment_save", item: { name: "Test cool room", kind: "fridge" } })).body.data.equipment;
     freezer = (await api(vNew, 2, km, { action: "manager_temp_equipment_save", item: { name: "Test freezer", kind: "freezer" } })).body.data.equipment;
     await api(vNew, 2, km, { action: "manager_temp_record", entry: { kind: "equipment", equipment_id: fridge.id, slot: "opening", temp: 3 } });
     const r = await cron({ action: "cron_temp_reminder", key, slot: "opening" });
     assert.equal(r.status, 200, JSON.stringify(r.body));
-    assert.equal(r.body.data.sent, 2, "both managers");
+    assert.equal(r.body.data.sent, 2, "Administrator and Kitchen Manager");
     assert.equal(sent.length, 2);
+    assert.equal(sent.some((x) => x.endpoint === sub(3).endpoint), false, "not the Floor Manager");
     const m = sent[0].message;
     assert.equal(m.title, "Temperature check: opening");
     assert.equal(m.body, "1 of 2 not checked yet: Test freezer.");

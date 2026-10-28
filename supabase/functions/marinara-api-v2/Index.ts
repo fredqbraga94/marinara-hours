@@ -1343,7 +1343,8 @@ Deno.serve(async (req) => {
       if (error) return json({ error: "Not allowed", code: "NOT_ALLOWED" }, 403);
       let sent = 0;
       for (const row of data || []) {
-        const { data: targets } = await supabase.rpc("mh_push_targets_managers", { p_location: row.location });
+        // The kitchen only: the Administrator and the Kitchen Managers.
+        const { data: targets } = await supabase.rpc("mh_push_targets", { p_location: row.location, p_department: "Kitchen" });
         const names = String(row.names || "").split(", ").filter(Boolean);
         const list = names.slice(0, 3).join(", ") + (names.length > 3 ? ` and ${names.length - 3} more` : "");
         const r = await deliverPush(supabase, targets || [], {
