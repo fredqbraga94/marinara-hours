@@ -367,3 +367,4 @@ body.rm-mode .rm-header-tools button{color:var(--text);border-color:var(--border
 .tp-row .pb-main{flex:1}.tp-row .pb-main small .pb-chg{margin-left:4px}
 .tp-more{width:100%;margin-top:10px}
 #invTabs[style]{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+.pb-chg span{font-weight:500;opacity:.8}
