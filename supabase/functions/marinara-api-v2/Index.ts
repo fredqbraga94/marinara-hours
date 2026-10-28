@@ -355,6 +355,7 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   INGREDIENT_NOT_FOUND: [404, "Ingredient not found"],
   NAME_IS_A_DISH: [409, "There is already a dish with this name. Rename the ingredient first."],
   ITEM_NOT_FOUND: [404, "Item not found"],
+  ACTION_REQUIRED: [400, "The temperature is outside the safe range. Write what you did about it."],
 };
 
 // WEBPUSH-START
@@ -1506,6 +1507,10 @@ Deno.serve(async (req) => {
         "manager_stock_count_save",
         "manager_stock_count_close",
         "manager_stock_supplier_rename",
+        "manager_temp_today",
+        "manager_temp_equipment_save",
+        "manager_temp_record",
+        "manager_temp_history",
         "manager_shopping_list",
         "manager_shopping_save",
         "manager_shopping_mark",
@@ -3305,6 +3310,53 @@ Deno.serve(async (req) => {
         });
         if (error) return managerDbError(error, "Unable to add the person");
         return json({ success: true, action, data: { staff: data } });
+      }
+
+      // =========================
+      // TEMPERATURE RECORDS (every manager; Standard 3.2.2A)
+      // =========================
+      if (action.startsWith("manager_temp_")) {
+        const isUuid = (v: any) => typeof v === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const text = (v: any, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+        if (action === "manager_temp_today") {
+          const { data, error } = await supabase.rpc("manager_temp_today", { p_manager_id: managerStatus.id });
+          if (error) return managerDbError(error, "Unable to load the temperature checks", 500);
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_temp_history") {
+          const days = Number.isInteger(body.days) ? body.days : 90;
+          const { data, error } = await supabase.rpc("manager_temp_history", { p_manager_id: managerStatus.id, p_days: days });
+          if (error) return managerDbError(error, "Unable to load the temperature records", 500);
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_temp_equipment_save") {
+          const it = body.item && typeof body.item === "object" ? body.item : {};
+          if (it.id != null && !isUuid(it.id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
+          const item: any = { name: text(it.name, 60), kind: ["fridge", "freezer", "hot"].includes(it.kind) ? it.kind : null, active: it.active !== false };
+          if (it.id) item.id = it.id;
+          else if (!item.name || !item.kind) return json({ error: "Write the name and choose fridge, freezer or hot holding.", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_temp_equipment_save", { p_manager_id: managerStatus.id, p_item: item });
+          if (error) return managerDbError(error, "Unable to save the equipment");
+          return json({ success: true, action, data: { equipment: data } });
+        }
+        if (action === "manager_temp_record") {
+          const e = body.entry && typeof body.entry === "object" ? body.entry : {};
+          const temp = typeof e.temp === "number" ? e.temp : Number(String(e.temp ?? "").replace(",", "."));
+          if (!Number.isFinite(temp) || temp < -40 || temp > 120) return json({ error: "Type the temperature in °C.", code: "INVALID_INPUT" }, 400);
+          const entry: any = { kind: e.kind, temp, action: text(e.action, 200) };
+          if (e.kind === "equipment") {
+            if (!isUuid(e.equipment_id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
+            entry.equipment_id = e.equipment_id;
+          } else if (e.kind === "receiving") {
+            entry.item = text(e.item, 80); entry.supplier = text(e.supplier, 80);
+            entry.food = ["chilled", "frozen"].includes(e.food) ? e.food : null;
+            if (!entry.item || !entry.food) return json({ error: "Write the product and choose chilled or frozen.", code: "INVALID_INPUT" }, 400);
+          } else return json({ error: "Invalid request", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_temp_record", { p_manager_id: managerStatus.id, p_entry: entry });
+          if (error) return managerDbError(error, "Unable to save the temperature");
+          return json({ success: true, action, data: { record: data } });
+        }
       }
 
       // =========================

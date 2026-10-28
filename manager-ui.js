@@ -154,6 +154,9 @@
     if(mnt.urgent){const u=mnt.urgentNames||[];const rest=mnt.open-mnt.urgent;
       rows.unshift(row(`<em class="rm-urgent-tag">Urgent</em> ${mnt.urgent===1?'1 repair needed now':`${mnt.urgent} repairs needed now`}`,escapeHtml(u.slice(0,3).join(', ')+(u.length>3?` and ${u.length-3} more`:''))+(rest?` · ${rest} more to fix`:''),'rmOpenMaintenance','wrench').replace('class="rm-row"','class="rm-row rm-urgent"'));}
     else if(mnt.open)rows.push(row(`${mnt.open} repair${mnt.open===1?'':'s'} to do`,escapeHtml((mnt.names||[]).join(', ')+(mnt.open>2?` and ${mnt.open-2} more`:'')),'rmOpenMaintenance','wrench'));
+    // Temperature checks still to do today (Standard 3.2.2A).
+    const tmp=window.mhTemps||{};
+    if(tmp.total&&tmp.missing)rows.push(row(`${tmp.missing} temperature check${tmp.missing===1?'':'s'} to do today`,escapeHtml((tmp.names||[]).slice(0,3).join(', ')+((tmp.names||[]).length>3?` and ${(tmp.names||[]).length-3} more`:'')),'rmOpenTemps','clock'));
     if(toOrder)rows.push(row(`${toOrder} item${toOrder===1?'':'s'} to order`,'Below par at the last stock count','stockCard','stock'));
     // Bell: people waiting on the manager (late, shifts to approve, time off requests).
     const waiting=(t?t.late.length:0)+n+off;const bell=$('rmBellBadge');
@@ -237,6 +240,7 @@
   window.addEventListener('marinara:prices',()=>paint());
   window.addEventListener('marinara:shopping',()=>paint());
   window.addEventListener('marinara:maintenance',()=>paint());
+  window.addEventListener('marinara:temps',()=>paint());
   $('rmScanInvoice').onclick=()=>{dialog.close();go('invoicesCard');$('invFiles')?.click();};
   syncShell();
 })();
