@@ -53,7 +53,8 @@
     "test:e2e:maintenance": "node tests/e2e/maintenance.e2e.mjs",
     "test:e2e:maintenance:webkit": "E2E_BROWSER=webkit node tests/e2e/maintenance.e2e.mjs",
     "test:e2e:update:webkit": "E2E_BROWSER=webkit node tests/e2e/update-check.e2e.mjs",
-    "test:push": "node --test --test-reporter=spec tests/edge/webpush.test.mjs && node tests/integration/push.mjs && node tests/integration/push-badge.mjs"
+    "test:push": "node --test --test-reporter=spec tests/edge/webpush.test.mjs && node tests/integration/push.mjs && node tests/integration/push-badge.mjs",
+    "test:security": "node --test tests/edge/audit-privacy.test.mjs && node tests/integration/security-audit.mjs"
   },
   "devDependencies": {
     "jspdf": "4.2.1",

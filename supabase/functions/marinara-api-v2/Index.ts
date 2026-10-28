@@ -7,12 +7,20 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+function safeErrorCode(error: unknown): string {
+  const code = (error as any)?.code;
+  return typeof code === "string" && /^(?:[0-9A-Z]{5}|PGRST[0-9]{3})$/.test(code)
+    ? code : "INTERNAL_ERROR";
+}
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       ...corsHeaders,
       "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }
@@ -718,7 +726,7 @@ function managerDbError(error: any, fallback: string, fallbackStatus = 400) {
   const code = dbErrorCode(error);
   const known = MANAGER_MESSAGES[code];
   if (known) return json({ error: known[1], code }, known[0]);
-  console.error("Manager database error:", error?.code || "", error?.message || "");
+  console.error("Manager database error:", safeErrorCode(error));
   return json({ error: fallback }, fallbackStatus);
 }
 
@@ -926,7 +934,7 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error(
           "Secure logout error:",
-          error
+          safeErrorCode(error)
         );
 
         return json(
@@ -984,7 +992,7 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error(
           "Session validation error:",
-          error
+          safeErrorCode(error)
         );
         return json(
           {
@@ -1183,7 +1191,7 @@ Deno.serve(async (req) => {
           },
         });
       } catch (error) {
-        console.error("Staff My Hours error:", error);
+        console.error("Staff My Hours error:", safeErrorCode(error));
 
         if (
           error instanceof Error &&
@@ -1306,7 +1314,7 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error(
           "Session time-clock error:",
-          error
+          safeErrorCode(error)
         );
         return json(
           {
@@ -1644,7 +1652,7 @@ Deno.serve(async (req) => {
     } catch (error) {
       console.error(
         "Manager session validation error:",
-        error
+        safeErrorCode(error)
       );
 
       return json(
@@ -1710,7 +1718,7 @@ Deno.serve(async (req) => {
       // Before the migration the function does not exist yet.
       const notInstalled = permError && ["PGRST202", "42883"].includes(String((permError as any).code));
       if (permError && !notInstalled) {
-        console.error("Permission check failed:", (permError as any).code || "", permError.message || "");
+        console.error("Permission check failed:", safeErrorCode(permError));
         return json({ error: "Unable to check your permissions. Try again." }, 500);
       }
       if (perm && typeof perm === "object") Object.assign(managerPermissions, perm);
@@ -4194,7 +4202,7 @@ Deno.serve(async (req) => {
 
       console.error(
         "Manager action error:",
-        managerError
+        safeErrorCode(managerError)
       );
 
       if (
@@ -4224,7 +4232,7 @@ Deno.serve(async (req) => {
 
     console.error(
       "Unexpected error:",
-      error
+      safeErrorCode(error)
     );
 
     return json(
