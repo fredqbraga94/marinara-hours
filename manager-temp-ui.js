@@ -11,7 +11,7 @@ const num=s=>{const v=Number(String(s??'').trim().replace(',','.'));return Strin
 const deg=v=>`${Number(v).toLocaleString('en-AU',{minimumFractionDigits:1,maximumFractionDigits:1})}°C`;
 const time=v=>new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Brisbane',hour:'numeric',minute:'2-digit'}).format(new Date(v));
 const dayLong=v=>new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Brisbane',weekday:'short',day:'numeric',month:'short',year:'numeric'}).format(new Date(v));
-const state={data:null,week:null,start:null,at:0,gen:0,pending:null,recheck:null,scrolled:false,removing:null,history:null};
+const state={data:null,week:null,start:null,at:0,gen:0,pending:null,sign:null,recheck:null,scrolled:false,removing:null,history:null};
 
 /* ---------- Screen ---------- */
 const SHEET=[['Pizza Prep Fridge','fridge'],['Pasta Prep Fridge','fridge'],['Prep Fridge','fridge'],['Cold Room Inside','fridge'],['Cold Room Outside','fridge'],['Freezer','freezer'],['Bar Fridge','fridge']];
@@ -30,7 +30,7 @@ screen.innerHTML=`<div class="manager-top"><div><h2>Temperatures</h2><p>Temperat
 <form class="card shop-form" id="tmpDelivery" autocomplete="off">
  <input id="tmpItem" maxlength="80" placeholder="Product e.g. Cream, Prawns" aria-label="Product">
  <input id="tmpSupplier" maxlength="80" placeholder="Supplier (optional)" aria-label="Supplier">
- <div class="shop-form-row"><select id="tmpFood" aria-label="Chilled or frozen"><option value="chilled">Chilled · 5°C or below</option><option value="frozen">Frozen · -15°C or below</option></select><input id="tmpDTemp" type="number" step="0.1" min="-40" max="120" placeholder="°C" aria-label="Temperature in °C"></div>
+ <div class="shop-form-row"><select id="tmpFood" aria-label="Chilled or frozen"><option value="chilled">Chilled · 5°C or below</option><option value="frozen">Frozen · -15°C or below</option></select><button type="button" class="secondary tmp-sign" id="tmpDSign" aria-label="Change plus or minus">±</button><input id="tmpDTemp" inputmode="decimal" maxlength="6" placeholder="°C" aria-label="Temperature in °C"></div>
  <input id="tmpDAction" maxlength="200" placeholder="What did you do? e.g. Rejected, sent back" aria-label="Corrective action" hidden>
  <button type="submit" class="shop-primary" id="tmpDSave">Save delivery</button>
  <p class="rm-data-note" id="tmpDMsg" aria-live="polite"></p>
@@ -98,8 +98,8 @@ function sheetHtml(w,forPrint){
  const head=`<tr><th class="tmp-eqcol">Equipment</th><th class="tmp-slotcol">Time</th>${days.map(d=>{const [n,dd]=dayHead(d);return `<th class="${d===w.today?'tmp-today':''}">${n}<small>${dd}</small></th>`;}).join('')}</tr>`;
  const rows=(w.equipment||[]).map(e=>SLOTS.map(([slot,label],si)=>`<tr class="${si?'tmp-closing':''}">${si?'':`<th rowspan="2" class="tmp-eqcol" scope="rowgroup"><span>${t(e.name)}</span><small>${t(KIND[e.kind][1])}</small></th>`}<td class="tmp-slotcol">${label}</td>${days.map(d=>{
    const c=cell.get(`${e.id}|${d}|${slot}`);const key=`${e.id}|${d}|${slot}`;
-   const editable=!forPrint&&d===w.today&&e.active;const pend=state.pending&&state.pending.key===key;
-   if(editable&&(!c||state.recheck===key||pend))return `<td class="tmp-today${pend?' bad':''}"><input type="number" step="0.1" min="-40" max="120" placeholder="°C" aria-label="${t(e.name)} ${label} today °C" data-tmp-cell="${t(key)}" value="${pend?t(state.pending.temp):''}"></td>`;
+   const editable=!forPrint&&d===w.today&&e.active;const pend=(state.pending&&state.pending.key===key)||(state.sign&&state.sign.key===key);const pv=state.pending?.key===key?state.pending.temp:state.sign?.key===key?state.sign.temp:'';
+   if(editable&&(!c||state.recheck===key||pend))return `<td class="tmp-today${pend?' bad':''}"><input inputmode="decimal" maxlength="6" placeholder="${e.kind==='freezer'?'-°C':'°C'}" aria-label="${t(e.name)} ${label} today °C" data-tmp-cell="${t(key)}" value="${pend?t(pv):''}"></td>`;
    if(!c)return `<td class="${d===w.today?'tmp-today':''}${d<w.today&&!forPrint?' tmp-missed':''}"></td>`;
    return `<td class="${d===w.today?'tmp-today ':''}${c.ok?'':'bad'}"><button type="button" class="tmp-val" data-tmp-show="${t(key)}" ${forPrint?'tabindex="-1"':''}>${t(Number(c.temp).toFixed(1))}<small>${t(initials(c.recorded_by))}</small></button></td>`;
  }).join('')}</tr>`).join('')).join('');
@@ -124,8 +124,9 @@ function render(){
   const notes=notesHtml(w);const nb=$('tmpNotes');
   if(notes){nb.className='';nb.innerHTML=notes;}else{nb.className='empty-state';nb.textContent='No readings outside the safe range this week.';}
  }
- const p=state.pending,pb=$('tmpPending');
- if(p){const e=(w?.equipment||[]).find(x=>x.id===p.id);pb.hidden=false;pb.innerHTML=`<p class="tmp-need-p">${t(e?.name||'')} · ${p.slot==='closing'?'Closing':'Opening'}: ${t(deg(p.temp))} is outside the safe range (${t(KIND[e?.kind]?.[1]||'')}). Write what you did.</p><input id="tmpPendAction" maxlength="200" placeholder="e.g. Moved food to the other fridge, called the technician" aria-label="Corrective action"><div class="shop-form-row"><button type="button" class="shop-primary" id="tmpPendSave">Save</button><button type="button" class="secondary" id="tmpPendCancel">Cancel</button></div>`;}
+ const p=state.pending,pb=$('tmpPending'),sg=state.sign;
+ if(sg){const e=(w?.equipment||[]).find(x=>x.id===sg.id);pb.hidden=false;pb.innerHTML=`<p class="tmp-need-p">${t(e?.name||'')} · ${sg.slot==='closing'?'Closing':'Opening'}: did you mean minus?</p><div class="shop-form-row"><button type="button" class="shop-primary" id="tmpSignNeg">${t(deg(-sg.temp))}</button><button type="button" class="secondary" id="tmpSignPos">+${t(deg(sg.temp))}</button></div>`;}
+ else if(p){const e=(w?.equipment||[]).find(x=>x.id===p.id);pb.hidden=false;pb.innerHTML=`<p class="tmp-need-p">${t(e?.name||'')} · ${p.slot==='closing'?'Closing':'Opening'}: ${t(deg(p.temp))} is outside the safe range (${t(KIND[e?.kind]?.[1]||'')}). Write what you did.</p><input id="tmpPendAction" maxlength="200" placeholder="e.g. Moved food to the other fridge, called the technician" aria-label="Corrective action"><div class="shop-form-row"><button type="button" class="shop-primary" id="tmpPendSave">Save</button><button type="button" class="secondary" id="tmpPendCancel">Cancel</button></div>`;}
  else{pb.hidden=true;pb.innerHTML='';}
  const today=d?.today||[];const tb=$('tmpToday');
  if(!today.length){tb.className='empty-state';tb.textContent='Nothing yet today.';}else{tb.className='';tb.innerHTML=today.map(recLine).join('');}
@@ -135,9 +136,11 @@ function render(){
  else{lb.className='';lb.innerHTML=eq.map(e=>`<div class="tmp-rec"><span class="tmp-rec-main"><strong>${t(e.name)}</strong><small>${t(KIND[e.kind][0])} · ${t(KIND[e.kind][1])}</small></span><button type="button" class="shop-small" data-tmp-remove="${t(e.id)}">${state.removing===e.id?'Tap again to remove':'Remove'}</button></div>`).join('');}
 }
 
-async function saveCell(key,raw,action){
+async function saveCell(key,raw,action,signed){
  const [id,day,slot]=key.split('|');const e=(state.week?.equipment||[]).find(x=>x.id===id);if(!e)return;
  const v=num(raw);if(v===null){eqMsg('Type the temperature in °C, e.g. 3.5');return;}
+ if(e.kind==='freezer'&&v>0&&!signed){state.sign={key,id,slot,temp:v};state.pending=null;render();return;}
+ state.sign=null;
  if(!okFor(e.kind,v)&&!action){state.pending={key,id,day,slot,temp:v};render();$('tmpPendAction')?.focus();return;}
  try{await managerApi('manager_temp_record',{entry:{kind:'equipment',equipment_id:id,slot,temp:v,action:action||''}});
   state.pending=null;state.recheck=null;eqMsg(`${e.name} · ${slot==='closing'?'Closing':'Opening'}: ${deg(v)} saved.`,true);await load();}
@@ -146,8 +149,11 @@ async function saveCell(key,raw,action){
 screen.addEventListener('change',ev=>{const i=ev.target.closest('[data-tmp-cell]');if(i&&i.value.trim())saveCell(i.dataset.tmpCell,i.value,'');});
 screen.addEventListener('keydown',ev=>{if(ev.key!=='Enter')return;const i=ev.target.closest('[data-tmp-cell]');if(i){ev.preventDefault();i.blur();}else if(ev.target.id==='tmpPendAction'){ev.preventDefault();$('tmpPendSave')?.click();}});
 screen.addEventListener('click',async ev=>{
- if(ev.target.closest('#tmpPendSave')){const p=state.pending;const a=($('tmpPendAction').value||'').trim();if(!a){eqMsg('Write what you did about it.');return;}await saveCell(p.key,String(p.temp),a);return;}
+ if(ev.target.closest('#tmpSignNeg')){const g=state.sign;await saveCell(g.key,String(-g.temp),'',true);return;}
+ if(ev.target.closest('#tmpSignPos')){const g=state.sign;await saveCell(g.key,String(g.temp),'',true);return;}
+ if(ev.target.closest('#tmpPendSave')){const p=state.pending;const a=($('tmpPendAction').value||'').trim();if(!a){eqMsg('Write what you did about it.');return;}await saveCell(p.key,String(p.temp),a,true);return;}
  if(ev.target.closest('#tmpPendCancel')){state.pending=null;render();return;}
+ if(ev.target.closest('#tmpDSign')){const i=$('tmpDTemp');const r=i.value.trim();i.value=r.startsWith('-')?r.slice(1):'-'+r;syncDelivery();i.focus();return;}
  const sh=ev.target.closest('[data-tmp-show]');
  if(sh){const key=sh.dataset.tmpShow;const c=(state.week?.cells||[]).find(x=>`${x.equipment_id}|${x.day}|${x.slot}`===key);const det=$('tmpDetail');
   if(c){det.hidden=false;det.innerHTML=`${t(c.equipment||'')} · ${c.slot==='closing'?'Closing':'Opening'} · ${t(shortDate(c.day))}: <b>${t(deg(c.temp))}</b> at ${t(time(c.recorded_at))} by ${t(c.recorded_by||'')}${c.action?` · Action: ${t(c.action)}`:''}${c.day===state.week.today?' · <button type="button" class="shop-small" data-tmp-recheck="'+t(key)+'">Check again</button>':''}`;}
@@ -200,5 +206,5 @@ $('tmpPrintWeek').addEventListener('click',()=>{
 $('tmpPrint').addEventListener('click',()=>printNow('tmp-printing'));
 
 window.addEventListener('marinara:dashboard',()=>{if(Date.now()-state.at>60e3)load().catch(()=>{});});
-window.addEventListener('marinara:session-reset',()=>{state.gen++;state.data=null;state.week=null;state.start=null;state.at=0;state.pending=null;state.recheck=null;state.scrolled=false;state.removing=null;state.history=null;$('tmpDetail').hidden=true;$('tmpRecords').classList.add('hidden');$('tmpRecList').innerHTML='';for(const id of ['tmpEqMsg','tmpDMsg'])$(id).textContent='';publish();render();});
+window.addEventListener('marinara:session-reset',()=>{state.gen++;state.data=null;state.week=null;state.start=null;state.at=0;state.pending=null;state.sign=null;state.recheck=null;state.scrolled=false;state.removing=null;state.history=null;$('tmpDetail').hidden=true;$('tmpRecords').classList.add('hidden');$('tmpRecList').innerHTML='';for(const id of ['tmpEqMsg','tmpDMsg'])$(id).textContent='';publish();render();});
 })();

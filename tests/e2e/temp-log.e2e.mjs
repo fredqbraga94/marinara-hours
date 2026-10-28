@@ -87,6 +87,12 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await cell('Pizza Prep Fridge','Opening').fill('4');await cell('Pizza Prep Fridge','Opening').press('Enter');
  await page.locator('#tmpSheet .tmp-val').filter({hasText:'4.0'}).waitFor();
  assert.equal(await page.locator('#tmpSheet .tmp-val').filter({hasText:'3.5'}).count(),0);
+ // iPhone number keypad has no minus: a freezer reading without it asks.
+ await cell('Freezer','Opening').fill('18');await cell('Freezer','Opening').press('Enter');
+ await page.locator('#tmpSignNeg').waitFor();assert.match(await page.locator('#tmpPending').innerText(),/Freezer · Opening: did you mean minus\?/);
+ await page.locator('#tmpSignNeg').click();
+ await page.locator('#tmpEqMsg').filter({hasText:'Freezer · Opening: -18.0°C saved.'}).waitFor();
+ assert.equal(await page.locator('#tmpPending').isVisible(),false);
  // Print the week like the paper sheet.
  await page.locator('#tmpPrintWeek').click();assert.equal(await page.evaluate(()=>window.__printed),1);
  assert.match(await page.locator('#tmpWeekPrint').innerText(),/Marinara Hawthorne – Temperature Check list/);
@@ -101,16 +107,16 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#tmpThis').click();await page.locator('#tmpSheet [data-tmp-cell]').first().waitFor();
  await page.screenshot({path:`tmp/qa/${size}-temps-sheet.png`});
  // Delivery out of range needs an action.
- await page.locator('#tmpItem').fill('QA prawns');await page.locator('#tmpFood').selectOption('frozen');await page.locator('#tmpDTemp').fill('-8');
+ await page.locator('#tmpItem').fill('QA prawns');await page.locator('#tmpFood').selectOption('frozen');await page.locator('#tmpDTemp').fill('8');await page.locator('#tmpDSign').click();assert.equal(await page.locator('#tmpDTemp').inputValue(),'-8');
  assert.equal(await page.locator('#tmpDAction').isVisible(),true,'action field appears');
  await page.locator('#tmpDSave').click();assert.match(await page.locator('#tmpDMsg').innerText(),/Outside the safe range/);
  await page.locator('#tmpDAction').fill('Rejected, sent back with the driver');await page.locator('#tmpDSave').click();
  await page.locator('#tmpDMsg').filter({hasText:'QA prawns: -8.0°C saved.'}).waitFor();
- assert.equal(await page.locator('#tmpToday .tmp-rec').count(),4);
+ assert.equal(await page.locator('#tmpToday .tmp-rec').count(),5);
  assert.equal(await page.locator('#tmpToday .tmp-rec.bad').count(),2);
  // Records and print.
  await page.locator('#tmpHistBtn').click();await page.locator('#tmpRecords').waitFor({state:'visible'});
- assert.match(await page.locator('#tmpRecHead').innerText(),/Hawthorne · last 90 days · 5 records/);
+ assert.match(await page.locator('#tmpRecHead').innerText(),/Hawthorne · last 90 days · 6 records/);
  await page.locator('#tmpPrint').click();assert.equal(await page.evaluate(()=>window.__printed),2);
  await page.screenshot({path:`tmp/qa/${size}-temps.png`,fullPage:true});
  // Remove needs two taps; records stay.
