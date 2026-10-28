@@ -3,7 +3,7 @@
 -- the person at login, so two people can never share one). The person must
 -- choose their own PIN at the first login; until then every other action is
 -- refused. A person can also change their own PIN later.
--- Additive: one column on staff and five new functions. Login is unchanged.
+-- Additive: one column on staff and four new functions. Login is unchanged.
 
 alter table public.staff add column if not exists pin_must_change boolean not null default false;
 
