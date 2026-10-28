@@ -51,6 +51,9 @@ for(const menu of [document.querySelector('#operationsScreen .rm-menu'),document
  if(after)after.insertAdjacentHTML('afterend',menuRow);else menu?.insertAdjacentHTML('beforeend',menuRow);
 }
 
+// A card on Home, like Team, Stock, Kitchen and Invoices.
+if(document.getElementById('rmModules'))document.getElementById('rmModules').insertAdjacentHTML('beforeend',`<button type="button" class="rm-module" data-rm-go="rmOpenMaintenance">${WRENCH}<span><strong>Maintenance</strong><small>Equipment to fix</small></span><i>›</i></button>`);
+
 const msg=(text,ok)=>{const m=$('mntMsg');m.textContent=text||'';m.style.color=ok?'#07613b':text?'#b3261e':'';};
 
 async function load(){

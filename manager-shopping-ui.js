@@ -38,6 +38,9 @@ for(const menu of [document.querySelector('#operationsScreen .rm-menu'),document
  if(stock)stock.insertAdjacentHTML('afterend',menuRow);else menu?.insertAdjacentHTML('beforeend',menuRow);
 }
 
+// A card on Home, like Team, Stock, Kitchen and Invoices.
+if(document.getElementById('rmModules'))document.getElementById('rmModules').insertAdjacentHTML('beforeend',`<button type="button" class="rm-module" data-rm-go="rmOpenShopping">${CART}<span><strong>Shopping</strong><small>Things to buy</small></span><i>›</i></button>`);
+
 const msg=(text,ok)=>{const m=$('shopMsg');m.textContent=text||'';m.style.color=ok?'#07613b':text?'#b3261e':'';};
 
 async function load(){

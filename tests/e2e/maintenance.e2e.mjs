@@ -47,6 +47,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  for(const where of ['#operationsScreen','#managerMoreScreen','#quickActionsDialog']){
   const order=await page.locator(`${where} [data-rm-go]`).evaluateAll(es=>es.map(e=>e.dataset.rmGo));
   assert.equal(order[order.indexOf('rmOpenShopping')+1],'rmOpenMaintenance',`${where}: Maintenance right after Shopping`);
+  assert.equal(await page.locator('#rmModules .rm-module[data-rm-go="rmOpenMaintenance"]').count(),1,`${where}: card on Home`);
  }
  await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen').waitFor({state:'visible'});
  await page.getByRole('button',{name:'Maintenance Equipment to fix'}).click();await page.locator('#maintenanceScreen').waitFor({state:'visible'});
