@@ -94,7 +94,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#tmpEqMsg').filter({hasText:'Freezer · Opening: -18.0°C saved.'}).waitFor();
  assert.equal(await page.locator('#tmpPending').isVisible(),false);
  // Print the week like the paper sheet.
- await page.locator('#tmpPrintWeek').click();assert.equal(await page.evaluate(()=>window.__printed),1);
+ await page.locator('#tmpPrintWeek').click();await page.waitForFunction(()=>window.__printed===1);assert.equal(await page.evaluate(()=>document.body.classList.contains('tmp-printing-week')),true);
  assert.match(await page.locator('#tmpWeekPrint').innerText(),/Marinara Hawthorne – Temperature Check list/);
  assert.equal(await page.locator('#tmpWeekPrint [data-tmp-cell]').count(),0,'print has no inputs');
  // Last week: read only, shows the earlier reading.
@@ -117,7 +117,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  // Records and print.
  await page.locator('#tmpHistBtn').click();await page.locator('#tmpRecords').waitFor({state:'visible'});
  assert.match(await page.locator('#tmpRecHead').innerText(),/Hawthorne · last 90 days · 6 records/);
- await page.locator('#tmpPrint').click();assert.equal(await page.evaluate(()=>window.__printed),2);
+ await page.locator('#tmpPrint').click();await page.waitForFunction(()=>window.__printed===2);assert.equal(await page.evaluate(()=>document.body.classList.contains('tmp-printing')&&!document.body.classList.contains('tmp-printing-week')),true);
  await page.screenshot({path:`tmp/qa/${size}-temps.png`,fullPage:true});
  // Remove needs two taps; records stay.
  const rm=page.locator('#tmpList [data-tmp-remove]').first();await rm.click();assert.match(await rm.innerText(),/Tap again/);await rm.click();
@@ -125,6 +125,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  // Sign-out forgets it.
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('marinara:session-reset')));
  assert.equal(await page.locator('#tmpRecords').isVisible(),false);
+ assert.equal(await page.evaluate(()=>document.body.className.includes('tmp-printing')),false,'print mode cleared');
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'no sideways scroll');
  assert.deepEqual(errors,[]);
  await context.close();
