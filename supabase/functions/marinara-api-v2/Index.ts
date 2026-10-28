@@ -1330,6 +1330,34 @@ Deno.serve(async (req) => {
       );
     }
 
+    // =========================
+    // TEMPERATURE CHECK REMINDERS (called by the database clock, pg_cron)
+    // The key lives only in the database; each location, day and check is
+    // reminded once, and only when something is still missing.
+    // =========================
+    if (action === "cron_temp_reminder") {
+      const key = typeof body.key === "string" ? body.key : "";
+      const slot = body.slot === "closing" ? "closing" : body.slot === "opening" ? "opening" : "";
+      if (!key || !slot) return json({ error: "Not allowed", code: "NOT_ALLOWED" }, 403);
+      const { data, error } = await supabase.rpc("mh_temp_reminder_due", { p_key: key, p_slot: slot });
+      if (error) return json({ error: "Not allowed", code: "NOT_ALLOWED" }, 403);
+      let sent = 0;
+      for (const row of data || []) {
+        // The kitchen only: the Administrator and the Kitchen Managers.
+        const { data: targets } = await supabase.rpc("mh_push_targets", { p_location: row.location, p_department: "Kitchen" });
+        const names = String(row.names || "").split(", ").filter(Boolean);
+        const list = names.slice(0, 3).join(", ") + (names.length > 3 ? ` and ${names.length - 3} more` : "");
+        const r = await deliverPush(supabase, targets || [], {
+          title: slot === "opening" ? "Temperature check: opening" : "Temperature check: closing",
+          body: `${row.missing} of ${row.total} not checked yet${list ? `: ${list}` : ""}.`,
+          tag: `temp-${slot}`,
+          url: "./?open=temps",
+        });
+        sent += r.sent || 0;
+      }
+      return json({ success: true, action, data: { locations: (data || []).length, sent } });
+    }
+
     const requestToken =
       typeof body.token === "string"
         ? body.token.trim()

@@ -8020,13 +8020,15 @@ document.getElementById("pushList")?.addEventListener("click", async e => {
   try { await managerApi("manager_push_remove", { id: b.dataset.pushOff }); await loadPushList(); }
   catch (error) { b.disabled = false; alert(error.message || "Unable to turn off."); }
 });
-// A tap on a notification opens the app at ?open=timeoff: go to Time off once signed in.
+// A tap on a notification opens the app at ?open=timeoff (Time off) or ?open=temps (Temperatures) once signed in.
 var pendingOpenScreen = (() => { try { return new URLSearchParams(location.search).get("open"); } catch (_) { return null; } })();
 function openPendingScreen() {
-  if (pendingOpenScreen !== "timeoff" || !currentSessionToken) return;
+  if (!["timeoff", "temps"].includes(pendingOpenScreen) || !currentSessionToken) return;
+  const screen = pendingOpenScreen;
   pendingOpenScreen = null;
   try { history.replaceState(null, "", location.pathname); } catch (_) {}
-  openTimeOffScreen();
+  if (screen === "temps") document.getElementById("rmOpenTemps")?.click();
+  else openTimeOffScreen();
 }
 
 /* MANAGER V2 NAVIGATION */
