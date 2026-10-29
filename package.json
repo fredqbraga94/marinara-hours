@@ -33,6 +33,7 @@
     "test:top-products": "node tests/integration/top-products.mjs",
     "test:temp-log": "node tests/integration/temp-log.mjs",
     "test:temp-reminder": "node tests/integration/temp-reminder.mjs",
+    "test:unit-switch": "node tests/integration/unit-switch.mjs",
     "test:maintenance": "node tests/integration/maintenance.mjs",
     "test:photos-contacts": "node tests/integration/photos-contacts.mjs",
     "test:e2e:invoices": "node tests/e2e/invoices.e2e.mjs",
@@ -54,10 +55,14 @@
     "test:e2e:maintenance:webkit": "E2E_BROWSER=webkit node tests/e2e/maintenance.e2e.mjs",
     "test:e2e:update:webkit": "E2E_BROWSER=webkit node tests/e2e/update-check.e2e.mjs",
     "test:push": "node --test --test-reporter=spec tests/edge/webpush.test.mjs && node tests/integration/push.mjs && node tests/integration/push-badge.mjs",
-    "test:security": "node --test tests/edge/audit-privacy.test.mjs && node tests/integration/security-audit.mjs",
-    "test:security:edge": "node --test tests/edge/security-audit.test.mjs"
+    "test:security": "node --test tests/edge/audit-privacy.test.mjs tests/edge/security-audit.test.mjs tests/security/*.test.mjs",
+    "test:security:browser": "node tests/security/browser.e2e.mjs",
+    "audit:device-scope": "node tests/security/device-scope-observation.mjs",
+    "test:security:edge": "node --test tests/edge/security-audit.test.mjs",
+    "test:security:integration": "node tests/integration/security-audit.mjs"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.13",
     "jspdf": "4.2.1",
     "jspdf-autotable": "5.0.8",
     "playwright": "1.56.1",

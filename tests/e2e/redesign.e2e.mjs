@@ -81,6 +81,20 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#rmEditBack').click();await page.locator('#employeeDetailsScreen').waitFor({state:'visible'});assert.match(await page.locator('#rmEmployeeContent').innerText(),/No — roster only/);
  await page.locator('[data-manager-nav="operations"]').click();assert.equal(await page.locator('#employeeDetailsScreen').isVisible(),false);
  await page.evaluate(async()=>{const originalApi=managerApi;for(const status of ['working','break','off_shift']){managerApi=async action=>action==='manager_dashboard'?{manager:{id:'qa-clock',name:'QA Manager',role:'manager'},location:'QA fixture',working:status==='off_shift'?[]:[{staff_id:'qa-clock',name:'QA Manager',department:'Kitchen',status,shift_id:'qa-shift',clock_in:new Date().toISOString(),hours_so_far:0}]}:{pending:0};await loadManagerDashboard();const button=document.getElementById(status==='working'?'managerStartBreakBtn':status==='break'?'managerEndBreakBtn':'managerClockInBtn');if(button.classList.contains('hidden'))throw Error('Incorrect manager clock state: '+status);}managerApi=originalApi;});
+ // Units: the Administrator looks at another unit (banner, own clock hidden) and switches.
+ await page.evaluate(()=>{currentManagerRole='manager';window.__origUnit=managerApi;managerApi=async(action,extra)=>{if(action==='manager_units')return{home:'Hawthorne',current:'Hawthorne',units:[{location:'Hawthorne',people:12},{location:'Paddington',people:0},{location:'Clayfield',people:0}]};if(action==='manager_unit_set'){try{sessionStorage.setItem('qaUnitSet',extra.location);}catch(_){}return{current:extra.location};}return window.__origUnit(action,extra);};});
+ await page.locator('[data-manager-nav="home"]').click();
+ await page.locator('#rmLocation').click();await page.locator('#restaurantSettingsScreen .rm-unit').first().waitFor();
+ assert.deepEqual(await page.locator('#restaurantSettingsScreen .rm-unit strong').allInnerTexts(),['Hawthorne','Paddington','Clayfield']);
+ assert.match(await page.locator('#restaurantSettingsScreen .rm-unit.current').innerText(),/Hawthorne[\s\S]*12 people[\s\S]*Viewing/);
+ await page.screenshot({path:`tmp/qa/${size}-units.png`});
+ await page.evaluate(()=>{window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Paddington',home_location:'Hawthorne',manager:{id:'qa-m',name:'QA Manager'},counts:{},working:[]}}));});
+ await page.locator('[data-manager-nav="home"]').click();
+ assert.equal(await page.locator('#rmUnitBanner').count(),0,'no banner: the owner looks at any unit');
+ assert.equal(await page.evaluate(()=>document.body.classList.contains('rm-other-unit')),true);
+  await page.evaluate(()=>{window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',home_location:'Hawthorne',manager:{id:'qa-m',name:'QA Manager'},counts:{},working:[]}}));});
+ assert.equal(await page.evaluate(()=>document.body.classList.contains('rm-other-unit')),false);
+ await page.evaluate(()=>{managerApi=window.__origUnit;});
  // Clock Out from "Working now" opens the same clock-out form as View all.
  await page.evaluate(async()=>{window.__origClk=managerApi;managerApi=async action=>action==='manager_dashboard'?{manager:{id:'qa-m',name:'QA Manager',role:'manager'},location:'Hawthorne',counts:{},working:[{staff_id:'qa-late',name:'QA Forgot',department:'Kitchen',status:'working',shift_id:'qa-shift-9',clock_in:new Date(Date.now()-14*3600e3).toISOString(),hours_so_far:14}]}:{pending:0};await loadManagerDashboard();});
  await page.locator('[data-manager-nav="home"]').click();
@@ -91,6 +105,15 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.match(await page.locator('#clockout-qa-shift-9').innerText(),/Clock out QA Forgot/);
  await page.locator('#clockout-qa-shift-9 [data-cancel-clockout]').click();
  await page.evaluate(()=>{managerApi=window.__origClk;document.getElementById('rmWorkingPanel').classList.add('hidden');});
+ // One screen at a time: Operations does not stay open under the next tab.
+ await page.evaluate(()=>{currentManagerRole='manager';});
+ for(const next of ['finance','team','more','home']){
+  await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen').waitFor({state:'visible'});
+  await page.locator(`[data-manager-nav="${next}"]`).click();await page.waitForTimeout(50);
+  const open=await page.evaluate(()=>MANAGER_SCREEN_IDS.filter(id=>{const e=document.getElementById(id);return e&&!e.classList.contains('hidden');}));
+  assert.equal(open.length,1,`after Operations → ${next}: ${open.join(', ')}`);
+  assert.equal(open.includes('operationsScreen'),false,`Operations still open under ${next}`);
+ }
  // Price book: all products, rises, history; Home shows recent rises and opens them.
  await page.evaluate(()=>{const d=n=>new Date(Date.now()+10*3600e3-n*864e5).toISOString().slice(0,10);const orig=managerApi;window.__origApi=orig;
    managerApi=async(action,...args)=>action==='manager_invoice_price_book'?{products:[

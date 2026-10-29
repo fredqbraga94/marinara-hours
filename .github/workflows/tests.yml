@@ -58,6 +58,7 @@ jobs:
       - run: npm run test:top-products
       - run: npm run test:temp-log
       - run: npm run test:temp-reminder
+      - run: npm run test:unit-switch
       - run: npm run test:maintenance
       - run: npm run test:photos-contacts
   browser:
@@ -133,3 +134,7 @@ jobs:
           node-version: 22
       - run: npm ci --no-audit --no-fund
       - run: npm run test:security
+      - run: npm run test:security:integration
+      - run: python tests/security/scan-history.py
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:security:browser

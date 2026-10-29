@@ -126,6 +126,9 @@
     return {level:PAGINATED_LEVEL, paginate:true};
   }
 
+  // The unit (Hawthorne, Paddington, Clayfield): on the PDF and in the file name,
+  // so the timesheets sent to accounting say which restaurant they are for.
+  const unitName = report => String(report.unit || 'Hawthorne').replace(/[^\x20-\x7E]/g, '').toUpperCase();
   function drawFrame(doc, report, page, pages) {
     doc.setPage(page);
     doc.setFillColor(17); doc.rect(PAGE.left, 8, TABLE_WIDTH, 22, 'F');
@@ -133,7 +136,7 @@
     doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(16);
     doc.text('WEEKLY TIMESHEETS', 70, 18.2);
     doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(200);
-    doc.text('HAWTHORNE / STAFF HOURS', 70, 24.2);
+    doc.text(`${unitName(report)} / STAFF HOURS`, 70, 24.2);
     doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255);
     doc.text(report.week, 283, 24.2, {align:'right', maxWidth:120});
     doc.setFontSize(8); doc.setTextColor(40); doc.text(report.department, PAGE.left, 35.4);
@@ -141,8 +144,8 @@
     doc.text(`${report.employees} employees · ${report.shifts} shifts | Australia/Brisbane`, 287, 35.4, {align:'right'});
     doc.setDrawColor(205); doc.setLineWidth(0.2); doc.line(PAGE.left, 199, 287, 199);
     doc.setFontSize(6.5); doc.setTextColor(130);
-    doc.text('MARINARA HAWTHORNE', PAGE.left, 203.2);
-    doc.text(`Generated from Marinara Hours · ${page} / ${pages}`, 287, 203.2, {align:'right'});
+    doc.text(`MARINARA ${unitName(report)}`, PAGE.left, 203.2);
+    doc.text(`Marinara Ristorante Cafe · ${page} / ${pages}`, 287, 203.2, {align:'right'});
   }
 
   function generate(report, groups) {
@@ -176,11 +179,11 @@
     const blob = generate(report, groups);
     closeCurrent?.();
     const url = URL.createObjectURL(blob);
-    const filename = 'Marinara-Hawthorne-Timesheets-' + report.week.replace(/[^a-zA-Z0-9]+/g,'-') + '.pdf';
+    const filename = 'Marinara-' + String(report.unit || 'Hawthorne').replace(/[^a-zA-Z0-9]+/g, '-') + '-Timesheets-' + report.week.replace(/[^a-zA-Z0-9]+/g,'-') + '.pdf';
     const dialog = document.createElement('dialog');
     dialog.id = 'timesheetPdfDialog';
     dialog.style.cssText = 'width:min(440px,92vw);max-height:85dvh;overflow:auto;border:0;border-radius:20px;padding:24px;color:#17211b;background:white;';
-    dialog.innerHTML = '<h2 style="margin-top:0">Your PDF is ready</h2><p>Share to save in Files, send by AirDrop or choose another app.</p><button type="button" class="btn primary" id="shareTimesheetPdf">Share PDF</button><a class="btn secondary" style="display:block;text-align:center;text-decoration:none" id="saveTimesheetPdf" target="_blank" rel="noopener">Save PDF</a><p role="status" id="pdfExportStatus"></p><button type="button" class="btn secondary" id="closeTimesheetPdf">Back to Marinara Hours</button>';
+    dialog.innerHTML = '<h2 style="margin-top:0">Your PDF is ready</h2><p>Share to save in Files, send by AirDrop or choose another app.</p><button type="button" class="btn primary" id="shareTimesheetPdf">Share PDF</button><a class="btn secondary" style="display:block;text-align:center;text-decoration:none" id="saveTimesheetPdf" target="_blank" rel="noopener">Save PDF</a><p role="status" id="pdfExportStatus"></p><button type="button" class="btn secondary" id="closeTimesheetPdf">Back to the app</button>';
     const save = dialog.querySelector('#saveTimesheetPdf'); save.href=url; save.download=filename;
     const share = dialog.querySelector('#shareTimesheetPdf');
     const status = dialog.querySelector('#pdfExportStatus');
@@ -189,12 +192,12 @@
       file = new File([blob],filename,{type:'application/pdf'});
       share.hidden = !(navigator.share && navigator.canShare?.({files:[file]}));
     } catch (_) { share.hidden = true; }
-    if (share.hidden) status.textContent='Use Save PDF to download or open the file in a separate tab. Marinara Hours stays open.';
+    if (share.hidden) status.textContent='Use Save PDF to download or open the file in a separate tab. The app stays open.';
     share.onclick = async () => {
       share.disabled=true;
       try {
         // No await before share: retain the fresh tap required by Safari/iOS.
-        await navigator.share({files:[file],title:'Marinara Hawthorne Timesheets'});
+        await navigator.share({files:[file],title:`Marinara ${report.unit || 'Hawthorne'} Timesheets`});
         status.textContent='PDF shared.';
       } catch (error) {
         status.textContent=error.name==='AbortError'?'Sharing cancelled. You can try again or save the PDF.':'Sharing is unavailable. Use Save PDF instead.';

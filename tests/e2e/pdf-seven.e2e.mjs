@@ -93,7 +93,7 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop()
       Object.defineProperty(navigator, 'canShare', {configurable: true, value: () => true});
       Object.defineProperty(navigator, 'share', {configurable: true, value: async data => { window.shared.push({type: data.files[0].type, size: data.files[0].size}); }});
     });
-    await page.getByRole('button', {name: 'Back to Marinara Hours'}).click();
+    await page.getByRole('button', {name: 'Back to the app'}).click();
     assert.equal(await page.locator('#timesheetPdfDialog').count(), 0);
     assert.equal(await page.locator('#exportTimesheetsPdfBtn').isEnabled(), true);
     await page.locator('#exportTimesheetsPdfBtn').click();
@@ -101,7 +101,7 @@ if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop()
     await page.waitForFunction(() => document.querySelector('#pdfExportStatus').textContent === 'PDF shared.');
     assert.equal(await page.evaluate(() => shared[0].type), 'application/pdf');
     assert.equal(await page.evaluate(() => shared[0].size), readFileSync(out).length, 'shared file is the same PDF');
-    await page.getByRole('button', {name: 'Back to Marinara Hours'}).click();
+    await page.getByRole('button', {name: 'Back to the app'}).click();
     assert.equal(await page.locator('#timesheetPdfDialog').count(), 0);
     console.log(`${engine}: 7 employees / 21 shifts exported; save, share and back passed -> ${out}`);
   } finally { await browser.close(); server.close(); }
