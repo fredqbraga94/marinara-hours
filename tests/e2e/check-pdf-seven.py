@@ -24,7 +24,7 @@ with pdfplumber.open(path) as pdf:
 
     # Footer rule sits at 199 mm; table content must stay above it.
     footer_top = 199 * 72 / 25.4
-    footer_words = {'MARINARA', 'HAWTHORNE', 'Generated', 'from', 'Marinara', 'Hours', '·', '1', '/'}
+    footer_words = {'MARINARA', 'HAWTHORNE', 'Marinara', 'Ristorante', 'Cafe', '·', '1', '/'}
     for w in words:
         assert 0 <= w['x0'] < w['x1'] <= page.width and 0 <= w['top'] < w['bottom'] <= page.height, f'word outside page: {w}'
         if w['top'] < footer_top:

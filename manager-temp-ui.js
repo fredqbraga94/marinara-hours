@@ -202,7 +202,7 @@ function weekReport(){
  const cell=new Map((w.cells||[]).map(c=>[`${c.equipment_id}|${c.day}|${c.slot}`,c]));
  const v=c=>c?{t:`${Number(c.temp).toFixed(1)} ${initials(checker(c))}`,bad:!c.ok}:null;
  return {kind:'week',title:'TEMPERATURE CHECK LIST',place:`Marinara ${w.location||''}`,when:`${shortDate(w.start)} - ${shortDate(days[6])}`,limits:LIMITS,logo:logo(),fileDate:w.start,
-  foot:`Printed ${dayLong(Date.now())} from Marinara Hours. Every reading is saved with who checked and the time; records cannot be changed.`,
+  foot:`Marinara Ristorante Cafe · printed ${dayLong(Date.now())}. Every reading is saved with who checked and the time; records cannot be changed.`,
   days:days.map(d=>{const [n,dd]=dayHead(d);return `${n} ${dd}`;}),
   rows:(w.equipment||[]).map(e=>({name:e.name,sub:KIND[e.kind][1],cells:days.map(d=>({opening:v(cell.get(`${e.id}|${d}|opening`)),closing:v(cell.get(`${e.id}|${d}|closing`))}))})),
   notes:(w.cells||[]).filter(c=>!c.ok).sort((a,b)=>a.recorded_at.localeCompare(b.recorded_at)).map(c=>{const [n,dd]=dayHead(c.day);return [`${n} ${dd}`,c.equipment||'',`${slotName(c.slot)} ${time(c.recorded_at)}`,deg(c.temp),c.action||'',checker(c)];})};
@@ -211,7 +211,7 @@ function recordsReport(){return recordsReportFrom(state.history||{});}
 function recordsReportFrom(h){
  const recs=h.records||[];
  return {kind:'records',title:'TEMPERATURE RECORDS',place:`Marinara ${h.location||''}`,when:`Last ${h.days||90} days`,limits:LIMITS,logo:logo(),fileDate:`last-${h.days||90}-days`,
-  foot:`Printed ${dayLong(Date.now())} from Marinara Hours. ${recs.length} record${recs.length===1?'':'s'}. Checks cannot be changed; a corrected delivery shows its first values.`,
+  foot:`Marinara Ristorante Cafe · printed ${dayLong(Date.now())}. ${recs.length} record${recs.length===1?'':'s'}. Checks cannot be changed; a corrected delivery shows its first values.`,
   records:recs.map(r=>[dayLong(r.recorded_at),time(r.recorded_at),r.kind==='equipment'?`${r.equipment||'Equipment'} - ${slotName(r.slot)}`:`Delivery: ${r.item}${r.supplier?` (${r.supplier})`:''} - ${KIND[r.food]?.[0]||''}`,deg(r.temp),[r.action||'',r.edited_at?`Corrected by ${r.edited_by||''} ${dayLong(r.edited_at)} ${time(r.edited_at)}; was: ${wasText(r)}`:''].filter(Boolean).join(' / '),checker(r)+(r.checked_by&&r.recorded_by&&r.checked_by!==r.recorded_by?` (typed by ${r.recorded_by})`:''),!r.ok])};
 }
 $('tmpPrintWeek').addEventListener('click',()=>{if(state.week)makePdf($('tmpPrintWeek'),weekReport);});

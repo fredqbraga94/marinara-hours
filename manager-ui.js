@@ -88,6 +88,14 @@
     document.querySelectorAll('[data-rm-stat="roster"],[data-rm-stat="late"]').forEach(b=>b.classList.toggle('rm-no-access',!can('roster')));
   }
   for(const id of [...MANAGER_SCREEN_IDS,'managerBottomNav','managerClockSection'])new MutationObserver(syncShell).observe($(id),{attributes:true,attributeFilter:['class']});
+  // Only one screen at a time: when a screen opens, any other one still open
+  // closes (an opener that forgot one left e.g. Operations under Invoices).
+  {const shown=new Set(MANAGER_SCREEN_IDS.filter(id=>!$(id)?.classList.contains('hidden')));
+   new MutationObserver(records=>{
+     for(const r of records){const id=r.target.id;if(!id||!MANAGER_SCREEN_IDS.includes(id))continue;const open=!r.target.classList.contains('hidden');
+       if(open&&!shown.has(id)){shown.add(id);for(const other of MANAGER_SCREEN_IDS)if(other!==id&&!$(other)?.classList.contains('hidden'))$(other).classList.add('hidden');}
+       else if(!open)shown.delete(id);}
+   }).observe(document.querySelector('main'),{attributes:true,attributeFilter:['class'],subtree:true});}
   // Payload is supplied only after a successful, authorised dashboard request.
   // Today from the roster: who is rostered, and who is late (rostered start
   // passed by more than 10 minutes, still inside their shift, not clocked in).
