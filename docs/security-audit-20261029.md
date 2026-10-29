@@ -25,7 +25,7 @@ Os pontos representam controles examinados e evidências disponíveis; verifica�
 | Cadeia de fornecimento/infraestrutura: histórico, dependências, CI e deploy | 15 | 8 | 8 |
 | **Total** | **100** | **65** | **80** |
 
-Não se atribuiu nota máxima porque não houve validação em iPhone físico, reprodução de corridas em PostgreSQL com várias conexões, auditoria completa de configuração do provedor de hospedagem nem cobertura dinâmica de todos os endpoints possíveis.
+Não se atribuiu nota máxima porque não houve validação em iPhone físico, cobertura completa de corridas de todas as operações em PostgreSQL com várias conexões, auditoria completa de configuração do provedor de hospedagem nem cobertura dinâmica de todos os endpoints possíveis.
 
 ## Achados confirmados
 
@@ -81,7 +81,7 @@ Não se atribuiu nota máxima porque não houve validação em iPhone físico, r
 - **Localização:** `staff_change_pin` em `20261028030000_own_pin.sql` e ação `change_pin` de `Index.ts` anteriores ao PR #55.
 - **Evidência/impacto:** o PR anterior reproduziu que uma segunda sessão continuava válida após trocar o PIN. Exige uma sessão anterior e seu segredo de dispositivo; não é bypass inicial de login. A reprodução e evidências dos runs estão no relatório inicial preservado.
 - **Correção:** migration `20261028233534_pin_session_revocation.sql`, já do PR, cria `staff_change_pin_secure`: troca o PIN e revoga outras sessões na mesma transação, preservando a sessão atual. Serializa login com a linha do funcionário e revalida o hash após espera, evitando a corrida com o PIN antigo. A API usa a RPC segura.
-- **Status/teste:** preservado e retestado nesta integração. Teste com SQL real comprova PIN incorreto sem revogação, troca correta mantendo a sessão atual e recusando a segunda com HTTP 401. Os testes nativos de rollback e concorrência permanecem em `tests/integration/security-audit.mjs`; o CI do novo SHA deve confirmar esses testes. Não se afirma que PostgreSQL/WASM serializado valide concorrência.
+- **Status/teste:** preservado e retestado nesta integração. Teste com SQL real comprova PIN incorreto sem revogação, troca correta mantendo a sessão atual e recusando a segunda com HTTP 401. Os testes nativos de rollback e concorrência permanecem em `tests/integration/security-audit.mjs`; o job security-audit do CI 171 confirmou esses testes no SHA bc746a8, incluindo a corrida com conexões independentes. Não se afirma que PostgreSQL/WASM serializado valide concorrência.
 
 ## Compatibilidade com as mudanças atuais da main
 
@@ -157,3 +157,20 @@ Um dispositivo sem titularidade não fica bloqueado para login; fica indisponív
 - Consulta de 30/10 confirmou que `staff_change_pin_secure` e `management_location` **ainda não existem em produção**. Isso confirma que as migrations desta proposta continuam pendentes.
 
 Referências: [OWASP Top 10:2025](https://owasp.org/Top10/2025/), [OWASP API Security Top 10:2023](https://owasp.org/API-Security/editions/2023/en/0x11-t10/), [Supabase — autenticação de Edge Functions](https://supabase.com/docs/guides/functions/auth). Os achados AUDIT-01/02 correspondem a controle de acesso/BOLA/BFLA; AUDIT-03/04 a configuração e privacidade; AUDIT-05 a tratamento/registro de falhas.
+
+
+## Retomada e validação — 30/10/2026
+
+Referência revalidada: `bc746a84947f3839c26fe5e9f9df72e0f2fc0302`, comparada à main `ac241d0679c0b8d09a5952bc55efded9a80abbe9`. Checkout isolado preservou os arquivos locais da execução anterior.
+
+Reexecução local: segurança **43/43**, suite histórica **32/32**, horas/roster/parser **24/24**, fluxo de PIN em Chromium e teste integrado UI → Edge → PostgreSQL/WASM aprovados. `npm audit` retornou zero advisories em 29 dependências. O scanner de assinaturas examinou 764 blobs alcançáveis neste clone e não encontrou candidatos; o número depende dos refs disponíveis e não é certificação de ausência de segredos.
+
+CI [171](https://github.com/fredqbraga94/marinara-hours/actions/runs/40967366656) testou o SHA bc746a8. Seu job security-audit confirmou, com PostgreSQL nativo e conexões independentes: isolamento das três unidades, bloqueio de escalonamento e IDs manipulados, logout, PIN incorreto sem revogar sessões, rollback do PIN se a revogação falhar e login concorrente com PIN antigo bloqueado até a troca concluir e recusado após revalidação. O teste integrado de navegador também passou no CI.
+
+Consulta somente leitura nesta retomada: API de produção permanece **v58**, fixada em `faa239e`; **43/43** tabelas públicas com RLS; zero funções públicas executáveis por anon/authenticated; RPC `staff_change_pin_secure` e coluna `management_location` ainda ausentes. A migration de login encontrou o fragmento de código esperado. Nenhuma migration, troca de PIN, atribuição de dispositivo ou deploy foi executado em produção.
+
+A comparação dos arquivos protegidos com a main atual não mostrou diferenças em `index.html`, `timesheet-pdf.js`, `roster-pdf.js`, `stock-pdf.js` e `temp-pdf.js`. As referências da primeira coleta eram anteriores às mudanças de unidades/PDFs aprovadas na main; esta comparação usa a referência atual correta.
+
+Resultado final do CI 171: **8/8 jobs concluídos com success** — api, database, integration, hardening, features, security-audit, browser (Chromium) e browser-webkit. O fluxo de PIN que falhou em uma execução anterior passou no WebKit do commit atual. PDFs, verificações de conteúdo/totais, atualização do app e suites de interface concluíram com sucesso. Evidência estruturada em `docs/security-validation-20261030.json`.
+
+Este fechamento atualiza apenas documentação/evidências. O SHA de código testado permanece bc746a8; qualquer commit posterior exclusivamente documental não altera essa referência. Produção não foi promovida.
