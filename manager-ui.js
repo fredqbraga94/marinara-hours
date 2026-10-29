@@ -9,7 +9,7 @@
   while(manager.firstChild) original.append(manager.firstChild);
   manager.append(original);
   const home=document.createElement('div');home.id='rmHome';
-  home.innerHTML=`<div class="rm-intro"><div id="rmGreetingSlot"></div><button id="quickActionsBtn" aria-label="Quick actions" type="button">+</button></div><div id="rmMessageSlot"></div><div id="rmUnitBanner" class="rm-unit-banner hidden"></div>
+  home.innerHTML=`<div class="rm-intro"><div id="rmGreetingSlot"></div><button id="quickActionsBtn" aria-label="Quick actions" type="button">+</button></div><div id="rmMessageSlot"></div>
   <button class="rm-scan" id="rmScanInvoice" type="button">${icon('scan')}<span><strong>Scan Invoice</strong><small>Upload a supplier PDF</small></span><i>›</i></button>
   <h3>Restaurant Management</h3><div class="rm-modules" id="rmModules"></div>
   <h3>Restaurant Overview <button class="rm-link" id="rmWorkingToggle" aria-expanded="false">View all</button></h3>
@@ -52,7 +52,7 @@
   function unitsHtml(place){
     if(!isAdmin())return `<h3>${escapeHtml(place)}</h3><p>This is your unit.</p>`;
     if(!units){loadUnits();return '<h3>Units</h3><p class="rm-data-note">Loading…</p>';}
-    return `<h3>Units</h3><p class="rm-data-note">Choose the unit to look at. Team, hours, roster, stock, temperatures and new people are in the unit you choose. Your own clock-in stays in ${escapeHtml(units.home)}.</p><div class="rm-units">${units.units.map(u=>`<button type="button" class="rm-unit${u.location===units.current?' current':''}" data-rm-unit="${escapeHtml(u.location)}" ${u.location===units.current?'aria-current="true"':''}><span><strong>${escapeHtml(u.location)}</strong><small>${u.location===units.home?'Your unit · ':''}${u.people} ${u.people===1?'person':'people'}</small></span><em>${u.location===units.current?'Viewing':'Switch'}</em></button>`).join('')}</div><p class="rm-data-note" id="rmUnitMsg" aria-live="polite"></p>`;
+    return `<h3>Units</h3><p class="rm-data-note">Choose the unit to look at. Team, hours, roster, stock, temperatures and new people are in the unit you choose.</p><div class="rm-units">${units.units.map(u=>`<button type="button" class="rm-unit${u.location===units.current?' current':''}" data-rm-unit="${escapeHtml(u.location)}" ${u.location===units.current?'aria-current="true"':''}><span><strong>${escapeHtml(u.location)}</strong><small>${u.people} ${u.people===1?'person':'people'}</small></span><em>${u.location===units.current?'Viewing':'Switch'}</em></button>`).join('')}</div><p class="rm-data-note" id="rmUnitMsg" aria-live="polite"></p>`;
   }
   async function loadUnits(){
     try{units=await managerApi('manager_units');}catch(e){units={home:'',current:'',units:[]};}
@@ -68,7 +68,6 @@
   const renderSettingsRaw=renderSettings;renderSettings=t=>{renderSettingsRaw(t);syncShell();};
   const dialog=document.createElement('dialog');dialog.id='quickActionsDialog';dialog.innerHTML=`<div class="rm-handle"></div><h2>Actions</h2><div class="rm-actions">${[['Upload invoice','Choose the supplier PDF','rmScanInvoice','scan'],['Stock','Count and order','stockCard','stock'],['Add Staff','Create staff member','rmAddStaff','team'],['Create Shift','Open weekly roster','rosterCard','roster'],['Kitchen','Recipes and allergens','recipesCard','kitchen'],['Reports','Weekly timesheets','timesheetsCard','finance'],['Time Clock','Open time clock','moreMyClockBtn','clock'],['Settings','Restaurant information','rmOpenSettings','settings']].map(a=>row(...a)).join('')}</div><button type="button" id="rmCloseActions">Close</button>`;document.body.append(dialog);
   $('quickActionsBtn').onclick=()=>dialog.showModal();$('rmCloseActions').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
-  $('rmUnitBanner').addEventListener('click',e=>{const b=e.target.closest('[data-rm-unit-back]');if(b){b.disabled=true;switchUnit(b.dataset.rmUnitBack);}});
   $('rmWorkingToggle').onclick=()=>{const open=$('rmWorkingPanel').classList.toggle('hidden')===false;$('rmWorkingToggle').setAttribute('aria-expanded',String(open));};
   document.addEventListener('click',e=>{const b=e.target.closest('[data-rm-go]');if(!b)return;dialog.close();if(blocked(b.dataset.rmGo))return;if(b.dataset.rmGo==='rmAddStaff'){go('teamCard');if($('addStaffPanel').classList.contains('hidden'))go('showAddStaffBtn');}else go(b.dataset.rmGo);});
   nav.addEventListener('click',e=>{const b=e.target.closest('[data-manager-nav]');if(!b)return;const key=b.dataset.managerNav;if(key==='home')$('managerClockSection').classList.add('hidden');if(key==='finance'||key==='operations'){e.stopImmediatePropagation();if(key==='finance')go('invoicesCard');else{showOnlyManagerScreen('operationsScreen');setManagerNavActive('operations');}window.scrollTo(0,0);}},true);
@@ -269,11 +268,11 @@
     holidays=Array.isArray(d.next_holidays)?d.next_holidays:(d.upcoming_holidays||[]);paintHoliday();
     $('rmWorkingCount').textContent=working.filter(p=>p.status!=='break').length;$('rmBreakCount').textContent=working.filter(p=>p.status==='break').length;
     $('managerRoleLine').textContent=`Here's what's happening at ${d.location||'your restaurant'}.`;
-    // Looking at another unit: say so on Home, with the way back; the own clock stays in the own unit.
+    // The Administrator (owner) looks at any unit; the unit shows in the header.
+    // Their own time clock is hidden while looking at another unit.
     const other=!!(d.home_location&&d.location&&d.location!==d.home_location);
     document.body.classList.toggle('rm-other-unit',other);
-    $('rmUnitBanner').classList.toggle('hidden',!other);
-    $('rmUnitBanner').innerHTML=other?`<span><strong>You are looking at ${escapeHtml(d.location)}</strong><small>Everything you see and add is in ${escapeHtml(d.location)}. Your own clock-in is in ${escapeHtml(d.home_location)}.</small></span><button type="button" class="rm-link" data-rm-unit-back="${escapeHtml(d.home_location)}">Back to ${escapeHtml(d.home_location)}</button>`:'';
+
     $('rmProfile').textContent=String(d.manager?.name||'M').slice(0,1).toUpperCase();syncShell();
     paint();loadRoster();setTimeout(paint,2500);
   });
