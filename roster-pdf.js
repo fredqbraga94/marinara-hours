@@ -42,7 +42,7 @@
     doc.text(clean(report.legend), L, 33.5, { maxWidth: W - L - R });
     doc.setDrawColor(205); doc.setLineWidth(0.2); doc.line(L, 199, W - R, 199);
     doc.setFontSize(6.5); doc.setTextColor(130);
-    doc.text('MARINARA HAWTHORNE', L, 203.2);
+    doc.text(`MARINARA ${clean(report.unit || 'Hawthorne').toUpperCase()}`, L, 203.2);
     doc.text(`Marinara Ristorante Cafe · ${page} / ${pages}`, W - R, 203.2, { align: 'right' });
   }
 
@@ -93,7 +93,7 @@
     const blob = generate(report);
     closeCurrent?.();
     const url = URL.createObjectURL(blob);
-    const filename = 'Marinara-Roster-' + clean(report.fileName || 'week').replace(/[^a-zA-Z0-9]+/g, '-') + '.pdf';
+    const filename = 'Marinara-' + clean(report.unit || 'Hawthorne').replace(/[^a-zA-Z0-9]+/g, '-') + '-Roster-' + clean(report.fileName || 'week').replace(/[^a-zA-Z0-9]+/g, '-') + '.pdf';
     const dialog = document.createElement('dialog');
     dialog.id = 'rosterPdfDialog';
     dialog.style.cssText = 'width:min(440px,92vw);max-height:85dvh;overflow:auto;border:0;border-radius:20px;padding:24px;color:#17211b;background:white;';

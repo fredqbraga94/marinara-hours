@@ -5805,6 +5805,7 @@ exportTimesheetsPdfBtn.addEventListener("click", async () => {
       department: departments.length === 1 ? departments[0].toUpperCase() : "STAFF TIMESHEETS",
       employees: new Set(approvedShifts.map(shift => shift.staff_id)).size,
       shifts: approvedShifts.length,
+      unit: document.getElementById("managerLocation")?.textContent?.trim() || "Hawthorne",
       logo: document.querySelector('.login-original-logo').src
     });
   } catch (error) {
@@ -5877,7 +5878,7 @@ function renderTeamMember(person, visa) {
         <div class="person-name">${escapeHtml(person.name || "Staff")}</div>
         <div class="person-meta">
           ${person.role === "manager"
-            ? `${escapeHtml(roleLabel)} · Hawthorne`
+            ? `${escapeHtml(roleLabel)}`
             : `${escapeHtml(person.department || "")} · ${escapeHtml(roleLabel)}`}
           ${person.position ? ` · ${escapeHtml(person.position)}` : ""}
           <span class="team-status-wrap">· <span class="team-status-dot ${statusDotClass}"></span>${statusText}</span>
@@ -6493,7 +6494,10 @@ function openManagerMore() {
 
   if (moreManagerName) moreManagerName.textContent = name;
   if (moreManagerAvatar) moreManagerAvatar.textContent = String(name).trim().charAt(0).toUpperCase() || "M";
-  if (moreManagerRole) moreManagerRole.textContent = roleLabel + " · Hawthorne";
+  // The Administrator (owner) has no unit; managers show their own.
+  if (moreManagerRole) moreManagerRole.textContent = currentManagerRole === "manager"
+    ? roleLabel
+    : roleLabel + " · " + (document.getElementById("managerLocation")?.textContent?.trim() || "Hawthorne");
   moreManagersBtn?.classList.toggle("hidden", currentManagerRole !== "manager");
   // Devices: Administrator only (the server refuses everyone else too).
   document.getElementById("moreDevicesBtn")?.classList.toggle("hidden", currentManagerRole !== "manager");
@@ -6833,6 +6837,7 @@ function rosterPdfReport() {
   const fmtDay = (d) => new Intl.DateTimeFormat("en-AU", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short" }).format(new Date(`${d}T00:00:00Z`));
   return {
     place: `${data.location || "Hawthorne"} · ${dept}`,
+    unit: data.location || "Hawthorne",
     week: `${fmtDay(days[0])} - ${fmtDay(days[6])}`,
     fileName: `${dept}-${week}`,
     legend: (legendParts.length ? `L = lunch, D = dinner, L/D = both. ${legendParts.join(" · ")}. ` : "") +
@@ -7818,6 +7823,7 @@ function stockPdfReport() {
   const par = (l) => stockFmt(l.par) + u(l) + (l.par_extra != null ? ` + ${stockFmt(l.par_extra)} ${l.extra_label || "extra"}` : "");
   const notCounted = lines.filter(l => !l.counted).length;
   return {
+    unit: data.location,
     place: `${data.location} · ${data.department === "Floor" ? "Floor / Bar" : "Kitchen"}`,
     when: fmt({ weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" }),
     fileDate: fmt({ year: "numeric", month: "2-digit", day: "2-digit" }),
