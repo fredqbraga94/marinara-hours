@@ -44,9 +44,27 @@
   function renderSettings(tab){
     settings.querySelectorAll('[role="tab"]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.rmSettings===tab)));
     const place=$('managerLocation').textContent;
-    $('rmSettingsContent').innerHTML=tab==='General'?`<h3>Business Information</h3><dl><dt>Restaurant</dt><dd>Marinara Ristorante Cafe</dd><dt>Unit</dt><dd>${escapeHtml(place)}</dd></dl><p class="rm-data-note">Address, phone and ABN will be added here later.</p>`:tab==='Locations'?`<h3>${escapeHtml(place)}</h3><p>This is the unit associated with your current session.</p><p class="rm-data-note">Paddington and Clayfield will appear here when they join the app.</p>`:tab==='Hours'?'<h3>Service times</h3><p class="rm-data-note">Lunch and dinner times are set in the Roster.</p>'+row('Roster','View weekly shifts','rosterCard','roster'):`<h3>Public Holidays</h3>${holidayListHtml() || '<p class="rm-data-note">Open Home to load the public holidays.</p>'}`;
+    $('rmSettingsContent').innerHTML=tab==='General'?`<h3>Business Information</h3><dl><dt>Restaurant</dt><dd>Marinara Ristorante Cafe</dd><dt>Unit</dt><dd>${escapeHtml(place)}</dd></dl><p class="rm-data-note">Address, phone and ABN will be added here later.</p>`:tab==='Locations'?unitsHtml(place):tab==='Hours'?'<h3>Service times</h3><p class="rm-data-note">Lunch and dinner times are set in the Roster.</p>'+row('Roster','View weekly shifts','rosterCard','roster'):`<h3>Public Holidays</h3>${holidayListHtml() || '<p class="rm-data-note">Open Home to load the public holidays.</p>'}`;
   }
-  settings.addEventListener('click',e=>{const b=e.target.closest('[data-rm-settings]');if(b)renderSettings(b.dataset.rmSettings);});
+  // Units: the Administrator can look at Paddington or Clayfield; everything
+  // then works in that unit (their own clock stays in their own unit).
+  let units=null;
+  function unitsHtml(place){
+    if(!isAdmin())return `<h3>${escapeHtml(place)}</h3><p>This is your unit.</p>`;
+    if(!units){loadUnits();return '<h3>Units</h3><p class="rm-data-note">Loading…</p>';}
+    return `<h3>Units</h3><p class="rm-data-note">Choose the unit to look at. Team, hours, roster, stock, temperatures and new people are in the unit you choose.</p><div class="rm-units">${units.units.map(u=>`<button type="button" class="rm-unit${u.location===units.current?' current':''}" data-rm-unit="${escapeHtml(u.location)}" ${u.location===units.current?'aria-current="true"':''}><span><strong>${escapeHtml(u.location)}</strong><small>${u.people} ${u.people===1?'person':'people'}</small></span><em>${u.location===units.current?'Viewing':'Switch'}</em></button>`).join('')}</div><p class="rm-data-note" id="rmUnitMsg" aria-live="polite"></p>`;
+  }
+  async function loadUnits(){
+    try{units=await managerApi('manager_units');}catch(e){units={home:'',current:'',units:[]};}
+    if(!settings.classList.contains('hidden'))renderSettings('Locations');
+  }
+  async function switchUnit(loc){
+    const m=$('rmUnitMsg');if(m)m.textContent=`Opening ${loc}…`;
+    try{await managerApi('manager_unit_set',{location:loc});forgetSession();location.reload();}
+    catch(e){if(m)m.textContent=e.message||'Unable to change the unit.';}
+  }
+  window.mhSwitchUnit=switchUnit;
+  settings.addEventListener('click',e=>{const u=e.target.closest('[data-rm-unit]');if(u){if(!u.classList.contains('current')){u.disabled=true;switchUnit(u.dataset.rmUnit);}return;}const b=e.target.closest('[data-rm-settings]');if(b)renderSettings(b.dataset.rmSettings);});
   const renderSettingsRaw=renderSettings;renderSettings=t=>{renderSettingsRaw(t);syncShell();};
   const dialog=document.createElement('dialog');dialog.id='quickActionsDialog';dialog.innerHTML=`<div class="rm-handle"></div><h2>Actions</h2><div class="rm-actions">${[['Upload invoice','Choose the supplier PDF','rmScanInvoice','scan'],['Stock','Count and order','stockCard','stock'],['Add Staff','Create staff member','rmAddStaff','team'],['Create Shift','Open weekly roster','rosterCard','roster'],['Kitchen','Recipes and allergens','recipesCard','kitchen'],['Reports','Weekly timesheets','timesheetsCard','finance'],['Time Clock','Open time clock','moreMyClockBtn','clock'],['Settings','Restaurant information','rmOpenSettings','settings']].map(a=>row(...a)).join('')}</div><button type="button" id="rmCloseActions">Close</button>`;document.body.append(dialog);
   $('quickActionsBtn').onclick=()=>dialog.showModal();$('rmCloseActions').onclick=()=>dialog.close();dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
@@ -58,7 +76,7 @@
   {const navLogo=document.createElement('img');navLogo.id='rmNavLogo';navLogo.alt='Marinara Ristorante Cafe';navLogo.src=$('headerLogo').src;nav.prepend(navLogo);}
   const tools=document.createElement('div');tools.className='rm-header-tools';tools.innerHTML=`<button type="button" id="rmNotifications" aria-label="View pending tasks">${icon('bell')}<span id="rmBellBadge" class="rm-bell-badge hidden"></span></button><button type="button" id="rmProfile" aria-label="Manager profile">M</button>`;header.append(tools);
   $('rmNotifications').onclick=()=>{nav.querySelector('[data-manager-nav="home"]').click();$('rmAttention').scrollIntoView({block:'center'});};$('rmProfile').onclick=()=>openManagerMore();
-  const placeButton=document.createElement('button');placeButton.id='rmLocation';placeButton.type='button';placeButton.textContent='Current unit ⌄';placeButton.onclick=()=>{settingsBtn.click();renderSettings('Locations');};header.append(placeButton);
+  const placeButton=document.createElement('button');placeButton.id='rmLocation';placeButton.type='button';placeButton.textContent='Current unit ⌄';placeButton.onclick=()=>{settingsBtn.click();units=null;renderSettings('Locations');};header.append(placeButton);
   const originalSet=setManagerNavActive;
   setManagerNavActive=function(target='home'){originalSet(target);syncShell();};
   // Which area each button opens (for managers with switched-off areas).
@@ -250,6 +268,11 @@
     holidays=Array.isArray(d.next_holidays)?d.next_holidays:(d.upcoming_holidays||[]);paintHoliday();
     $('rmWorkingCount').textContent=working.filter(p=>p.status!=='break').length;$('rmBreakCount').textContent=working.filter(p=>p.status==='break').length;
     $('managerRoleLine').textContent=`Here's what's happening at ${d.location||'your restaurant'}.`;
+    // The Administrator (owner) looks at any unit; the unit shows in the header.
+    // Their own time clock is hidden while looking at another unit.
+    const other=!!(d.home_location&&d.location&&d.location!==d.home_location);
+    document.body.classList.toggle('rm-other-unit',other);
+
     $('rmProfile').textContent=String(d.manager?.name||'M').slice(0,1).toUpperCase();syncShell();
     paint();loadRoster();setTimeout(paint,2500);
   });

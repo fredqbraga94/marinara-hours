@@ -45,9 +45,9 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.keyboard.press('Escape');assert.equal(await dlg.isVisible(),true,'cannot be dismissed with Escape when forced');
  await page.locator('#opNew2').fill('482913');await page.locator('#opSave').click();
  await page.waitForFunction(()=>window.__result==='done');
- // The refresh stub only belongs to the forced step: later background refreshes must not
- // keep answering PIN_CHANGE_REQUIRED (that reopened the forced dialog depending on timing).
- await page.evaluate(()=>{postApi=window.__postBefore;});
+ // The refresh stub only belongs to the forced step; after it the 5-second background refresh
+ // is paused, so it cannot sign the stubbed session out in the middle of a step (timing failures).
+ await page.evaluate(()=>{postApi=window.__postBefore;autoRefreshBusy=true;});
  const sent=await page.evaluate(()=>window.__sent.filter(s=>s.action==='change_pin'));
  assert.deepEqual(sent.map(s=>[s.old_pin,s.new_pin,s.token]),[['583920','482913','qa-token']]);
  assert.equal(await dlg.isVisible(),false);
@@ -86,4 +86,4 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await context.close();
 }
 console.log(`PASS (${ENGINE}): choose own PIN at first sign-in (cannot skip), change later with the current PIN, one-time temporary PIN, no overflow, no JavaScript errors.`);
-}finally{await browser.close();server.close();}
+}catch(e){if(process.env.GITHUB_ACTIONS)console.log(`::error title=own PIN e2e (${ENGINE})::${String(e?.stack||e).replace(/\r?\n/g,' | ').slice(0,1500)}`);throw e;}finally{await browser.close();server.close();}
