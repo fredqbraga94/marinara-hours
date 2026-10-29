@@ -118,7 +118,7 @@
     const dialog = document.createElement('dialog');
     dialog.id = 'tempPdfDialog';
     dialog.style.cssText = 'width:min(440px,92vw);max-height:85dvh;overflow:auto;border:0;border-radius:20px;padding:24px;color:#17211b;background:white;';
-    dialog.innerHTML = '<h2 style="margin-top:0">Your PDF is ready</h2><p>Tap Share, then Print to print it, or send it by email or AirDrop, or save it in Files.</p><button type="button" class="btn primary" id="shareTempPdf">Share or print PDF</button><a class="btn secondary" style="display:block;text-align:center;text-decoration:none" id="saveTempPdf" target="_blank" rel="noopener">Open PDF</a><p role="status" id="tempPdfStatus"></p><button type="button" class="btn secondary" id="closeTempPdf">Back to Marinara Hours</button>';
+    dialog.innerHTML = '<h2 style="margin-top:0">Your PDF is ready</h2><p>Tap Share, then Print to print it, or send it by email or AirDrop, or save it in Files.</p><button type="button" class="btn primary" id="shareTempPdf">Share or print PDF</button><a class="btn secondary" style="display:block;text-align:center;text-decoration:none" id="saveTempPdf" target="_blank" rel="noopener">Open PDF</a><p role="status" id="tempPdfStatus"></p><button type="button" class="btn secondary" id="closeTempPdf">Back to the app</button>';
     const save = dialog.querySelector('#saveTempPdf'); save.href = url; save.download = filename;
     const share = dialog.querySelector('#shareTempPdf');
     const status = dialog.querySelector('#tempPdfStatus');
@@ -127,7 +127,7 @@
       file = new File([blob], filename, { type: 'application/pdf' });
       share.hidden = !(navigator.share && navigator.canShare?.({ files: [file] }));
     } catch (_) { share.hidden = true; }
-    if (share.hidden) status.textContent = 'Use Open PDF, then print or save it from there. Marinara Hours stays open.';
+    if (share.hidden) status.textContent = 'Use Open PDF, then print or save it from there. The app stays open.';
     share.onclick = async () => {
       share.disabled = true;
       try {

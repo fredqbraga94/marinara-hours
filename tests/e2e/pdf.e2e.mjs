@@ -27,7 +27,7 @@ try {
  mkdirSync('tmp/pdfs',{recursive:true});
  await file.saveAs(`tmp/pdfs/${engine}.pdf`);
  assert.ok(readFileSync(`tmp/pdfs/${engine}.pdf`).subarray(0,5).equals(Buffer.from('%PDF-')));
- await page.getByRole('button',{name:'Back to Marinara Hours'}).click();
+ await page.getByRole('button',{name:'Back to the app'}).click();
  assert.equal(await page.locator('#timesheetPdfDialog').count(),0);
  assert.equal(await page.locator('#exportTimesheetsPdfBtn').isEnabled(),true);
 
@@ -53,7 +53,7 @@ try {
    await page.waitForFunction(()=>!document.querySelector('#shareTimesheetPdf').disabled);
    assert.match(await page.locator('#pdfExportStatus').textContent(),name==='AbortError'?/cancelled/:/Save PDF/);
  }
- await page.getByRole('button',{name:'Back to Marinara Hours'}).click();
+ await page.getByRole('button',{name:'Back to the app'}).click();
  assert.equal(await page.evaluate(()=>revoked.length),1);
  // The original approval gate must still block incomplete exports.
  await page.evaluate(()=>currentTimesheetsData.shifts[0].approved=false);
@@ -80,7 +80,7 @@ try {
  const largeDownload=page.waitForEvent('download');
  await page.getByRole('link',{name:'Save PDF'}).click();
  await (await largeDownload).saveAs(`tmp/pdfs/${engine}-large.pdf`);
- await page.getByRole('button',{name:'Back to Marinara Hours'}).click();
+ await page.getByRole('button',{name:'Back to the app'}).click();
  assert.equal(await page.locator('#timesheetPdfDialog').count(),0);
  console.log(`${engine}: download, return, share success/cancel/failure, cleanup, approval gate, generation error, large report passed`);
 } finally {await browser.close();server.close();}
