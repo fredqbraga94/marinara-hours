@@ -34,7 +34,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.screenshot({path:`tmp/qa/${size}-own-pin-first.png`});
  // The 5-second background refresh runs while the person is thinking: the server answers
  // 403 PIN_CHANGE_REQUIRED and the dialog must stay open (this used to sign the person out).
- await page.evaluate(()=>{const was=postApi;postApi=async p=>{if(p.action==='change_pin')return was(p);window.__sent.push(p);return{response:{ok:false,status:403},result:{success:false,error:'Choose your own PIN to continue.',code:'PIN_CHANGE_REQUIRED'}};};});
+ await page.evaluate(()=>{const was=postApi;window.__postBefore=was;postApi=async p=>{if(p.action==='change_pin')return was(p);window.__sent.push(p);return{response:{ok:false,status:403},result:{success:false,error:'Choose your own PIN to continue.',code:'PIN_CHANGE_REQUIRED'}};};});
  await page.evaluate(async()=>{await syncCurrentView();await syncCurrentView();});
  assert.equal(await dlg.isVisible(),true,'dialog stays open during background refresh');
  assert.equal(await page.evaluate(()=>currentSessionToken),'qa-token','session kept');
@@ -45,6 +45,9 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.keyboard.press('Escape');assert.equal(await dlg.isVisible(),true,'cannot be dismissed with Escape when forced');
  await page.locator('#opNew2').fill('482913');await page.locator('#opSave').click();
  await page.waitForFunction(()=>window.__result==='done');
+ // The refresh stub only belongs to the forced step: later background refreshes must not
+ // keep answering PIN_CHANGE_REQUIRED (that reopened the forced dialog depending on timing).
+ await page.evaluate(()=>{postApi=window.__postBefore;});
  const sent=await page.evaluate(()=>window.__sent.filter(s=>s.action==='change_pin'));
  assert.deepEqual(sent.map(s=>[s.old_pin,s.new_pin,s.token]),[['583920','482913','qa-token']]);
  assert.equal(await dlg.isVisible(),false);
