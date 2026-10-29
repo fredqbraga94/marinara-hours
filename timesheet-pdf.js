@@ -142,7 +142,7 @@
     doc.setDrawColor(205); doc.setLineWidth(0.2); doc.line(PAGE.left, 199, 287, 199);
     doc.setFontSize(6.5); doc.setTextColor(130);
     doc.text('MARINARA HAWTHORNE', PAGE.left, 203.2);
-    doc.text(`Generated from Marinara Hours · ${page} / ${pages}`, 287, 203.2, {align:'right'});
+    doc.text(`Marinara Ristorante Cafe · ${page} / ${pages}`, 287, 203.2, {align:'right'});
   }
 
   function generate(report, groups) {
@@ -180,7 +180,7 @@
     const dialog = document.createElement('dialog');
     dialog.id = 'timesheetPdfDialog';
     dialog.style.cssText = 'width:min(440px,92vw);max-height:85dvh;overflow:auto;border:0;border-radius:20px;padding:24px;color:#17211b;background:white;';
-    dialog.innerHTML = '<h2 style="margin-top:0">Your PDF is ready</h2><p>Share to save in Files, send by AirDrop or choose another app.</p><button type="button" class="btn primary" id="shareTimesheetPdf">Share PDF</button><a class="btn secondary" style="display:block;text-align:center;text-decoration:none" id="saveTimesheetPdf" target="_blank" rel="noopener">Save PDF</a><p role="status" id="pdfExportStatus"></p><button type="button" class="btn secondary" id="closeTimesheetPdf">Back to Marinara Hours</button>';
+    dialog.innerHTML = '<h2 style="margin-top:0">Your PDF is ready</h2><p>Share to save in Files, send by AirDrop or choose another app.</p><button type="button" class="btn primary" id="shareTimesheetPdf">Share PDF</button><a class="btn secondary" style="display:block;text-align:center;text-decoration:none" id="saveTimesheetPdf" target="_blank" rel="noopener">Save PDF</a><p role="status" id="pdfExportStatus"></p><button type="button" class="btn secondary" id="closeTimesheetPdf">Back to the app</button>';
     const save = dialog.querySelector('#saveTimesheetPdf'); save.href=url; save.download=filename;
     const share = dialog.querySelector('#shareTimesheetPdf');
     const status = dialog.querySelector('#pdfExportStatus');
@@ -189,7 +189,7 @@
       file = new File([blob],filename,{type:'application/pdf'});
       share.hidden = !(navigator.share && navigator.canShare?.({files:[file]}));
     } catch (_) { share.hidden = true; }
-    if (share.hidden) status.textContent='Use Save PDF to download or open the file in a separate tab. Marinara Hours stays open.';
+    if (share.hidden) status.textContent='Use Save PDF to download or open the file in a separate tab. The app stays open.';
     share.onclick = async () => {
       share.disabled=true;
       try {
