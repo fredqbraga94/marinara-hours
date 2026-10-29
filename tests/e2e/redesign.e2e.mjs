@@ -86,15 +86,14 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('[data-manager-nav="home"]').click();
  await page.locator('#rmLocation').click();await page.locator('#restaurantSettingsScreen .rm-unit').first().waitFor();
  assert.deepEqual(await page.locator('#restaurantSettingsScreen .rm-unit strong').allInnerTexts(),['Hawthorne','Paddington','Clayfield']);
- assert.match(await page.locator('#restaurantSettingsScreen .rm-unit.current').innerText(),/Hawthorne[\s\S]*Your unit[\s\S]*Viewing/);
+ assert.match(await page.locator('#restaurantSettingsScreen .rm-unit.current').innerText(),/Hawthorne[\s\S]*12 people[\s\S]*Viewing/);
  await page.screenshot({path:`tmp/qa/${size}-units.png`});
  await page.evaluate(()=>{window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Paddington',home_location:'Hawthorne',manager:{id:'qa-m',name:'QA Manager'},counts:{},working:[]}}));});
  await page.locator('[data-manager-nav="home"]').click();
- assert.match(await page.locator('#rmUnitBanner').innerText(),/You are looking at Paddington[\s\S]*Back to Hawthorne/);
+ assert.equal(await page.locator('#rmUnitBanner').count(),0,'no banner: the owner looks at any unit');
  assert.equal(await page.evaluate(()=>document.body.classList.contains('rm-other-unit')),true);
- await page.screenshot({path:`tmp/qa/${size}-unit-banner.png`});
- await page.evaluate(()=>{window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',home_location:'Hawthorne',manager:{id:'qa-m',name:'QA Manager'},counts:{},working:[]}}));});
- assert.equal(await page.locator('#rmUnitBanner').isVisible(),false);assert.equal(await page.evaluate(()=>document.body.classList.contains('rm-other-unit')),false);
+  await page.evaluate(()=>{window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',home_location:'Hawthorne',manager:{id:'qa-m',name:'QA Manager'},counts:{},working:[]}}));});
+ assert.equal(await page.evaluate(()=>document.body.classList.contains('rm-other-unit')),false);
  await page.evaluate(()=>{managerApi=window.__origUnit;});
  // Clock Out from "Working now" opens the same clock-out form as View all.
  await page.evaluate(async()=>{window.__origClk=managerApi;managerApi=async action=>action==='manager_dashboard'?{manager:{id:'qa-m',name:'QA Manager',role:'manager'},location:'Hawthorne',counts:{},working:[{staff_id:'qa-late',name:'QA Forgot',department:'Kitchen',status:'working',shift_id:'qa-shift-9',clock_in:new Date(Date.now()-14*3600e3).toISOString(),hours_so_far:14}]}:{pending:0};await loadManagerDashboard();});
