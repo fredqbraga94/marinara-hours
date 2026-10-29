@@ -61,7 +61,8 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await dlg.waitFor({state:'visible'});assert.equal(await page.locator('#opOldWrap').isVisible(),true);
  await page.evaluate(()=>window.__rule='wrong');
  await page.locator('#opOld').fill('111111');await page.locator('#opNew').fill('482913');await page.locator('#opNew2').fill('482913');await page.locator('#opSave').click();
- await page.waitForFunction(()=>/current PIN is not right/.test(document.getElementById('opMsg').textContent));
+ try{await page.waitForFunction(()=>/current PIN is not right/.test(document.getElementById('opMsg').textContent),null,{timeout:10000});}
+ catch(e){const st=await page.evaluate(()=>({msg:document.getElementById('opMsg').textContent,open:document.getElementById('ownPinDialog').open,token:currentSessionToken,sent:window.__sent.slice(-4)}));throw new Error('wrong current PIN message missing: '+JSON.stringify(st));}
  assert.equal(await dlg.isVisible(),true,'stays open on a wrong current PIN');
  await page.evaluate(()=>window.__rule='ok');
  await page.screenshot({path:`tmp/qa/${size}-own-pin-change.png`});
