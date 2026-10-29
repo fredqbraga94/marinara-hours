@@ -46,7 +46,7 @@
     doc.text(clean(report.summary), W - R, 34, { align: 'right' });
     doc.setDrawColor(205); doc.setLineWidth(0.2); doc.line(L, 285, W - R, 285);
     doc.setFontSize(6.5); doc.setTextColor(130);
-    doc.text('MARINARA HAWTHORNE', L, 289);
+    doc.text(`MARINARA ${clean(report.unit || 'Hawthorne').toUpperCase()}`, L, 289);
     doc.text(`Marinara Ristorante Cafe · ${page} / ${pages}`, W - R, 289, { align: 'right' });
   }
 
@@ -97,7 +97,7 @@
     const blob = generate(report);
     closeCurrent?.();
     const url = URL.createObjectURL(blob);
-    const filename = 'Marinara-Stock-Order-' + clean(report.fileDate || 'order').replace(/[^a-zA-Z0-9]+/g, '-') + '.pdf';
+    const filename = 'Marinara-' + clean(report.unit || 'Hawthorne').replace(/[^a-zA-Z0-9]+/g, '-') + '-Stock-Order-' + clean(report.fileDate || 'order').replace(/[^a-zA-Z0-9]+/g, '-') + '.pdf';
     const dialog = document.createElement('dialog');
     dialog.id = 'stockPdfDialog';
     dialog.style.cssText = 'width:min(440px,92vw);max-height:85dvh;overflow:auto;border:0;border-radius:20px;padding:24px;color:#17211b;background:white;';
