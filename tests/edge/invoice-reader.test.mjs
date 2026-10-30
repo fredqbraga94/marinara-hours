@@ -143,3 +143,39 @@ test("Global Food and Wine (older layout): unit printed together with the code o
     ["90000007", 4, "Ctn [4]", 20, 80], ["90000008", 1, "Carton", 150, 150], ["DELIVERY", 1, "EA", 4.95, 4.95],
   ]);
 });
+
+// HTC Foods (seafood). Made-up products and prices at the column positions the
+// real PDFs use: description continues on the next row, price and tax code in
+// one cell, printed line total includes GST.
+function htcPages() {
+  y = 0;
+  const words = [
+    ...row(["HTC Foods", 383]), ...row(["TAX INVOICE", 28], ["HSIN-TEST-1", 121]), ...row(["Date 03/11/2026", 28], ["Customer", 120], ["TEST", 195]),
+    ...row(["Code", 38], ["(origin)", 68], ["Description", 127], ["Ctns", 377], ["Qty", 421], ["Price Tax", 467], ["Total", 538]),
+    ...row(["1", 28], ["TST01 T7", 38], ["Test Prawn Raw 16/20 (10", 127], ["2 ctn", 387], ["20 pk", 419], ["$10.00 FRE", 462], ["$200.00", 533]),
+    ...row(["Imported", 40], ["x 500g) TESTBRAND", 127]),
+    ...row(["2", 28], ["TST02", 38], ["Test Squid Rings (4kg/ctn)", 127], ["1 ctn", 387], ["1 ctn", 425], ["$40.00 FRE", 462], ["$40.00", 539]),
+    ...row(["3", 28], ["FLEVY", 38], ["Fuel Levy", 127], ["1 ctn", 387], ["$5.00 GST", 468], ["$5.50", 544]),
+    ...row(["How to pay this invoice", 28]), ...row(["Subtotal", 446], ["$245.00", 490]), ...row(["GST", 462], ["$0.50", 490]),
+    ...row(["Invoice Total", 426], ["$245.50", 490]),
+  ];
+  return [R.toRows(words)];
+}
+
+test("HTC Foods: lines, wrapped description, ex-GST totals and price per pack", () => {
+  const inv = R.parse(htcPages());
+  assert.equal(inv.supplier, "HTC Foods (seafood)");
+  assert.equal(inv.ok, true, JSON.stringify(inv.checks));
+  assert.equal(inv.number, "HSIN-TEST-1");
+  assert.equal(inv.date, "2026-11-03");
+  assert.deepEqual(inv.lines.map((l) => [l.code, l.qty, l.unit, l.unit_price, l.line_total, l.gst]), [
+    ["TST01 T7", 20, "pk 500g", 10, 200, 0],
+    ["TST02", 1, "ctn", 40, 40, 0],
+    ["FLEVY", 1, "", 5, 5, 0.5],
+  ]);
+  assert.match(inv.lines[0].description, /Test Prawn Raw 16\/20 \(10 × 500g\) TESTBRAND/);
+  const pack = R.packGuess(inv.lines[0].description, inv.lines[0].unit);
+  assert.deepEqual(pack, { count: 1, size: 500, unit: "g" });
+  assert.equal(R.perUnit(10, pack), 20, "A$20 per kg, not per carton");
+  assert.equal(R.perUnit(40, R.packGuess(inv.lines[1].description, inv.lines[1].unit)), 10);
+});

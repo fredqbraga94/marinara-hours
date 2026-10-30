@@ -465,7 +465,77 @@
     },
   };
 
-  const READERS = [moco, pronto, angelos, globalFood, gulliInvoice, gulliCredit];
+  // HTC Foods (seafood; "Fishman foods & HTC Foods"). One row per item with the
+  // line number, code, description, cartons, quantity + unit ("10 pk"), price
+  // with the tax code in one cell ("$16.95 FRE" / "$3.00 GST") and the line
+  // total including GST. The description can continue on the next row(s)
+  // ("(10 x 700g) Viet TASTY"); "Imported" under the code is the origin.
+  // Line totals are stored ex GST (price x quantity), like the other suppliers.
+  const htc = {
+    supplier: "HTC Foods (seafood)",
+    test: t => /HTC Foods/.test(t) && /TAX INVOICE/.test(t) && /Invoice Total/.test(t),
+    read(pages) {
+      const lines = [];
+      let number = null, date = null;
+      for (const rows of pages) {
+        let last = null, inTable = false;
+        for (const r of rows) {
+          const rt = rowText(r);
+          if (!number) { const m = rt.match(/TAX INVOICE\s+(\S+)/); if (m) number = m[1]; }
+          if (!date) { const m = rt.match(/\bDate\s+(\d{1,2}\/\d{1,2}\/\d{2,4})\b/); if (m) date = isoDate(m[1]); }
+          if (/^Code\b/.test(rt) && /Description/.test(rt) && /Total/.test(rt)) { inTable = true; last = null; continue; }
+          if (!inTable) continue;
+          if (/How to pay|Subtotal/.test(rt)) { inTable = false; last = null; continue; }
+          const n = firstIn(r, 20, 37), priceCell = textIn(r, 455, 525), totalCell = firstIn(r, 525, 600);
+          const pm = priceCell.match(/^\$?(-?[\d,]*\.?\d+)\s*([A-Z]{3})?$/);
+          if (n && /^\d+$/.test(n) && pm && money(totalCell) != null) {
+            const qtyCell = textIn(r, 415, 455), ctnCell = textIn(r, 375, 415);
+            const qm = (qtyCell || ctnCell).match(/^(-?[\d.]+)\s*([A-Za-z]*)$/);
+            const price = money(pm[1]), qty = qm ? Number(qm[1]) : 1, inc = money(totalCell);
+            const unit = qtyCell && qm ? qm[2] : "";   // charges (fuel levy) have no quantity
+            const ex = r2(price * qty);
+            last = {
+              code: textIn(r, 37, 127),
+              description: textIn(r, 127, 375),
+              qty,
+              unit,
+              unit_price: price,
+              // Printed total includes GST; when it does not match price x qty, trust the printed one.
+              line_total: pm[2] === "GST" ? r2(inc / 1.1) : (Math.abs(ex - inc) <= 0.02 ? ex : inc),
+              gst: pm[2] === "GST" ? r2(inc - r2(inc / 1.1)) : 0,
+            };
+            lines.push(last);
+          } else if (last && r.items.length && r.items.every(i => (i.x >= 127 && i.x < 375) || (i.x < 127 && /^(Imported|Australian|Australia|Local|[A-Z][a-z]+)$/.test(i.s)))) {
+            const extra = textIn(r, 127, 375);
+            if (extra) last.description += " " + extra;
+          } else if (r.items.length) {
+            last = null;
+          }
+        }
+      }
+      // Price per pack: "(10 x 700g)" is the carton; the price is for one 700 g pack.
+      for (const l of lines) {
+        const m = l.description.match(/\(\s*(\d+)\s*x\s*(\d+(?:\.\d+)?\s*(?:kg|g|l|ml))\s*\)?/i)
+          || l.description.match(/\(\s*(\d+)\s*\r?\n?\s*x\s*(\d+(?:\.\d+)?\s*(?:kg|g|l|ml))/i);
+        if (m && /^(pk|pkt|pack|ea|each|bag)$/i.test(l.unit)) {
+          l.unit = `${l.unit} ${m[2].replace(/\s+/g, "")}`;
+          // Keep the carton in the name, but so the cost per kg reads the pack, not the carton.
+          l.description = l.description.replace(m[0], m[0].replace(/\s*x\s*/i, " × "));
+        }
+      }
+      return {
+        number,
+        date,
+        kind: "invoice",
+        lines,
+        subtotal: money(valueAfter(pages, "Subtotal")),
+        gst: money(valueAfter(pages, "GST")),
+        total: money(valueAfter(pages, "Invoice Total")),
+      };
+    },
+  };
+
+  const READERS = [moco, pronto, angelos, globalFood, gulliInvoice, gulliCredit, htc];
 
   // pages -> invoice, or { error } when the layout is not one we know.
   function parse(pages) {
