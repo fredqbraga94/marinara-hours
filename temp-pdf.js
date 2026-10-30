@@ -48,13 +48,43 @@
 
   // week: {title, place, when, limits, foot, logo, days:[label], rows:[{name, sub, cells:[{opening:{t,bad}|null, closing:..}]}], notes:[[day, equipment, time, temp, action, by]]}
   // records: {..., records:[[date, time, what, temp, action, by, bad]]}
+  // table: {..., landscape?, head:[..], rows:[[..]], bad:[bool per row], badCol?, widths?:{col: mm}, notes?:{title, head, rows}}
   function generate(report) {
-    const week = report.kind === 'week';
+    const week = report.kind === 'week' || (report.kind === 'table' && report.landscape);
     const doc = new window.jspdf.jsPDF({ orientation: week ? 'landscape' : 'portrait', unit: 'mm', format: 'a4', compress: true });
     const W = week ? 297 : 210, H = week ? 210 : 297;
     const base = { font: 'helvetica', fontSize: 8.5, cellPadding: 1.4, lineColor: 120, lineWidth: 0.2, textColor: 20, valign: 'middle', overflow: 'linebreak' };
     const margin = { left: 10, right: 10, top: 35, bottom: 14 };
-    if (week) {
+    if (report.kind === 'table') {
+      const cols = report.head.length;
+      const columnStyles = {};
+      for (const [k, v] of Object.entries(report.widths || {})) columnStyles[k] = { cellWidth: v };
+      doc.autoTable({
+        startY: 35, margin, theme: 'grid', styles: { ...base, halign: report.center ? 'center' : 'left' },
+        head: [report.head.map(clean)],
+        headStyles: { fillColor: 17, textColor: 255, fontStyle: 'bold' },
+        columnStyles: { ...columnStyles, 0: { ...(columnStyles[0] || {}), halign: 'left' } },
+        body: report.rows.length ? report.rows.map((r, i) => r.map((x, c) => {
+          if (x && typeof x === 'object') return { content: clean(x.t), styles: x.bold ? { fontStyle: 'bold', fillColor: 240 } : x.bad ? { textColor: RED, fontStyle: 'bold' } : {} };
+          return report.bad?.[i] && c === report.badCol ? { content: clean(x), styles: { textColor: RED, fontStyle: 'bold' } } : clean(x);
+        })) : [[{ content: report.empty || 'No records yet.', colSpan: cols }]],
+        showHead: 'everyPage', rowPageBreak: 'avoid',
+      });
+      const n = report.notes;
+      if (n) {
+        let y = doc.lastAutoTable.finalY + 6;
+        if (y > H - 30) { doc.addPage(); y = 35; }
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20);
+        doc.text(clean(n.title), 10, y);
+        if (n.rows.length) {
+          doc.autoTable({ startY: y + 2, margin, theme: 'grid', styles: base, head: [n.head.map(clean)],
+            headStyles: { fillColor: 232, textColor: 20, fontStyle: 'bold' }, body: n.rows.map(r => r.map(clean)) });
+        } else {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90);
+          doc.text(clean(n.none || 'None.'), 10, y + 6);
+        }
+      }
+    } else if (week) {
       const body = [];
       for (const r of report.rows) {
         for (const slot of ['opening', 'closing']) {
@@ -114,7 +144,7 @@
     const blob = generate(report);
     closeCurrent?.();
     const url = URL.createObjectURL(blob);
-    const filename = 'Marinara-Temperatures-' + clean(report.fileDate || 'records').replace(/[^a-zA-Z0-9]+/g, '-') + '.pdf';
+    const filename = (report.filePrefix || 'Marinara-Temperatures-') + clean(report.fileDate || 'records').replace(/[^a-zA-Z0-9]+/g, '-') + '.pdf';
     const dialog = document.createElement('dialog');
     dialog.id = 'tempPdfDialog';
     dialog.style.cssText = 'width:min(440px,92vw);max-height:85dvh;overflow:auto;border:0;border-radius:20px;padding:24px;color:#17211b;background:white;';
@@ -132,7 +162,7 @@
       share.disabled = true;
       try {
         // No await before share: keep the fresh tap Safari/iOS requires.
-        await navigator.share({ files: [file], title: 'Marinara temperature records' });
+        await navigator.share({ files: [file], title: report.shareTitle || 'Marinara temperature records' });
         status.textContent = 'Done.';
       } catch (error) {
         status.textContent = error.name === 'AbortError' ? 'Cancelled. You can try again or open the PDF.' : 'Sharing is unavailable. Use Open PDF instead.';

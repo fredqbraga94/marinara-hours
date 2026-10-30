@@ -57,6 +57,7 @@ jobs:
       - run: npm run test:own-pin
       - run: npm run test:top-products
       - run: npm run test:temp-log
+      - run: npm run test:food-safety
       - run: npm run test:temp-reminder
       - run: npm run test:unit-switch
       - run: npm run test:maintenance
@@ -86,6 +87,7 @@ jobs:
       - run: npm run test:e2e:own-pin
       - run: npm run test:e2e:top-products
       - run: npm run test:e2e:temp-log
+      - run: npm run test:e2e:food-safety
       - run: npm run test:e2e:prices-year
       - run: npm run test:e2e:maintenance
   browser-webkit:
@@ -113,6 +115,7 @@ jobs:
       - run: npm run test:e2e:own-pin:webkit
       - run: npm run test:e2e:top-products:webkit
       - run: npm run test:e2e:temp-log:webkit
+      - run: npm run test:e2e:food-safety:webkit
       - run: npm run test:e2e:prices-year:webkit
       - run: npm run test:e2e:maintenance:webkit
   hardening:
