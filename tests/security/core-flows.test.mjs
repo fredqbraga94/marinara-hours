@@ -70,10 +70,10 @@ test('public database roles cannot read staff or execute privileged functions',a
  assert.equal(await one("select count(*) from pg_class where relnamespace='public'::regnamespace and relkind='r' and not relrowsecurity"),'0');
 });
 
-test('approved Administrator unit switch remains usable; device administration stays in home unit',async()=>{
+test('approved Administrator unit switch remains usable; the owner manages the devices of the unit being looked at',async()=>{
  assert.equal((await api(1,{action:'manager_unit_set',location:'Clayfield'})).status,200);
  const team=await api(1,{action:'manager_team'});assert.equal(team.status,200);assert.match(JSON.stringify(team.body),/Test Clayfield/);assert.doesNotMatch(JSON.stringify(team.body),/Test Kitchen A/);
- const list=await api(1,{action:'manager_devices'});assert.equal(list.status,200);assert.doesNotMatch(JSON.stringify(list.body),/Test Clayfield/);
+ const list=await api(1,{action:'manager_devices'});assert.equal(list.status,200);assert.doesNotMatch(JSON.stringify(list.body),/Test Kitchen A/,'no Hawthorne people while looking at Clayfield');
  assert.equal((await api(2,{action:'manager_unit_set',location:'Paddington'})).status,403);
  assert.equal((await api(1,{action:'manager_unit_set',location:'Hawthorne'})).status,200);
 });
