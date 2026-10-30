@@ -1,4 +1,6 @@
 -- Management ownership is separate from PIN/session authentication.
+-- Devices are managed by the Administrator (owner) for the unit they are looking
+-- at; Kitchen/Floor Managers cannot manage devices (server rule).
 -- Devices with conflicting historical units remain unassigned for owner review.
 -- This does not revoke sessions, alter PINs or change the device login mode.
 alter table public.auth_devices add column if not exists management_location text;
@@ -15,6 +17,35 @@ with associations as (
 )
 update public.auth_devices d set management_location = a.location
 from unambiguous a where d.id = a.id and d.management_location is null;
+
+-- A pairing code belongs to the unit it was made for (the Administrator may be
+-- looking at another unit than their own).
+alter table public.auth_pairing_codes add column if not exists location text;
+
+create or replace function public.auth_create_pairing_code(p_manager_id uuid, p_code_hash text, p_label text)
+returns jsonb
+language plpgsql security definer set search_path to 'public'
+as $$
+declare
+  mgr public.staff%rowtype := public.mh_manager(p_manager_id);
+  cfg public.auth_settings%rowtype;
+  v_expires timestamptz;
+begin
+  if p_code_hash is null or p_code_hash !~ '^[0-9a-f]{64}$' then raise exception 'INVALID_INPUT'; end if;
+  select * into cfg from public.auth_settings where id;
+  if (select count(*) from public.auth_pairing_codes
+       where created_by = mgr.id and used_at is null and expires_at > now()) >= 5 then
+    raise exception 'TOO_MANY_ACTIVE_CODES';
+  end if;
+  v_expires := now() + make_interval(mins => cfg.pairing_code_minutes);
+  insert into public.auth_pairing_codes (code_hash, created_by, label, expires_at, location)
+  values (p_code_hash, mgr.id, nullif(left(btrim(coalesce(p_label, '')), 60), ''), v_expires, mgr.location);
+  insert into public.auth_events (event, manager_id, detail)
+  values ('pairing_code_created', mgr.id, jsonb_build_object('expires_at', v_expires, 'location', mgr.location));
+  return jsonb_build_object('expires_at', v_expires);
+end $$;
+revoke all on function public.auth_create_pairing_code(uuid,text,text) from public, anon, authenticated;
+grant execute on function public.auth_create_pairing_code(uuid,text,text) to service_role;
 
 -- New devices inherit the pairing authorizer's unit, or their first user for
 -- owner recovery/grace devices. Ownership never changes silently on later login.
@@ -41,12 +72,12 @@ declare
   mgr public.staff%rowtype := public.mh_manager(p_manager_id);
   cfg public.auth_settings%rowtype;
 begin
-  -- Device administration stays in the home unit even while viewing another unit.
-  select st.location into mgr.location from public.staff st where st.id = mgr.id;
+  -- Devices of the unit the Administrator (owner) is looking at (mh_manager).
   select * into cfg from public.auth_settings where id;
   return jsonb_build_object(
     'mode', cfg.device_mode,
-    'can_change_mode', mgr.role = 'manager' and not exists (select 1 from public.staff s where s.active and s.location is distinct from mgr.location),
+    -- The Administrator is the owner of every restaurant: the only one who changes the mode.
+    'can_change_mode', mgr.role = 'manager',
     'unknown_locked_until', (select locked_until from public.auth_attempt_buckets where bucket = 'unknown' and locked_until > now()),
     'devices', coalesce((
       select jsonb_agg(jsonb_build_object(
@@ -71,8 +102,7 @@ declare
   mgr public.staff%rowtype := public.mh_manager(p_manager_id);
   v_sessions integer;
 begin
-  -- Device administration stays in the home unit even while viewing another unit.
-  select st.location into mgr.location from public.staff st where st.id = mgr.id;
+  -- Devices of the unit the Administrator (owner) is looking at (mh_manager).
   update public.auth_devices set status = 'revoked', revoked_at = now(), revoked_by = mgr.id
    where id = p_device_id and management_location = mgr.location and status = 'approved';
   if not found then raise exception 'DEVICE_NOT_FOUND'; end if;
@@ -89,8 +119,7 @@ language plpgsql security definer set search_path to 'public'
 as $$
 declare mgr public.staff%rowtype := public.mh_manager(p_manager_id);
 begin
-  -- Device administration stays in the home unit even while viewing another unit.
-  select st.location into mgr.location from public.staff st where st.id = mgr.id;
+  -- Devices of the unit the Administrator (owner) is looking at (mh_manager).
   if not exists (select 1 from public.auth_devices where id = p_device_id and management_location = mgr.location and status = 'approved') then
     raise exception 'DEVICE_NOT_FOUND';
   end if;
@@ -107,8 +136,7 @@ language plpgsql security definer set search_path to 'public'
 as $$
 declare mgr public.staff%rowtype := public.mh_manager(p_manager_id);
 begin
-  -- Device administration stays in the home unit even while viewing another unit.
-  select st.location into mgr.location from public.staff st where st.id = mgr.id;
+  -- Devices of the unit the Administrator (owner) is looking at (mh_manager).
   update public.auth_devices set label = nullif(left(btrim(coalesce(p_label, '')), 60), '') where id = p_device_id and management_location = mgr.location;
   if not found then raise exception 'DEVICE_NOT_FOUND'; end if;
   return jsonb_build_object('renamed', true);
@@ -122,12 +150,8 @@ declare
   mgr public.staff%rowtype := public.mh_manager(p_manager_id);
   v_old text;
 begin
-  -- Device administration stays in the home unit even while viewing another unit.
-  select st.location into mgr.location from public.staff st where st.id = mgr.id;
+  -- Devices of the unit the Administrator (owner) is looking at (mh_manager).
   if mgr.role <> 'manager' then raise exception 'GM_REQUIRED'; end if;
-  if exists (select 1 from public.staff s where s.active and s.location is distinct from mgr.location) then
-    raise exception 'GLOBAL_OWNER_REQUIRED';
-  end if;
   if p_mode not in ('grace', 'enforce') then raise exception 'INVALID_INPUT'; end if;
   select device_mode into v_old from public.auth_settings where id for update;
   update public.auth_settings set device_mode = p_mode, updated_at = now(), updated_by = mgr.id where id;
@@ -184,7 +208,7 @@ begin
   -- A venue-issued code cannot administer a foreign or unassigned device.
   -- Owner recovery codes (created_by IS NULL) remain the explicit global path.
   if c.created_by is not null then
-    select s.location into v_issuer_location from public.staff s
+    select coalesce(c.location, s.location) into v_issuer_location from public.staff s
       where s.id = c.created_by and s.active
         and s.role in ('manager', 'kitchen_manager', 'floor_manager');
     if v_issuer_location is null or (dev.id is not null and dev.management_location is distinct from v_issuer_location) then
@@ -192,9 +216,9 @@ begin
     end if;
   end if;
   if dev.id is null then
-    insert into public.auth_devices (device_hash, status, label, approved_via, approved_by, last_seen_at)
+    insert into public.auth_devices (device_hash, status, label, approved_via, approved_by, last_seen_at, management_location)
     values (p_device_hash, 'approved', coalesce(nullif(left(btrim(coalesce(p_label, '')), 60), ''), c.label),
-            'pairing', c.created_by, now())
+            'pairing', c.created_by, now(), v_issuer_location)
     returning * into dev;
   else
     update public.auth_devices

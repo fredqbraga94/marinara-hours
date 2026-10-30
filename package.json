@@ -59,7 +59,7 @@
     "test:security:browser": "node tests/security/browser.e2e.mjs",
     "audit:device-scope": "node tests/security/device-scope-observation.mjs",
     "test:security:edge": "node --test tests/edge/security-audit.test.mjs",
-    "test:security:integration": "node tests/integration/security-audit.mjs"
+    "test:security:integration": "node tests/integration/security-audit.mjs && node tests/integration/device-owner.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.13",

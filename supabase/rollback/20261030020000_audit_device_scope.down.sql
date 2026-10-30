@@ -157,3 +157,27 @@ begin
 end $$;
 revoke all on function public.auth_redeem_pairing_code(text,text,text) from public, anon, authenticated;
 grant execute on function public.auth_redeem_pairing_code(text,text,text) to service_role;
+
+-- Pairing codes as before (the location column stays as metadata).
+create or replace function public.auth_create_pairing_code(p_manager_id uuid, p_code_hash text, p_label text)
+returns jsonb
+language plpgsql security definer set search_path to 'public'
+as $$
+declare
+  mgr public.staff%rowtype := public.mh_manager(p_manager_id);
+  cfg public.auth_settings%rowtype;
+  v_expires timestamptz;
+begin
+  if p_code_hash is null or p_code_hash !~ '^[0-9a-f]{64}$' then raise exception 'INVALID_INPUT'; end if;
+  select * into cfg from public.auth_settings where id;
+  if (select count(*) from public.auth_pairing_codes
+       where created_by = mgr.id and used_at is null and expires_at > now()) >= 5 then
+    raise exception 'TOO_MANY_ACTIVE_CODES';
+  end if;
+  v_expires := now() + make_interval(mins => cfg.pairing_code_minutes);
+  insert into public.auth_pairing_codes (code_hash, created_by, label, expires_at)
+  values (p_code_hash, mgr.id, nullif(left(btrim(coalesce(p_label, '')), 60), ''), v_expires);
+  insert into public.auth_events (event, manager_id, detail)
+  values ('pairing_code_created', mgr.id, jsonb_build_object('expires_at', v_expires));
+  return jsonb_build_object('expires_at', v_expires);
+end $$;

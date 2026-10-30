@@ -3965,7 +3965,7 @@ Deno.serve(async (req) => {
                 .from("staff")
                 .select("id, name")
                 .in("id", staffIds)
-                .eq("location", homeLocation);
+                .eq("location", location);
               if (peopleError) throw peopleError;
               for (const p of people || []) names[p.id] = p.name;
             }

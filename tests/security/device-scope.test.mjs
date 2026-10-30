@@ -26,11 +26,13 @@ test('foreign device rename, unlock and revoke are denied, preserving foreign se
  }
  assert.equal((await api(20,{action:'session_test'})).status,200);
 });
-test('venue manager cannot change a security setting affecting other restaurants',async()=>{
+test('only the Administrator (owner) changes the device mode, also with several units; Kitchen Managers cannot',async()=>{
  await db.admin.query("update auth_settings set device_mode='enforce'");
- const r=await api(1,{action:'manager_auth_mode',mode:'grace'});assert.equal(r.status,403);
+ const k=await api(2,{action:'manager_auth_mode',mode:'grace'});assert.equal(k.status,403);
  assert.equal(await one('select device_mode from auth_settings'),'enforce');
- assert.equal((await api(1,{action:'manager_devices'})).body.data.can_change_mode,false);
+ const r=await api(1,{action:'manager_auth_mode',mode:'grace'});assert.equal(r.status,200,JSON.stringify(r.body));
+ assert.equal(await one('select device_mode from auth_settings'),'grace');
+ assert.equal((await api(1,{action:'manager_devices'})).body.data.can_change_mode,true);
 });
 test('same-unit administration remains usable and revocation invalidates the target session',async()=>{
  const local=await one(`select id from auth_devices where last_staff_id='${ID(2)}'`);
@@ -90,4 +92,22 @@ test('inactive issuers cannot authorize new devices; owner recovery stays availa
  await db.admin.query(`update staff set active=true where id='${ID(20)}'`);
  const ownerCode=await one("select public.auth_owner_pairing_code('Synthetic owner recovery')");
  const recovered=await call(h,{action:'device_pair',device:dev[2],code:ownerCode});assert.equal(recovered.status,200,JSON.stringify(recovered.body));
+});
+
+test('the Administrator manages the devices of the unit they are looking at; a code made there pairs into that unit',async()=>{
+ await db.admin.query(`update staff set active=true where id='${ID(20)}'`);
+ const clay=await one(`select id from auth_devices where last_staff_id='${ID(20)}' and management_location='Clayfield' limit 1`);
+ assert.ok(clay,'a Clayfield device');
+ assert.equal((await api(1,{action:'manager_unit_set',location:'Clayfield'})).status,200);
+ const list=await api(1,{action:'manager_devices'});assert.equal(list.status,200);
+ assert.equal(list.body.data.devices.some(d=>d.id===clay),true,'Clayfield devices while looking at Clayfield');
+ assert.equal((await api(1,{action:'manager_device_rename',device_id:clay,label:'Synthetic Clayfield tablet'})).status,200);
+ assert.equal((await api(1,{action:'manager_unit_set',location:'Paddington'})).status,200);
+ const code=await api(1,{action:'manager_device_code',label:'Synthetic Paddington tablet'});assert.equal(code.status,200,JSON.stringify(code.body));
+ const tablet=newDeviceSecret();
+ const paired=await call(h,{action:'device_pair',device:tablet,code:code.body.data.code});assert.equal(paired.status,200,JSON.stringify(paired.body));
+ assert.equal(await one(`select management_location from auth_devices where id='${paired.body.data?.device_id||paired.body.device_id||'00000000-0000-0000-0000-000000000000'}'`)||await one(`select management_location from auth_devices where label='Synthetic Paddington tablet'`),'Paddington');
+ assert.equal((await api(1,{action:'manager_devices'})).body.data.devices.some(d=>d.label==='Synthetic Paddington tablet'),true);
+ assert.equal((await api(1,{action:'manager_unit_set',location:'Hawthorne'})).status,200);
+ assert.equal((await api(1,{action:'manager_devices'})).body.data.devices.some(d=>d.label==='Synthetic Paddington tablet'),false,'back home: Paddington tablet not listed');
 });

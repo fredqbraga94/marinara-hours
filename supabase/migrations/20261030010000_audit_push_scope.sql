@@ -65,8 +65,7 @@ as $function$
 declare
   mgr public.staff%rowtype := public.mh_manager(p_manager_id);
 begin
-  -- Viewing another unit must not move personal notification administration.
-  select st.location into mgr.location from public.staff st where st.id = mgr.id;
+  -- The phones of the unit the Administrator is looking at; others: their own unit.
   return coalesce((
     select jsonb_agg(public.mh_push_json(p) order by p.created_at)
       from public.push_subscriptions p
@@ -85,8 +84,7 @@ declare
   mgr public.staff%rowtype := public.mh_manager(p_manager_id);
   v_n integer;
 begin
-  -- Viewing another unit must not move personal notification administration.
-  select st.location into mgr.location from public.staff st where st.id = mgr.id;
+  -- The phones of the unit the Administrator is looking at; others: their own unit.
   if mgr.role not in ('manager', 'admin') then raise exception 'GM_REQUIRED'; end if;
   update public.push_subscriptions set active = false, updated_at = now()
    where id = p_id and location = coalesce(mgr.location, 'Hawthorne') and active;
