@@ -364,6 +364,7 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   NAME_IS_A_DISH: [409, "There is already a dish with this name. Rename the ingredient first."],
   ITEM_NOT_FOUND: [404, "Item not found"],
   ACTION_REQUIRED: [400, "The temperature is outside the safe range. Write what you did about it."],
+  ALREADY_DONE: [409, "This cooling already has its 6-hour reading."],
 };
 
 // WEBPUSH-START
@@ -1552,6 +1553,14 @@ Deno.serve(async (req) => {
         "manager_temp_record",
         "manager_temp_history",
         "manager_temp_delivery_edit",
+        "manager_food_day",
+        "manager_food_record",
+        "manager_food_edit",
+        "manager_food_history",
+        "manager_clean_week",
+        "manager_clean_task_save",
+        "manager_clean_mark",
+        "manager_clean_history",
         "manager_shopping_list",
         "manager_shopping_save",
         "manager_shopping_mark",
@@ -3439,6 +3448,82 @@ Deno.serve(async (req) => {
           const { data, error } = await supabase.rpc("manager_temp_delivery_edit", { p_manager_id: managerStatus.id, p_id: body.id, p_entry: entry });
           if (error) return managerDbError(error, "Unable to save the change");
           return json({ success: true, action, data: { record: data } });
+        }
+      }
+
+      // =========================
+      // FOOD TEMPERATURES AND CLEANING (every manager; Standard 3.2.2A)
+      // =========================
+      if (action.startsWith("manager_food_") || action.startsWith("manager_clean_")) {
+        const isUuid = (v: any) => typeof v === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const text = (v: any, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+        const isoDay = (v: any) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
+        const who = (v: any) => v == null || v === "" ? "" : isUuid(v) ? v : null;
+        const tempOf = (v: any) => {
+          const n = typeof v === "number" ? v : Number(String(v ?? "").replace(",", "."));
+          return String(v ?? "").trim() !== "" && Number.isFinite(n) && n >= -40 && n <= 120 ? n : null;
+        };
+        const days = Number.isInteger(body.days) ? body.days : 90;
+        if (action === "manager_food_day") {
+          const { data, error } = await supabase.rpc("manager_food_day", { p_manager_id: managerStatus.id, p_day: isoDay(body.day) });
+          if (error) return managerDbError(error, "Unable to load the food temperatures", 500);
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_food_history" || action === "manager_clean_history") {
+          const { data, error } = await supabase.rpc(action, { p_manager_id: managerStatus.id, p_days: days });
+          if (error) return managerDbError(error, "Unable to load the records", 500);
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_food_record" || action === "manager_food_edit") {
+          const e = body.entry && typeof body.entry === "object" ? body.entry : {};
+          const temp = tempOf(e.temp);
+          if (temp === null) return json({ error: "Type the temperature in °C.", code: "INVALID_INPUT" }, 400);
+          const checkedBy = who(e.checked_by);
+          if (checkedBy === null) return json({ error: "Choose who did the check.", code: "INVALID_INPUT" }, 400);
+          const entry: any = { temp, action: text(e.action, 200), checked_by: checkedBy, food: text(e.food, 80) };
+          if (action === "manager_food_record") {
+            if (e.batch_id != null) {
+              if (!isUuid(e.batch_id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
+              entry.batch_id = e.batch_id;
+            } else {
+              entry.check = ["cook", "reheat", "hot", "cold", "cool"].includes(e.check) ? e.check : null;
+              if (!entry.food || !entry.check) return json({ error: "Write the food and choose the check.", code: "INVALID_INPUT" }, 400);
+            }
+            const { data, error } = await supabase.rpc("manager_food_record", { p_manager_id: managerStatus.id, p_entry: entry });
+            if (error) return managerDbError(error, "Unable to save the temperature");
+            return json({ success: true, action, data: { record: data } });
+          }
+          if (!isUuid(body.id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
+          const { data, error } = await supabase.rpc("manager_food_edit", { p_manager_id: managerStatus.id, p_id: body.id, p_entry: entry });
+          if (error) return managerDbError(error, "Unable to save the change");
+          return json({ success: true, action, data: { record: data } });
+        }
+        if (action === "manager_clean_week") {
+          const { data, error } = await supabase.rpc("manager_clean_week", { p_manager_id: managerStatus.id, p_start: isoDay(body.start) });
+          if (error) return managerDbError(error, "Unable to load the cleaning sheet", 500);
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_clean_task_save") {
+          const it = body.item && typeof body.item === "object" ? body.item : {};
+          if (it.id != null && !isUuid(it.id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
+          const item: any = { name: text(it.name, 80), frequency: ["daily", "weekly"].includes(it.frequency) ? it.frequency : null, active: it.active !== false };
+          if (typeof it.how === "string") item.how = text(it.how, 120);
+          if (it.id) item.id = it.id;
+          else if (!item.name || !item.frequency) return json({ error: "Write the task and choose every day or once a week.", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_clean_task_save", { p_manager_id: managerStatus.id, p_item: item });
+          if (error) return managerDbError(error, "Unable to save the task");
+          return json({ success: true, action, data: { task: data } });
+        }
+        if (action === "manager_clean_mark") {
+          if (!isUuid(body.task_id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
+          const checkedBy = who(body.checked_by);
+          if (checkedBy === null) return json({ error: "Choose who did it.", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_clean_mark", {
+            p_manager_id: managerStatus.id, p_task_id: body.task_id, p_done: body.done !== false, p_checked_by: checkedBy,
+          });
+          if (error) return managerDbError(error, "Unable to save");
+          return json({ success: true, action, data });
         }
       }
 
