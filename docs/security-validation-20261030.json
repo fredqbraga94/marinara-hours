@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-30",
+  "timezone": "Australia/Brisbane",
+  "tested_commit": "bc746a84947f3839c26fe5e9f9df72e0f2fc0302",
+  "base_commit": "ac241d0679c0b8d09a5952bc55efded9a80abbe9",
+  "workflow_run": 40967366656,
+  "workflow_url": "https://github.com/fredqbraga94/marinara-hours/actions/runs/40967366656",
+  "jobs": [
+    {
+      "name": "browser-webkit",
+      "id": 123775150860,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "security-audit",
+      "id": 123775151026,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "browser",
+      "id": 123775151032,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "features",
+      "id": 123775151059,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "hardening",
+      "id": 123775151100,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "database",
+      "id": 123775151153,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "integration",
+      "id": 123775151190,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "name": "api",
+      "id": 123775151282,
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "local": {
+    "security_tests": {
+      "passed": 43,
+      "failed": 0
+    },
+    "historical_tests": {
+      "passed": 32,
+      "failed": 0
+    },
+    "hours_roster_parser": {
+      "passed": 24,
+      "failed": 0
+    },
+    "chromium_pin_flow": "passed",
+    "integrated_chromium_flow": "passed",
+    "npm_advisories": 0,
+    "signature_scan": {
+      "reachable_blobs": 764,
+      "candidates": 0
+    }
+  },
+  "production": {
+    "edge_version": 58,
+    "edge_source_commit": "faa239efff92d10143910c12e10b3dcea0eea553",
+    "public_tables": 43,
+    "tables_with_rls": 43,
+    "public_executable_rpcs": 0,
+    "secure_pin_rpc_installed": false,
+    "device_management_location_installed": false,
+    "changes_deployed": false
+  },
+  "limitations": [
+    "Physical iPhone and installed iOS PWA not tested",
+    "Complete dynamic coverage of every endpoint is not claimed",
+    "Host/CSP/deploy permissions and complete external dependency coverage remain incomplete"
+  ],
+  "release": "Draft PR; coordinated reviewed deployment required"
+}

@@ -78,6 +78,7 @@ try {
   section("A. Migration");
   await check("applies; closed to the public keys; runs twice; production server keeps working", async () => {
     const r = db.psqlFile(SHOP); assert.ok(r.ok, r.stderr);
+    db.mustFile("supabase/migrations/20261028233534_pin_session_revocation.sql");
     for (const role of ["anon", "authenticated"]) {
       for (const fn of ["mh_random_free_pin()", "manager_staff_temp_pin(uuid,uuid)", "staff_change_pin(uuid,text,text)", "mh_pin_must_change(uuid)"]) {
         assert.equal(await one(db, `select has_function_privilege('${role}', 'public.${fn}', 'execute')`), "f", `${role} ${fn}`);
@@ -207,6 +208,7 @@ try {
 
   section("D. Rollback");
   await check("rollback removes it; both servers still work for people with a normal PIN", async () => {
+    db.mustFile("supabase/rollback/20261028233534_pin_session_revocation.down.sql");
     const r = db.psqlFile(SHOP_DOWN); assert.ok(r.ok, r.stderr);
     assert.equal(await one(db, `select count(*) from information_schema.columns where table_name = 'staff' and column_name = 'pin_must_change'`), "0");
     const n = await login(vNew, 3);

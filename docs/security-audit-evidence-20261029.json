@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-29",
+  "timezone": "Australia/Brisbane",
+  "base_commit": "4ec51c3e69cd15a1ab5bb39c2d8234c76596b536",
+  "branch": "security/audit-hardening-20261029",
+  "production_changed": false,
+  "findings": {
+    "confirmed": 7,
+    "fixed_on_branch": 7,
+    "deployed": 0,
+    "pending_rollout": 7,
+    "critical_confirmed": 0
+  },
+  "score": {
+    "production_estimate": 65,
+    "candidate_estimate": 80,
+    "certification": false
+  },
+  "production_metadata": {
+    "public_tables": 43,
+    "rls_enabled_tables": 43,
+    "public_executable_functions_for_api_roles": 0,
+    "device_mode": "enforce",
+    "deployed_edge_version": 58,
+    "devices": {
+      "total": 8,
+      "unambiguous_unit": 8,
+      "mixed_units": 0,
+      "no_unit_evidence": 0,
+      "collection_date": "2026-10-29"
+    },
+    "deployed_import_sha": "faa239efff92d10143910c12e10b3dcea0eea553",
+    "pin_secure_function_exists": false,
+    "device_ownership_exists": false
+  },
+  "tests": {
+    "security": {
+      "passed": 43,
+      "failed": 0
+    },
+    "historical_unit": {
+      "passed": 32,
+      "failed": 0
+    },
+    "hours_roster_parser": {
+      "passed": 24,
+      "failed": 0
+    },
+    "browser_real_sql": "passed chromium iPhone viewport",
+    "pdf_chromium": "passed including content and totals",
+    "historical_browser": "passed with headless shell override",
+    "update_and_own_pin_chromium": "passed",
+    "native_integration": "blocked: native PostgreSQL/pgtest unavailable",
+    "webkit": "blocked: missing shared libraries",
+    "native_ios": "not tested"
+  },
+  "history_scan": {
+    "reachable_blobs_scanned": 779,
+    "findings": []
+  },
+  "dependency_audit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "limitations": [
+    "single serialized embedded PostgreSQL connection",
+    "no native Safari or installed iOS PWA validation",
+    "no production write or attack reproduction",
+    "classic branch protection unreadable:403",
+    "Vercel deployment not identified",
+    "no complete fuzzing or remote dependency advisory coverage"
+  ],
+  "updated_date": "2026-10-30",
+  "integrated_main": "ac241d0679c0b8d09a5952bc55efded9a80abbe9",
+  "source_commit": "6de08e8f8963cf149355c2bdaf470c1b759dc577",
+  "pull_request": "https://github.com/fredqbraga94/marinara-hours/pull/55"
+}

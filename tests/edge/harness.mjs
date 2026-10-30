@@ -48,6 +48,7 @@ export async function loadApi(sourcePath) {
   await import(pathToFileURL(file).href);
   if (!handler) throw new Error("Deno.serve was not called");
   return {
+    handle: handler,
     async callWith(body, headers) {
       const req = new Request("http://fake/functions/v1/marinara-api-v2", {
         method: "POST",

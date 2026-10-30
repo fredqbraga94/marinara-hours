@@ -7,12 +7,20 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+function safeErrorCode(error: unknown): string {
+  const code = (error as any)?.code;
+  return typeof code === "string" && /^(?:[0-9A-Z]{5}|PGRST[0-9]{3})$/.test(code)
+    ? code : "INTERNAL_ERROR";
+}
+
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       ...corsHeaders,
       "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }
@@ -718,7 +726,7 @@ function managerDbError(error: any, fallback: string, fallbackStatus = 400) {
   const code = dbErrorCode(error);
   const known = MANAGER_MESSAGES[code];
   if (known) return json({ error: known[1], code }, known[0]);
-  console.error("Manager database error:", error?.code || "", error?.message || "");
+  console.error("Manager database error:", safeErrorCode(error));
   return json({ error: fallback }, fallbackStatus);
 }
 
@@ -926,7 +934,7 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error(
           "Secure logout error:",
-          error
+          safeErrorCode(error)
         );
 
         return json(
@@ -984,7 +992,7 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error(
           "Session validation error:",
-          error
+          safeErrorCode(error)
         );
         return json(
           {
@@ -1183,7 +1191,7 @@ Deno.serve(async (req) => {
           },
         });
       } catch (error) {
-        console.error("Staff My Hours error:", error);
+        console.error("Staff My Hours error:", safeErrorCode(error));
 
         if (
           error instanceof Error &&
@@ -1227,10 +1235,11 @@ Deno.serve(async (req) => {
         if (!/^[0-9]{4,6}$/.test(newPin)) {
           return json({ error: "PIN must contain 4 to 6 numbers", code: "BAD_FORMAT" }, 400);
         }
-        const { data: changed, error: changeError } = await supabase.rpc("staff_change_pin", {
+        const { data: changed, error: changeError } = await supabase.rpc("staff_change_pin_secure", {
           p_staff_id: session.staff.id,
           p_old_pin: oldPin,
           p_new_pin: newPin,
+          p_token_hash: await sha256Hex(token),
         });
         if (changeError || !changed) {
           console.error("Change PIN error:", changeError?.code || "");
@@ -1306,7 +1315,7 @@ Deno.serve(async (req) => {
       } catch (error) {
         console.error(
           "Session time-clock error:",
-          error
+          safeErrorCode(error)
         );
         return json(
           {
@@ -1646,7 +1655,7 @@ Deno.serve(async (req) => {
     } catch (error) {
       console.error(
         "Manager session validation error:",
-        error
+        safeErrorCode(error)
       );
 
       return json(
@@ -1721,7 +1730,7 @@ Deno.serve(async (req) => {
       // Before the migration the function does not exist yet.
       const notInstalled = permError && ["PGRST202", "42883"].includes(String((permError as any).code));
       if (permError && !notInstalled) {
-        console.error("Permission check failed:", (permError as any).code || "", permError.message || "");
+        console.error("Permission check failed:", safeErrorCode(permError));
         return json({ error: "Unable to check your permissions. Try again." }, 500);
       }
       if (perm && typeof perm === "object") Object.assign(managerPermissions, perm);
@@ -3955,7 +3964,8 @@ Deno.serve(async (req) => {
               const { data: people, error: peopleError } = await supabase
                 .from("staff")
                 .select("id, name")
-                .in("id", staffIds);
+                .in("id", staffIds)
+                .eq("location", location);
               if (peopleError) throw peopleError;
               for (const p of people || []) names[p.id] = p.name;
             }
@@ -3964,7 +3974,7 @@ Deno.serve(async (req) => {
             for (const r of rows || []) {
               const list = (usedBy[r.device_id] ||= []);
               const ids2 = (seen[r.device_id] ||= new Set());
-              if (ids2.has(r.staff_id)) continue;
+              if (ids2.has(r.staff_id) || !names[r.staff_id]) continue;
               ids2.add(r.staff_id);
               list.push(names[r.staff_id] || "Staff");
             }
@@ -4034,6 +4044,9 @@ Deno.serve(async (req) => {
           p_mode: mode,
         });
         if (error) {
+          if (dbErrorCode(error) === "GLOBAL_OWNER_REQUIRED") {
+            return json({ error: "This setting affects every restaurant. Only the system owner can change it through the Supabase administration console.", code: "GLOBAL_OWNER_REQUIRED" }, 403);
+          }
           if (dbErrorCode(error) === "GM_REQUIRED") {
             return json({ error: "Only the General Manager can change this setting", code: "GM_REQUIRED" }, 403);
           }
@@ -4221,7 +4234,7 @@ Deno.serve(async (req) => {
 
       console.error(
         "Manager action error:",
-        managerError
+        safeErrorCode(managerError)
       );
 
       if (
@@ -4251,7 +4264,7 @@ Deno.serve(async (req) => {
 
     console.error(
       "Unexpected error:",
-      error
+      safeErrorCode(error)
     );
 
     return json(
