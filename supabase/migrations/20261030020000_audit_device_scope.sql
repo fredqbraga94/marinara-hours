@@ -150,7 +150,7 @@ declare
   mgr public.staff%rowtype := public.mh_manager(p_manager_id);
   v_old text;
 begin
-  -- Devices of the unit the Administrator (owner) is looking at (mh_manager).
+  -- One setting for every restaurant: only the Administrator (owner) changes it.
   if mgr.role <> 'manager' then raise exception 'GM_REQUIRED'; end if;
   if p_mode not in ('grace', 'enforce') then raise exception 'INVALID_INPUT'; end if;
   select device_mode into v_old from public.auth_settings where id for update;
