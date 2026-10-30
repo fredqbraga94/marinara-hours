@@ -60,8 +60,7 @@ begin
   return new;
 end $function$;
 revoke all on function public.mh_device_management_location() from public, anon, authenticated, service_role;
-drop trigger if exists mh_device_management_location on public.auth_devices;
-create trigger mh_device_management_location before insert or update of approved_by, last_staff_id
+create or replace trigger mh_device_management_location before insert or update of approved_by, last_staff_id
  on public.auth_devices for each row execute function public.mh_device_management_location();
 
 create or replace function public.auth_list_devices(p_manager_id uuid, p_current_device_hash text)
