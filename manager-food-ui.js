@@ -292,6 +292,34 @@ $('clPdf').addEventListener('click',()=>{const w=cstate.week;if(!w)return;makePd
 /* =================== Menu, refresh, reset =================== */
 addMenuRow('rmOpenFoodTemps',`<button type="button" class="rm-row" data-rm-go="rmOpenFoodTemps">${THERMO2}<span><strong>Food temperatures</strong><small>Cooking, reheating, hot and cold, cooling</small></span><i aria-hidden="true">›</i></button>`,['rmOpenDeliveries','rmOpenTemps']);
 addMenuRow('rmOpenCleaning',`<button type="button" class="rm-row" data-rm-go="rmOpenCleaning">${BROOM}<span><strong>Cleaning</strong><small>Cleaning schedule for the council</small></span><i aria-hidden="true">›</i></button>`,['rmOpenFoodTemps']);
+
+/* =================== Food Safety: one row, one screen with the council records =================== */
+const SHIELD='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>';
+const SAFETY=['rmOpenTemps','rmOpenDeliveries','rmOpenFoodTemps','rmOpenCleaning'];
+const hub=document.createElement('section');hub.id='foodSafetyScreen';hub.className='hidden';
+hub.innerHTML=`<div class="manager-top"><div><h2>Food Safety</h2><p>Records for the council · keep at least 3 months</p></div></div><div class="rm-menu" id="fsMenu"></div>`;
+document.querySelector('main').append(hub);MANAGER_SCREEN_IDS.push(hub.id);
+const hopener=document.createElement('button');hopener.type='button';hopener.id='rmOpenFoodSafety';hopener.hidden=true;
+hopener.onclick=()=>{showOnlyManagerScreen(hub.id);setManagerNavActive('operations');window.scrollTo(0,0);paintHub();};
+document.body.append(hopener);
+const hubRow=`<button type="button" class="rm-row" data-rm-go="rmOpenFoodSafety">${SHIELD}<span><strong>Food Safety</strong><small>Temperatures, deliveries, cleaning · for the council</small></span><i aria-hidden="true">›</i></button>`;
+// Operations: the four rows move into the Food Safety screen. More and quick actions: one Food Safety row.
+{const ops=document.querySelector('#operationsScreen .rm-menu');const first=ops?.querySelector('[data-rm-go="rmOpenTemps"]');
+ if(first)first.insertAdjacentHTML('beforebegin',hubRow);else ops?.insertAdjacentHTML('beforeend',hubRow);
+ for(const go of SAFETY){const r=ops?.querySelector(`[data-rm-go="${go}"]`);if(r)$('fsMenu').append(r);}
+ for(const menu of [document.querySelector('#managerMoreScreen .rm-menu'),document.querySelector('#quickActionsDialog .rm-actions')]){
+  if(!menu)continue;const f=menu.querySelector('[data-rm-go="rmOpenTemps"]');
+  if(f)f.insertAdjacentHTML('beforebegin',hubRow);else menu.insertAdjacentHTML('beforeend',hubRow);
+  for(const go of SAFETY)menu.querySelector(`[data-rm-go="${go}"]`)?.remove();
+ }}
+// Each record screen has a way back to Food Safety.
+for(const id of ['tempScreen','deliveryScreen','foodTempScreen','cleanScreen']){const top=$(id)?.querySelector('.manager-top');
+ top?.insertAdjacentHTML('beforebegin','<button type="button" class="rm-back" data-rm-go="rmOpenFoodSafety">‹ Food Safety</button>');}
+// What is still to do today, under Temperatures.
+function paintHub(){const r=$('fsMenu').querySelector('[data-rm-go="rmOpenTemps"] small');if(!r)return;const m=window.mhTemps||{};
+ r.textContent=m.missing?`${m.missing} check${m.missing===1?'':'s'} to do today`:'Daily checks for the council';r.classList.toggle('fs-todo',!!m.missing);}
+window.addEventListener('marinara:temps',paintHub);
+
 window.addEventListener('marinara:session-reset',()=>{
  fstate.gen++;Object.assign(fstate,{data:null,day:null,check:'cook',at:0,editing:null,cpend:null});
  cstate.gen++;Object.assign(cstate,{week:null,start:null,at:0,undo:null,removing:null});
