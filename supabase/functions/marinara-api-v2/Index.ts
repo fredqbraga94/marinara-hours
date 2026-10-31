@@ -1561,6 +1561,7 @@ Deno.serve(async (req) => {
         "manager_clean_task_save",
         "manager_clean_mark",
         "manager_clean_history",
+        "manager_activity",
         "manager_shopping_list",
         "manager_shopping_save",
         "manager_shopping_mark",
@@ -3449,6 +3450,18 @@ Deno.serve(async (req) => {
           if (error) return managerDbError(error, "Unable to save the change");
           return json({ success: true, action, data: { record: data } });
         }
+      }
+
+      // =========================
+      // ACTIVITY (who changed what; Administrator only, read only)
+      // =========================
+      if (action === "manager_activity") {
+        if (!isGeneralManager) return json({ error: "Only the Administrator can see the activity.", code: "GM_REQUIRED" }, 403);
+        const days = Number.isInteger(body.days) ? body.days : 7;
+        const who = typeof body.who === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.who) ? body.who : null;
+        const { data, error } = await supabase.rpc("manager_activity", { p_manager_id: managerStatus.id, p_days: days, p_who: who });
+        if (error) return managerDbError(error, "Unable to load the activity", 500);
+        return json({ success: true, action, data });
       }
 
       // =========================
