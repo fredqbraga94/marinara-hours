@@ -114,6 +114,21 @@ function showToday(){
  const left=th.offsetLeft-sticky,right=th.offsetLeft+th.offsetWidth-wrap.clientWidth;
  if(wrap.scrollLeft>left||wrap.scrollLeft<right)wrap.scrollLeft=Math.max(0,left-(wrap.clientWidth-sticky-th.offsetWidth)/2);
 }
+// While a box of the sheet is being typed in, update the other cells only, so the
+// box (and the iPhone keyboard) stays: tap the next box and keep typing.
+function softSheet(box,w){
+ const act=document.activeElement;const key=act?.dataset?.tmpCell;
+ const old=box.querySelector('table.tmp-sheet');if(!key||!old||!old.contains(act))return false;
+ const tmp=document.createElement('div');tmp.innerHTML=sheetHtml(w,false);const neu=tmp.querySelector('table.tmp-sheet');
+ const a=old.tBodies[0]?.rows,b=neu.tBodies[0]?.rows;if(!a||!b||a.length!==b.length)return false;
+ if(old.tHead.innerHTML!==neu.tHead.innerHTML)return false;
+ for(let r=0;r<a.length;r++){if(a[r].cells.length!==b[r].cells.length)return false;}
+ for(let r=0;r<a.length;r++)for(let c=0;c<a[r].cells.length;c++){
+  const x=a[r].cells[c],y=b[r].cells[c];if(x.contains(act))continue;
+  if(x.outerHTML!==y.outerHTML){x.replaceWith(y.cloneNode(true));}
+ }
+ return true;
+}
 function render(){
  const w=state.week,d=state.data;
  const box=$('tmpSheet');
@@ -124,7 +139,7 @@ function render(){
   $('tmpThis').hidden=thisWeek;$('tmpNext').disabled=thisWeek;
   $('tmpHint').hidden=!thisWeek;
   if(!(w.equipment||[]).length){box.className='empty-state';box.textContent='Add your fridges and freezers below (or the 7 from the paper sheet) to start the check list.';}
-  else{box.className='';box.innerHTML=sheetHtml(w,false);
+  else if(!softSheet(box,w)){box.className='';box.innerHTML=sheetHtml(w,false);
    if(thisWeek)requestAnimationFrame(showToday);}
   const notes=notesHtml(w);const nb=$('tmpNotes');
   if(notes){nb.className='';nb.innerHTML=notes;}else{nb.className='empty-state';nb.textContent='No readings outside the safe range this week.';}
