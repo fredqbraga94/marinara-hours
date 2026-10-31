@@ -85,14 +85,14 @@
   const can=a=>{const p=(lastDash&&lastDash.permissions)||{};return p[a]!==false;};
   window.mhCan=can;
   // Only the Administrator: restaurant settings and devices.
-  const ADMIN_ONLY=new Set(['rmOpenSettings','moreDevicesBtn']);
+  const ADMIN_ONLY=new Set(['rmOpenSettings','moreDevicesBtn','rmOpenActivity']);
   const isAdmin=()=>currentManagerRole==='manager';
   const blocked=target=>(ADMIN_ONLY.has(target)&&!isAdmin())||(!!AREA_OF[target]&&!can(AREA_OF[target]));
   function syncShell(){
     const visible=MANAGER_SCREEN_IDS.find(id=>!$(id)?.classList.contains('hidden'));
     const signedIn=!nav.classList.contains('hidden');const clock=visible==='managerScreen'&&!$('managerClockSection').classList.contains('hidden');
     document.body.classList.toggle('rm-mode',signedIn);document.body.classList.toggle('rm-clock',signedIn&&clock);
-    const active=visible==='managerScreen'?(clock?'more':'home'):['teamScreen','employeeDetailsScreen'].includes(visible)?'team':visible==='invoicesScreen'?'finance':['managerMoreScreen','devicesScreen','restaurantSettingsScreen'].includes(visible)?'more':'operations';
+    const active=visible==='managerScreen'?(clock?'more':'home'):['teamScreen','employeeDetailsScreen'].includes(visible)?'team':visible==='invoicesScreen'?'finance':['managerMoreScreen','devicesScreen','restaurantSettingsScreen','activityScreen'].includes(visible)?'more':'operations';
     nav.querySelectorAll('[data-manager-nav]').forEach(b=>{b.classList.toggle('active',b.dataset.managerNav===active);if(b.dataset.managerNav===active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
     const canInvoice=['manager','kitchen_manager'].includes(currentManagerRole);nav.querySelector('[data-manager-nav="finance"]').disabled=!canInvoice;document.querySelectorAll('[data-rm-go="invoicesCard"], [data-rm-go="rmScanInvoice"], #rmScanInvoice').forEach(b=>{b.disabled=!canInvoice;b.hidden=!canInvoice&&b.id==='rmScanInvoice';b.title=canInvoice?'':'Finance is restricted to authorised managers';});
     $('rmLocation').textContent=($('managerLocation').textContent||'Current unit')+' ⌄';
