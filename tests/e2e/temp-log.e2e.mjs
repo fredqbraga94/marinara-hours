@@ -37,7 +37,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
     const m=new Map();for(const l of inWeek)m.set(`${l.equipment_id}|${l.day}|${l.slot}`,json(l));
     return{start,today,location:'Hawthorne',equipment:eq.filter(e=>e.active||inWeek.some(l=>l.equipment_id===e.id)),cells:[...m.values()]};}
    if(action==='manager_temp_equipment_save'){const it=extra.item;if(it.id){const e=eq.find(x=>x.id===it.id);e.active=it.active!==false;return{equipment:e};}const e={id:id(),name:it.name,kind:it.kind,active:true};eq.push(e);return{equipment:e};}
-   if(action==='manager_temp_record'){const x=extra.entry;const e=eq.find(q=>q.id===x.equipment_id);const food=x.kind==='equipment'?e.kind:x.food;const good=ok(food,x.temp);
+   if(action==='manager_temp_record'){if(window.__slow)await new Promise(r=>setTimeout(r,window.__slow));const x=extra.entry;const e=eq.find(q=>q.id===x.equipment_id);const food=x.kind==='equipment'?e.kind:x.food;const good=ok(food,x.temp);
     if(x.kind==='equipment'&&!['opening','closing'].includes(x.slot))throw new Error('Choose opening or closing.');
     if(!good&&!x.action){const er=new Error('The temperature is outside the safe range. Write what you did about it.');throw er;}
     const l={id:id(),kind:x.kind,equipment_id:x.equipment_id||null,slot:x.kind==='equipment'?x.slot:null,day:today,item:x.item||null,supplier:x.supplier||null,food,temp:x.temp,ok:good,action:x.action||null,recorded_at:new Date().toISOString(),recorded_by:'QA Kitchen Manager',checked_by:x.checked_by?'QA Cook':'QA Kitchen Manager',checked_by_id:x.checked_by||'me'};logs.push(l);return{record:json(l)};}
@@ -68,8 +68,13 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.match(await page.locator('#rmAttention').innerText(),/7 temperature checks to do today/);
  // In range: Pizza Prep Fridge, Opening.
  const cell=(name,slot)=>page.locator(`[data-tmp-cell][aria-label="${name} ${slot} today °C"]`);
- await cell('Pizza Prep Fridge','Opening').fill('3.5');await cell('Pizza Prep Fridge','Opening').press('Enter');
+ await page.evaluate(()=>{window.__slow=250;});await cell('Pizza Prep Fridge','Opening').fill('3.5');
+ // Tap the next box straight away: it keeps the focus (the iPhone keyboard stays) while the first one saves.
+ await cell('Pasta Prep Fridge','Opening').evaluate(el=>{window.__next=el;});await cell('Pasta Prep Fridge','Opening').click();
  await page.locator('#tmpEqMsg').filter({hasText:'Pizza Prep Fridge · Opening: 3.5°C saved.'}).waitFor();
+ await page.locator('#tmpSheet .tmp-val').filter({hasText:'3.5'}).waitFor();
+ assert.equal(await page.evaluate(()=>document.activeElement===window.__next&&document.contains(window.__next)),true,'the box tapped next keeps the focus');
+ await page.evaluate(()=>{document.activeElement.blur();window.__slow=0;});
  const rec=await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_temp_record').at(-1)[1].entry);
  assert.equal(rec.slot,'opening');assert.equal(rec.temp,3.5);
  await page.locator('#tmpSheet .tmp-val').filter({hasText:'3.5'}).waitFor();
