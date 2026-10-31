@@ -59,10 +59,12 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
   window.__seedYesterdayTick=()=>{const tk=tasks.find(x=>x.frequency==='daily');ticks.push({task_id:tk.id,day:add(today,-1),by:'QA Cook',recorded_by:'QA Kitchen Manager',recorded_at:new Date(Date.now()-864e5).toISOString()});};
  });
  await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen').waitFor({state:'visible'});
- assert.equal(await page.locator('#managerMoreScreen [data-rm-go="rmOpenFoodTemps"]').count(),1,'in More');
- assert.equal(await page.locator('#managerMoreScreen [data-rm-go="rmOpenCleaning"]').count(),1,'in More');
+ assert.equal(await page.locator('#managerMoreScreen [data-rm-go="rmOpenFoodSafety"]').count(),1,'Food Safety in More');
+ assert.equal(await page.locator('#operationsScreen [data-rm-go="rmOpenCleaning"]').count(),0,'inside Food Safety');
  // ---------- Food temperatures ----------
- await page.locator('#operationsScreen [data-rm-go="rmOpenFoodTemps"]').click();await page.locator('#foodTempScreen').waitFor({state:'visible'});
+ await page.locator('#operationsScreen [data-rm-go="rmOpenFoodSafety"]').click();await page.locator('#foodSafetyScreen').waitFor({state:'visible'});
+ assert.deepEqual(await page.locator('#fsMenu .rm-row strong').allInnerTexts(),['Temperatures','Deliveries','Food temperatures','Cleaning']);
+ await page.locator('#fsMenu [data-rm-go="rmOpenFoodTemps"]').click();await page.locator('#foodTempScreen').waitFor({state:'visible'});
  await page.locator('#ftList').filter({hasText:'No food temperatures yet today'}).waitFor();
  assert.equal(await page.locator('[data-ft-check]').count(),5);
  assert.equal(await page.locator('[data-ft-check="cook"]').getAttribute('aria-pressed'),'true','cooking first');
@@ -127,7 +129,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'food: no sideways scroll');
 
  // ---------- Cleaning ----------
- await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen [data-rm-go="rmOpenCleaning"]').click();await page.locator('#cleanScreen').waitFor({state:'visible'});
+ await page.locator('#foodTempScreen .rm-back').click();await page.locator('#foodSafetyScreen').waitFor({state:'visible'});await page.locator('#fsMenu [data-rm-go="rmOpenCleaning"]').click();await page.locator('#cleanScreen').waitFor({state:'visible'});
  assert.equal(await page.locator('#foodTempScreen').isVisible(),false,'one screen at a time');
  await page.locator('#clSheet').filter({hasText:'Add your cleaning tasks'}).waitFor();
  await page.locator('#clUsual').click();

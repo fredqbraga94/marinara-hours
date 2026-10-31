@@ -463,3 +463,4 @@ button.cl-box:not(.on){box-shadow:inset 0 0 0 1.5px #e2b98f}
 .cl-weekdone{color:#07613b!important;font-weight:600!important}
 #clForm select{min-height:44px}
 #foodTempScreen [hidden],#cleanScreen [hidden]{display:none!important}
+#fsMenu small.fs-todo{color:#b3261e;font-weight:600}
