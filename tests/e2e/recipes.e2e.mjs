@@ -10,7 +10,7 @@ import { createRequire } from "node:module";
 import assert from "node:assert/strict";
 import { startProdLikeDb, MIGRATION_A, MIGRATION_B, root } from "../integration/pgenv.mjs";
 import { loadHandler, useDatabase, call } from "../integration/edge-loader.mjs";
-import { ID, PIN, reseed } from "../integration/seed.mjs";
+import { ID, SH, PIN, reseed } from "../integration/seed.mjs";
 
 const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT_PATH || "playwright");
@@ -46,6 +46,12 @@ for (const f of [MIGRATION_A, MIGRATION_B,
   STOCK, "supabase/migrations/20261021010000_roster_roles.sql", "supabase/migrations/20261021020000_roster_order.sql", "supabase/migrations/20261021030000_floor_services.sql", "supabase/migrations/20261021040000_push.sql", "supabase/migrations/20261021050000_push_badge.sql", RECIPES]) { const r = db.psqlFile(f); if (!r.ok) throw new Error(`${f}: ${r.stderr}`); }
 useDatabase(db.svc);
 await reseed(db);
+// Home counts this week's shifts (Monday to Sunday). On a Monday the seeded
+// finished shifts (26 and 27 hours ago) fall in last week: move them into this week.
+await db.admin.query(`with w as (select (date_trunc('week', now() at time zone 'Australia/Brisbane') at time zone 'Australia/Brisbane') m),
+  moved as (update public.shifts s set clock_in = w.m + interval '1 minute', clock_out = w.m + interval '3 minutes'
+              from w where s.id in ('${SH(3)}', '${SH(5)}') and s.clock_in < w.m returning s.id)
+  delete from public.breaks where shift_id in (select id from moved)`);
 for (const f of [STOCK, RECIPES, "supabase/migrations/20261022010000_recipes_kids_pasta.sql", "supabase/migrations/20261022020000_recipes_dairy_kinds.sql"]) { const r = db.psqlFile(f); if (!r.ok) throw new Error(r.stderr); } // reseed's cascade emptied them
 const handler = await loadHandler(resolve(root, "supabase/functions/marinara-api-v2/Index.ts"));
 
