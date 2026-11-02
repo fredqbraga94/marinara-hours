@@ -10,7 +10,7 @@ const isoLong=iso=>new Intl.DateTimeFormat('en-AU',{timeZone:'UTC',weekday:'long
 const todayIso=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Australia/Brisbane'}).format(new Date());
 const addDays=(iso,n)=>{const d=new Date(`${iso}T00:00:00Z`);d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
 const UNITS=['box','kg','bunch','each','punnet','tray','bag','dozen'];
-const DEFAULT_SUPPLIER='Niko Fresh Produce';
+const DEFAULT_SUPPLIER='Niko';
 const state={data:null,supplier:null,qty:{},gen:0,removing:null,editing:false};
 const ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8l1 3H7z"/><rect x="5" y="6" width="14" height="15" rx="2"/><path d="M9 11h6M9 15h6"/></svg>';
 const screen=document.createElement('section');screen.id='orderScreen';screen.className='hidden';

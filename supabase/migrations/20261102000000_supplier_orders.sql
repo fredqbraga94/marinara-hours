@@ -1,4 +1,4 @@
--- Orders to a supplier (first: Niko Fresh Produce): the list of what is usually
+-- Orders to a supplier (first: Niko): the list of what is usually
 -- ordered from them, a quantity next to each item, and a PDF to forward instead
 -- of sending a message item by item. No stock count, no par level.
 -- Each order is saved (who, when, lines), so the last one can be repeated.
