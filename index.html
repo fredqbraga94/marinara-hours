@@ -8893,11 +8893,25 @@ invoicesScreen?.addEventListener("click", async e => {
   if (dis) { invState.review.splice(Number(dis.dataset.invDismiss), 1); invRenderReview(); return; }
   const save = e.target.closest("[data-inv-save]");
   if (save) {
+    // Gulli changed its item codes in Nov 2026 (24121355 -> BCBLCH2KG-UC4). The
+    // same product (same name) keeps its old code, so its price history goes on.
+    async function keepGulliCodes(inv) {
+      if (!/Gulli/.test(inv.supplier || "") || !inv.lines.some(l => l.code && !/^\d+$/.test(l.code))) return;
+      let products = [];
+      try { products = (await managerApi("manager_invoice_price_book")).products || []; } catch (_) { return; }
+      const old = new Map();
+      for (const p of products) if (p.supplier === inv.supplier && /^\d+$/.test(p.product_key || "")) old.set(String(p.description || "").trim().toLowerCase(), p.product_key);
+      for (const l of inv.lines) {
+        const k = old.get(String(l.description || "").trim().toLowerCase());
+        if (k && l.code && !/^\d+$/.test(l.code)) l.code = k;
+      }
+    }
     const slot = invState.review[Number(save.dataset.invSave)];
     if (!slot?.invoice) return;
     save.disabled = true;
     const inv = slot.invoice;
     try {
+      await keepGulliCodes(inv);
       await managerApi("manager_invoice_save", { invoice: {
         supplier: inv.supplier, number: inv.number, kind: inv.kind, date: inv.date,
         subtotal: inv.subtotal, gst: inv.gst, total: inv.total, checks_ok: inv.ok, file_name: slot.file, lines: inv.lines,
