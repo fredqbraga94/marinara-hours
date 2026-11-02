@@ -36,12 +36,12 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.equal(await page.locator('#managerMoreScreen [data-rm-go="rmOpenOrders"]').count(),1,'in More');
  await page.locator('#operationsScreen [data-rm-go="rmOpenOrders"]').click();await page.locator('#orderScreen').waitFor({state:'visible'});
  await page.locator('#ordList').filter({hasText:'No items yet'}).waitFor();
- assert.equal(await page.locator('#ordSup').inputValue(),'Niko Fresh Produce','Niko by default');
+ assert.equal(await page.locator('#ordSup').inputValue(),'Niko','Niko by default');
  assert.equal(await page.locator('#ordSend').isVisible(),false);
  // Paste many at once.
  await page.locator('#ordMany').fill('QA Tomatoes - box\nQA Basil - bunch\nQA Lettuce\nQA Tomatoes - box');
  await page.locator('#ordAdd').click();
- await page.locator('#ordFormMsg').filter({hasText:'3 added to Niko Fresh Produce (1 already on the list).'}).waitFor();
+ await page.locator('#ordFormMsg').filter({hasText:'3 added to Niko (1 already on the list).'}).waitFor();
  await page.waitForFunction(()=>document.querySelectorAll('[data-ord-item]').length===3);
  // Quantities: + / − and typing.
  const rowOf=name=>page.locator('[data-ord-item]').filter({hasText:name});
@@ -55,9 +55,9 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  // PDF: saved first, then share or open.
  await page.locator('#ordPdf').click();await page.locator('#tempPdfDialog').waitFor({state:'visible'});
  const saved=await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_order_save').at(-1)[1].order);
- assert.equal(saved.supplier,'Niko Fresh Produce');assert.equal(saved.note,'Please before 10am');
+ assert.equal(saved.supplier,'Niko');assert.equal(saved.note,'Please before 10am');
  assert.deepEqual(saved.lines,[{name:'QA Basil',unit:'bunch',qty:'3'},{name:'QA Tomatoes',unit:'box',qty:'1'}]);
- assert.match(await page.locator('#saveTempPdf').getAttribute('download'),/^Marinara-Order-Niko-Fresh-Produce-\d{4}-\d{2}-\d{2}\.pdf$/);
+ assert.match(await page.locator('#saveTempPdf').getAttribute('download'),/^Marinara-Order-Niko-\d{4}-\d{2}-\d{2}\.pdf$/);
  {const b64=await page.evaluate(async()=>{const r=await fetch(document.getElementById('saveTempPdf').href);const a=new Uint8Array(await r.arrayBuffer());let s='';for(const x of a)s+=String.fromCharCode(x);return btoa(s);});const buf=Buffer.from(b64,'base64');assert.equal(buf.subarray(0,5).toString(),'%PDF-');writeFileSync(`tmp/qa/${size}-order.pdf`,buf);}
  await page.locator('#closeTempPdf').click();await page.locator('#tempPdfDialog').waitFor({state:'detached'});
  assert.equal(await page.locator('.ord-qty').evaluateAll(els=>els.every(e=>!e.value)),true,'cleared after the order');
