@@ -33,8 +33,10 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
    return orig(action,extra);};
  });
  await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen').waitFor({state:'visible'});
- assert.equal(await page.locator('#managerMoreScreen [data-rm-go="rmOpenOrders"]').count(),1,'in More');
- await page.locator('#operationsScreen [data-rm-go="rmOpenOrders"]').click();await page.locator('#orderScreen').waitFor({state:'visible'});
+ assert.equal(await page.locator('#managerMoreScreen [data-rm-go="rmOpenHubStock"]').count(),1,'Stock & Orders in More');
+ await page.locator('#operationsScreen [data-rm-go="rmOpenHubStock"]').click();await page.locator('#hubStockScreen').waitFor({state:'visible'});
+ assert.deepEqual(await page.locator('#hubStockMenu [data-rm-go]').evaluateAll(es=>es.map(e=>e.dataset.rmGo)),['stockCard','rmOpenOrders','rmOpenShopping']);
+ await page.locator('#hubStockMenu [data-rm-go="rmOpenOrders"]').click();await page.locator('#orderScreen').waitFor({state:'visible'});
  await page.locator('#ordList').filter({hasText:'No items yet'}).waitFor();
  assert.equal(await page.locator('#ordSup').inputValue(),'Niko','Niko by default');
  assert.equal(await page.locator('#ordSend').isVisible(),false);

@@ -486,3 +486,4 @@ button.cl-box:not(.on){box-shadow:inset 0 0 0 1.5px #e2b98f}
 .ord-unit-in{flex:0 0 110px!important;width:110px}
 #ordNote,#ordMany{width:100%;font:inherit;font-size:15px;border:1.5px solid var(--border);border-radius:10px;padding:10px;box-sizing:border-box}
 #ordSend .secondary,#ordForm .secondary{border:1.5px solid var(--border)!important;border-radius:10px!important;background:#fff!important;color:#111!important;min-height:44px;font-size:14px;font-weight:600;margin:0;flex:1}
+.rm-hub-empty{display:none!important}

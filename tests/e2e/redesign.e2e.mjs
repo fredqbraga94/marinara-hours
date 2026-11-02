@@ -17,6 +17,8 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.deepEqual(await page.locator('#managerBottomNav > [data-manager-nav]').evaluateAll(es=>es.map(e=>e.dataset.managerNav)),['home','finance','operations','team','more']);
  assert.equal(await page.locator('#managerBottomNav > button:visible').count(),5,'exactly five visible navigation buttons');
  await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen').waitFor({state:'visible'});
+ assert.deepEqual(await page.locator('#operationsScreen .rm-menu > [data-rm-go]').evaluateAll(es=>es.map(e=>e.dataset.rmGo)),['rmOpenHubTeam','rmOpenHubStock','rmOpenFoodSafety','recipesCard','rmOpenMaintenance'],'Operations in groups');
+ await page.locator('#operationsScreen [data-rm-go="rmOpenHubTeam"]').click();await page.locator('#hubTeamScreen').waitFor({state:'visible'});
  await page.getByRole('button',{name:'Roster Plan and manage shifts'}).click();await page.locator('#rosterScreen').waitFor({state:'visible'});
  await page.locator('[data-manager-nav="more"]').click();await page.locator('#managerMoreScreen').waitFor({state:'visible'});
  assert.equal(await page.locator('#rosterScreen').isVisible(),false);
@@ -186,15 +188,21 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  for(const sel of ['#teamCard','#stockCard','#recipesCard','#invoicesCard','#rmScanInvoice','[data-manager-nav="finance"]','[data-manager-nav="team"]','[data-rm-stat="roster"]','[data-rm-stat="late"]'])assert.equal(await vis(sel),false,`hidden: ${sel}`);
  assert.equal(await vis('[data-rm-stat="working"]'),true);
  await page.locator('[data-manager-nav="operations"]').click();
- assert.equal(await vis('#operationsScreen [data-rm-go="approvalsCard"]'),true,'approvals stay');assert.equal(await vis('#operationsScreen [data-rm-go="staffHoursCard"]'),true);assert.equal(await vis('#operationsScreen [data-rm-go="timesheetsCard"]'),true);
- for(const g of ['rosterCard','stockCard','recipesCard','timeOffCard'])assert.equal(await vis(`#operationsScreen [data-rm-go="${g}"]`),false,`hidden in Operations: ${g}`);
+ assert.equal(await vis('#operationsScreen [data-rm-go="rmOpenHubStock"]'),true,'Stock & Orders stays (Orders, Shopping)');
+ await page.locator('#operationsScreen [data-rm-go="rmOpenHubTeam"]').click();await page.locator('#hubTeamScreen').waitFor({state:'visible'});
+ assert.equal(await vis('#hubTeamMenu [data-rm-go="approvalsCard"]'),true,'approvals stay');assert.equal(await vis('#hubTeamMenu [data-rm-go="staffHoursCard"]'),true);assert.equal(await vis('#hubTeamMenu [data-rm-go="timesheetsCard"]'),true);
+ for(const g of ['rosterCard','timeOffCard'])assert.equal(await vis(`#hubTeamMenu [data-rm-go="${g}"]`),false,`hidden in Team & Hours: ${g}`);
+ await page.locator('[data-manager-nav="operations"]').click();
+ for(const g of ['recipesCard'])assert.equal(await vis(`#operationsScreen [data-rm-go="${g}"]`),false,`hidden in Operations: ${g}`);
+ await page.locator('#operationsScreen [data-rm-go="rmOpenHubStock"]').click();await page.locator('#hubStockScreen').waitFor({state:'visible'});
+ assert.equal(await vis('#hubStockMenu [data-rm-go="stockCard"]'),false,'hidden: Stock');assert.equal(await vis('#hubStockMenu [data-rm-go="rmOpenOrders"]'),true,'Orders stay');
  await page.screenshot({path:`tmp/qa/${size}-restricted.png`,fullPage:true});
  await page.locator('[data-manager-nav="more"]').click();
  assert.equal(await vis('#managerMoreScreen [data-rm-go="rmOpenSettings"]'),false,'no Restaurant Settings for managers');
  assert.equal(await vis('#managerMoreScreen [data-rm-go="moreDevicesBtn"]'),false,'no device settings for managers');
- assert.equal(await vis('#managerMoreScreen [data-rm-go="approvalsCard"]'),true);
+ assert.equal(await vis('#managerMoreScreen [data-rm-go="rmOpenHubTeam"]'),true);
  assert.equal(await page.locator('#rmLocation').isDisabled(),true,'the unit name does not open settings');
- await page.evaluate(()=>document.querySelector('#operationsScreen [data-rm-go="rosterCard"]').click());
+ await page.evaluate(()=>document.querySelector('#hubTeamMenu [data-rm-go="rosterCard"]').click());
  assert.equal(await page.locator('#rosterScreen').isVisible(),false,'a hidden shortcut opens nothing');
  if(size==='iphone'){const xs=await page.locator('#managerBottomNav > button:visible').evaluateAll(es=>es.map(e=>{const r=e.getBoundingClientRect();return [r.left,r.right];}));assert.equal(xs.length,3);const W=await page.evaluate(()=>innerWidth);assert.ok(xs[0][0]<25&&xs[2][1]>W-25,'three tabs fill the bar '+JSON.stringify(xs)+' '+W);}
  await page.evaluate(()=>{currentManagerRole='manager';window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{name:'QA'},counts:{},working:[]}}));});
