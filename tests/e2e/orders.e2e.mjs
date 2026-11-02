@@ -73,6 +73,9 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await rowOf('QA Lettuce').locator('[data-ord-remove]').click();
  await page.waitForFunction(()=>document.querySelectorAll('[data-ord-item]').length===2);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'no sideways scroll');
+ // Back: Orders -> Stock & Orders -> Operations.
+ await page.locator('#orderScreen [data-hub-back]').click();await page.locator('#hubStockScreen').waitFor({state:'visible'});
+ await page.locator('#hubStockScreen [data-hub-back]').click();await page.locator('#operationsScreen').waitFor({state:'visible'});
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('marinara:session-reset')));
  assert.equal(await page.locator('[data-ord-item]').count(),0,'sign-out forgets it');
  assert.deepEqual(errors,[]);

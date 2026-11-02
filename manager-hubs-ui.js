@@ -39,6 +39,16 @@ function syncHubs(){
  for(const g of GROUPS){const kids=[...document.querySelectorAll(`#${g.id}Menu [data-rm-go]`)];const none=kids.length&&kids.every(k=>k.classList.contains('rm-no-access'));
   document.querySelectorAll(`[data-rm-hub="${g.id}"]`).forEach(r=>r.classList.toggle('rm-hub-empty',none));}
 }
+// Back: from a group (or Food Safety) to the menu it was opened from; from
+// Orders back to Stock & Orders.
+const HUB_OPENERS=new Set(['rmOpenHubTeam','rmOpenHubStock','rmOpenFoodSafety']);
+let fromMenu='operations';
+document.addEventListener('click',e=>{const b=e.target.closest('[data-rm-go]');if(b&&HUB_OPENERS.has(b.dataset.rmGo))fromMenu=b.closest('#managerMoreScreen')?'more':'operations';},true);
+function addBack(screenId,onBack){const top=$(screenId)?.querySelector('.manager-top');if(!top||top.querySelector('[data-hub-back]'))return;
+ const b=document.createElement('button');b.type='button';b.className='back-btn';b.dataset.hubBack='';b.textContent='Back';b.onclick=onBack;top.append(b);}
+const toMenu=()=>document.querySelector(`[data-manager-nav="${fromMenu}"]`)?.click();
+for(const id of ['hubTeamScreen','hubStockScreen','foodSafetyScreen'])addBack(id,toMenu);
+addBack('orderScreen',()=>$('rmOpenHubStock')?.click());
 window.addEventListener('marinara:dashboard',()=>setTimeout(syncHubs,0));
 window.addEventListener('marinara:session-reset',()=>setTimeout(syncHubs,0));
 })();
