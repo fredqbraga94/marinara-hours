@@ -99,8 +99,9 @@
       const cols = report.head.length;
       const columnStyles = {};
       for (const [k, v] of Object.entries(report.widths || {})) columnStyles[k] = { cellWidth: v };
+      const tMargin = report.tableWidth ? { ...margin, right: Math.max(10, W - 10 - report.tableWidth) } : margin;
       doc.autoTable({
-        startY: 35, margin, theme: 'grid', styles: { ...base, halign: report.center ? 'center' : 'left' },
+        startY: 35, margin: tMargin, theme: 'grid', styles: { ...base, halign: report.center ? 'center' : 'left', ...(report.fontSize ? { fontSize: report.fontSize, cellPadding: 2 } : {}) },
         head: [report.head.map(clean)],
         headStyles: { fillColor: 17, textColor: 255, fontStyle: 'bold' },
         columnStyles: { ...columnStyles, 0: { ...(columnStyles[0] || {}), halign: 'left' } },
@@ -117,7 +118,7 @@
         doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20);
         doc.text(clean(n.title), 10, y);
         if (n.rows.length) {
-          doc.autoTable({ startY: y + 2, margin, theme: 'grid', styles: base, head: [n.head.map(clean)],
+          doc.autoTable({ startY: y + 2, margin: tMargin, theme: 'grid', styles: { ...base, ...(report.fontSize ? { fontSize: report.fontSize } : {}) }, head: [n.head.map(clean)],
             headStyles: { fillColor: 232, textColor: 20, fontStyle: 'bold' }, body: n.rows.map(r => r.map(clean)) });
         } else {
           doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90);
