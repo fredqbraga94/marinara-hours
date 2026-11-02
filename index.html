@@ -4103,22 +4103,21 @@ showAddShiftBtn.addEventListener("click", async () => {
   try {
     await prepareAddShiftForm();
   } catch (error) {
-    manualShiftMessage.textContent =
-      error.message || "Unable to load employees.";
+    showMessage(manualShiftMessage, error.message || "Unable to load employees.", "error");
   }
 });
 
 cancelManualShiftBtn.addEventListener("click", () => {
   addShiftPanel.classList.add("hidden");
   showAddShiftBtn.classList.remove("hidden");
-  manualShiftMessage.textContent = "";
+  clearMessage(manualShiftMessage);
 });
 
 [manualShiftDate, manualShiftClockIn, manualShiftClockOut, manualShiftBreak]
   .forEach(el => el.addEventListener("input", updateManualShiftTotal));
 
 saveManualShiftBtn.addEventListener("click", async () => {
-  manualShiftMessage.textContent = "";
+  clearMessage(manualShiftMessage);
 
   const staffId = manualShiftEmployee.value;
   const date = manualShiftDate.value;
@@ -4127,8 +4126,7 @@ saveManualShiftBtn.addEventListener("click", async () => {
   const breakMinutes = Number(manualShiftBreak.value || 0);
 
   if (!staffId || !date || !cin || !cout) {
-    manualShiftMessage.textContent =
-      "Employee, date, clock in and clock out are required.";
+    showMessage(manualShiftMessage, "Employee, date, clock in and clock out are required.", "error");
     return;
   }
 
@@ -4160,8 +4158,8 @@ saveManualShiftBtn.addEventListener("click", async () => {
     await loadApprovals();
     await loadManagerDashboard();
   } catch (error) {
-    manualShiftMessage.textContent =
-      error.message || "Unable to create shift.";
+    // Show why (e.g. the person already has a shift at that time).
+    showMessage(manualShiftMessage, error.message || "Unable to create shift.", "error");
   } finally {
     saveManualShiftBtn.disabled = false;
     saveManualShiftBtn.textContent = "Save Shift";

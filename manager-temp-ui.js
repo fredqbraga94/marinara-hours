@@ -40,7 +40,7 @@ screen.innerHTML=`<div class="manager-top"><div><h2>Temperatures</h2><p>Temperat
 <div class="card shop-form"><p class="rm-data-note" style="margin:0">Keep at least 3 months. Checks cannot be changed or deleted; a mistake is fixed with a new reading. Deliveries are in the Deliveries screen.</p>
  <button type="button" class="secondary" id="tmpHistBtn">Show the last 90 days</button></div>
 <div id="tmpRecords" class="hidden"><div class="tmp-print-head"><strong>Temperature records</strong><span id="tmpRecHead"></span></div>
- <button type="button" class="shop-primary tmp-print-btn" id="tmpPrint">PDF of these records</button>
+ <button type="button" class="shop-primary tmp-print-btn" id="tmpPrint">PDF for the council (one week per page)</button>
  <div id="tmpRecList"></div></div>`;
 document.querySelector('main').append(screen);MANAGER_SCREEN_IDS.push(screen.id);
 
@@ -222,7 +222,6 @@ function weekReport(){
   rows:(w.equipment||[]).map(e=>({name:e.name,sub:KIND[e.kind][1],cells:days.map(d=>({opening:v(cell.get(`${e.id}|${d}|opening`)),closing:v(cell.get(`${e.id}|${d}|closing`))}))})),
   notes:(w.cells||[]).filter(c=>!c.ok).sort((a,b)=>a.recorded_at.localeCompare(b.recorded_at)).map(c=>{const [n,dd]=dayHead(c.day);return [`${n} ${dd}`,c.equipment||'',`${slotName(c.slot)} ${time(c.recorded_at)}`,deg(c.temp),c.action||'',checker(c)];})};
 }
-function recordsReport(){return recordsReportFrom(state.history||{});}
 function recordsReportFrom(h){
  const recs=h.records||[];
  return {kind:'records',title:'TEMPERATURE RECORDS',place:`Marinara ${h.location||''}`,when:`Last ${h.days||90} days`,limits:LIMITS,logo:logo(),fileDate:`last-${h.days||90}-days`,
@@ -230,7 +229,28 @@ function recordsReportFrom(h){
   records:recs.map(r=>[dayLong(r.recorded_at),time(r.recorded_at),r.kind==='equipment'?`${r.equipment||'Equipment'} - ${slotName(r.slot)}`:`Delivery: ${r.item}${r.supplier?` (${r.supplier})`:''} - ${KIND[r.food]?.[0]||''}`,deg(r.temp),[r.action||'',r.edited_at?`Corrected by ${r.edited_by||''} ${dayLong(r.edited_at)} ${time(r.edited_at)}; was: ${wasText(r)}`:''].filter(Boolean).join(' / '),checker(r)+(r.checked_by&&r.recorded_by&&r.checked_by!==r.recorded_by?` (typed by ${r.recorded_by})`:''),!r.ok])};
 }
 $('tmpPrintWeek').addEventListener('click',()=>{if(state.week)makePdf($('tmpPrintWeek'),weekReport);});
-$('tmpPrint').addEventListener('click',()=>{if(state.history)makePdf($('tmpPrint'),recordsReport);});
+// The 90 days for the council: the paper sheet of each week (Opening and
+// Closing of each fridge side by side), oldest week first, one page each.
+function weeksReport(h){
+ const recs=(h.records||[]).filter(r=>r.kind==='equipment'&&r.equipment_id&&r.slot);
+ const order=new Map((state.data?.equipment||[]).map((e,i)=>[e.id,i]));
+ const eqs=new Map();for(const r of recs)if(!eqs.has(r.equipment_id))eqs.set(r.equipment_id,{id:r.equipment_id,name:r.equipment||'Equipment',kind:r.food});
+ const monday=iso=>addDays(iso,-((new Date(`${iso}T00:00:00Z`).getUTCDay()+6)%7));
+ const weeks=new Map();
+ for(const r of [...recs].sort((a,b)=>a.recorded_at.localeCompare(b.recorded_at))){const m=monday(r.day);if(!weeks.has(m))weeks.set(m,new Map());weeks.get(m).set(`${r.equipment_id}|${r.day}|${r.slot}`,r);}
+ const v=c=>c?{t:`${Number(c.temp).toFixed(1)} ${initials(checker(c))}`,bad:!c.ok}:null;
+ const list=[...weeks.keys()].sort().map(start=>{const cell=weeks.get(start);const days=[...Array(7)].map((_,i)=>addDays(start,i));
+  const used=[...eqs.values()].filter(e=>days.some(d=>cell.has(`${e.id}|${d}|opening`)||cell.has(`${e.id}|${d}|closing`)))
+   .sort((a,b)=>(order.get(a.id)??999)-(order.get(b.id)??999)||a.name.localeCompare(b.name));
+  return {when:`${shortDate(start)} - ${shortDate(days[6])}`,days:days.map(d=>{const [n,dd]=dayHead(d);return `${n} ${dd}`;}),
+   rows:used.map(e=>({name:e.name,sub:KIND[e.kind]?.[1]||'',cells:days.map(d=>({opening:v(cell.get(`${e.id}|${d}|opening`)),closing:v(cell.get(`${e.id}|${d}|closing`))}))})),
+   notes:[...cell.values()].filter(c=>!c.ok).map(c=>{const [n,dd]=dayHead(c.day);return [`${n} ${dd}`,c.equipment||'',`${slotName(c.slot)} ${time(c.recorded_at)}`,deg(c.temp),c.action||'',checker(c)];})};});
+ return {kind:'weeks',title:'TEMPERATURE CHECK LIST',place:`Marinara ${h.location||''}`,when:'',limits:LIMITS,logo:logo(),fileDate:`last-${h.days||90}-days`,weeks:list,
+  foot:`Marinara Ristorante Cafe · printed ${dayLong(Date.now())}. Last ${h.days||90} days, one week per page. Deliveries have their own PDF (Deliveries screen). Records cannot be changed.`};
+}
+$('tmpPrint').addEventListener('click',()=>{if(!state.history)return;const h=state.history;
+ if(!(h.records||[]).some(r=>r.kind==='equipment')){eqMsg('No fridge or freezer checks in the last 90 days yet.');return;}
+ makePdf($('tmpPrint'),()=>weeksReport(h));});
 
 /* ---------- Deliveries (receival) ---------- */
 const TRUCK='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h11v10H3z"/><path d="M14 9h4l3 3v4h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17.5" cy="17.5" r="1.8"/></svg>';

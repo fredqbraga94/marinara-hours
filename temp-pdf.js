@@ -46,11 +46,51 @@
     doc.text(`Page ${page} / ${pages}`, W - 10, H - 6, { align: 'right' });
   }
 
+  function drawWeek(doc, wk, H, base, margin) {
+      const body = [];
+      for (const r of wk.rows) {
+        for (const slot of ['opening', 'closing']) {
+          const row = [];
+          if (slot === 'opening') row.push({ content: `${clean(r.name)}\n${clean(r.sub)}`, rowSpan: 2, styles: { fontStyle: 'bold', valign: 'middle' } });
+          row.push(slot === 'opening' ? 'Opening' : 'Closing');
+          for (const c of r.cells) {
+            const v = c[slot];
+            row.push(v ? { content: clean(v.t), styles: v.bad ? { textColor: RED, fontStyle: 'bold' } : {} } : '');
+          }
+          body.push(row);
+        }
+      }
+      doc.autoTable({
+        startY: 35, margin, theme: 'grid', styles: { ...base, halign: 'center' },
+        head: [['Equipment', 'Time', ...wk.days.map(clean)]],
+        headStyles: { fillColor: 17, textColor: 255, fontStyle: 'bold', halign: 'center' },
+        columnStyles: { 0: { cellWidth: 46, halign: 'left' }, 1: { cellWidth: 20, halign: 'left', textColor: 90 } },
+        body, rowPageBreak: 'avoid',
+      });
+      let y = doc.lastAutoTable.finalY + 6;
+      if (y > H - 30) { doc.addPage(); y = 35; }
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20);
+      doc.text('Notes - readings outside the safe range and what was done', 10, y);
+      if (wk.notes.length) {
+        doc.autoTable({
+          startY: y + 2, margin, theme: 'grid', styles: base,
+          head: [['Day', 'Equipment', 'Time', 'Temp', 'Action taken', 'Checked by']],
+          headStyles: { fillColor: 232, textColor: 20, fontStyle: 'bold' },
+          columnStyles: { 3: { textColor: RED, fontStyle: 'bold' }, 4: { cellWidth: 100 } },
+          body: wk.notes.map(r => r.map(clean)),
+        });
+      } else {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90);
+        doc.text('None this week.', 10, y + 6);
+      }
+  }
+
   // week: {title, place, when, limits, foot, logo, days:[label], rows:[{name, sub, cells:[{opening:{t,bad}|null, closing:..}]}], notes:[[day, equipment, time, temp, action, by]]}
   // records: {..., records:[[date, time, what, temp, action, by, bad]]}
   // table: {..., landscape?, head:[..], rows:[[..]], bad:[bool per row], badCol?, widths?:{col: mm}, notes?:{title, head, rows}}
   function generate(report) {
-    const week = report.kind === 'week' || (report.kind === 'table' && report.landscape);
+    const week = report.kind === 'week' || report.kind === 'weeks' || (report.kind === 'table' && report.landscape);
+    const pageWhen = {};
     const doc = new window.jspdf.jsPDF({ orientation: week ? 'landscape' : 'portrait', unit: 'mm', format: 'a4', compress: true });
     const W = week ? 297 : 210, H = week ? 210 : 297;
     const base = { font: 'helvetica', fontSize: 8.5, cellPadding: 1.4, lineColor: 120, lineWidth: 0.2, textColor: 20, valign: 'middle', overflow: 'linebreak' };
@@ -84,43 +124,16 @@
           doc.text(clean(n.none || 'None.'), 10, y + 6);
         }
       }
-    } else if (week) {
-      const body = [];
-      for (const r of report.rows) {
-        for (const slot of ['opening', 'closing']) {
-          const row = [];
-          if (slot === 'opening') row.push({ content: `${clean(r.name)}\n${clean(r.sub)}`, rowSpan: 2, styles: { fontStyle: 'bold', valign: 'middle' } });
-          row.push(slot === 'opening' ? 'Opening' : 'Closing');
-          for (const c of r.cells) {
-            const v = c[slot];
-            row.push(v ? { content: clean(v.t), styles: v.bad ? { textColor: RED, fontStyle: 'bold' } : {} } : '');
-          }
-          body.push(row);
-        }
-      }
-      doc.autoTable({
-        startY: 35, margin, theme: 'grid', styles: { ...base, halign: 'center' },
-        head: [['Equipment', 'Time', ...report.days.map(clean)]],
-        headStyles: { fillColor: 17, textColor: 255, fontStyle: 'bold', halign: 'center' },
-        columnStyles: { 0: { cellWidth: 46, halign: 'left' }, 1: { cellWidth: 20, halign: 'left', textColor: 90 } },
-        body, rowPageBreak: 'avoid',
+    } else if (report.kind === 'weeks') {
+      // One week per page, oldest first: the paper sheet for each week.
+      report.weeks.forEach((wk, i) => {
+        if (i) doc.addPage();
+        const first = doc.getNumberOfPages();
+        drawWeek(doc, wk, H, base, margin);
+        for (let p = first; p <= doc.getNumberOfPages(); p++) pageWhen[p] = wk.when;
       });
-      let y = doc.lastAutoTable.finalY + 6;
-      if (y > H - 30) { doc.addPage(); y = 35; }
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(20);
-      doc.text('Notes - readings outside the safe range and what was done', 10, y);
-      if (report.notes.length) {
-        doc.autoTable({
-          startY: y + 2, margin, theme: 'grid', styles: base,
-          head: [['Day', 'Equipment', 'Time', 'Temp', 'Action taken', 'Checked by']],
-          headStyles: { fillColor: 232, textColor: 20, fontStyle: 'bold' },
-          columnStyles: { 3: { textColor: RED, fontStyle: 'bold' }, 4: { cellWidth: 100 } },
-          body: report.notes.map(r => r.map(clean)),
-        });
-      } else {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(90);
-        doc.text('None this week.', 10, y + 6);
-      }
+    } else if (week) {
+      drawWeek(doc, report, H, base, margin);
     } else {
       doc.autoTable({
         startY: 35, margin, theme: 'grid', styles: base,
@@ -133,7 +146,7 @@
       });
     }
     const pages = doc.getNumberOfPages();
-    for (let p = 1; p <= pages; p++) frame(doc, report, p, pages, W, H);
+    for (let p = 1; p <= pages; p++) frame(doc, pageWhen[p] ? { ...report, when: pageWhen[p] } : report, p, pages, W, H);
     generate.lastPages = pages;
     return doc.output('blob');
   }
