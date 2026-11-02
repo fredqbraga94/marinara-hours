@@ -8457,6 +8457,9 @@ function invRenderReview() {
         <div class="inv-amount">${escapeHtml(invMoney(inv.total))}</div>
       </div>
       ${flag}
+      <div class="inv-check-row">${r.url ? `<a class="inv-open-pdf" href="${r.url}" target="_blank" rel="noopener">Open PDF</a>` : ""}<button type="button" class="inv-see-lines" data-inv-lines="${i}" aria-expanded="${!!r.showLines}">${r.showLines ? "Hide lines" : "See the lines read"}</button></div>
+      ${r.showLines ? `<div class="inv-read-lines">${inv.lines.map(l => `<div><span>${escapeHtml(l.description || l.code || "")}<small>${escapeHtml([l.code, `${l.qty ?? ""} ${l.unit || ""}`.trim(), l.unit_price != null ? `× ${invMoney(l.unit_price)}` : ""].filter(Boolean).join(" · "))}</small></span><b>${escapeHtml(invMoney(l.line_total))}</b></div>`).join("")}
+        <div class="inv-read-tot"><span>Subtotal ${escapeHtml(invMoney(inv.subtotal))} · GST ${escapeHtml(invMoney(inv.gst))}</span><b>${escapeHtml(invMoney(inv.total))}</b></div></div>` : ""}
       ${r.saved ? "" : r.duplicate ? `<div class="inv-review-actions"><button type="button" data-inv-dismiss="${i}">Dismiss</button></div>` : `<div class="inv-review-actions">
         <button type="button" data-inv-dismiss="${i}">Don't save</button>
         <button type="button" class="save" data-inv-save="${i}">Save</button></div>`}
@@ -8478,7 +8481,8 @@ async function invAlreadySaved(inv) {
 async function invReadFiles(files) {
   invClearMsg();
   const start = invState.review.length;
-  for (const f of files) invState.review.push({ file: f.name, reading: true });
+  // Keep the PDF on this phone (not sent anywhere) so it can be opened to double-check.
+  for (const f of files) invState.review.push({ file: f.name, reading: true, url: URL.createObjectURL(f) });
   invRenderReview();
   for (let k = 0; k < files.length; k++) {
     const f = files[k], slot = invState.review[start + k];
@@ -8889,8 +8893,10 @@ invoicesScreen?.addEventListener("click", async e => {
   }
   const sup = e.target.closest("[data-inv-usage-supplier]");
   if (sup) { invState.usageSupplier = sup.dataset.invUsageSupplier; invRenderUsage(); return; }
+  const lns = e.target.closest("[data-inv-lines]");
+  if (lns) { const r = invState.review[Number(lns.dataset.invLines)]; if (r) r.showLines = !r.showLines; invRenderReview(); return; }
   const dis = e.target.closest("[data-inv-dismiss]");
-  if (dis) { invState.review.splice(Number(dis.dataset.invDismiss), 1); invRenderReview(); return; }
+  if (dis) { const [gone] = invState.review.splice(Number(dis.dataset.invDismiss), 1); if (gone?.url) setTimeout(() => URL.revokeObjectURL(gone.url), 60000); invRenderReview(); return; }
   const save = e.target.closest("[data-inv-save]");
   if (save) {
     // Gulli changed its item codes in Nov 2026 (24121355 -> BCBLCH2KG-UC4). The
