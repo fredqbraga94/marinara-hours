@@ -41,7 +41,7 @@ opener.onclick=()=>{showOnlyManagerScreen(screen.id);setManagerNavActive('operat
 document.body.append(opener);
 const row=`<button type="button" class="rm-row" data-rm-go="rmOpenOrders">${ICON}<span><strong>Orders</strong><small>Order list and PDF for suppliers</small></span><i aria-hidden="true">›</i></button>`;
 for(const menu of [document.querySelector('#operationsScreen .rm-menu'),document.querySelector('#managerMoreScreen .rm-menu'),document.querySelector('#quickActionsDialog .rm-actions')]){
- const after=menu?.querySelector('[data-rm-go="rmOpenShopping"]');if(after)after.insertAdjacentHTML('afterend',row);else menu?.insertAdjacentHTML('beforeend',row);
+ const after=menu?.querySelector('[data-rm-go="rmOpenMaintenance"]')||menu?.querySelector('[data-rm-go="rmOpenShopping"]');if(after)after.insertAdjacentHTML('afterend',row);else menu?.insertAdjacentHTML('beforeend',row);
 }
 const say=(id,x,ok)=>{const m=$(id);m.textContent=x||'';m.style.color=ok?'#07613b':x?'#b3261e':'';};
 const msg=(x,ok)=>say('ordMsg',x,ok),fmsg=(x,ok)=>say('ordFormMsg',x,ok);
