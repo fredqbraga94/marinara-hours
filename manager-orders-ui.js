@@ -115,7 +115,7 @@ $('ordPdf').addEventListener('click',async()=>{
    limits:`To: ${state.supplier} · Ordered ${dayLong(Date.now())}${by?` by ${by}`:''} · ${lines.length} item${lines.length===1?'':'s'}`,
    logo:document.querySelector('.login-original-logo')?.src,filePrefix:`Marinara-Order-${state.supplier.replace(/[^a-zA-Z0-9]+/g,'-')}-`,fileDate:day||todayIso(),
    shareTitle:`Marinara order for ${state.supplier}`,foot:`Marinara Ristorante Cafe · ${d.location||''}`,
-   head:['Item','Qty','Unit'],widths:{1:30,2:40},rows:lines.map(l=>[l.name,{t:l.qty,bold:false},l.unit]),
+   head:['Qty','Unit','Item'],widths:{0:18,1:24},tableWidth:120,fontSize:11,rows:lines.map(l=>[{t:l.qty.replace(/^\./,'0.'),bold:false},l.unit,l.name]),
    notes:note?{title:'Note',head:['Note'],rows:[[note]],none:''}:null});
   state.qty={};$('ordNote').value='';saveDraft();state.data=fresh;render();msg('Order saved. Share the PDF with the supplier.',true);
  }catch(err){msg(err.message||'Unable to make the order.');}
