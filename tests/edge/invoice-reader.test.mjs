@@ -179,3 +179,38 @@ test("HTC Foods: lines, wrapped description, ex-GST totals and price per pack", 
   assert.equal(R.perUnit(10, pack), 20, "A$20 per kg, not per carton");
   assert.equal(R.perUnit(40, R.packGuess(inv.lines[1].description, inv.lines[1].unit)), 10);
 });
+
+// Gulli Food Distributors, layout from Nov 2026 ("CI-" numbers). Made-up items at
+// the real column positions: names and long codes wrap onto the rows just above
+// and below the row with the numbers; price and tax can share one cell.
+function gulliNewPages() {
+  const w = (s, x, y) => ({ s, x, y });
+  const words = [
+    w("Invoice", 393, 42), w("Date", 489, 42), w("Gulli Food Distributors - Queensland", 180, 56),
+    w("CI-900001", 393, 62), w("3 Nov 2026", 490, 62),
+    w("Order", 33, 187), w("Unit Item code", 79, 193), w("Item name", 214, 193), w("Unit Price", 438, 193), w("Taxes", 503, 193), w("qty.", 33, 199),
+    w("Test Cheese Shredded", 214, 218),
+    w("4", 33, 224), w("Unit", 79, 224), w("TCHEESE-UC4", 105, 224), w("4", 398, 224), w("Unit", 438, 224), w("$20.00 $0.00", 464, 224), w("$80.00", 545, 224),
+    w("(Test Dairy) 2kg", 214, 230),
+    w("1", 33, 249), w("Unit", 79, 249), w("DELIVERY_007", 105, 249), w("Shipping", 214, 249), w("1", 398, 249), w("Unit", 438, 249), w("$4.50", 464, 249), w("$0.45", 503, 249), w("$4.95", 555, 249),
+    w("TEST_LONG_CODE-", 105, 268),
+    w("2", 33, 274), w("Box", 79, 274), w("Test Mascarpone 1kg", 214, 274), w("2", 398, 274), w("Box", 438, 274), w("$10.00", 464, 274), w("$0.00", 503, 274), w("$20.00", 549, 274),
+    w("UC12", 105, 280),
+    w("Total price includes Taxes", 462, 300), w("Total", 479, 320), w("$104.95", 546, 320),
+  ];
+  return [R.toRows(words)];
+}
+
+test("Gulli (layout from Nov 2026): wrapped names and codes, shipping as a fee, totals match", () => {
+  const inv = R.parse(gulliNewPages());
+  assert.equal(inv.supplier, "Global Food and Wine (Gulli)", "same supplier as before");
+  assert.equal(inv.ok, true, JSON.stringify(inv.checks));
+  assert.equal(inv.number, "CI-900001");
+  assert.equal(inv.date, "2026-11-03");
+  assert.deepEqual(inv.lines.map((l) => [l.code, l.description, l.qty, l.unit, l.unit_price, l.line_total, l.gst]), [
+    ["TCHEESE-UC4", "Test Cheese Shredded (Test Dairy) 2kg", 4, "Unit", 20, 80, 0],
+    ["DELIVERY", "Delivery Fee", 1, "Unit", 4.5, 4.5, 0.45],
+    ["TEST_LONG_CODE-UC12", "Test Mascarpone 1kg", 2, "Box", 10, 20, 0],
+  ]);
+  assert.equal(inv.total, 104.95);
+});

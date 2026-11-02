@@ -535,7 +535,58 @@
     },
   };
 
-  const READERS = [moco, pronto, angelos, globalFood, gulliInvoice, gulliCredit, htc];
+  // Gulli Food Distributors, new layout (from Nov 2026, invoice "CI-484677"):
+  // order qty, unit, item code, item name, ship qty, unit, unit price, taxes,
+  // line total (with tax). Long codes and names wrap onto the rows just above
+  // and below the row with the numbers.
+  const gulliNew = {
+    supplier: "Global Food and Wine (Gulli)",   // same name as before
+    test: t => /Gulli Food Distributors/.test(t) && /Item code/.test(t) && /Total price includes Taxes/.test(t),
+    read(pages) {
+      const lines = [];
+      let number = null, date = null, total = null;
+      for (const rows of pages) {
+        const head = rows.find(r => r.items.some(i => /^CI-\d+$/.test(i.s)));
+        if (head && !number) {
+          const i = head.items.findIndex(x => /^CI-\d+$/.test(x.s));
+          number = head.items[i].s; date = isoDate(head.items.slice(i + 1).map(x => x.s).join(" ")) || date;
+        }
+        const top = rows.findIndex(r => r.items.some(i => i.s === "Item name"));
+        const end = rows.findIndex(r => /Total price includes Taxes/.test(rowText(r)));
+        const tot = rows.find(r => r.items.some(i => i.s === "Total") && r.items.some(i => money(i.s) != null));
+        if (tot && total == null) total = money(tot.items.find(i => money(i.s) != null).s);
+        if (top < 0) continue;
+        const body = rows.slice(top + 1, end < 0 ? rows.length : end).filter(r => !/^(qty\.|Order|Ship|Line|total)$/.test(rowText(r)) && !/^qty\./.test(rowText(r)));
+        const isAnchor = r => /^\d+(\.\d+)?$/.test(firstIn(r, 25, 60) || "") && money(firstIn(r, 520, 600)) != null;
+        const anchors = body.filter(isAnchor);
+        const extra = new Map(anchors.map(a => [a, { above: [], below: [] }]));
+        for (const r of body) {
+          if (isAnchor(r)) continue;
+          let best = null;
+          for (const a of anchors) if (!best || Math.abs(a.y - r.y) < Math.abs(best.y - r.y)) best = a;
+          if (best && Math.abs(best.y - r.y) < 18) extra.get(best)[r.y < best.y ? "above" : "below"].push(r);
+        }
+        for (const a of anchors) {
+          const e = extra.get(a);
+          const part = (rs, x0, x1) => rs.map(r => textIn(r, x0, x1)).filter(Boolean);
+          let code = [...part(e.above, 100, 210), textIn(a, 100, 210), ...part(e.below, 100, 210)].filter(Boolean).join("");
+          let description = [...part(e.above, 210, 395), textIn(a, 210, 395), ...part(e.below, 210, 395)].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+          const ship = num(firstIn(a, 395, 435)), ordered = num(firstIn(a, 25, 60));
+          const unit = textIn(a, 435, 462) || textIn(a, 60, 100);
+          const monies = inX(a, 462, 540).flatMap(i => i.s.split(/\s+/)).map(money).filter(v => v != null);
+          const inc = money(firstIn(a, 520, 600));
+          const price = monies[0], tax = monies.length > 1 ? monies[1] : 0;
+          if (price == null || inc == null) continue;
+          if (/^DELIVERY/i.test(code)) { code = "DELIVERY"; description = "Delivery Fee"; }
+          lines.push({ code, description, qty: ship ?? ordered ?? 1, unit, unit_price: price, line_total: r2(inc - tax), gst: r2(tax) });
+        }
+      }
+      const gst = r2(lines.reduce((a, l) => a + (l.gst || 0), 0));
+      return { number, date, kind: "invoice", lines, subtotal: r2(lines.reduce((a, l) => a + l.line_total, 0)), gst, total };
+    },
+  };
+
+  const READERS = [moco, pronto, angelos, globalFood, gulliInvoice, gulliCredit, gulliNew, htc];
 
   // pages -> invoice, or { error } when the layout is not one we know.
   function parse(pages) {

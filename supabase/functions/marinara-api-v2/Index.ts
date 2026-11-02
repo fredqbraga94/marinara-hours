@@ -1562,6 +1562,9 @@ Deno.serve(async (req) => {
         "manager_clean_mark",
         "manager_clean_history",
         "manager_activity",
+        "manager_order_list",
+        "manager_order_item_save",
+        "manager_order_save",
         "manager_shopping_list",
         "manager_shopping_save",
         "manager_shopping_mark",
@@ -3449,6 +3452,41 @@ Deno.serve(async (req) => {
           const { data, error } = await supabase.rpc("manager_temp_delivery_edit", { p_manager_id: managerStatus.id, p_id: body.id, p_entry: entry });
           if (error) return managerDbError(error, "Unable to save the change");
           return json({ success: true, action, data: { record: data } });
+        }
+      }
+
+      // =========================
+      // SUPPLIER ORDERS (list of items, quantities, PDF to forward; every manager)
+      // =========================
+      if (action.startsWith("manager_order_")) {
+        const isUuid = (v: any) => typeof v === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const text = (v: any, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+        if (action === "manager_order_list") {
+          const { data, error } = await supabase.rpc("manager_order_list", { p_manager_id: managerStatus.id, p_supplier: text(body.supplier, 60) || null });
+          if (error) return managerDbError(error, "Unable to load the order list", 500);
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_order_item_save") {
+          const it = body.item && typeof body.item === "object" ? body.item : {};
+          if (it.id != null && !isUuid(it.id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
+          const item: any = it.id ? { id: it.id } : { supplier: text(it.supplier, 60), name: text(it.name, 80) };
+          if (typeof it.unit === "string") item.unit = text(it.unit, 20);
+          if (typeof it.active === "boolean") item.active = it.active;
+          if (!it.id && (!item.supplier || !item.name)) return json({ error: "Write the item and the supplier.", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_order_item_save", { p_manager_id: managerStatus.id, p_item: item });
+          if (error) return managerDbError(error, "Unable to save the item");
+          return json({ success: true, action, data: { item: data } });
+        }
+        if (action === "manager_order_save") {
+          const o = body.order && typeof body.order === "object" ? body.order : {};
+          const lines = Array.isArray(o.lines) ? o.lines.slice(0, 200).map((l: any) => ({ name: text(l?.name, 80), unit: text(l?.unit, 20), qty: text(String(l?.qty ?? ""), 12) }))
+            .filter((l: any) => l.name && l.qty) : [];
+          if (!text(o.supplier, 60) || !lines.length) return json({ error: "Type a quantity for at least one item.", code: "INVALID_INPUT" }, 400);
+          const day = typeof o.deliver_on === "string" && /^\d{4}-\d{2}-\d{2}$/.test(o.deliver_on) ? o.deliver_on : "";
+          const { data, error } = await supabase.rpc("manager_order_save", { p_manager_id: managerStatus.id, p_order: { supplier: text(o.supplier, 60), deliver_on: day, note: text(o.note, 300), lines } });
+          if (error) return managerDbError(error, "Unable to save the order");
+          return json({ success: true, action, data: { order: data } });
         }
       }
 
