@@ -472,3 +472,17 @@ button.cl-box:not(.on){box-shadow:inset 0 0 0 1.5px #e2b98f}
 .act-main{flex:1;min-width:0}.act-main strong{font-size:14px}.act-main small{display:block;font-size:13px;color:#333;margin-top:2px;overflow-wrap:anywhere}
 .act-area{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--green);background:var(--green-light,#e8f3ec);border-radius:6px;padding:2px 6px;margin-left:4px}
 #activityScreen [hidden]{display:none!important}
+/* Orders */
+#orderScreen [hidden]{display:none!important}
+.ord-sups{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}.ord-sup{border:1.5px solid var(--border);background:#fff;border-radius:999px;padding:8px 14px;min-height:40px;font-weight:600;font-size:13px;margin:0}.ord-sup.on{background:#111;color:#fff;border-color:#111}
+.ord-head{display:flex;justify-content:space-between;align-items:baseline;padding:12px 14px;border-bottom:1px solid var(--border)}.ord-head span{font-size:12px;color:var(--green);font-weight:700}
+.ord-row{display:flex;align-items:center;gap:6px;padding:8px 10px 8px 14px;border-bottom:1px solid var(--border)}.ord-row.has{background:#eef7f1}
+.ord-name{flex:1;min-width:0}.ord-name strong{display:block;font-size:14px;overflow-wrap:anywhere}.ord-name small{font-size:11px;color:var(--muted)}
+.ord-step{flex:0 0 40px;width:40px;height:40px;margin:0;padding:0;border:1.5px solid var(--border);border-radius:10px;background:#fff;color:#111;font-size:20px;font-weight:700;line-height:1}
+.ord-qty{flex:0 0 56px;width:56px;height:40px;margin:0;text-align:center;font-size:16px;font-weight:700;border:1.5px solid var(--border);border-radius:10px;padding:0}
+.ord-row .shop-small{margin:0 0 0 4px;min-height:36px}
+.ord-edit{padding:10px 14px;text-align:right}.ord-edit .shop-small{margin:0}
+.ord-field{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600}.ord-field input{flex:1;min-height:44px;margin:0}
+.ord-unit-in{flex:0 0 110px!important;width:110px}
+#ordNote,#ordMany{width:100%;font:inherit;font-size:15px;border:1.5px solid var(--border);border-radius:10px;padding:10px;box-sizing:border-box}
+#ordSend .secondary,#ordForm .secondary{border:1.5px solid var(--border)!important;border-radius:10px!important;background:#fff!important;color:#111!important;min-height:44px;font-size:14px;font-weight:600;margin:0;flex:1}
