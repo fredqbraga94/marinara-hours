@@ -557,6 +557,11 @@
         if (tot && total == null) total = money(tot.items.find(i => money(i.s) != null).s);
         if (top < 0) continue;
         const body = rows.slice(top + 1, end < 0 ? rows.length : end).filter(r => !/^(qty\.|Order|Ship|Line|total)$/.test(rowText(r)) && !/^qty\./.test(rowText(r)));
+        // Column edges from the header: the item name column moves with the
+        // length of the names (seen at x 190 and x 214).
+        const hdr = rows[top];
+        const nameX = (hdr.items.find(i => i.s === "Item name")?.x ?? 214) - 3;
+        const shipX = (rows.slice(Math.max(0, top - 2), top + 1).flatMap(r => r.items).find(i => i.s === "Ship")?.x ?? 398) - 5;
         const isAnchor = r => /^\d+(\.\d+)?$/.test(firstIn(r, 25, 60) || "") && money(firstIn(r, 520, 600)) != null;
         const anchors = body.filter(isAnchor);
         const extra = new Map(anchors.map(a => [a, { above: [], below: [] }]));
@@ -569,9 +574,11 @@
         for (const a of anchors) {
           const e = extra.get(a);
           const part = (rs, x0, x1) => rs.map(r => textIn(r, x0, x1)).filter(Boolean);
-          let code = [...part(e.above, 100, 210), textIn(a, 100, 210), ...part(e.below, 100, 210)].filter(Boolean).join("");
-          let description = [...part(e.above, 210, 395), textIn(a, 210, 395), ...part(e.below, 210, 395)].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-          const ship = num(firstIn(a, 395, 435)), ordered = num(firstIn(a, 25, 60));
+          let code = [...part(e.above, 100, nameX), textIn(a, 100, nameX), ...part(e.below, 100, nameX)].filter(Boolean).join("");
+          let description = [...part(e.above, nameX, shipX), textIn(a, nameX, shipX), ...part(e.below, nameX, shipX)].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+          // The name starts with the code in brackets: "[BCPARM01-UC8] Big Cheese..."
+          description = description.replace(/^\[[^\]]*\]\s*/, "") || code;
+          const ship = num(firstIn(a, shipX, shipX + 40)), ordered = num(firstIn(a, 25, 60));
           const unit = textIn(a, 435, 462) || textIn(a, 60, 100);
           const monies = inX(a, 462, 540).flatMap(i => i.s.split(/\s+/)).map(money).filter(v => v != null);
           const inc = money(firstIn(a, 520, 600));
@@ -596,6 +603,8 @@
     const inv = reader.read(pages);
     inv.supplier = reader.supplier;
     inv.lines = inv.lines.filter(l => l.line_total != null);
+    // A line always has a name to save (the server refuses a line without one).
+    inv.lines.forEach(l => { if (!l.description) l.description = l.code || "Item"; });
     const sum = r2(inv.lines.reduce((a, l) => a + l.line_total, 0));
     const lineGst = r2(inv.lines.reduce((a, l) => a + (l.gst || 0), 0));
     const gst = inv.gst ?? lineGst;
