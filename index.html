@@ -1470,6 +1470,16 @@ body.mgr-mode #invoicesScreen .card { border: 1px solid #e7e2d8; box-shadow: non
 .stock-chips button{flex:0 0 auto;min-height:36px;padding:0 12px;border-radius:18px;border:1.5px solid var(--border);background:#fff;font-weight:800;font-size:13px;color:var(--text);white-space:nowrap}
 .stock-chips button.selected{background:var(--green);border-color:var(--green);color:#fff}
 .stock-chips button small{font-weight:700;opacity:.75;margin-left:4px}
+/* Stock: one Section button instead of sideways chips */
+#stockGroupChips.stock-chips{display:block;overflow:visible;padding:2px 0 10px}
+#stockGroupChips .stock-pick{display:flex;align-items:center;gap:8px;width:100%;min-height:46px;padding:0 14px;border-radius:12px;border:1.5px solid var(--border);background:#fff;font-size:15px;text-align:left}
+#stockGroupChips .stock-pick span{font-size:12px;color:var(--muted);font-weight:600}
+#stockGroupChips .stock-pick strong{flex:1;font-weight:800}
+#stockGroupChips .stock-pick small{margin:0;opacity:1;color:var(--green);font-weight:800}
+#stockGroupChips .stock-pick i{font-style:normal;color:var(--muted)}
+#stockGroupChips .stock-pick-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+#stockGroupChips .stock-pick-grid[hidden]{display:none}
+#stockGroupChips .stock-pick-grid button{flex:0 0 auto}
 .stock-chips button.done:not(.selected){border-color:var(--green);color:var(--green)}
 .stock-dept{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
 .stock-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#eef1ee;padding:4px;border-radius:14px;margin-bottom:12px}
@@ -7411,11 +7421,19 @@ function stockRenderChips() {
   const groups = stockGroups(stockState.data?.items || []);
   if (stockState.group && !groups.some(g => g.name === stockState.group)) stockState.group = null;
   if (groups.length < 2) { box.innerHTML = ""; return; }
-  box.innerHTML = `<button type="button" data-stock-group="" class="${stockState.group ? "" : "selected"}">All</button>` +
+  // One button shows the section on screen; tap it to choose another from a
+  // panel with every section (no sideways scrolling through many chips).
+  const cur = stockState.group ? groups.find(g => g.name === stockState.group) : null;
+  const all = stockState.data?.items || [];
+  const curItems = cur ? cur.items : all;
+  box.innerHTML = `<button type="button" class="stock-pick" data-stock-pick aria-expanded="${!!stockState.pickOpen}">
+      <span>Section</span><strong>${escapeHtml(cur ? cur.name : "All")}</strong><small id="stockPickCount">${curItems.filter(stockIsCounted).length}/${curItems.length}</small><i aria-hidden="true">${stockState.pickOpen ? "▴" : "▾"}</i></button>
+    <div class="stock-pick-grid"${stockState.pickOpen ? "" : " hidden"}>` +
+    `<button type="button" data-stock-group="" class="${stockState.group ? "" : "selected"}">All<small>${all.filter(stockIsCounted).length}/${all.length}</small></button>` +
     groups.map(g => {
       const done = g.items.filter(stockIsCounted).length;
       return `<button type="button" data-stock-group="${escapeHtml(g.name)}" class="${stockState.group === g.name ? "selected" : ""} ${done === g.items.length ? "done" : ""}">${escapeHtml(g.name)}<small>${done}/${g.items.length}</small></button>`;
-    }).join("");
+    }).join("") + `</div>`;
 }
 function stockRenderProgress() {
   const items = stockState.data?.items || [];
@@ -7442,6 +7460,8 @@ function stockRenderProgress() {
     if (small) small.textContent = `${done}/${g.items.length}`;
     b.classList.toggle("done", done === g.items.length);
   });
+  const pc = document.getElementById("stockPickCount");
+  if (pc) { const g = stockState.group ? stockGroups(items).find(x => x.name === stockState.group) : null; const list = g ? g.items : items; pc.textContent = `${list.filter(stockIsCounted).length}/${list.length}`; }
 }
 function stockRenderCount() {
   const box = document.getElementById("stockCountList");
@@ -7659,13 +7679,14 @@ stockScreen?.addEventListener("click", async e => {
   const tab = e.target.closest("[data-stock-tab]");
   if (tab) { stockShowTab(tab.dataset.stockTab); return; }
 
+  if (e.target.closest("[data-stock-pick]")) { stockState.pickOpen = !stockState.pickOpen; stockRenderChips(); return; }
   const grp = e.target.closest("[data-stock-group]");
   if (grp) {
     stockState.group = grp.dataset.stockGroup || null;
-    document.querySelectorAll("#stockGroupChips [data-stock-group]").forEach(b => b.classList.toggle("selected", (b.dataset.stockGroup || null) === stockState.group));
-    const keep = document.getElementById("stockGroupChips").scrollLeft;
+    stockState.pickOpen = false;
     stockRenderCount();
-    document.getElementById("stockGroupChips").scrollLeft = keep;
+    stockRenderChips();
+    document.getElementById("stockGroupChips")?.scrollIntoView({ block: "nearest" });
     return;
   }
 
