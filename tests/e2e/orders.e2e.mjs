@@ -64,6 +64,19 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#closeTempPdf').click();await page.locator('#tempPdfDialog').waitFor({state:'detached'});
  assert.equal(await page.locator('.ord-qty').evaluateAll(els=>els.every(e=>!e.value)),true,'cleared after the order');
  await page.locator('#ordPast').filter({hasText:'QA Kitchen Manager · 2 items'}).waitFor();
+ // Send as a message: the same order as text (share sheet), then saved.
+ await page.evaluate(()=>{window.__shared=null;navigator.share=async d=>{window.__shared=d;};});
+ await page.locator('#ordRepeat').click();
+ await page.locator('#ordText').click();
+ await page.locator('#ordMsg').filter({hasText:'Order saved and sent as a message.'}).waitFor();
+ const shared=await page.evaluate(()=>window.__shared.text);
+ assert.match(shared,/^Hi Niko, order for Marinara Hawthorne\nDelivery: \w+day \d+ \w+\n\n3 bunch QA Basil\n1 box QA Tomatoes\n\nThanks!$/);
+ assert.equal(await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_order_save').length),2,'saved as an order too');
+ // Cancelled share: nothing saved.
+ await page.evaluate(()=>{navigator.share=async()=>{const e=new Error('x');e.name='AbortError';throw e;};});
+ await page.locator('#ordRepeat').click();await page.locator('#ordText').click();
+ await page.locator('#ordMsg').filter({hasText:'Not sent'}).waitFor();
+ assert.equal(await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_order_save').length),2);
  // Repeat the last order.
  await page.locator('#ordRepeat').click();
  assert.equal(await rowOf('QA Basil').locator('.ord-qty').inputValue(),'3');
