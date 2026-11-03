@@ -203,7 +203,7 @@ $('tmpHistBtn').addEventListener('click',async()=>{
  finally{b.disabled=false;}
 });
 // PDF (iPhone home-screen apps cannot print a page): Share > Print, or save.
-const LIMITS='Fridge 5°C or below · Freezer -15°C or below · Hot holding 60°C or above · initials = who checked · red = outside the safe range';
+const LIMITS='Fridge 5°C or below · Freezer -15°C or below · Hot holding 60°C or above · time it was checked and initials of who checked · red = outside the safe range';
 const logo=()=>document.querySelector('.login-original-logo')?.src;
 const slotName=s=>s==='closing'?'Closing':'Opening';
 async function makePdf(btn,build,msg=eqMsg){
@@ -215,7 +215,7 @@ async function makePdf(btn,build,msg=eqMsg){
 function weekReport(){
  const w=state.week;const days=[...Array(7)].map((_,i)=>addDays(w.start,i));
  const cell=new Map((w.cells||[]).map(c=>[`${c.equipment_id}|${c.day}|${c.slot}`,c]));
- const v=c=>c?{t:`${Number(c.temp).toFixed(1)} ${initials(checker(c))}`,bad:!c.ok}:null;
+ const v=c=>c?{t:`${Number(c.temp).toFixed(1)}  ${time(c.recorded_at).replace(/\s/g,'')}  ${initials(checker(c))}`,bad:!c.ok}:null;
  return {kind:'week',title:'TEMPERATURE CHECK LIST',place:`Marinara ${w.location||''}`,when:`${shortDate(w.start)} - ${shortDate(days[6])}`,limits:LIMITS,logo:logo(),fileDate:w.start,
   foot:`Marinara Ristorante Cafe · printed ${dayLong(Date.now())}. Every reading is saved with who checked and the time; records cannot be changed.`,
   days:days.map(d=>{const [n,dd]=dayHead(d);return `${n} ${dd}`;}),
@@ -238,7 +238,7 @@ function weeksReport(h){
  const monday=iso=>addDays(iso,-((new Date(`${iso}T00:00:00Z`).getUTCDay()+6)%7));
  const weeks=new Map();
  for(const r of [...recs].sort((a,b)=>a.recorded_at.localeCompare(b.recorded_at))){const m=monday(r.day);if(!weeks.has(m))weeks.set(m,new Map());weeks.get(m).set(`${r.equipment_id}|${r.day}|${r.slot}`,r);}
- const v=c=>c?{t:`${Number(c.temp).toFixed(1)} ${initials(checker(c))}`,bad:!c.ok}:null;
+ const v=c=>c?{t:`${Number(c.temp).toFixed(1)}  ${time(c.recorded_at).replace(/\s/g,'')}  ${initials(checker(c))}`,bad:!c.ok}:null;
  const list=[...weeks.keys()].sort().map(start=>{const cell=weeks.get(start);const days=[...Array(7)].map((_,i)=>addDays(start,i));
   const used=[...eqs.values()].filter(e=>days.some(d=>cell.has(`${e.id}|${d}|opening`)||cell.has(`${e.id}|${d}|closing`)))
    .sort((a,b)=>(order.get(a.id)??999)-(order.get(b.id)??999)||a.name.localeCompare(b.name));
