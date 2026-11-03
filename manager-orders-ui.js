@@ -21,6 +21,7 @@ screen.innerHTML=`<div class="manager-top"><div><h2>Orders</h2><p>Type the quant
  <label class="ord-field">Delivery <input type="date" id="ordDay" aria-label="Delivery day"></label>
  <textarea id="ordNote" maxlength="300" rows="2" placeholder="Note for the supplier (optional) e.g. Please deliver before 10am" aria-label="Note"></textarea>
  <button type="button" class="shop-primary" id="ordPdf">Make the PDF</button>
+ <button type="button" class="secondary ord-msg-btn" id="ordText">Send as a message (text)</button>
  <div class="shop-form-row"><button type="button" class="secondary" id="ordRepeat">Repeat last order</button><button type="button" class="secondary" id="ordClear">Clear</button></div>
  <p class="rm-data-note" id="ordMsg" aria-live="polite"></p>
 </div>
@@ -120,6 +121,35 @@ $('ordPdf').addEventListener('click',async()=>{
   state.qty={};$('ordNote').value='';saveDraft();state.data=fresh;render();msg('Order saved. Share the PDF with the supplier.',true);
  }catch(err){msg(err.message||'Unable to make the order.');}
  finally{b.disabled=false;b.textContent='Make the PDF';}
+});
+// The same order as plain text, for Messages or WhatsApp (a PDF cannot go by SMS).
+function orderLines(){const items=state.data?.items||[];
+ return items.filter(i=>String(state.qty[i.id]||'').trim()).map(i=>({name:i.name,unit:i.unit||'',qty:String(state.qty[i.id]).trim()}));}
+function orderText(lines,day,note){
+ const q=v=>v.replace(/^\./,'0.');
+ return [`Hi ${state.supplier}, order for Marinara ${state.data?.location||''}`.trim(),
+  day?`Delivery: ${isoLong(day)}`:'','',
+  ...lines.map(l=>`${q(l.qty)}${l.unit?` ${l.unit}`:''} ${l.name}`),
+  ...(note?['',`Note: ${note}`]:[]),'','Thanks!'].filter((x,i,a)=>!(x===''&&a[i-1]==='')).join('\n').replace(/^\n+/,'');
+}
+$('ordText').addEventListener('click',async()=>{
+ const lines=orderLines();
+ if(!lines.length){msg('Type a quantity for at least one item.');return;}
+ const day=$('ordDay').value,note=$('ordNote').value.trim();const text=orderText(lines,day,note);
+ // Open the share sheet straight away (iPhone needs it right after the tap); save the order after.
+ let sent=false;
+ if(navigator.share){
+  try{await navigator.share({text});sent=true;}
+  catch(err){if(err?.name==='AbortError'){msg('Not sent. You can try again.');return;}}
+ }
+ if(!sent){
+  try{await navigator.clipboard.writeText(text);msg('Order copied. Paste it in the message to the supplier.',true);}catch(_){}
+  window.location.href=`sms:&body=${encodeURIComponent(text)}`;sent=true;
+ }
+ try{await managerApi('manager_order_save',{order:{supplier:state.supplier,deliver_on:day,note,lines}});
+  const fresh=await managerApi('manager_order_list',{supplier:state.supplier});
+  state.qty={};$('ordNote').value='';saveDraft();state.data=fresh;render();msg('Order saved and sent as a message.',true);}
+ catch(err){msg(err.message||'The message went, but the order could not be saved here.');}
 });
 $('ordForm').addEventListener('submit',async ev=>{ev.preventDefault();
  const supplier=$('ordSup').value.trim()||DEFAULT_SUPPLIER;
