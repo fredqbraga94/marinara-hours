@@ -161,9 +161,12 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  // Records and print.
  await page.locator('#tmpHistBtn').click();await page.locator('#tmpRecords').waitFor({state:'visible'});
  assert.match(await page.locator('#tmpRecHead').innerText(),/Hawthorne · last 90 days · 8 records/);
+ await page.evaluate(()=>{const P=window.MarinaraTempPdf;for(const k of ['open','generate']){const f=P[k];P[k]=(r,...a)=>{window.__lastReport=r;return f.call(P,r,...a);};}});
  await page.locator('#tmpPrint').click();
  await page.locator('#tempPdfDialog').waitFor({state:'visible'});
- {const b64=await page.evaluate(async()=>{const r=await fetch(document.getElementById('saveTempPdf').href);const a=new Uint8Array(await r.arrayBuffer());let s='';for(const x of a)s+=String.fromCharCode(x);return btoa(s);});const buf=Buffer.from(b64,'base64');assert.equal(buf.subarray(0,5).toString(),'%PDF-');writeFileSync(`tmp/qa/${size}-temps-records.pdf`,buf);}
+ {const b64=await page.evaluate(async()=>{const r=await fetch(document.getElementById('saveTempPdf').href);const a=new Uint8Array(await r.arrayBuffer());let s='';for(const x of a)s+=String.fromCharCode(x);return btoa(s);});const buf=Buffer.from(b64,'base64');assert.equal(buf.subarray(0,5).toString(),'%PDF-');writeFileSync(`tmp/qa/${size}-temps-records.pdf`,buf);
+  // Each reading shows the time it was checked (the council asks for it).
+  assert.match(await page.evaluate(()=>JSON.stringify(window.__lastReport||{})),/\d+\.\d  \d{1,2}:\d{2}(am|pm)  [A-Z]+/i,'time on each reading');}
  assert.equal(await page.evaluate(()=>window.__printed),0,'no window.print');
  await page.locator('#closeTempPdf').click();await page.locator('#tempPdfDialog').waitFor({state:'detached'});
  await page.screenshot({path:`tmp/qa/${size}-temps.png`,fullPage:true});
