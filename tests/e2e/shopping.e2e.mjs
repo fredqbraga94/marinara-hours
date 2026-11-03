@@ -62,6 +62,8 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.equal(await page.locator('#shopOpen .shop-item').first().evaluate(e=>e.classList.contains('urgent')),true,'urgent item in red');assert.equal(names[1],'QA chef knife');
  assert.match(await page.locator('#shopOpen').innerText(),/2 packs · the big ones[\s\S]*Asked by QA Kitchen Manager/);
  assert.equal(await page.locator('#shopOpenCount').innerText(),'(2)');
+ // Arrows move inside a group only (urgent stays on top): one item per group here, so all are off.
+ assert.equal(await page.locator('#shopOpen [data-shop-move]').count(),4);assert.equal(await page.locator('#shopOpen [data-shop-move]:disabled').count(),4);
  assert.equal(await page.locator('#shopName').inputValue(),'','form cleared after adding');
  // Photo on an item: pick, preview in the list, tap opens the larger copy.
  const pic=await page.screenshot({type:'jpeg',quality:80});

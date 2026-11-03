@@ -1568,6 +1568,7 @@ Deno.serve(async (req) => {
         "manager_shopping_list",
         "manager_shopping_save",
         "manager_shopping_mark",
+        "manager_shopping_move",
         "manager_maintenance_list",
         "manager_maintenance_save",
         "manager_maintenance_mark",
@@ -3599,6 +3600,14 @@ Deno.serve(async (req) => {
           const { data, error } = await supabase.rpc("manager_shopping_save", { p_manager_id: managerStatus.id, p_item: item });
           if (error) return managerDbError(error, "Unable to save the item");
           return json({ success: true, action, data: { item: data } });
+        }
+        if (action === "manager_shopping_move") {
+          if (!isUuid(body.id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);
+          const dir = body.dir === "up" ? -1 : body.dir === "down" ? 1 : 0;
+          if (!dir) return json({ error: "Invalid request", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_shopping_move", { p_manager_id: managerStatus.id, p_id: body.id, p_dir: dir });
+          if (error) return managerDbError(error, "Unable to move the item");
+          return json({ success: true, action, data });
         }
         if (action === "manager_shopping_mark") {
           if (!isUuid(body.id)) return json({ error: "Item not found", code: "ITEM_NOT_FOUND" }, 404);

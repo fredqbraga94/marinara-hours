@@ -60,6 +60,7 @@ jobs:
       - run: npm run test:food-safety
       - run: npm run test:activity
       - run: npm run test:orders
+      - run: npm run test:shopping-order
       - run: npm run test:temp-reminder
       - run: npm run test:unit-switch
       - run: npm run test:maintenance

@@ -35,6 +35,7 @@
     "test:food-safety": "node tests/integration/food-safety.mjs",
     "test:activity": "node tests/integration/activity-log.mjs",
     "test:orders": "node tests/integration/supplier-orders.mjs",
+    "test:shopping-order": "node tests/integration/shopping-order.mjs",
     "test:temp-reminder": "node tests/integration/temp-reminder.mjs",
     "test:unit-switch": "node tests/integration/unit-switch.mjs",
     "test:maintenance": "node tests/integration/maintenance.mjs",
