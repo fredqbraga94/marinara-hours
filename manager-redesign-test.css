@@ -487,3 +487,11 @@ button.cl-box:not(.on){box-shadow:inset 0 0 0 1.5px #e2b98f}
 #ordNote,#ordMany{width:100%;font:inherit;font-size:15px;border:1.5px solid var(--border);border-radius:10px;padding:10px;box-sizing:border-box}
 #ordSend .secondary,#ordForm .secondary{border:1.5px solid var(--border)!important;border-radius:10px!important;background:#fff!important;color:#111!important;min-height:44px;font-size:14px;font-weight:600;margin:0;flex:1}
 .rm-hub-empty{display:none!important}
+/* Invoice review: open the PDF, see the lines read */
+.inv-check-row{display:flex;gap:8px;margin:10px 0 2px;flex-wrap:wrap}
+.inv-open-pdf,.inv-see-lines{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border:1.5px solid var(--border);border-radius:10px;background:#fff;color:var(--green)!important;font-size:14px;font-weight:600;text-decoration:none;margin:0}
+.inv-read-lines{margin-top:8px;border-top:1px solid var(--border)}
+.inv-read-lines>div{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.inv-read-lines span{min-width:0;overflow-wrap:anywhere}.inv-read-lines small{display:block;color:var(--muted);font-size:11px}
+.inv-read-lines b{white-space:nowrap;font-variant-numeric:tabular-nums}.inv-read-tot{font-weight:600}
+.shop-move{display:flex;flex-direction:column;gap:4px;flex:0 0 auto}.shop-move button{width:34px;height:30px;margin:0;padding:0;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--green);font-size:12px;line-height:1}.shop-move button:disabled{opacity:.25}

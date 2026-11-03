@@ -133,11 +133,17 @@ try {
   });
 
   await check("group chips: show one group at a time, with counted / total", async () => {
+    assert.equal(await fm.page.locator('#stockGroupChips .stock-pick-grid').isVisible(), false, "sections behind one button");
+    await fm.page.click('#stockGroupChips [data-stock-pick]');
+    if (SHOTS) await fm.page.screenshot({ path: `${SHOTS}/stock_sections.png` });
     await fm.page.click('#stockGroupChips [data-stock-group="Spirits"], #stockGroupChips [data-stock-group="Gin"]');
+    assert.equal(await fm.page.locator('#stockGroupChips .stock-pick-grid').isVisible(), false, "closes after choosing");
+    assert.match(await fm.page.locator('#stockGroupChips [data-stock-pick]').innerText(), /Gin\s*0\/4/);
     const groups = await fm.page.$$eval("#stockCountList .stock-group-title", (e) => e.map((x) => x.textContent));
     const rows = await fm.page.locator(".stock-row").count();
     const white = (await fm.page.locator('#stockGroupChips [data-stock-group="White"]').textContent()).trim();
     if (SHOTS) await fm.page.screenshot({ path: `${SHOTS}/stock_chips.png` });
+    await fm.page.click('#stockGroupChips [data-stock-pick]');
     await fm.page.click('#stockGroupChips [data-stock-group=""]');
     const all = await fm.page.locator(".stock-row").count();
     assert.deepEqual(groups, ["Gin"]); assert.equal(rows, 4); assert.equal(white, "White2/13"); assert.equal(all, 232);

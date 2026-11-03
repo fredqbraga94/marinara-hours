@@ -158,7 +158,15 @@ try {
     assert.match(c[0], /MOCO Food Services/); assert.match(c[0], /T-5001/); assert.match(c[0], /\$44\.00/); assert.match(c[0], /Adds up: 2 lines/);
     assert.match(c[1], /T-5002/); assert.match(c[1], /don't add up/);
     assert.match(c[2], /layout isn't known yet/);
-    return "3 cards: ok / check / unknown";
+    // Double-check: open the PDF (kept on the phone) and see the lines that were read.
+    const href = await gm.page.locator('#invReview .inv-open-pdf').first().getAttribute("href");
+    assert.match(href, /^blob:/, "the PDF opens from the phone");
+    await gm.page.click('#invReview [data-inv-lines="0"]');
+    const lines = await gm.page.locator('#invReview .inv-read-lines').first().innerText();
+    assert.match(lines, /\$44\.00/); assert.equal(await gm.page.locator('#invReview .inv-read-lines > div').count() >= 3, true);
+    await gm.page.click('#invReview [data-inv-lines="0"]');
+    assert.equal(await gm.page.locator('#invReview .inv-read-lines').count(), 0, "hidden again");
+    return "3 cards: ok / check / unknown; PDF and lines can be checked";
   });
 
   await check("save one, discard the others; it shows in this week's list and totals", async () => {

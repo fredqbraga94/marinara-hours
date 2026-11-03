@@ -57,7 +57,7 @@ function publish(){
 }
 window.mhShopping={open:0,urgent:0,names:[],urgentNames:[]};
 
-function itemLine(i,bought){
+function itemLine(i,bought,k){
  const who=bought?`Bought by ${i.done_by||'—'} · ${day(i.done_at)}`:`Asked by ${i.created_by||'—'} · ${day(i.created_at)}`;
  const extra=[i.qty,i.note].filter(Boolean).join(' · ');
  const removing=state.removing===i.id;
@@ -66,6 +66,8 @@ function itemLine(i,bought){
   :`${i.thumb?'':`<button type="button" class="shop-small" data-shop-addphoto="${t(i.id)}">Add photo</button>`}<button type="button" class="shop-small" data-shop-edit="${t(i.id)}">Edit</button><button type="button" class="shop-small${removing?' danger':''}" data-shop-remove="${t(i.id)}">${removing?'Tap again to remove':'Remove'}</button>`;
  return `<div class="shop-item${bought?' done':i.urgent?' urgent':''}">
   ${bought?`<span class="shop-tick done" aria-hidden="true">✓</span>`:`<button type="button" class="shop-tick" data-shop-bought="${t(i.id)}" aria-label="Mark ${t(i.name)} as bought"></button>`}
+  ${bought?'':(()=>{const g=state.open.filter(x=>!!x.urgent===!!i.urgent);const p=g.findIndex(x=>x.id===i.id);
+    return `<span class="shop-move"><button type="button" data-shop-move="up" data-id="${t(i.id)}" aria-label="Move ${t(i.name)} up"${p<=0?' disabled':''}>▲</button><button type="button" data-shop-move="down" data-id="${t(i.id)}" aria-label="Move ${t(i.name)} down"${p<0||p>=g.length-1?' disabled':''}>▼</button></span>`;})()}
   ${i.thumb?`<button type="button" class="mh-thumb" data-shop-photo="${t(i.id)}" aria-label="Open photo of ${t(i.name)}"><img src="${t(i.thumb)}" alt=""></button>`:''}
   <span class="shop-main"><strong>${t(i.name)}${i.urgent&&!bought?' <em class="shop-tag">Urgent</em>':''}</strong>${extra?`<small>${t(extra)}</small>`:''}<small>${t(who)}</small></span>
   <span class="shop-actions">${actions}</span></div>`;
@@ -119,7 +121,14 @@ async function mark(id,status){
  try{await managerApi('manager_shopping_mark',{id,status});state.removing=null;await load();}
  catch(err){msg(err.message||'Unable to update the item.');}
 }
-screen.addEventListener('click',e=>{
+screen.addEventListener('click',async e=>{
+ const mv=e.target.closest('[data-shop-move]');
+ if(mv){const id=mv.dataset.id,dir=mv.dataset.shopMove;const g=state.open;const i=g.findIndex(x=>x.id===id);if(i<0)return;
+  // Move on the screen at once (same group), then save; reload if it fails.
+  const it=g[i];const grp=g.map((x,n)=>[x,n]).filter(([x])=>!!x.urgent===!!it.urgent);const p=grp.findIndex(([x])=>x.id===id);const q=dir==='up'?p-1:p+1;
+  if(q<0||q>=grp.length)return;const a=grp[p][1],c=grp[q][1];[g[a],g[c]]=[g[c],g[a]];render();
+  try{await managerApi('manager_shopping_move',{id,dir});}catch(err){msg(err.message||'Unable to move the item.');load().catch(()=>{});}
+  return;}
  const b=e.target.closest('[data-shop-bought],[data-shop-undo],[data-shop-edit],[data-shop-remove],[data-shop-photo],[data-shop-addphoto]');if(!b)return;
  if(b.dataset.shopPhoto){const i=[...state.open,...state.bought].find(x=>x.id===b.dataset.shopPhoto);if(i)window.mhPhoto.view('shopping',i.id,{thumb:i.thumb,title:i.name,canChange:i.status==='open',onChange:()=>load().catch(()=>{})});return;}
  if(b.dataset.shopAddphoto){addPhotoTo(b.dataset.shopAddphoto);return;}
