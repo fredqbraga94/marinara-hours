@@ -75,7 +75,9 @@ function render(){
    ${state.editing?`<button type="button" class="shop-small" data-ord-remove>${state.removing===i.id?'Tap again':'Remove'}</button>`:''}</div>`).join('')+
    `<div class="ord-edit"><button type="button" class="shop-small" id="ordEditBtn">${state.editing?'Done':'Remove items'}</button></div>`;
  count();
- if(!$('ordDay').value)$('ordDay').value=addDays(todayIso(),1);
+ // Delivery is usually the next day: tomorrow, unless a later day was chosen
+ // (a day left from an earlier visit that is now today or past moves on).
+ if(!$('ordDay').value||$('ordDay').value<=todayIso())$('ordDay').value=addDays(todayIso(),1);
  const past=d.orders||[];const pb=$('ordPast');
  if(!past.length){pb.className='empty-state';pb.textContent='No orders yet.';}
  else{pb.className='';pb.innerHTML=past.map(o=>`<div class="tmp-rec"><span class="tmp-rec-main"><strong>${t(dayLong(o.created_at))}${o.deliver_on?` · for ${t(isoLong(o.deliver_on))}`:''}</strong><small>${t(o.by||'')} · ${o.lines.length} item${o.lines.length===1?'':'s'} · ${t(o.lines.slice(0,4).map(l=>`${l.qty} ${l.name}`).join(', '))}${o.lines.length>4?'…':''}</small></span><button type="button" class="shop-small" data-ord-use="${t(o.id)}">Use again</button></div>`).join('');}

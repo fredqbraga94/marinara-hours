@@ -47,6 +47,12 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.waitForFunction(()=>document.querySelectorAll('[data-ord-item]').length===3);
  // Units in small letters, however they were typed.
  assert.deepEqual(await page.locator('[data-ord-item] .ord-name small').allInnerTexts(),['bunch','box']);
+ // Delivery: tomorrow by default; a day left from before (today or past) moves to tomorrow.
+ const tomorrow=await page.evaluate(()=>{const t=new Intl.DateTimeFormat('en-CA',{timeZone:'Australia/Brisbane'}).format(new Date());const d=new Date(t+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+1);return d.toISOString().slice(0,10);});
+ assert.equal(await page.locator('#ordDay').inputValue(),tomorrow,'tomorrow by default');
+ await page.evaluate(()=>{document.getElementById('ordDay').value='2020-01-01';});
+ await page.locator('#orderScreen [data-hub-back]').click();await page.locator('#hubStockMenu [data-rm-go="rmOpenOrders"]').click();await page.locator('#orderScreen').waitFor({state:'visible'});
+ await page.waitForFunction(t=>document.getElementById('ordDay').value===t,tomorrow);
  // Quantities: + / − and typing.
  const rowOf=name=>page.locator('[data-ord-item]').filter({hasText:name});
  await rowOf('QA Tomatoes').locator('[data-ord-plus]').click();await rowOf('QA Tomatoes').locator('[data-ord-plus]').click();
