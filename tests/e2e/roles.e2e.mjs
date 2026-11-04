@@ -182,6 +182,21 @@ try {
   await check("Roster: manager logins are not on the roster; Order puts people in the chosen order", async () => {
     const names = await gm.page.$$eval("#rosterGridBox .roster-name", (e) => e.map((x) => x.firstChild.textContent.trim()));
     assert.ok(!names.some((n) => /Manager/.test(n)), names.join(","));
+    // A manager who also works shifts: with a role on the roster, they show on it.
+    await gm.page.click('[data-manager-nav="home"]'); await gm.page.click("#teamCard");
+    await gm.page.waitForSelector("#teamScreen:not(.hidden) .team-person-row");
+    await gm.page.locator(".team-person-row", { hasText: "Test Kitchen Manager" }).locator(".team-edit-btn").click();
+    const mp = gm.page.locator(".team-edit-panel:not(.hidden)");
+    assert.match(await mp.innerText(), /A manager with a role here also shows on the roster/);
+    await mp.locator(".team-edit-position").selectOption("Chef");
+    await mp.locator(".team-save-edit-btn").click();
+    for (let k = 0; k < 100; k++) { const r = await db.admin.query("select position from public.staff where name = 'Test Kitchen Manager'"); if (r.rows[0][0] === "Chef") break; await new Promise((res) => setTimeout(res, 150)); }
+    await gm.page.locator(".team-person-row", { hasText: "Test Kitchen Manager" }).waitFor();
+    await gm.page.click('[data-manager-nav="home"]'); await gm.page.click("#rosterCard");
+    await gm.page.waitForFunction(() => [...document.querySelectorAll("#rosterGridBox .roster-name")].some((e) => /Test Kitchen Manager/.test(e.textContent)));
+    await db.admin.query("update public.staff set position = null where name = 'Test Kitchen Manager'");
+    await gm.page.click('[data-manager-nav="home"]'); await gm.page.click("#rosterCard");
+    await gm.page.waitForFunction(() => ![...document.querySelectorAll("#rosterGridBox .roster-name")].some((e) => /Test Kitchen Manager/.test(e.textContent)));
     await gm.page.click("#rosterOrderBtn");
     await gm.page.waitForSelector("#rosterOrderBox:not(.hidden) .roster-order-row");
     // Chef group is [Test Kitchen A, Test Salary Chef] -> move Salary Chef up

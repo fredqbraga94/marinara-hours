@@ -5993,6 +5993,7 @@ function renderTeamMember(person, visa) {
                   <select class="team-edit-position" style="width:100%;box-sizing:border-box;margin-bottom:12px;">
                     ${teamPositionOptions(person.department, person.position)}
                   </select>
+                  ${person.role !== "staff" ? `<div style="font-size:12px;color:#777;margin:-6px 0 14px;">A manager with a role here also shows on the roster. "Not set": only uses the app.</div>` : ""}
                   ${person.role === "staff" ? `
                   <div class="team-choice">
                     <div class="team-choice-title">How they are paid</div>
@@ -6655,11 +6656,12 @@ function rosterSortByRole(list) {
     ord(a) - ord(b) ||
     String(a.name || "").localeCompare(String(b.name || "")));
 }
-// Manager accounts (Administrator, Kitchen/Floor Manager logins) are for using
-// the app, not people on the roster.
+// Staff are on the roster. A manager account (Administrator, Kitchen/Floor
+// Manager) is too when it has a role on the roster (Chef, Floor...): many
+// managers also work shifts. A login only for using the app has no role.
 function rosterPeople(data, dept) {
   return rosterSortByRole((data.team || []).filter(m =>
-    m.department === dept && (m.role || "staff") === "staff"));
+    m.department === dept && ((m.role || "staff") === "staff" || !!m.position)));
 }
 
 function renderRoster() {
