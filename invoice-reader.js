@@ -593,15 +593,211 @@
     },
   };
 
+  /* ---------- any other supplier (no reader written for it) ----------
+     Finds the table by its titles (Description / Item ... Total / Amount),
+     takes the right-most amount on each row as the line total, the invoice
+     number, the date and the totals from their labels, and a supplier name
+     from the top of the page. The lines must add up to the printed total, as
+     for the other readers, so the manager sees when something was missed. */
+  const DESC_RE = /^(description|item name|item description|product|product description|products|item|items|particulars|details|goods)$/i;
+  const AMOUNT_RE = /^(line )?(total|amount|ext\.?|extended|value|line total|total price|amount \(?aud\)?|total inc\.?( gst)?|total \(inc\.? gst\)|amount inc\.? gst)$/i;
+  const PRICE_RE = /^(unit )?(price|rate|each|cost)( ex\.?( gst)?)?$/i;
+  const TAX_RE = /^(tax|taxes|gst|gst amount|tax amount)$/i;
+  const STOP_RE = /^(sub ?-?total|total|totals|grand total|amount due|balance due|invoice total|total due|total amount|total inc|total ex|gst|freight|net total|total price includes taxes)\b/i;
+  const NOT_NAME_RE = /marinara|credit|note|memo|tax\b|remittance|invoice|statement|receipt|date|page|abn|acn|tel\b|phone|fax|mobile|email|@|www\.|\.com|\bpo box\b|street|\bst\b|\brd\b|road|avenue|\bave\b|drive|\bdr\b|\bnumber\b|due|order|customer|account|bsb|bill to|sold to|ship to|deliver|^\d/i;
+  const moneyIn = s => {
+    const m = String(s).match(/^\(?-?\$?\s?-?[\d,]*\.\d{2}\)?$/);
+    if (!m) return null;
+    const v = money(String(s).replace(/[()]/g, ""));
+    return v == null ? null : (/^\(.*\)$/.test(s) ? -Math.abs(v) : v);
+  };
+  // One text piece can hold several columns ("$16.95 FRE", "Price Tax"): split
+  // it into words, each at about where it is printed.
+  const splitItem = i => {
+    if (!/\s/.test(i.s)) return [i];
+    const out = []; const re = /\S+/g; let m;
+    while ((m = re.exec(i.s))) out.push({ s: m[0], x: Math.round(i.x + m.index * 4.4) });
+    return out;
+  };
+  const splitWords = r => r.items.flatMap(i => /\$?[\d,]*\.\d{2}\b/.test(i.s) ? splitItem(i) : [i]);
+  const HEAD_WORD = /^(price|rate|tax|taxes|gst|total|amount|qty|quantity|unit|units|ctns|code)$/i;
+  const splitHead = i => { const w = i.s.trim().split(/\s+/); return w.length > 1 && w.every(x => HEAD_WORD.test(x)) ? splitItem(i) : [i]; };
+  function findDate(s) {
+    const t = String(s || "");
+    let m = t.match(/(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4}|\d{2})\b/);
+    if (m) return isoDate(`${m[1]}/${m[2]}/${m[3]}`);
+    m = t.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    m = t.match(/(\d{1,2})(?:st|nd|rd|th)?[\s\-]+([A-Za-z]{3,9})[\s\-,]+(\d{4})/);
+    if (m && MONTHS[m[2].slice(0, 3).toLowerCase()]) return isoDate(`${m[1]} ${m[2].slice(0, 3)} ${m[3]}`);
+    m = t.match(/([A-Za-z]{3,9})\s+(\d{1,2}),?\s+(\d{4})/);
+    if (m && MONTHS[m[1].slice(0, 3).toLowerCase()]) return isoDate(`${m[2]} ${m[1].slice(0, 3)} ${m[3]}`);
+    return null;
+  }
+  // The value of a label: the rest of the same word, the next word on the
+  // row, or the word just below it.
+  function labelValue(rows, re, ok) {
+    for (let k = 0; k < rows.length; k++) {
+      const r = rows[k];
+      for (let i = 0; i < r.items.length; i++) {
+        const it = r.items[i];
+        const m = it.s.match(re);
+        if (!m) continue;
+        const rest = it.s.slice(m.index + m[0].length).replace(/^[\s:#.\-]+/, "").trim();
+        const tries = [rest, ...r.items.slice(i + 1, i + 3).map(x => x.s.replace(/^[:#\s]+/, ""))];
+        for (let d = 1; d <= 3 && k + d < rows.length; d++) {
+          if (rows[k + d].y - r.y > 30) break;
+          const below = rows[k + d].items.find(x => Math.abs(x.x - it.x) <= 20);
+          if (below) tries.push(below.s);
+        }
+        for (const v of tries) { const got = ok(v); if (got) return got; }
+      }
+    }
+    return null;
+  }
+  const generic = {
+    supplier: null,
+    test: () => true,
+    read(pages) {
+      const lines = [];
+      let total = null, gst = null, subtotal = null, supplier = null, taxIncluded = false;
+      const all = allRows(pages);
+      const text = all.map(rowText).join("\n");
+      const number = labelValue(all, /(tax invoice|invoice)\s*(no\.?|number|num|#)?\s*:?/i,
+        v => { const w = String(v).trim().split(/\s+/)[0] || ""; return /\d/.test(w) && w.length >= 3 && !findDate(w) && moneyIn(w) == null && !/^\d{1,2}$/.test(w) ? w.replace(/[:#]$/, "") : null; })
+        || labelValue(all, /(inv\.?|document|reference|ref)\s*(no\.?|number|#)\s*:?/i, v => { const w = String(v).trim().split(/\s+/)[0] || ""; return /\d/.test(w) && w.length >= 3 && !findDate(w) ? w : null; });
+      const date = labelValue(all, /(invoice date|tax date|date of invoice|date)\s*:?/i, findDate) || findDate(text);
+      taxIncluded = /(prices?|total|amounts?)[^\n]{0,20}(include|includes|including|inc\.?)\s+(gst|tax)/i.test(text);
+      for (const rows of pages) {
+        // Supplier: the first line of words at the top of the first page that is not an address, a phone, a label.
+        if (!supplier) {
+          const maxY = Math.max(...rows.map(r => r.y));
+          const cands = rows.filter(r => r.y <= maxY * 0.3).flatMap(r => r.items.map(i => i.s.trim()))
+            .filter(s => /[A-Za-z]{3}/.test(s) && !/^[A-Z]{1,5}[\-\/]?\d/.test(s) && (s.match(/\d/g) || []).length < 3 && s.length >= 3 && s.length <= 60
+              && !NOT_NAME_RE.test(s) && !/:/.test(s) && !/^(to|from|attention|attn|ship|australia|document|number|reference|terms|page)\b/i.test(s));
+          const COMPANY = /\b(foods?|pty|ltd|produce|distributors?|wholesale|wholesalers|meats?|seafoods?|fish|bakery|bakehouse|wines?|beverages?|fruit|veg|vegetables|dairy|supplies|supply|services|trading|group|imports?|packaging|butchers?|cheese|coffee|liquor|cellars?)\b|&/i;
+          const cand = cands.find(s => COMPANY.test(s)) || cands.find(s => /\s/.test(s));
+          if (cand) supplier = cand.replace(/\s+-\s+(queensland|qld|brisbane|nsw|new south wales|victoria|vic)$/i, "").replace(/\s+(pty\.?\s*ltd\.?|p\/l|limited)$/i, "").trim();
+        }
+        const top = rows.findIndex(r => r.items.some(i => DESC_RE.test(i.s.trim())) && rows.some(o => Math.abs(o.y - r.y) <= 14 && o.items.some(i => AMOUNT_RE.test(i.s.trim()) || /total$/i.test(i.s.trim()))));
+        if (top >= 0) {
+          const band = rows.filter(r => Math.abs(r.y - rows[top].y) <= 14);
+          const head = band.flatMap(r => r.items).flatMap(splitHead).sort((a, b) => a.x - b.x);
+          // "Description" or "Item name" before a plain "Item" (often the code column).
+          const desc = head.find(i => DESC_RE.test(i.s.trim()) && !/^items?$/i.test(i.s.trim())) || head.find(i => DESC_RE.test(i.s.trim()));
+          const amountItems = head.filter(i => AMOUNT_RE.test(i.s.trim()) || /total$/i.test(i.s.trim()));
+          const amount = amountItems[amountItems.length - 1];
+          const price = head.find(i => PRICE_RE.test(i.s.trim()) || /\bprice$/i.test(i.s.trim()));
+          const tax = head.find(i => TAX_RE.test(i.s.trim()));
+          const codeH = head.find(i => /^(code|item code|product code|sku|item|item no\.?|part no\.?|stock code)$/i.test(i.s.trim()) && i.x < desc.x - 5);
+          const after = head.filter(i => i.x > desc.x + 20).map(i => i.x);
+          const descEnd = after.length ? Math.min(...after) - 3 : 9999;
+          const bandEnd = Math.max(...band.map(r => r.y));
+          let end = rows.findIndex((r, k) => r.y > bandEnd && r.items.some(i => STOP_RE.test(i.s.trim())) && !r.items.some(i => i.x >= desc.x - 5 && i.x < descEnd && !STOP_RE.test(i.s.trim()) && /[a-z]{3}/i.test(i.s)));
+          if (end < 0) end = rows.length;
+          const body = rows.filter((r, k) => r.y > bandEnd && k < end);
+          const moneyOf = r => splitWords(r).map(i => ({ ...i, v: moneyIn(i.s) })).filter(i => i.v != null);
+          const isAnchor = r => { const ms = moneyOf(r); return ms.length > 0 && ms[ms.length - 1].x >= amount.x - 60; };
+          const anchors = body.filter(isAnchor);
+          const extra = new Map(anchors.map(a => [a, { above: [], below: [] }]));
+          for (const r of body) {
+            if (isAnchor(r)) continue;
+            let best = null;
+            for (const a of anchors) if (!best || Math.abs(a.y - r.y) < Math.abs(best.y - r.y)) best = a;
+            if (best && Math.abs(best.y - r.y) <= 16) extra.get(best)[r.y < best.y ? "above" : "below"].push(r);
+          }
+          const descFrom = Math.min(desc.x, ...anchors.map(a => (inX(a, desc.x - 40, desc.x + 5)[0]?.x ?? desc.x))) - 3;
+          for (const a of anchors) {
+            const e = extra.get(a);
+            const col = (x0, x1) => [...e.above, a, ...e.below].map(r => textIn(r, x0, x1)).filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+            let description = col(descFrom, descEnd).replace(/^\[[^\]]*\]\s*/, "");
+            let code = codeH ? col(codeH.x - 5, descFrom).split(/\s+/).find(w => /^[A-Za-z0-9][\w\-\/.]{2,}$/.test(w) && (/\d/.test(w) || /^[A-Z_\-]{3,}$/.test(w)) && !/^\d{1,3}$/.test(w)) || "" : "";
+            const ms = moneyOf(a);
+            const line_total = ms[ms.length - 1].v;
+            // Each other amount goes to the nearest of the Price and Tax titles.
+            const rest = ms.slice(0, -1);
+            const near = (m, h) => (h ? Math.abs(m.x - h.x) : 1e9);
+            const priceM = price ? rest.find(m => near(m, price) <= 40 && near(m, price) <= near(m, tax)) : (rest.length ? rest[0] : null);
+            const taxM = tax ? rest.find(m => m !== priceM && near(m, tax) <= 30 && near(m, tax) < near(m, price)) : null;
+            const unit_price = priceM ? priceM.v : null;
+            const taxV = taxM ? taxM.v : null;
+            // A tax column with words instead of amounts: "GST" (taxed) or "FRE" (free).
+            const taxFlag = tax ? splitWords(a).some(w => Math.abs(w.x - tax.x) <= 25 && /^(gst|y|yes|tax|t)$/i.test(w.s)) : false;
+            let qty = null;
+            if (unit_price) { const q = Math.round((line_total - (taxV || 0)) / unit_price * 1000) / 1000; if (q > 0 && Math.abs(q - Math.round(q * 100) / 100) < 0.001) qty = q; }
+            // A product code printed at the start of the name: "30271122 Puopolo Salami".
+            if (!code) { const m = description.match(/^(\d{5,}|[A-Z][A-Z0-9_\-\/]{3,}\d[A-Z0-9_\-\/]*)\s+(?=\S)/); if (m) { code = m[1]; description = description.slice(m[0].length); } }
+            if (!description) continue;
+            lines.push({ code, description, qty, unit: "", unit_price, line_total, gst: 0, _tax: taxV, _taxFlag: taxFlag, _price: unit_price });
+          }
+        }
+        // Charges printed under the table (shipping, freight, fuel levy...) are lines too.
+        if (top >= 0) {
+          const LABEL = /^(shipping( cost)?|freight|delivery( fee| charge)?|fuel levy|fuel surcharge|cartage|handling( fee)?)$/i;
+          for (const r of rows) {
+            if (r.y <= rows[top].y) continue;
+            const ws = splitWords(r);
+            r.items.forEach(it => {
+              if (!LABEL.test(it.s.trim())) return;
+              const next = ws.filter(w => w.x > it.x);
+              if (!next.length || /included|free/i.test(next[0].s)) return;
+              const v = moneyIn(next[0].s);
+              if (v) lines.push({ code: "", description: it.s.trim().replace(/\b\w/g, c => c.toUpperCase()), qty: 1, unit: "", unit_price: v, line_total: v, gst: 0, _tax: null, _taxFlag: false, _price: v });
+            });
+          }
+        }
+        // Totals, from the bottom up: the last label of each kind wins.
+        for (const r of rows) {
+          const t = rowText(r);
+          const ms = moneyOf2(r);
+          if (!ms.length) continue;
+          const v = ms[ms.length - 1];
+          if (/(amount due|balance due|total due|invoice total|grand total|total inc|total \(inc|total amount|total payable|^total\b|\btotal\s*(aud)?\s*\$?[\d,]*\.\d{2}$)/i.test(t) && !/sub ?-?total|total ex|excl|total gst|gst total|total tax|net weight|qty|quantity/i.test(t)) total = v;
+          else if (/\b(gst|tax)\b/i.test(t) && !/includ|inc\.|exempt|free|abn|ex gst|excl/i.test(t) && !/^\s*\d+\s/.test(t) && Math.abs(v) < 1e6) gst = v;
+          else if (/sub ?-?total|total ex|net total|total excl/i.test(t)) subtotal = v;
+        }
+      }
+      const credit = /credit (note|memo|adjustment)|adjustment note/i.test(all.slice(0, 25).map(rowText).join(" "));
+      return finish({ number, date, total, gst, subtotal, supplier, lines, taxIncluded, credit });
+    },
+  };
+  function moneyOf2(r) { return splitWords(r).map(i => moneyIn(i.s)).filter(v => v != null); }
+  // Line totals with or without GST: whichever adds up to the printed total.
+  function finish({ number, date, total, gst, subtotal, supplier, lines, taxIncluded, credit }) {
+    const sum = r2(lines.reduce((a, l) => a + l.line_total, 0));
+    const tol = 0.01 * Math.max(1, lines.length);
+    if (total == null && subtotal != null) total = r2(subtotal + (gst || 0));
+    if (total == null) total = sum;
+    if (gst == null) gst = subtotal != null ? r2(total - subtotal) : 0;
+    if (Math.abs(sum - total) <= tol && (gst > 0 || lines.some(l => l._tax > 0)) && !(gst > 0 && Math.abs(r2(sum + gst) - total) <= tol)) {
+      // The lines include GST: take each line's tax off (from its tax column,
+      // or price x quantity when the total is 10% more).
+      for (const l of lines) {
+        let t = l._tax;
+        if (t == null && l._price != null) {
+          for (const q of [1, 2, 3, 4, 5, 6, 8, 10, 12, 20, 24]) if (Math.abs(r2(l._price * q * 1.1) - l.line_total) <= 0.02) { t = r2(l.line_total - l._price * q); l.qty = q; break; }
+        }
+        if (t == null && l._taxFlag) t = r2(l.line_total / 11);
+        if (t) { l.gst = r2(t); l.line_total = r2(l.line_total - t); }
+      }
+      if (gst === 0) gst = r2(lines.reduce((a, l) => a + l.gst, 0));
+    }
+    for (const l of lines) { delete l._tax; delete l._taxFlag; delete l._price; delete l._extra; }
+    // A credit note is stored with negative amounts, like the other readers do.
+    const neg = v => (v == null ? v : -Math.abs(v));
+    if (credit) { total = neg(total); gst = neg(gst); for (const l of lines) { l.line_total = neg(l.line_total); l.gst = neg(l.gst); } }
+    return { number, date, kind: credit ? "credit" : "invoice", lines, total, gst, subtotal: r2(total - gst), supplierGuess: supplier || "", generic: true };
+  }
+
   const READERS = [moco, pronto, angelos, globalFood, gulliInvoice, gulliCredit, gulliNew, htc];
 
   // pages -> invoice, or { error } when the layout is not one we know.
   function parse(pages) {
     const text = allRows(pages).map(rowText).join("\n");
-    const reader = READERS.find(rd => rd.test(text));
-    if (!reader) return { error: "UNKNOWN_SUPPLIER" };
+    const reader = READERS.find(rd => rd.test(text)) || generic;
     const inv = reader.read(pages);
-    inv.supplier = reader.supplier;
+    if (reader === generic && !inv.lines.length) return { error: "UNKNOWN_SUPPLIER" };
+    inv.supplier = reader.supplier || inv.supplierGuess || "";
     inv.lines = inv.lines.filter(l => l.line_total != null);
     // A line always has a name to save (the server refuses a line without one).
     inv.lines.forEach(l => { if (!l.description) l.description = l.code || "Item"; });
@@ -678,6 +874,6 @@
     return score / want.length;
   }
 
-  const api = { readPdf, extractPages, parse, toRows, isoDate, READERS, packGuess, perUnit, baseOf, matchScore };
+  const api = { readGeneric: pages => generic.read(pages), readPdf, extractPages, parse, toRows, isoDate, READERS, packGuess, perUnit, baseOf, matchScore };
   root.MarinaraInvoiceReader = api;
 })(typeof window !== "undefined" ? window : globalThis);
