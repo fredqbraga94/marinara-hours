@@ -132,6 +132,35 @@ try {
     return rows.join(", ");
   });
 
+  await check("Team → Edit: pay and hour-limit choices (casual / salary; no limit / student visa / course break)", async () => {
+    const row = gm.page.locator(".team-person-row", { hasText: "Test Kitchen A" });
+    const open = async () => { await row.locator(".team-edit-btn").click(); return gm.page.locator(".team-edit-panel:not(.hidden)"); };
+    let panel = await open();
+    assert.equal(await panel.locator('.team-edit-pay[value="hourly"]').isChecked(), true, "casual by default");
+    assert.equal(await panel.locator('.team-edit-visa-choice[value="none"]').isChecked(), true, "no limit by default");
+    await gm.shot("team_edit_choices");
+    await panel.locator('.team-edit-visa-choice[value="student"]').check();
+    await panel.locator(".team-save-edit-btn").click();
+    const visaOf = () => db.admin.query("select student_visa, visa_course_break from public.staff where name = 'Test Kitchen A'").then((x) => x.rows[0].join(","));
+    const until = async (want) => { for (let k = 0; k < 100 && (await visaOf()) !== want; k++) await new Promise((res) => setTimeout(res, 150)); await gm.page.waitForSelector(".team-edit-panel:not(.hidden)", { state: "detached", timeout: 10000 }).catch(() => {}); await gm.page.locator(".team-person-row", { hasText: "Test Kitchen A" }).waitFor(); };
+    await until("t,f");
+    let r = await db.admin.query("select student_visa, visa_course_break from public.staff where name = 'Test Kitchen A'").then((x) => x.rows[0]);
+    assert.deepEqual(r, ["t", "f"]);
+    panel = await open();
+    await panel.locator('.team-edit-visa-choice[value="break"]').check();
+    await panel.locator(".team-save-edit-btn").click();
+    await until("t,t");
+    r = await db.admin.query("select student_visa, visa_course_break from public.staff where name = 'Test Kitchen A'").then((x) => x.rows[0]);
+    assert.deepEqual(r, ["t", "t"]);
+    panel = await open();
+    await panel.locator('.team-edit-visa-choice[value="none"]').check();
+    await panel.locator(".team-save-edit-btn").click();
+    await until("f,f");
+    r = await db.admin.query("select student_visa, visa_course_break from public.staff where name = 'Test Kitchen A'").then((x) => x.rows[0]);
+    assert.deepEqual(r, ["f", "f"]);
+    return "student visa → course break → no limit";
+  });
+
   await check("Roster (Kitchen): chefs on top, dishwashers last, roster-only tag", async () => {
     await gm.page.click('[data-manager-nav="home"]');
     await gm.page.waitForSelector("#managerScreen:not(.hidden)");

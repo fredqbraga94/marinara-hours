@@ -1406,6 +1406,14 @@ body.mgr-mode #recipesTabs button.selected { color: var(--ink, #000); }
 .inv-flag { display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 800; padding: 4px 9px; border-radius: 9px; }
 .inv-flag.ok { background: #e6f2ea; color: #1e5a3c; }
 .inv-flag.warn { background: #fff4d6; color: #8a5a00; }
+.team-choice { border: 1px solid #e3e7ea; border-radius: 12px; padding: 10px 12px; margin: 4px 0 14px; display: grid; gap: 4px; background: #fff; }
+.team-choice-title { font-size: 13px; font-weight: 700; color: #1d2328; margin-bottom: 2px; }
+.team-choice label { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; cursor: pointer; }
+.team-choice label + label { border-top: 1px solid #f0f2f4; }
+.team-choice input[type=radio] { width: 20px; height: 20px; margin: 1px 0 0; flex: none; accent-color: #1e5a3c; }
+.team-choice span { display: grid; gap: 2px; font-size: 14px; color: #1d2328; }
+.team-choice b { font-weight: 600; }
+.team-choice small { font-size: 12.5px; color: #66717a; line-height: 1.35; }
 .inv-generic { display: grid; gap: 8px; margin: 10px 0 4px; }
 .inv-generic .inv-flag.new { background: #eaf0fb; color: #23457a; }
 .inv-generic label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; color: #4a5560; }
@@ -2104,7 +2112,11 @@ button:disabled{opacity:.6}
       <label class="field-label" for="newStaffPosition">Role on the roster</label>
       <select id="newStaffPosition" class="input"></select>
 
-      <label class="team-add-only"><input id="newStaffRosterOnly" type="checkbox"> <span>Roster only — on salary (full or part time). No PIN and no time clock.</span></label>
+      <div class="team-choice">
+        <div class="team-choice-title">How they are paid</div>
+        <label><input type="radio" name="newStaffPay" id="newStaffHourly" value="hourly" checked><span><b>Casual — by the hour</b><small>Clocks in and out with a PIN. Shows in hours and timesheets.</small></span></label>
+        <label><input type="radio" name="newStaffPay" id="newStaffRosterOnly" value="salary"><span><b>Salary — full or part time</b><small>Only on the roster. No PIN, no time clock.</small></span></label>
+      </div>
 
       <div id="newStaffPinWrap">
       <label class="field-label" for="newStaffPin">PIN (optional)</label>
@@ -5982,10 +5994,11 @@ function renderTeamMember(person, visa) {
                     ${teamPositionOptions(person.department, person.position)}
                   </select>
                   ${person.role === "staff" ? `
-                  <label style="display:flex;gap:8px;align-items:flex-start;margin-bottom:14px;font-size:13px;font-weight:600;">
-                    <input class="team-edit-roster-only" type="checkbox" ${person.roster_only ? "checked" : ""} style="margin-top:2px">
-                    <span>Roster only — on salary (full or part time). No PIN and no time clock; not in hours or timesheets.</span>
-                  </label>` : ""}
+                  <div class="team-choice">
+                    <div class="team-choice-title">How they are paid</div>
+                    <label><input type="radio" class="team-edit-pay" name="pay-${escapeHtml(person.id)}" value="hourly" ${person.roster_only ? "" : "checked"}><span><b>Casual — by the hour</b><small>Clocks in and out with a PIN. Shows in hours and timesheets.</small></span></label>
+                    <label><input type="radio" class="team-edit-pay team-edit-roster-only" name="pay-${escapeHtml(person.id)}" value="salary" ${person.roster_only ? "checked" : ""}><span><b>Salary — full or part time</b><small>Only on the roster. No PIN, no time clock.</small></span></label>
+                  </div>` : ""}
                 `
                 : ""
             }
@@ -5993,14 +6006,12 @@ function renderTeamMember(person, visa) {
             ${
               "student_visa" in person
                 ? `
-                  <label style="display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:13px;font-weight:600;">
-                    <input class="team-edit-visa" type="checkbox" ${person.student_visa ? "checked" : ""}>
-                    Student visa (max 48h per fortnight)
-                  </label>
-                  <label style="display:flex;gap:8px;align-items:center;margin-bottom:14px;font-size:13px;">
-                    <input class="team-edit-visa-break" type="checkbox" ${person.visa_course_break ? "checked" : ""}>
-                    Course on an official break (no limit for now)
-                  </label>
+                  <div class="team-choice">
+                    <div class="team-choice-title">Limit on work hours</div>
+                    <label><input type="radio" class="team-edit-visa-choice" name="visa-${escapeHtml(person.id)}" value="none" ${person.student_visa ? "" : "checked"}><span><b>No limit</b><small>Australian, permanent resident, or a visa with no hour limit.</small></span></label>
+                    <label><input type="radio" class="team-edit-visa-choice" name="visa-${escapeHtml(person.id)}" value="student" ${person.student_visa && !person.visa_course_break ? "checked" : ""}><span><b>Student visa</b><small>Max 48 hours every 2 weeks. The roster warns before it goes over.</small></span></label>
+                    <label><input type="radio" class="team-edit-visa-choice" name="visa-${escapeHtml(person.id)}" value="break" ${person.student_visa && person.visa_course_break ? "checked" : ""}><span><b>Student visa — course on holidays</b><small>Official course break: no limit until classes start again.</small></span></label>
+                  </div>
                 `
                 : ""
             }
@@ -6167,7 +6178,7 @@ async function loadTeamScreen() {
         }
 
         const posSelectCheck = panel.querySelector(".team-edit-position");
-        const onlyBoxCheck = panel.querySelector(".team-edit-roster-only");
+        const onlyBoxCheck = panel.querySelector(".team-edit-roster-only");   // the "Salary" choice
         if (posSelectCheck && posSelectCheck.value && !(TEAM_POSITIONS[department] || []).includes(posSelectCheck.value)) {
           message.textContent = `${posSelectCheck.value} is not a ${department} role. Choose the role again.`;
           return;
@@ -6197,12 +6208,11 @@ async function loadTeamScreen() {
             }
           );
 
-          const visaBox = panel.querySelector(".team-edit-visa");
-          const breakBox = panel.querySelector(".team-edit-visa-break");
-          if (visaBox) {
+          const visaChoice = panel.querySelector(".team-edit-visa-choice:checked");
+          if (visaChoice) {
             const person = team.find(p => p.id === staffId) || {};
-            const wantVisa = visaBox.checked;
-            const wantBreak = wantVisa && !!(breakBox && breakBox.checked);
+            const wantVisa = visaChoice.value !== "none";
+            const wantBreak = visaChoice.value === "break";
             if (wantVisa !== !!person.student_visa ||
                 wantBreak !== !!person.visa_course_break) {
               await managerApi("manager_set_student_visa", {
@@ -6317,9 +6327,10 @@ function refreshNewStaffPosition() {
   sel.innerHTML = teamPositionOptions(newStaffDepartment.value, keep);
 }
 newStaffDepartment?.addEventListener("change", refreshNewStaffPosition);
-document.getElementById("newStaffRosterOnly")?.addEventListener("change", e => {
-  document.getElementById("newStaffPinWrap")?.classList.toggle("hidden", e.target.checked);
-});
+// Salary: no PIN field. Casual: PIN field.
+document.querySelectorAll('input[name="newStaffPay"]').forEach(r => r.addEventListener("change", () => {
+  document.getElementById("newStaffPinWrap")?.classList.toggle("hidden", !!document.getElementById("newStaffRosterOnly")?.checked);
+}));
 document.getElementById("showAddStaffBtn")?.addEventListener("click", refreshNewStaffPosition);
 refreshNewStaffPosition();
 
@@ -6343,7 +6354,7 @@ addStaffBtn.addEventListener("click", async () => {
     try {
       await managerApi("manager_create_roster_person", { name, department, position });
       newStaffName.value = "";
-      document.getElementById("newStaffRosterOnly").checked = false;
+      document.getElementById("newStaffHourly").checked = true;
       document.getElementById("newStaffPinWrap")?.classList.remove("hidden");
       teamMessage.textContent = "Added to the roster (no time clock).";
       addStaffPanel?.classList.add("hidden");
