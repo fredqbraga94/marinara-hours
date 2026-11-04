@@ -132,6 +132,35 @@ try {
     return rows.join(", ");
   });
 
+  await check("Team → Edit: pay and hour-limit choices (casual / salary; no limit / student visa / course break)", async () => {
+    const row = gm.page.locator(".team-person-row", { hasText: "Test Kitchen A" });
+    const open = async () => { await row.locator(".team-edit-btn").click(); return gm.page.locator(".team-edit-panel:not(.hidden)"); };
+    let panel = await open();
+    assert.equal(await panel.locator('.team-edit-pay[value="hourly"]').isChecked(), true, "casual by default");
+    assert.equal(await panel.locator('.team-edit-visa-choice[value="none"]').isChecked(), true, "no limit by default");
+    await gm.shot("team_edit_choices");
+    await panel.locator('.team-edit-visa-choice[value="student"]').check();
+    await panel.locator(".team-save-edit-btn").click();
+    const visaOf = () => db.admin.query("select student_visa, visa_course_break from public.staff where name = 'Test Kitchen A'").then((x) => x.rows[0].join(","));
+    const until = async (want) => { for (let k = 0; k < 100 && (await visaOf()) !== want; k++) await new Promise((res) => setTimeout(res, 150)); await gm.page.waitForSelector(".team-edit-panel:not(.hidden)", { state: "detached", timeout: 10000 }).catch(() => {}); await gm.page.locator(".team-person-row", { hasText: "Test Kitchen A" }).waitFor(); };
+    await until("t,f");
+    let r = await db.admin.query("select student_visa, visa_course_break from public.staff where name = 'Test Kitchen A'").then((x) => x.rows[0]);
+    assert.deepEqual(r, ["t", "f"]);
+    panel = await open();
+    await panel.locator('.team-edit-visa-choice[value="break"]').check();
+    await panel.locator(".team-save-edit-btn").click();
+    await until("t,t");
+    r = await db.admin.query("select student_visa, visa_course_break from public.staff where name = 'Test Kitchen A'").then((x) => x.rows[0]);
+    assert.deepEqual(r, ["t", "t"]);
+    panel = await open();
+    await panel.locator('.team-edit-visa-choice[value="none"]').check();
+    await panel.locator(".team-save-edit-btn").click();
+    await until("f,f");
+    r = await db.admin.query("select student_visa, visa_course_break from public.staff where name = 'Test Kitchen A'").then((x) => x.rows[0]);
+    assert.deepEqual(r, ["f", "f"]);
+    return "student visa → course break → no limit";
+  });
+
   await check("Roster (Kitchen): chefs on top, dishwashers last, roster-only tag", async () => {
     await gm.page.click('[data-manager-nav="home"]');
     await gm.page.waitForSelector("#managerScreen:not(.hidden)");
@@ -153,6 +182,21 @@ try {
   await check("Roster: manager logins are not on the roster; Order puts people in the chosen order", async () => {
     const names = await gm.page.$$eval("#rosterGridBox .roster-name", (e) => e.map((x) => x.firstChild.textContent.trim()));
     assert.ok(!names.some((n) => /Manager/.test(n)), names.join(","));
+    // A manager who also works shifts: with a role on the roster, they show on it.
+    await gm.page.click('[data-manager-nav="home"]'); await gm.page.click("#teamCard");
+    await gm.page.waitForSelector("#teamScreen:not(.hidden) .team-person-row");
+    await gm.page.locator(".team-person-row", { hasText: "Test Kitchen Manager" }).locator(".team-edit-btn").click();
+    const mp = gm.page.locator(".team-edit-panel:not(.hidden)");
+    assert.match(await mp.innerText(), /A manager with a role here also shows on the roster/);
+    await mp.locator(".team-edit-position").selectOption("Chef");
+    await mp.locator(".team-save-edit-btn").click();
+    for (let k = 0; k < 100; k++) { const r = await db.admin.query("select position from public.staff where name = 'Test Kitchen Manager'"); if (r.rows[0][0] === "Chef") break; await new Promise((res) => setTimeout(res, 150)); }
+    await gm.page.locator(".team-person-row", { hasText: "Test Kitchen Manager" }).waitFor();
+    await gm.page.click('[data-manager-nav="home"]'); await gm.page.click("#rosterCard");
+    await gm.page.waitForFunction(() => [...document.querySelectorAll("#rosterGridBox .roster-name")].some((e) => /Test Kitchen Manager/.test(e.textContent)));
+    await db.admin.query("update public.staff set position = null where name = 'Test Kitchen Manager'");
+    await gm.page.click('[data-manager-nav="home"]'); await gm.page.click("#rosterCard");
+    await gm.page.waitForFunction(() => ![...document.querySelectorAll("#rosterGridBox .roster-name")].some((e) => /Test Kitchen Manager/.test(e.textContent)));
     await gm.page.click("#rosterOrderBtn");
     await gm.page.waitForSelector("#rosterOrderBox:not(.hidden) .roster-order-row");
     // Chef group is [Test Kitchen A, Test Salary Chef] -> move Salary Chef up
