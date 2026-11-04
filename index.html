@@ -1406,6 +1406,11 @@ body.mgr-mode #recipesTabs button.selected { color: var(--ink, #000); }
 .inv-flag { display: inline-block; margin-top: 8px; font-size: 12px; font-weight: 800; padding: 4px 9px; border-radius: 9px; }
 .inv-flag.ok { background: #e6f2ea; color: #1e5a3c; }
 .inv-flag.warn { background: #fff4d6; color: #8a5a00; }
+.inv-generic { display: grid; gap: 8px; margin: 10px 0 4px; }
+.inv-generic .inv-flag.new { background: #eaf0fb; color: #23457a; }
+.inv-generic label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; color: #4a5560; }
+.inv-generic input { font-size: 16px; padding: 10px 12px; border: 1px solid #cfd6dc; border-radius: 10px; width: 100%; box-sizing: border-box; background: #fff; color: #1d2328; }
+.inv-generic .inv-gen-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .inv-flag.err { background: #fde8e6; color: #a1271b; }
 .inv-review-actions { display: flex; gap: 8px; margin-top: 10px; }
 .inv-review-actions button { flex: 1; min-height: 40px; border-radius: 12px; border: 1px solid #e7e2d8; background: #fff; font-weight: 800; font-size: 13px; }
@@ -8478,6 +8483,11 @@ function invRenderReview() {
         <div class="inv-amount">${escapeHtml(invMoney(inv.total))}</div>
       </div>
       ${flag}
+      ${inv.generic && !r.saved && !r.duplicate ? `<div class="inv-generic">
+        <div class="inv-flag new">New supplier layout, read automatically. Check the name, number and date.</div>
+        <label>Supplier <input data-inv-f="supplier" data-inv-i="${i}" maxlength="80" value="${escapeHtml(inv.supplier || "")}" placeholder="Supplier name"></label>
+        <div class="inv-gen-row"><label>Invoice no. <input data-inv-f="number" data-inv-i="${i}" maxlength="60" value="${escapeHtml(inv.number || "")}"></label>
+        <label>Date <input type="date" data-inv-f="date" data-inv-i="${i}" value="${escapeHtml(inv.date || "")}"></label></div></div>` : ""}
       <div class="inv-check-row">${r.url ? `<a class="inv-open-pdf" href="${r.url}" target="_blank" rel="noopener">Open PDF</a>` : ""}<button type="button" class="inv-see-lines" data-inv-lines="${i}" aria-expanded="${!!r.showLines}">${r.showLines ? "Hide lines" : "See the lines read"}</button></div>
       ${r.showLines ? `<div class="inv-read-lines">${inv.lines.map(l => `<div><span>${escapeHtml(l.description || l.code || "")}<small>${escapeHtml([l.code, `${l.qty ?? ""} ${l.unit || ""}`.trim(), l.unit_price != null ? `× ${invMoney(l.unit_price)}` : ""].filter(Boolean).join(" · "))}</small></span><b>${escapeHtml(invMoney(l.line_total))}</b></div>`).join("")}
         <div class="inv-read-tot"><span>Subtotal ${escapeHtml(invMoney(inv.subtotal))} · GST ${escapeHtml(invMoney(inv.gst))}</span><b>${escapeHtml(invMoney(inv.total))}</b></div></div>` : ""}
@@ -8499,6 +8509,25 @@ async function invAlreadySaved(inv) {
   } catch (_) { return false; }   // cannot check now: the server still refuses a duplicate on Save
 }
 
+// A supplier without its own reader: use the name already saved for it when
+// the name read from the PDF looks like one ("HTC Foods" -> "HTC Foods (seafood)"),
+// or the name chosen for it last time on this phone.
+const INV_NAMES_KEY = "mh-inv-supplier-names";
+const invGuessKey = g => String(g || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+async function invNameSupplier(inv) {
+  const guess = inv.supplierGuess || inv.supplier || "";
+  let memo = {};
+  try { memo = JSON.parse(localStorage.getItem(INV_NAMES_KEY) || "{}") || {}; } catch (_) { memo = {}; }
+  if (memo[invGuessKey(guess)]) { inv.supplier = memo[invGuessKey(guess)]; return; }
+  if (!invState.supplierNames) {
+    try { invState.supplierNames = [...new Set(((await managerApi("manager_invoice_price_book")).products || []).map(p => p.supplier).filter(Boolean))]; }
+    catch (_) { invState.supplierNames = []; }
+  }
+  const first = invGuessKey(guess).split(" ").find(w => w.length >= 3 && !/^(the|and|pty|ltd|food|foods|fresh)$/.test(w));
+  const hit = first && invState.supplierNames.find(n => invGuessKey(n).split(" ").includes(first));
+  inv.supplier = hit || guess;
+}
+
 async function invReadFiles(files) {
   invClearMsg();
   const start = invState.review.length;
@@ -8511,8 +8540,8 @@ async function invReadFiles(files) {
       if (f.size > 20 * 1024 * 1024) throw new Error("This file is too big for an invoice.");
       const inv = await window.MarinaraInvoiceReader.readPdf(new Uint8Array(await f.arrayBuffer()), "./");
       slot.reading = false;
-      if (inv.error) slot.error = "This supplier's layout isn't known yet. Send this PDF to Fred so it can be added.";
-      else { slot.invoice = inv; slot.duplicate = await invAlreadySaved(inv); }
+      if (inv.error) slot.error = "No table of products was found in this PDF (a photo or scan can't be read). Send it to Fred if it's a normal PDF.";
+      else { slot.invoice = inv; if (inv.generic) await invNameSupplier(inv); slot.duplicate = await invAlreadySaved(inv); }
     } catch (error) {
       slot.reading = false;
       slot.error = "Could not read this PDF. " + (error?.message || "");
@@ -8826,6 +8855,13 @@ document.getElementById("invFiles")?.addEventListener("change", e => {
   e.target.value = "";
   if (files.length) invReadFiles(files);
 });
+// The fields of a new layout invoice (supplier, number, date) change the invoice as typed.
+invoicesScreen?.addEventListener("input", e => {
+  const f = e.target.closest("[data-inv-f]");
+  if (!f) return;
+  const inv = invState.review[Number(f.dataset.invI)]?.invoice;
+  if (inv) inv[f.dataset.invF] = f.value;
+});
 invoicesScreen?.addEventListener("click", async e => {
   const tab = e.target.closest("[data-inv-tab]");
   if (tab) { invClearMsg(); invShowTab(tab.dataset.invTab); return; }
@@ -8937,6 +8973,12 @@ invoicesScreen?.addEventListener("click", async e => {
     if (!slot?.invoice) return;
     save.disabled = true;
     const inv = slot.invoice;
+    if (inv.generic) {
+      inv.supplier = String(inv.supplier || "").trim(); inv.number = String(inv.number || "").trim();
+      if (!inv.supplier || !inv.number || !/^\d{4}-\d{2}-\d{2}$/.test(inv.date || "")) {
+        save.disabled = false; invMsg("Write the supplier name, the invoice number and the date first.", false); return;
+      }
+    }
     try {
       await keepGulliCodes(inv);
       await managerApi("manager_invoice_save", { invoice: {
@@ -8944,6 +8986,10 @@ invoicesScreen?.addEventListener("click", async e => {
         subtotal: inv.subtotal, gst: inv.gst, total: inv.total, checks_ok: inv.ok, file_name: slot.file, lines: inv.lines,
       } });
       slot.saved = true;
+      if (inv.generic && inv.supplierGuess) {
+        try { const m = JSON.parse(localStorage.getItem(INV_NAMES_KEY) || "{}") || {}; m[invGuessKey(inv.supplierGuess)] = inv.supplier; localStorage.setItem(INV_NAMES_KEY, JSON.stringify(m)); } catch (_) { /* this phone only */ }
+        if (invState.supplierNames && !invState.supplierNames.includes(inv.supplier)) invState.supplierNames.push(inv.supplier);
+      }
       // Other copies of the same invoice in this list: already saved now.
       const key = x => `${x.supplier}|${x.kind}|${String(x.number || "").trim()}`;
       for (const other of invState.review) {

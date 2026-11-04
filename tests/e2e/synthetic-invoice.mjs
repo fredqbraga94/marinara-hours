@@ -40,3 +40,23 @@ export function unknownPdf() {
   doc.text("A letter that is not an invoice.", 40, 60);
   return Buffer.from(new Uint8Array(doc.output("arraybuffer")));
 }
+
+// A made-up supplier with no reader of its own: a plain tax invoice table
+// (Qty, Description, Unit Price, Amount), GST added at the bottom.
+export function genericPdf({ number, date }) {
+  const doc = new jsPDF({ unit: "pt", format: [595, 842] });
+  doc.setFontSize(14); doc.text("Test Fresh Foods Pty Ltd", 40, 50);
+  doc.setFontSize(8); doc.text("ABN 00 000 000 000", 40, 64); doc.text("1 Test Street, Testville QLD 4000", 40, 76);
+  doc.setFontSize(12); doc.text("TAX INVOICE", 420, 50);
+  doc.setFontSize(9); doc.text("Invoice No:", 400, 70); doc.text(number, 470, 70); doc.text("Date:", 400, 82); doc.text(date, 470, 82);
+  doc.text("Bill To", 40, 110); doc.text("Test Restaurant", 40, 122);
+  doc.text("Qty", 40, 160); doc.text("Description", 80, 160); doc.text("Unit Price", 380, 160); doc.text("Amount", 500, 160);
+  const rows = [[2, "Test Olive Oil 4L", 30], [3, "Test Flour 12.5kg", 20], [1, "Test Napkins carton", 15]];
+  let y = 178, net = 0;
+  for (const [q, d, p] of rows) { doc.text(String(q), 40, y); doc.text(d, 80, y); doc.text(`$${p.toFixed(2)}`, 380, y); doc.text(`$${(q * p).toFixed(2)}`, 500, y); net += q * p; y += 14; }
+  doc.text("Delivery Fee", 380, y + 16); doc.text("$5.00", 500, y + 16); net += 5;
+  doc.text("Subtotal", 380, y + 30); doc.text(`$${net.toFixed(2)}`, 500, y + 30);
+  doc.text("GST", 380, y + 44); doc.text("$2.00", 500, y + 44);
+  doc.text("Total", 380, y + 58); doc.text(`$${(net + 2).toFixed(2)}`, 500, y + 58);
+  return Buffer.from(new Uint8Array(doc.output("arraybuffer")));
+}

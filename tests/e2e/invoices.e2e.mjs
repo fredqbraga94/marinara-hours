@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { startProdLikeDb, MIGRATION_A, MIGRATION_B, root } from "../integration/pgenv.mjs";
 import { loadHandler, useDatabase, call } from "../integration/edge-loader.mjs";
 import { ID, PIN, reseed } from "../integration/seed.mjs";
-import { mocoStylePdf, unknownPdf } from "./synthetic-invoice.mjs";
+import { mocoStylePdf, unknownPdf, genericPdf } from "./synthetic-invoice.mjs";
 
 const require = createRequire(import.meta.url);
 const pw = require(process.env.PLAYWRIGHT_PATH || "playwright");
@@ -107,6 +107,7 @@ const lines = (tomato) => [
 const FILES = {
   good: { name: "test-5001.pdf", mimeType: "application/pdf", buffer: mocoStylePdf({ number: "T-5001", date: today, lines: lines(4.4) }) },
   wrong: { name: "test-5002.pdf", mimeType: "application/pdf", buffer: mocoStylePdf({ number: "T-5002", date: today, lines: lines(4.4), wrongTotal: true }) },
+  generic: { name: "tf-77.pdf", mimeType: "application/pdf", buffer: genericPdf({ number: "TF-77", date: today }) },
   unknown: { name: "letter.pdf", mimeType: "application/pdf", buffer: unknownPdf() },
   dearer: { name: "test-5003.pdf", mimeType: "application/pdf", buffer: mocoStylePdf({ number: "T-5003", date: today, lines: lines(5.5) }) },
 };
@@ -157,7 +158,7 @@ try {
     await gm.shot("invoices_review");
     assert.match(c[0], /MOCO Food Services/); assert.match(c[0], /T-5001/); assert.match(c[0], /\$44\.00/); assert.match(c[0], /Adds up: 2 lines/);
     assert.match(c[1], /T-5002/); assert.match(c[1], /don't add up/);
-    assert.match(c[2], /layout isn't known yet/);
+    assert.match(c[2], /No table of products was found/);
     // Double-check: open the PDF (kept on the phone) and see the lines that were read.
     const href = await gm.page.locator('#invReview .inv-open-pdf').first().getAttribute("href");
     assert.match(href, /^blob:/, "the PDF opens from the phone");
@@ -320,6 +321,31 @@ try {
     await gm.page.waitForFunction(() => !/T-5001/.test(document.getElementById("invList").textContent));
     assert.match(await gm.page.textContent("#invSummary"), /\$46\.75/);
     return "removed; total updated";
+  });
+
+  await check("a supplier with no reader of its own: read from its table, name checked, saved", async () => {
+    const n = (await cards(gm)).length;
+    await gm.page.setInputFiles("#invFiles", [FILES.generic]);
+    await waitRead(gm, n + 1);
+    const c = (await cards(gm))[n];
+    assert.match(c, /New supplier layout/); assert.match(c, /Adds up: 4 lines/); assert.match(c, /\$142\.00/);
+    assert.equal(await gm.page.locator(`#invReview [data-inv-f="supplier"][data-inv-i="${n}"]`).inputValue(), "Test Fresh Foods");
+    assert.equal(await gm.page.locator(`#invReview [data-inv-f="number"][data-inv-i="${n}"]`).inputValue(), "TF-77");
+    assert.equal(await gm.page.locator(`#invReview [data-inv-f="date"][data-inv-i="${n}"]`).inputValue(), today.split("/").reverse().join("-"));
+    await gm.shot("invoices_generic");
+    // An empty name is refused before sending.
+    await gm.page.fill(`#invReview [data-inv-f="supplier"][data-inv-i="${n}"]`, "");
+    await gm.page.click(`#invReview [data-inv-save="${n}"]`);
+    await gm.page.waitForFunction(() => /Write the supplier name/.test(document.getElementById("invMessage").textContent));
+    await gm.page.fill(`#invReview [data-inv-f="supplier"][data-inv-i="${n}"]`, "Test Fresh");
+    await gm.page.click(`#invReview [data-inv-save="${n}"]`);
+    await gm.page.waitForFunction(() => /Saved: Test Fresh #TF-77/.test(document.getElementById("invMessage").textContent));
+    await gm.page.waitForFunction(() => /Test Fresh/.test(document.getElementById("invSummary").textContent));
+    // Next time on this phone, the same PDF gets the name chosen before.
+    assert.equal(await gm.page.evaluate(() => JSON.parse(localStorage.getItem("mh-inv-supplier-names") || "{}")["test fresh foods"]), "Test Fresh");
+    const lines = await gm.page.evaluate(async () => (await managerApi("manager_invoice_list", { from: "2000-01-01", to: "2100-01-01" })).invoices.find(i => i.number === "TF-77"));
+    assert.equal(lines.supplier, "Test Fresh"); assert.equal(Number(lines.total), 142);
+    return "4 lines (with the delivery fee), GST $2.00, total $142.00";
   });
 
   await check("back to More, then Home; no page errors", async () => {
