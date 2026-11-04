@@ -214,3 +214,29 @@ test("Gulli (layout from Nov 2026): wrapped names and codes, shipping as a fee, 
   ]);
   assert.equal(inv.total, 104.95);
 });
+
+test("Gulli (Nov 2026), narrower name column: names found from the header, [code] taken off the name", () => {
+  const w = (s, x, y) => ({ s, x, y });
+  const words = [
+    w("Gulli Food Distributors - Queensland", 175, 40), w("CI-900002", 400, 44), w("3 Nov 2026", 470, 44),
+    w("Order", 33, 263), w("Ship", 403, 263), w("Line", 560, 263),
+    w("Unit Item code", 79, 269), w("Item name", 190, 269), w("Unit Price", 443, 269), w("Taxes", 505, 269),
+    w("qty.", 33, 275), w("qty.", 403, 275), w("total", 557, 275),
+    w("1", 33, 294), w("Unit", 79, 294), w("DELIVERY_008", 105, 294), w("[DELIVERY_008] Free Delivery", 190, 294), w("1", 403, 294), w("Unit", 443, 294), w("$0.00", 469, 294), w("$0.00", 505, 294), w("$0.00", 552, 294),
+    w("[TCHEESE-UC8] Test Cheese- Premium", 190, 312),
+    w("8", 33, 319), w("Unit", 79, 319), w("TCHEESE-UC8", 105, 319), w("8", 403, 319), w("Unit", 443, 319), w("$10.00", 469, 319), w("$0.00", 505, 319), w("$80.00", 545, 319),
+    w("Grated Test 1kg", 190, 325),
+    w("TBLEND2KG-", 105, 362), w("[TBLEND2KG-UC4] Test Blend Shredded", 190, 362),
+    w("2", 33, 368), w("Unit", 79, 368), w("2", 403, 368), w("Unit", 443, 368), w("$5.00 $0.00", 469, 368), w("$10.00", 547, 368),
+    w("UC4", 105, 375), w("Cheese 2kg", 190, 375),
+    w("Total price includes Taxes", 462, 397), w("Total", 474, 419), w("$90.00", 541, 419),
+  ];
+  const inv = R.parse([R.toRows(words)]);
+  assert.equal(inv.ok, true, JSON.stringify(inv.checks));
+  assert.deepEqual(inv.lines.map((l) => [l.code, l.description, l.qty, l.line_total]), [
+    ["DELIVERY", "Delivery Fee", 1, 0],
+    ["TCHEESE-UC8", "Test Cheese- Premium Grated Test 1kg", 8, 80],
+    ["TBLEND2KG-UC4", "Test Blend Shredded Cheese 2kg", 2, 10],
+  ]);
+  assert.ok(inv.lines.every((l) => l.description), "every line has a name");
+});
