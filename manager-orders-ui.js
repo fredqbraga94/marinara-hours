@@ -10,6 +10,8 @@ const isoLong=iso=>new Intl.DateTimeFormat('en-AU',{timeZone:'UTC',weekday:'long
 const todayIso=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Australia/Brisbane'}).format(new Date());
 const addDays=(iso,n)=>{const d=new Date(`${iso}T00:00:00Z`);d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
 const UNITS=['box','kg','bunch','each','punnet','tray','bag','dozen'];
+// Units always in small letters ("Box", "box" and "BOX" all show as "box").
+const unitOf=u=>String(u||'').trim().toLowerCase();
 const DEFAULT_SUPPLIER='Niko';
 const state={data:null,supplier:null,qty:{},gen:0,removing:null,editing:false};
 const ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8l1 3H7z"/><rect x="5" y="6" width="14" height="15" rx="2"/><path d="M9 11h6M9 15h6"/></svg>';
@@ -66,7 +68,7 @@ function render(){
  $('ordSend').hidden=!items.length;
  if(!items.length){box.innerHTML=`<div class="empty-state">No items yet. Add what you order from ${t(state.supplier||DEFAULT_SUPPLIER)} below (you can paste many at once).</div>`;}
  else box.innerHTML=`<div class="ord-head"><strong>${t(state.supplier)}</strong><span id="ordCount"></span></div>`+items.map(i=>`<div class="ord-row${state.qty[i.id]?' has':''}" data-ord-item="${t(i.id)}">
-   <span class="ord-name"><strong>${t(i.name)}</strong>${i.unit?`<small>${t(i.unit)}</small>`:''}</span>
+   <span class="ord-name"><strong>${t(i.name)}</strong>${unitOf(i.unit)?`<small>${t(unitOf(i.unit))}</small>`:''}</span>
    <button type="button" class="ord-step" data-ord-minus aria-label="Less ${t(i.name)}">−</button>
    <input class="ord-qty" inputmode="decimal" maxlength="6" value="${t(state.qty[i.id]||'')}" aria-label="${t(i.name)} quantity">
    <button type="button" class="ord-step" data-ord-plus aria-label="More ${t(i.name)}">+</button>
@@ -102,7 +104,7 @@ function fillFrom(o){
 }
 $('ordPdf').addEventListener('click',async()=>{
  const d=state.data;const items=d?.items||[];
- const lines=items.filter(i=>String(state.qty[i.id]||'').trim()).map(i=>({name:i.name,unit:i.unit||'',qty:String(state.qty[i.id]).trim()}));
+ const lines=items.filter(i=>String(state.qty[i.id]||'').trim()).map(i=>({name:i.name,unit:unitOf(i.unit),qty:String(state.qty[i.id]).trim()}));
  if(!lines.length){msg('Type a quantity for at least one item.');return;}
  if(!window.MarinaraTempPdf){msg('PDF tools are still loading. Try again.');return;}
  const b=$('ordPdf');b.disabled=true;b.textContent='Making the PDF…';
@@ -124,7 +126,7 @@ $('ordPdf').addEventListener('click',async()=>{
 });
 // The same order as plain text, for Messages or WhatsApp (a PDF cannot go by SMS).
 function orderLines(){const items=state.data?.items||[];
- return items.filter(i=>String(state.qty[i.id]||'').trim()).map(i=>({name:i.name,unit:i.unit||'',qty:String(state.qty[i.id]).trim()}));}
+ return items.filter(i=>String(state.qty[i.id]||'').trim()).map(i=>({name:i.name,unit:unitOf(i.unit),qty:String(state.qty[i.id]).trim()}));}
 function orderText(lines,day,note){
  const q=v=>v.replace(/^\./,'0.');
  return [`Hi ${state.supplier}, order for Marinara ${state.data?.location||''}`.trim(),
@@ -153,8 +155,8 @@ $('ordText').addEventListener('click',async()=>{
 });
 $('ordForm').addEventListener('submit',async ev=>{ev.preventDefault();
  const supplier=$('ordSup').value.trim()||DEFAULT_SUPPLIER;
- const many=$('ordMany').value.split('\n').map(x=>x.trim()).filter(Boolean).map(x=>{const m=x.split(/\s+[-–·|]\s+|\t|,\s*(?=[a-z]+$)/i);return {name:m[0].trim(),unit:(m[1]||'').trim()};});
- const one=$('ordName').value.trim()?[{name:$('ordName').value.trim(),unit:$('ordUnit').value.trim()}]:[];
+ const many=$('ordMany').value.split('\n').map(x=>x.trim()).filter(Boolean).map(x=>{const m=x.split(/\s+[-–·|]\s+|\t|,\s*(?=[a-z]+$)/i);return {name:m[0].trim(),unit:unitOf(m[1])};});
+ const one=$('ordName').value.trim()?[{name:$('ordName').value.trim(),unit:unitOf($('ordUnit').value)}]:[];
  const all=[...one,...many].filter(i=>i.name);
  if(!all.length){fmsg('Write the item, e.g. Tomatoes.');return;}
  const b=$('ordAdd');b.disabled=true;let added=0;

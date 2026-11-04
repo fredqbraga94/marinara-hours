@@ -41,10 +41,12 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.equal(await page.locator('#ordSup').inputValue(),'Niko','Niko by default');
  assert.equal(await page.locator('#ordSend').isVisible(),false);
  // Paste many at once.
- await page.locator('#ordMany').fill('QA Tomatoes - box\nQA Basil - bunch\nQA Lettuce\nQA Tomatoes - box');
+ await page.locator('#ordMany').fill('QA Tomatoes - Box\nQA Basil - bunch\nQA Lettuce\nQA Tomatoes - box');
  await page.locator('#ordAdd').click();
  await page.locator('#ordFormMsg').filter({hasText:'3 added to Niko (1 already on the list).'}).waitFor();
  await page.waitForFunction(()=>document.querySelectorAll('[data-ord-item]').length===3);
+ // Units in small letters, however they were typed.
+ assert.deepEqual(await page.locator('[data-ord-item] .ord-name small').allInnerTexts(),['bunch','box']);
  // Quantities: + / − and typing.
  const rowOf=name=>page.locator('[data-ord-item]').filter({hasText:name});
  await rowOf('QA Tomatoes').locator('[data-ord-plus]').click();await rowOf('QA Tomatoes').locator('[data-ord-plus]').click();
