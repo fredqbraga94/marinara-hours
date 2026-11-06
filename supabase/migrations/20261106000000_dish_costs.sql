@@ -10,7 +10,8 @@
 --     each with its own menu price and amounts;
 --   * one line of a dish can use a product of its own from the invoices
 --     (e.g. Prawns → HTC prawn cutlet 13/15, 7 each), with what one invoice
---     line buys (e.g. 1 × 21 each).
+--     line buys (e.g. 1 × 22 each). The products are those of the saved
+--     invoices and of the imported supplier history (e.g. a year of Moco).
 -- The app adds it up. Administrator and Kitchen Manager only.
 -- Additive only: three new tables and three new functions. Nothing existing changes.
 
@@ -67,6 +68,32 @@ alter table public.dish_portions enable row level security;
 alter table public.cost_manual_prices enable row level security;
 revoke all on public.dish_costing, public.dish_portions, public.cost_manual_prices from anon, authenticated;
 
+-- Products a dish line can use: the saved invoices, then the imported supplier
+-- history (its last price; key 'history:<code>'), newest first.
+create or replace function public.mh_cost_products(p_location text)
+returns table (supplier text, product_key text, description text, unit text, price numeric, price_date date, source text)
+language sql
+stable
+security definer
+set search_path to 'public'
+as $function$
+  select p.supplier, p.product_key, p.description, p.unit, p.unit_price, p.invoice_date, 'invoice'
+    from public.mh_invoice_products(p_location) p
+   where p.unit_price > 0
+  union all
+  select distinct on (h.supplier, hp.code) h.supplier, 'history:' || hp.code,
+         trim(coalesce(hp.brand || ' · ', '') || hp.description),
+         case when hp.cartons > 0 and hp.last_carton_price is not null then hp.carton_label else hp.unit_label end,
+         case when hp.cartons > 0 and hp.last_carton_price is not null then hp.last_carton_price else hp.last_unit_price end,
+         hp.last_date, 'history'
+    from public.supplier_history_products hp
+    join public.supplier_history_imports h on h.id = hp.import_id
+   where h.location = p_location and h.active
+     and coalesce(case when hp.cartons > 0 and hp.last_carton_price is not null then hp.last_carton_price else hp.last_unit_price end, 0) > 0
+   order by 1, 2, 6 desc nulls last;
+$function$;
+revoke all on function public.mh_cost_products(text) from public, anon, authenticated;
+
 -- Everything the Dish costs screen needs; the app does the sums.
 create or replace function public.manager_dish_costs(p_manager_id uuid, p_location text)
 returns jsonb
@@ -102,9 +129,9 @@ begin
                                      'product', case when p.product_key is null then null else jsonb_build_object(
                                        'supplier', p.supplier, 'product_key', p.product_key, 'label', p.product_label,
                                        'pack_count', p.pack_count, 'pack_size', p.pack_size, 'pack_unit', p.pack_unit,
-                                       'price', ip.unit_price, 'date', ip.invoice_date) end))
+                                       'price', ip.price, 'date', ip.price_date) end))
                               from public.dish_portions p
-                              left join public.mh_invoice_products(v_location) ip on ip.supplier = p.supplier and ip.product_key = p.product_key
+                              left join public.mh_cost_products(v_location) ip on ip.supplier = p.supplier and ip.product_key = p.product_key
                              where p.recipe_id = r.id and p.size = dc.size), '[]'::jsonb))
                         order by dc.position, dc.size)
                    from public.dish_costing dc where dc.recipe_id = r.id), '[]'::jsonb),
@@ -131,10 +158,9 @@ begin
     'products', coalesce((
       select jsonb_agg(jsonb_build_object(
                'supplier', p.supplier, 'product_key', p.product_key, 'description', p.description,
-               'unit', p.unit, 'price', p.unit_price, 'date', p.invoice_date)
-             order by p.supplier, p.description)
-        from public.mh_invoice_products(v_location) p
-       where p.unit_price > 0), '[]'::jsonb));
+               'unit', p.unit, 'price', p.price, 'date', p.price_date, 'source', p.source)
+             order by p.source desc, p.supplier, p.description)
+        from public.mh_cost_products(v_location) p), '[]'::jsonb));
 end $function$;
 
 -- Save one size of a dish. p_data: {size ('' = the first/only size),
@@ -200,7 +226,7 @@ begin
                           and ((v_kind = 'ingredient' and l.ingredient_id = v_ref) or (v_kind = 'recipe' and l.sub_recipe_id = v_ref))) then
           raise exception 'LINE_NOT_FOUND';
         end if;
-        if v_pr is not null and not exists (select 1 from public.mh_invoice_products(v_location) ip
+        if v_pr is not null and not exists (select 1 from public.mh_cost_products(v_location) ip
                                               where ip.supplier = v_pr->>'supplier' and ip.product_key = v_pr->>'product_key') then
           raise exception 'PRODUCT_NOT_FOUND';
         end if;

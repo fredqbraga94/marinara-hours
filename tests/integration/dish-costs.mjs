@@ -154,6 +154,21 @@ try {
     r = await api(vNew, 2, km, { action: "manager_dish_cost_save", recipe_id: marg, dish: { portions: [{ kind: "ingredient", ref_id: mozz, qty: 7, unit: "each", product: { ...product, pack_unit: "box" } }] } });
     assert.equal(r.status, 400);
   });
+  await check("a product from the imported supplier history (e.g. a year of Moco) can be chosen too", async () => {
+    await db.admin.query(`insert into public.supplier_history_imports (id, location, supplier, period_from, period_to, source)
+      values ('00000000-0000-4000-8000-00000000a001', 'Hawthorne', 'Test Wholesale', '2025-11-01', '2026-10-31', 'test.csv')`);
+    await db.admin.query(`insert into public.supplier_history_products (import_id, code, brand, description, orders, cartons, units, carton_label, unit_label, spend, last_date, last_carton_price)
+      values ('00000000-0000-4000-8000-00000000a001', 'T1620', 'Test Brand', 'Test Prawn Cutlet 16/20 Raw', 3, 3, 0, 'Carton', 'Bag', 600, '2026-09-07', 200)`);
+    const prods = (await api(vNew, 1, gm, { action: "manager_dish_costs" })).body.data.products;
+    const h = prods.find((p) => p.product_key === "history:T1620");
+    assert.deepEqual([h.supplier, h.source, Number(h.price), h.unit], ["Test Wholesale", "history", 200, "Carton"]);
+    assert.match(h.description, /Test Brand · Test Prawn Cutlet 16\/20/);
+    const product = { supplier: h.supplier, product_key: h.product_key, label: h.description, pack_count: 10, pack_size: 1, pack_unit: "kg" };
+    const r = await api(vNew, 2, km, { action: "manager_dish_cost_save", recipe_id: marg, dish: { portions: [{ kind: "ingredient", ref_id: mozz, qty: 150, unit: "g", product }] } });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const m = (await api(vNew, 1, gm, { action: "manager_dish_costs" })).body.data.recipes.find((x) => x.id === marg);
+    assert.equal(Number(m.sizes[0].portions[0].product.price), 200, "price from the history");
+  });
   await check("staff and other units are refused", async () => {
     const st = await login(vNew, 4);
     assert.ok((await api(vNew, 4, st, { action: "manager_dish_costs" })).status >= 400);

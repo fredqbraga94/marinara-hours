@@ -300,7 +300,7 @@ function matches(q) {
     if (words.length && words.every(w => d.includes(w))) return 10 + (R()?.matchScore ? R().matchScore(q, p.description) : 0);
     return R()?.matchScore ? R().matchScore(q, p.description) : 0;
   };
-  return prods.map(p => ({ p, s: score(p) })).filter(x => x.s > 0).sort((a, b) => b.s - a.s || String(b.p.date).localeCompare(String(a.p.date))).slice(0, 8).map(x => x.p);
+  return prods.map(p => ({ p, s: score(p) })).filter(x => x.s > 0).sort((a, b) => b.s - a.s || (a.p.source === 'history') - (b.p.source === 'history') || String(b.p.date).localeCompare(String(a.p.date))).slice(0, 8).map(x => x.p);
 }
 // Prawn and similar sizes ("13/15", "16/20" pieces per pound): about how many in a pack.
 function piecesGuess(desc, pack) {
@@ -316,7 +316,7 @@ function pickForm(l, i) {
     const list = matches(pk.q);
     return `<div class="dc-price-form dc-pick">
       <input type="search" id="dcPickQ-${i}" data-dc-pick-q value="${t(pk.q)}" placeholder="Type a product (e.g. prawn 13/15)" autocomplete="off" aria-label="Search your invoice products">
-      <div class="dc-pick-list">${list.length ? list.map((p, k) => `<button type="button" data-dc-pick-choose="${k}"><strong>${t(p.description)}</strong><small>${t(p.supplier)} · ${money(p.price)}${p.unit ? ` per ${t(p.unit)}` : ''}${p.date ? ` · ${t(p.date)}` : ''}</small></button>`).join('') : '<small>No product from your invoices matches. Try fewer words.</small>'}</div>
+      <div class="dc-pick-list">${list.length ? list.map((p, k) => `<button type="button" data-dc-pick-choose="${k}"><strong>${t(p.description)}</strong><small>${t(p.supplier)}${p.source === 'history' ? ' (history)' : ''} · ${money(p.price)}${p.unit ? ` per ${t(p.unit)}` : ''}${p.date ? ` · ${t(p.date)}` : ''}</small></button>`).join('') : '<small>No product from your invoices matches. Try fewer words.</small>'}</div>
       <div class="inv-cost-actions"><button type="button" data-dc-pick-cancel>Cancel</button></div></div>`;
   }
   const p = pk.product;
