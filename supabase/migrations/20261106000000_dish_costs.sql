@@ -81,16 +81,18 @@ as $function$
     from public.mh_invoice_products(p_location) p
    where p.unit_price > 0
   union all
-  select distinct on (h.supplier, hp.code) h.supplier, 'history:' || hp.code,
-         trim(coalesce(hp.brand || ' · ', '') || hp.description),
-         case when hp.cartons > 0 and hp.last_carton_price is not null then hp.carton_label else hp.unit_label end,
-         case when hp.cartons > 0 and hp.last_carton_price is not null then hp.last_carton_price else hp.last_unit_price end,
-         hp.last_date, 'history'
-    from public.supplier_history_products hp
-    join public.supplier_history_imports h on h.id = hp.import_id
-   where h.location = p_location and h.active
-     and coalesce(case when hp.cartons > 0 and hp.last_carton_price is not null then hp.last_carton_price else hp.last_unit_price end, 0) > 0
-   order by 1, 2, 6 desc nulls last;
+  select * from (
+    select distinct on (h.supplier, hp.code) h.supplier, 'history:' || hp.code,
+           trim(coalesce(hp.brand || ' · ', '') || hp.description),
+           case when hp.cartons > 0 and hp.last_carton_price is not null then hp.carton_label else hp.unit_label end,
+           case when hp.cartons > 0 and hp.last_carton_price is not null then hp.last_carton_price else hp.last_unit_price end,
+           hp.last_date, 'history'
+      from public.supplier_history_products hp
+      join public.supplier_history_imports h on h.id = hp.import_id
+     where h.location = p_location and h.active
+       and coalesce(case when hp.cartons > 0 and hp.last_carton_price is not null then hp.last_carton_price else hp.last_unit_price end, 0) > 0
+     order by h.supplier, hp.code, hp.last_date desc nulls last, h.imported_at desc
+  ) latest;
 $function$;
 revoke all on function public.mh_cost_products(text) from public, anon, authenticated;
 
