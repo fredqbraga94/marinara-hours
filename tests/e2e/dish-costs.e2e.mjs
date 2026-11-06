@@ -25,24 +25,29 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
   const ing=[{id:U(1),name:'Test Cheese',invoice:{supplier:'Test Dairy',label:'Cheese 2kg',unit:'kg',price:10,date:'2026-11-01'},manual:null},
    {id:U(2),name:'Test Oysters',invoice:null,manual:{price:1.5,unit:'each',note:'Test $18 a dozen'}},
    {id:U(3),name:'Test Basil',invoice:null,manual:null},
-   {id:U(4),name:'Test Tomato',invoice:{supplier:'Test Veg',label:'Tomato 5L',unit:'l',price:2,date:'2026-11-01'},manual:null}];
+   {id:U(4),name:'Test Tomato',invoice:{supplier:'Test Veg',label:'Tomato 5L',unit:'l',price:2,date:'2026-11-01'},manual:null},
+   {id:U(5),name:'Test Prawns',invoice:null,manual:{price:18,unit:'kg',note:'Test prawns'}}];
+  const L=(k,id,name,quantity=null)=>({kind:k,ref_id:id,name,quantity});
   const rec=[
-   {id:U(10),name:'Test Pizza',category:'Pizza',makes:null,sell_price:22,yield_qty:null,yield_unit:null,manual:null,lines:[
-     {kind:'ingredient',ref_id:U(1),name:'Test Cheese',quantity:null,qty:120,unit:'g'},
-     {kind:'recipe',ref_id:U(20),name:'Test Sauce',quantity:null,qty:100,unit:'ml'},
-     {kind:'ingredient',ref_id:U(3),name:'Test Basil',quantity:null,qty:null,unit:null}]},
-   {id:U(11),name:'Test Oysters Plate',category:'Entrée',makes:null,sell_price:33,yield_qty:null,yield_unit:null,manual:null,lines:[
-     {kind:'ingredient',ref_id:U(2),name:'Test Oysters',quantity:null,qty:6,unit:'each'}]},
-   {id:U(12),name:'Test No Price',category:'Pasta',makes:null,sell_price:null,yield_qty:null,yield_unit:null,manual:null,lines:[
-     {kind:'ingredient',ref_id:U(3),name:'Test Basil',quantity:null,qty:null,unit:null}]},
-   {id:U(20),name:'Test Sauce',category:'Sauce',makes:'One test batch',sell_price:null,yield_qty:5,yield_unit:'l',manual:null,lines:[
-     {kind:'ingredient',ref_id:U(4),name:'Test Tomato',quantity:'5 litres',qty:5,unit:'l'}]}];
+   {id:U(10),name:'Test Pizza',category:'Pizza',makes:null,manual:null,lines:[L('ingredient',U(1),'Test Cheese'),L('recipe',U(20),'Test Sauce'),L('ingredient',U(3),'Test Basil'),L('ingredient',U(5),'Test Prawns')],
+     sizes:[{size:'',sell_price:22,yield_qty:null,yield_unit:null,portions:[{kind:'ingredient',ref_id:U(1),qty:120,unit:'g',product:null},{kind:'recipe',ref_id:U(20),qty:100,unit:'ml',product:null}]}]},
+   {id:U(11),name:'Test Oysters Plate',category:'Entrée',makes:null,manual:null,lines:[L('ingredient',U(2),'Test Oysters')],
+     sizes:[{size:'',sell_price:33,portions:[{kind:'ingredient',ref_id:U(2),qty:6,unit:'each',product:null}]}]},
+   {id:U(12),name:'Test No Price',category:'Pasta',makes:null,manual:null,lines:[L('ingredient',U(3),'Test Basil')],sizes:[]},
+   {id:U(20),name:'Test Sauce',category:'Sauce',makes:'One test batch',manual:null,lines:[L('ingredient',U(4),'Test Tomato','5 litres')],
+     sizes:[{size:'',sell_price:null,yield_qty:5,yield_unit:'l',portions:[{kind:'ingredient',ref_id:U(4),qty:5,unit:'l',product:null}]}]}];
+  const products=[{supplier:'Test Seafood Co',product_key:'tsc-prawn-1315',description:'Test Prawn Cutlet 13/15 700g',unit:'pk',price:21,date:'2026-11-01'},
+   {supplier:'Test Seafood Co',product_key:'tsc-prawn-meat',description:'Test Prawn Meat 31/35 700g',unit:'pk',price:12.6,date:'2026-11-01'}];
   window.__calls=[];const orig=managerApi;
   managerApi=async(action,extra={})=>{window.__calls.push([action,JSON.parse(JSON.stringify(extra))]);
    if(action==='manager_ingredient_costs')return{location:'Hawthorne',ingredients:[],products:[]};
-   if(action==='manager_dish_costs')return JSON.parse(JSON.stringify({location:'Hawthorne',recipes:rec,ingredients:ing}));
-   if(action==='manager_dish_cost_save'){const r=rec.find(x=>x.id===extra.recipe_id);const d=extra.dish;if('sell_price' in d)r.sell_price=d.sell_price;
-     for(const p of d.portions||[]){const l=r.lines.find(x=>x.ref_id===p.ref_id);l.qty=p.qty;l.unit=p.qty?p.unit:null;}return{recipe_id:r.id};}
+   if(action==='manager_dish_costs')return JSON.parse(JSON.stringify({location:'Hawthorne',recipes:rec,ingredients:ing,products}));
+   if(action==='manager_dish_cost_save'){const r=rec.find(x=>x.id===extra.recipe_id);const d=extra.dish;const size=d.size||'';
+     if(d.remove){r.sizes=r.sizes.filter(s=>s.size!==size);return{recipe_id:r.id};}
+     let s=r.sizes.find(x=>x.size===size);if(!s){s={size,sell_price:null,portions:[]};r.sizes.push(s);}
+     if('sell_price' in d)s.sell_price=d.sell_price;
+     if(d.portions)s.portions=d.portions.filter(p=>p.qty).map(p=>({...p,product:p.product?{...p.product,price:(products.find(x=>x.product_key===p.product.product_key)||{}).price}:null}));
+     return{recipe_id:r.id,size};}
    if(action==='manager_cost_price_save'){const i=ing.find(x=>x.id===extra.ref_id);i.manual=extra.price?{...extra.price}:null;return{saved:!!extra.price};}
    if(action==='manager_roster_week')return{team:[],entries:[],services:[],leave:[]};
    return orig(action,extra);};
@@ -93,8 +98,46 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#invMessage').filter({hasText:'Saved: Test Pizza.'}).waitFor();
  const saved=await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_dish_cost_save').at(-1)[1]);
  assert.equal(saved.recipe_id,U(10));assert.equal(saved.dish.sell_price,24.2);
- assert.deepEqual(saved.dish.portions,[{kind:'ingredient',ref_id:U(1),qty:150,unit:'g'},{kind:'recipe',ref_id:U(20),qty:100,unit:'ml'},{kind:'ingredient',ref_id:U(3),qty:5,unit:'g'}]);
+ assert.equal(saved.dish.size,'');
+ assert.deepEqual(saved.dish.portions,[{kind:'ingredient',ref_id:U(1),qty:150,unit:'g',product:null},{kind:'recipe',ref_id:U(20),qty:100,unit:'ml',product:null},{kind:'ingredient',ref_id:U(3),qty:5,unit:'g',product:null},{kind:'ingredient',ref_id:U(5),qty:null,unit:'g',product:null}]);
  await page.locator('.dc-dish',{hasText:'Test Pizza'}).filter({hasText:'8.6%'}).waitFor();
+ // Prawns: a product of their own, counted in pieces (13/15 → about 22 in 700 g).
+ const pz=page.locator('.dc-dish',{hasText:'Test Pizza'});
+ if(await pz.getAttribute('class').then(c=>!/\bopen\b/.test(c)))await pz.locator('[data-dc-open]').click();
+ const ed3=page.locator('.dc-dish.open .dc-edit');
+ await ed3.locator('[data-dc-pick="3"]').click();
+ await ed3.locator('[data-dc-pick-q]').fill('prawn 13/15');
+ await ed3.locator('[data-dc-pick-choose="0"]').click();
+ assert.match(await ed3.locator('.dc-pick').innerText(),/13 to 15 pieces per pound .*about 22 in this pack/);
+ await ed3.locator('[data-dc-pack-pieces]').click();
+ assert.equal(await ed3.locator('[data-dc-pack="size"]').inputValue(),'22');
+ await ed3.locator('[data-dc-pick-use]').click();
+ assert.equal(await ed3.locator('[data-dc-u="3"]').inputValue(),'each','counted in pieces');
+ await ed3.locator('[data-dc-q="3"]').fill('7');
+ // 7 × $21/22 = $6.68 more: $1.90 + $6.68 = $8.58.
+ assert.match(await ed3.locator('.dc-totals').innerText(),/\$8\.58/);
+ // A Main size: starts with the same amounts; its own price.
+ await ed3.locator('[data-dc-addsize]').click();
+ await ed3.locator('[id^="dcNewSize-"]').fill('Main');
+ await ed3.locator('[data-dc-addsize-ok]').click();
+ const ed4=page.locator('.dc-dish.open .dc-edit');
+ assert.equal(await ed4.locator('[role=tab][aria-selected=true]').innerText(),'Main');
+ assert.equal(await ed4.locator('[data-dc-q="3"]').inputValue(),'7');
+ await ed4.locator('[data-dc-q="3"]').fill('11');
+ await ed4.locator('[data-dc-sell]').fill('33');
+ await ed4.locator('[data-dc-save]').click();
+ await page.locator('#invMessage').filter({hasText:'Saved: Test Pizza (Main).'}).waitFor();
+ const main=await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_dish_cost_save').at(-1)[1].dish);
+ assert.equal(main.size,'Main');assert.equal(main.sell_price,33);
+ assert.deepEqual(main.portions[3],{kind:'ingredient',ref_id:U(5),qty:11,unit:'each',product:{supplier:'Test Seafood Co',product_key:'tsc-prawn-1315',label:'Test Prawn Cutlet 13/15 700g',pack_count:1,pack_size:22,pack_unit:'each'}});
+ // The list shows both sizes.
+ assert.match(await page.locator('.dc-dish',{hasText:'Test Pizza'}).locator('.inv-cost-head').innerText(),/Regular \$24\.20 \(8\.6%\) · Main \$33\.00/);
+ await page.screenshot({path:`tmp/qa/${size}-dish-cost-sizes.png`,fullPage:true});
+ // Remove the Main size (two taps).
+ await page.locator('.dc-dish.open [data-dc-size-remove]').click();
+ await page.locator('.dc-dish.open [data-dc-size-remove]').filter({hasText:'Tap again'}).click();
+ await page.locator('#invMessage').filter({hasText:'Size removed.'}).waitFor();
+ await page.locator('.dc-dish.open [data-dc-close]').click();
  // Bad numbers are not sent.
  await page.locator('.dc-dish',{hasText:'Test Oysters Plate'}).locator('[data-dc-open]').click();
  const ed2=page.locator('.dc-dish.open .dc-edit');

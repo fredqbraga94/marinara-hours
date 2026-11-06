@@ -1444,6 +1444,15 @@ body.mgr-mode #recipesTabs button.selected { color: var(--ink, #000); }
 .dc-total { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
 .dc-total b { font-variant-numeric: tabular-nums; }
 .dc-price-form { display: grid; gap: 6px; margin-top: 6px; padding: 8px; border: 1px dashed #cfd6dc; border-radius: 9px; }
+.dc-sizes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dc-sizes [role=tab], .dc-size-add { font: inherit; font-size: 14px; padding: 6px 12px; border-radius: 999px; border: 1px solid #cfd6dc; background: #fff; color: #1d2328; cursor: pointer; }
+.dc-sizes [role=tab][aria-selected=true] { background: #1e5a3c; border-color: #1e5a3c; color: #fff; font-weight: 600; }
+.dc-size-add { border-style: dashed; color: #1e5a3c; font-weight: 600; }
+.dc-addsize { display: flex; gap: 6px; } .dc-addsize input { width: 140px; }
+.dc-pick-list { display: grid; gap: 4px; max-height: 320px; overflow-y: auto; }
+.dc-pick-list button { display: grid; gap: 2px; text-align: left; font: inherit; padding: 8px 10px; border: 1px solid #e3e7ea; border-radius: 9px; background: #fff; color: #1d2328; cursor: pointer; }
+.dc-pick-list button strong { font-weight: 600; font-size: 14px; }
+.dc-pick .dc-row input { width: 76px; flex: 0 1 auto; }
 .linkish { background: none; border: 0; padding: 0; color: #1e5a3c; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
 @media (max-width: 520px) {
   .dc-lines-head { grid-template-columns: 1fr 64px; } .dc-lines-head span:nth-child(2) { display: none; }

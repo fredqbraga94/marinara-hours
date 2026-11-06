@@ -82,10 +82,13 @@ try {
     assert.equal(r.status, 200);
     const d = (await api(vNew, 1, gm, { action: "manager_dish_costs" })).body.data;
     const m = d.recipes.find((x) => x.id === marg);
-    assert.equal(Number(m.sell_price), 23.5, "price kept when not sent");
-    const line = m.lines.find((l) => l.ref_id === mozz);
-    assert.deepEqual([Number(line.qty), line.unit, line.kind], [130, "g", "ingredient"]);
-    assert.ok(m.lines.every((l) => l.ref_id !== mozz ? l.qty == null : true), "other lines not counted");
+    assert.equal(m.sizes.length, 1);
+    assert.equal(m.sizes[0].size, "");
+    assert.equal(Number(m.sizes[0].sell_price), 23.5, "price kept when not sent");
+    assert.equal(m.sizes[0].portions.length, 1, "other lines not counted");
+    const line = m.sizes[0].portions[0];
+    assert.deepEqual([line.ref_id, Number(line.qty), line.unit, line.kind, line.product], [mozz, 130, "g", "ingredient", null]);
+    assert.ok(m.lines.some((l) => l.ref_id === mozz && l.kind === "ingredient"));
     // Empty amount = left out.
     r = await api(vNew, 2, km, { action: "manager_dish_cost_save", recipe_id: marg, dish: { portions: [{ kind: "ingredient", ref_id: mozz, qty: "" }] } });
     assert.equal(r.status, 200);
@@ -116,10 +119,40 @@ try {
     const d = (await api(vNew, 1, gm, { action: "manager_dish_costs" })).body.data;
     assert.deepEqual(d.ingredients.find((i) => i.id === mince).manual, { price: 10, unit: "kg", note: "Test estimate" });
     assert.equal(Number(d.recipes.find((x) => x.id === bolo).manual.price), 9);
-    assert.deepEqual([Number(d.recipes.find((x) => x.id === bolo).yield_qty), d.recipes.find((x) => x.id === bolo).yield_unit], [16, "kg"]);
+    const bs = d.recipes.find((x) => x.id === bolo).sizes[0];
+    assert.deepEqual([Number(bs.yield_qty), bs.yield_unit], [16, "kg"]);
     r = await api(vNew, 2, km, { action: "manager_cost_price_save", kind: "recipe", ref_id: bolo, price: null });
     assert.equal(r.status, 200);
     assert.equal(await one(`select count(*) from public.cost_manual_prices where ref_id = '${bolo}'`), "0");
+  });
+  await check("a second size (Main) with its own price and amounts; removed", async () => {
+    let r = await api(vNew, 2, km, { action: "manager_dish_cost_save", recipe_id: marg, dish: { size: "Main", sell_price: 30, portions: [{ kind: "ingredient", ref_id: mozz, qty: 200, unit: "g" }] } });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    let m = (await api(vNew, 1, gm, { action: "manager_dish_costs" })).body.data.recipes.find((x) => x.id === marg);
+    assert.deepEqual(m.sizes.map((s) => [s.size, Number(s.sell_price), s.portions.length]), [["", 23.5, 0], ["Main", 30, 1]]);
+    assert.equal((await api(vNew, 2, km, { action: "manager_dish_cost_save", recipe_id: marg, dish: { remove: true } })).status, 400, "the first size stays");
+    r = await api(vNew, 2, km, { action: "manager_dish_cost_save", recipe_id: marg, dish: { size: "Main", remove: true } });
+    assert.equal(r.status, 200);
+    m = (await api(vNew, 1, gm, { action: "manager_dish_costs" })).body.data.recipes.find((x) => x.id === marg);
+    assert.deepEqual(m.sizes.map((s) => s.size), [""]);
+  });
+  await check("a line with its own invoice product (pieces); a product not in the invoices refused", async () => {
+    const inv = { supplier: "Test Seafood Co", number: "TS-1", kind: "invoice", date: "2026-11-01", subtotal: 21, gst: 0, total: 21, checks_ok: true,
+      lines: [{ code: "TS-PRAWN", description: "Test prawn cutlet 13/15 700g", qty: 1, unit: "pk", unit_price: 21, line_total: 21, gst: 0 }] };
+    assert.equal((await api(vNew, 1, gm, { action: "manager_invoice_save", invoice: inv })).status, 200);
+    const prods = (await api(vNew, 1, gm, { action: "manager_dish_costs" })).body.data.products;
+    const pr = prods.find((p) => p.supplier === "Test Seafood Co");
+    assert.ok(pr && Number(pr.price) === 21, JSON.stringify(prods));
+    const product = { supplier: pr.supplier, product_key: pr.product_key, label: pr.description, pack_count: 1, pack_size: 21, pack_unit: "each" };
+    let r = await api(vNew, 2, km, { action: "manager_dish_cost_save", recipe_id: marg, dish: { portions: [{ kind: "ingredient", ref_id: mozz, qty: 7, unit: "each", product }] } });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const m = (await api(vNew, 1, gm, { action: "manager_dish_costs" })).body.data.recipes.find((x) => x.id === marg);
+    const p = m.sizes[0].portions[0].product;
+    assert.deepEqual([p.supplier, Number(p.pack_size), p.pack_unit, Number(p.price)], ["Test Seafood Co", 21, "each", 21]);
+    r = await api(vNew, 2, km, { action: "manager_dish_cost_save", recipe_id: marg, dish: { portions: [{ kind: "ingredient", ref_id: mozz, qty: 7, unit: "each", product: { ...product, product_key: "nope" } }] } });
+    assert.equal(r.status, 404);
+    r = await api(vNew, 2, km, { action: "manager_dish_cost_save", recipe_id: marg, dish: { portions: [{ kind: "ingredient", ref_id: mozz, qty: 7, unit: "each", product: { ...product, pack_unit: "box" } }] } });
+    assert.equal(r.status, 400);
   });
   await check("staff and other units are refused", async () => {
     const st = await login(vNew, 4);

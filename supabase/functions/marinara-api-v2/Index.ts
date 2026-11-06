@@ -362,6 +362,7 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   INVOICE_DUPLICATE: [409, "This invoice is already saved."],
   INGREDIENT_NOT_FOUND: [404, "Ingredient not found"],
   LINE_NOT_FOUND: [404, "That ingredient is no longer in the recipe. Refresh and try again."],
+  PRODUCT_NOT_FOUND: [404, "That product is not in your saved invoices any more. Choose another one."],
   NAME_IS_A_DISH: [409, "There is already a dish with this name. Rename the ingredient first."],
   ITEM_NOT_FOUND: [404, "Item not found"],
   ACTION_REQUIRED: [400, "The temperature is outside the safe range. Write what you did about it."],
@@ -3807,8 +3808,12 @@ Deno.serve(async (req) => {
           if (!isUuid(id)) return json({ error: "Dish not found", code: "RECIPE_NOT_FOUND" }, 404);
           const d = body.dish && typeof body.dish === "object" ? body.dish : {};
           const UNITS = ["g", "kg", "ml", "l", "each"];
-          const out: any = {};
+          const out: any = { size: text(d.size, 30) || "" };
           const bad = () => json({ error: "Check the numbers: amounts must be more than 0.", code: "INVALID_INPUT" }, 400);
+          if (d.remove === true) {
+            if (!out.size) return bad();
+            out.remove = true;
+          }
           if ("sell_price" in d) {
             if (d.sell_price === null || d.sell_price === "") out.sell_price = null;
             else { const v = amount(d.sell_price, 10000); if (v === null || v <= 0) return bad(); out.sell_price = v; }
@@ -3829,7 +3834,16 @@ Deno.serve(async (req) => {
               if (p.qty === null || p.qty === "" || Number(p.qty) === 0) { out.portions.push({ kind: p.kind, ref_id: p.ref_id, qty: null }); continue; }
               const v = amount(p.qty, 100000);
               if (v === null || v <= 0 || !UNITS.includes(p.unit)) return bad();
-              out.portions.push({ kind: p.kind, ref_id: p.ref_id, qty: v, unit: p.unit });
+              let product: any = null;
+              if (p.product && typeof p.product === "object") {
+                const pr = p.product;
+                const c = amount(pr.pack_count, 100000), z = amount(pr.pack_size, 100000);
+                if (typeof pr.supplier !== "string" || typeof pr.product_key !== "string" || !pr.supplier || !pr.product_key ||
+                    c === null || c <= 0 || z === null || z <= 0 || !UNITS.includes(pr.pack_unit)) return bad();
+                product = { supplier: pr.supplier.slice(0, 120), product_key: pr.product_key.slice(0, 300), label: text(pr.label, 300),
+                  pack_count: c, pack_size: z, pack_unit: pr.pack_unit };
+              }
+              out.portions.push({ kind: p.kind, ref_id: p.ref_id, qty: v, unit: p.unit, product });
             }
           }
           const { data, error } = await supabase.rpc("manager_dish_cost_save", {
