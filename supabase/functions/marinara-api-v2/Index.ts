@@ -361,6 +361,8 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   INVOICE_NOT_FOUND: [404, "Invoice not found"],
   INVOICE_DUPLICATE: [409, "This invoice is already saved."],
   INGREDIENT_NOT_FOUND: [404, "Ingredient not found"],
+  LINE_NOT_FOUND: [404, "That ingredient is no longer in the recipe. Refresh and try again."],
+  PRODUCT_NOT_FOUND: [404, "That product is not in your saved invoices any more. Choose another one."],
   NAME_IS_A_DISH: [409, "There is already a dish with this name. Rename the ingredient first."],
   ITEM_NOT_FOUND: [404, "Item not found"],
   ACTION_REQUIRED: [400, "The temperature is outside the safe range. Write what you did about it."],
@@ -1526,6 +1528,9 @@ Deno.serve(async (req) => {
         "manager_ingredient_costs",
         "manager_ingredient_cost_save",
         "manager_ingredient_make_recipe",
+        "manager_dish_costs",
+        "manager_dish_cost_save",
+        "manager_cost_price_save",
         "manager_recipe_save",
         "manager_recipe_remove",
         "manager_recipe_ingredient_save",
@@ -3710,7 +3715,8 @@ Deno.serve(async (req) => {
       // =========================
       // SUPPLIER INVOICES and INGREDIENT COSTS (Administrator, Kitchen Manager)
       // =========================
-      if (action.startsWith("manager_invoice_") || action.startsWith("manager_ingredient_cost") || action === "manager_ingredient_make_recipe") {
+      if (action.startsWith("manager_invoice_") || action.startsWith("manager_ingredient_cost") || action === "manager_ingredient_make_recipe" ||
+          action === "manager_dish_costs" || action === "manager_dish_cost_save" || action === "manager_cost_price_save") {
         const isUuid = (v: string) =>
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
         const isDate = (v: any) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
@@ -3785,6 +3791,83 @@ Deno.serve(async (req) => {
             p_manager_id: managerStatus.id, p_location: location,
           });
           if (error) return managerDbError(error, "Unable to load ingredient costs", 500);
+          return json({ success: true, action, data });
+        }
+
+        // Dish costs: menu price, how much of each ingredient per plate, prices typed by hand.
+        if (action === "manager_dish_costs") {
+          const { data, error } = await supabase.rpc("manager_dish_costs", {
+            p_manager_id: managerStatus.id, p_location: location,
+          });
+          if (error) return managerDbError(error, "Unable to load dish costs", 500);
+          return json({ success: true, action, data });
+        }
+
+        if (action === "manager_dish_cost_save") {
+          const id = typeof body.recipe_id === "string" ? body.recipe_id : "";
+          if (!isUuid(id)) return json({ error: "Dish not found", code: "RECIPE_NOT_FOUND" }, 404);
+          const d = body.dish && typeof body.dish === "object" ? body.dish : {};
+          const UNITS = ["g", "kg", "ml", "l", "each"];
+          const out: any = { size: text(d.size, 30) || "" };
+          const bad = () => json({ error: "Check the numbers: amounts must be more than 0.", code: "INVALID_INPUT" }, 400);
+          if (d.remove === true) {
+            if (!out.size) return bad();
+            out.remove = true;
+          }
+          if ("sell_price" in d) {
+            if (d.sell_price === null || d.sell_price === "") out.sell_price = null;
+            else { const v = amount(d.sell_price, 10000); if (v === null || v <= 0) return bad(); out.sell_price = v; }
+          }
+          if ("yield_qty" in d) {
+            if (d.yield_qty === null || d.yield_qty === "") { out.yield_qty = null; out.yield_unit = null; }
+            else {
+              const v = amount(d.yield_qty, 100000);
+              if (v === null || v <= 0 || !UNITS.includes(d.yield_unit)) return bad();
+              out.yield_qty = v; out.yield_unit = d.yield_unit;
+            }
+          }
+          if (Array.isArray(d.portions)) {
+            if (d.portions.length > 200) return bad();
+            out.portions = [];
+            for (const p of d.portions) {
+              if (!p || !["ingredient", "recipe"].includes(p.kind) || typeof p.ref_id !== "string" || !isUuid(p.ref_id)) return bad();
+              if (p.qty === null || p.qty === "" || Number(p.qty) === 0) { out.portions.push({ kind: p.kind, ref_id: p.ref_id, qty: null }); continue; }
+              const v = amount(p.qty, 100000);
+              if (v === null || v <= 0 || !UNITS.includes(p.unit)) return bad();
+              let product: any = null;
+              if (p.product && typeof p.product === "object") {
+                const pr = p.product;
+                const c = amount(pr.pack_count, 100000), z = amount(pr.pack_size, 100000);
+                if (typeof pr.supplier !== "string" || typeof pr.product_key !== "string" || !pr.supplier || !pr.product_key ||
+                    c === null || c <= 0 || z === null || z <= 0 || !UNITS.includes(pr.pack_unit)) return bad();
+                product = { supplier: pr.supplier.slice(0, 120), product_key: pr.product_key.slice(0, 300), label: text(pr.label, 300),
+                  pack_count: c, pack_size: z, pack_unit: pr.pack_unit };
+              }
+              out.portions.push({ kind: p.kind, ref_id: p.ref_id, qty: v, unit: p.unit, product });
+            }
+          }
+          const { data, error } = await supabase.rpc("manager_dish_cost_save", {
+            p_manager_id: managerStatus.id, p_location: location, p_recipe_id: id, p_data: out,
+          });
+          if (error) return managerDbError(error, "Unable to save the dish");
+          return json({ success: true, action, data });
+        }
+
+        if (action === "manager_cost_price_save") {
+          const id = typeof body.ref_id === "string" ? body.ref_id : "";
+          const kind = body.kind === "recipe" ? "recipe" : body.kind === "ingredient" ? "ingredient" : "";
+          if (!kind || !isUuid(id)) return json({ error: "Ingredient not found", code: "INGREDIENT_NOT_FOUND" }, 404);
+          let price: any = null;
+          if (body.price && typeof body.price === "object") {
+            const v = amount(body.price.price, 100000);
+            const unit = ["kg", "l", "each"].includes(body.price.unit) ? body.price.unit : "";
+            if (v === null || v <= 0 || !unit) return json({ error: "Write a price more than $0 and choose per kg, litre or each.", code: "INVALID_INPUT" }, 400);
+            price = { price: v, unit, note: text(body.price.note, 200) };
+          }
+          const { data, error } = await supabase.rpc("manager_cost_price_save", {
+            p_manager_id: managerStatus.id, p_location: location, p_kind: kind, p_ref_id: id, p_price: price,
+          });
+          if (error) return managerDbError(error, "Unable to save the price");
           return json({ success: true, action, data });
         }
 
