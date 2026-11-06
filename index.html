@@ -1414,6 +1414,41 @@ body.mgr-mode #recipesTabs button.selected { color: var(--ink, #000); }
 .team-choice span { display: grid; gap: 2px; font-size: 14px; color: #1d2328; }
 .team-choice b { font-weight: 600; }
 .team-choice small { font-size: 12.5px; color: #66717a; line-height: 1.35; }
+/* Dish costs (Invoices → Costs → Dishes) */
+.dc-switch { margin: 4px 0 10px; }
+.dc-list { display: grid; gap: 8px; }
+.dc-pct { font-weight: 700; font-size: 13px; padding: 2px 9px; border-radius: 999px; font-variant-numeric: tabular-nums; }
+.dc-pct.ok, .dc-totals b.ok { color: #1e6b3a; } .dc-pct.ok { background: #e3f3e8; }
+.dc-pct.mid, .dc-totals b.mid { color: #8a5a00; } .dc-pct.mid { background: #fff1d1; }
+.dc-pct.hi, .dc-totals b.hi { color: #a3261c; } .dc-pct.hi { background: #fde4e1; }
+.dc-edit { display: grid; gap: 10px; padding: 4px 2px 6px; }
+.dc-field { display: grid; gap: 4px; }
+.dc-field label, .dc-label { font-size: 13px; font-weight: 600; color: #4a5560; }
+.dc-field small, .dc-line small, .dc-tip { font-size: 12.5px; color: #6a747c; line-height: 1.35; }
+.dc-row { display: flex; gap: 6px; align-items: center; }
+.dc-row input { flex: 1; min-width: 0; }
+.dc-dollar { font-weight: 600; color: #4a5560; }
+.dc-edit input, .dc-edit select { font-size: 16px; padding: 8px 10px; border: 1px solid #cfd6dc; border-radius: 9px; background: #fff; color: #1d2328; box-sizing: border-box; }
+.dc-lines-head { display: grid; grid-template-columns: 1fr 150px 64px; gap: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #6a747c; border-bottom: 1px solid #e3e7ea; padding-bottom: 4px; }
+.dc-lines-head span:last-child, .dc-line-cost { text-align: right; }
+.dc-line { display: grid; grid-template-columns: 1fr 150px 64px; gap: 8px; align-items: start; padding: 6px 0; border-bottom: 1px solid #f0f2f4; }
+.dc-line.off .dc-line-name strong { color: #8a949b; font-weight: 500; }
+.dc-line-name { display: grid; gap: 2px; min-width: 0; }
+.dc-line-name em { font-style: normal; font-weight: 400; font-size: 12px; color: #6a747c; }
+.dc-line-qty { display: flex; gap: 4px; }
+.dc-line-qty input { width: 76px; min-width: 0; text-align: right; }
+.dc-line-qty select { width: 70px; padding: 8px 4px; }
+.dc-line-cost { font-variant-numeric: tabular-nums; font-weight: 600; padding-top: 9px; font-size: 14px; }
+.dc-miss { color: #a3261c; font-weight: 600; font-size: 12px; }
+.dc-totals { display: grid; gap: 4px; background: #f6f8f7; border-radius: 10px; padding: 10px 12px; }
+.dc-total { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+.dc-total b { font-variant-numeric: tabular-nums; }
+.dc-price-form { display: grid; gap: 6px; margin-top: 6px; padding: 8px; border: 1px dashed #cfd6dc; border-radius: 9px; }
+.linkish { background: none; border: 0; padding: 0; color: #1e5a3c; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
+@media (max-width: 520px) {
+  .dc-lines-head { grid-template-columns: 1fr 64px; } .dc-lines-head span:nth-child(2) { display: none; }
+  .dc-line { grid-template-columns: 1fr 64px; } .dc-line-qty { grid-column: 1; grid-row: 2; } .dc-line-cost { grid-column: 2; grid-row: 1 / span 2; }
+}
 .inv-generic { display: grid; gap: 8px; margin: 10px 0 4px; }
 .inv-generic .inv-flag.new { background: #eaf0fb; color: #23457a; }
 .inv-generic label { display: grid; gap: 4px; font-size: 13px; font-weight: 600; color: #4a5560; }
@@ -9975,7 +10010,7 @@ checkDeviceStatus();
 // anything changed, offer a one-tap update (never reload on its own: someone may
 // be typing a PIN or clocking in). The session survives the reload.
 (() => {
-  const FILES = [location.pathname, "./manager-ui.js", "./manager-team-ui.js", "./manager-prices-ui.js", "./manager-top-ui.js", "./own-pin-ui.js", "./manager-photo-ui.js", "./manager-shopping-ui.js", "./manager-maintenance-ui.js", "./manager-temp-ui.js", "./manager-food-ui.js", "./manager-activity-ui.js", "./manager-orders-ui.js", "./manager-hubs-ui.js", "./temp-pdf.js", "./manager-redesign-test.css", "./invoice-reader.js"];
+  const FILES = [location.pathname, "./manager-ui.js", "./manager-team-ui.js", "./manager-prices-ui.js", "./manager-top-ui.js", "./own-pin-ui.js", "./manager-photo-ui.js", "./manager-shopping-ui.js", "./manager-maintenance-ui.js", "./manager-temp-ui.js", "./manager-food-ui.js", "./manager-activity-ui.js", "./manager-orders-ui.js", "./manager-hubs-ui.js", "./manager-dishcost-ui.js", "./temp-pdf.js", "./manager-redesign-test.css", "./invoice-reader.js"];
   let checking = false, lastCheck = 0;
   const text = (url, cache) => fetch(url, { cache }).then(r => (r.ok ? r.text() : null)).catch(() => null);
   async function changed(url) {
@@ -10017,5 +10052,6 @@ checkDeviceStatus();
 <script src="./manager-activity-ui.js"></script>
 <script src="./manager-orders-ui.js"></script>
 <script src="./manager-hubs-ui.js"></script>
+<script src="./manager-dishcost-ui.js"></script>
 </body>
 </html>
