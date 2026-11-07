@@ -1453,6 +1453,15 @@ body.mgr-mode #recipesTabs button.selected { color: var(--ink, #000); }
 .dc-pick-list button { display: grid; gap: 2px; text-align: left; font: inherit; padding: 8px 10px; border: 1px solid #e3e7ea; border-radius: 9px; background: #fff; color: #1d2328; cursor: pointer; }
 .dc-pick-list button strong { font-weight: 600; font-size: 14px; }
 .dc-pick .dc-row input { width: 76px; flex: 0 1 auto; }
+.dc-alert { border: 1px solid #f0c9a8; background: #fff8f1; border-radius: 12px; padding: 12px 14px; margin: 0 0 12px; display: grid; gap: 8px; }
+.dc-alert[hidden], #dcAlert[hidden] { display: none; }
+.dc-alert.down { border-color: #bfe0c9; background: #f3faf5; }
+.dc-alert h3 { margin: 0; font-size: 16px; }
+.dc-alert ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 14px; }
+.dc-alert li { display: flex; justify-content: space-between; gap: 10px; }
+.dc-alert li span:last-child { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dc-alert .up { color: #a3261c; font-weight: 600; } .dc-alert .dn { color: #1e6b3a; font-weight: 600; }
+.dc-alert small { color: #6a747c; }
 .linkish { background: none; border: 0; padding: 0; color: #1e5a3c; font: inherit; font-weight: 600; text-decoration: underline; cursor: pointer; }
 @media (max-width: 520px) {
   .dc-lines-head { grid-template-columns: 1fr 64px; } .dc-lines-head span:nth-child(2) { display: none; }
@@ -2346,6 +2355,7 @@ button:disabled{opacity:.6}
     <label class="btn primary inv-add" for="invFiles">+ Add invoices (PDF)</label>
     <input id="invFiles" type="file" accept="application/pdf,.pdf" multiple hidden>
     <p class="inv-hint">Read on this device from the text inside the PDF. Nothing is sent to any other service.</p>
+    <div id="dcAlert" hidden></div>
     <div id="invReview"></div>
     <div class="stock-chips" id="invPeriods">
       <button type="button" data-inv-period="week" class="selected">This week</button>
@@ -8598,7 +8608,7 @@ async function invReadFiles(files) {
       const inv = await window.MarinaraInvoiceReader.readPdf(new Uint8Array(await f.arrayBuffer()), "./");
       slot.reading = false;
       if (inv.error) slot.error = "No table of products was found in this PDF (a photo or scan can't be read). Send it to Fred if it's a normal PDF.";
-      else { slot.invoice = inv; if (inv.generic) await invNameSupplier(inv); slot.duplicate = await invAlreadySaved(inv); }
+      else { slot.invoice = inv; if (inv.generic) await invNameSupplier(inv); slot.duplicate = await invAlreadySaved(inv); window.MarinaraDishCost?.prefetch?.(); }
     } catch (error) {
       slot.reading = false;
       slot.error = "Could not read this PDF. " + (error?.message || "");
@@ -9054,6 +9064,8 @@ invoicesScreen?.addEventListener("click", async e => {
       }
       invRenderReview();
       invMsg(`Saved: ${inv.supplier} #${inv.number}.`, true);
+      // Dish costs: which dishes got dearer (or cheaper) with this invoice.
+      window.MarinaraDishCost?.afterInvoiceSave?.(inv);
       loadInvoices();
     } catch (error) {
       if (error.code === "INVOICE_DUPLICATE") { slot.duplicate = true; invRenderReview(); return; }

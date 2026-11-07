@@ -41,7 +41,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
   window.__calls=[];const orig=managerApi;
   managerApi=async(action,extra={})=>{window.__calls.push([action,JSON.parse(JSON.stringify(extra))]);
    if(action==='manager_ingredient_costs')return{location:'Hawthorne',ingredients:[],products:[]};
-   if(action==='manager_dish_costs')return JSON.parse(JSON.stringify({location:'Hawthorne',recipes:rec,ingredients:ing,products}));
+   if(action==='manager_dish_costs'){if(window.__bumpCheese){ing[0].invoice.price=12;}return JSON.parse(JSON.stringify({location:'Hawthorne',recipes:rec,ingredients:ing,products}));}
    if(action==='manager_dish_cost_save'){const r=rec.find(x=>x.id===extra.recipe_id);const d=extra.dish;const size=d.size||'';
      if(d.remove){r.sizes=r.sizes.filter(s=>s.size!==size);return{recipe_id:r.id};}
      let s=r.sizes.find(x=>x.size===size);if(!s){s={size,sell_price:null,portions:[]};r.sizes.push(s);}
@@ -151,6 +151,26 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.match(await page.locator('.dc-dish',{hasText:'Test Sauce'}).innerText(),/\$2\.00\/l/);
  await page.locator('#dcFilter [data-dc-filter="todo"]').click();
  assert.match(await page.locator('#dcList').innerText(),/Test No Price/);
+ // After an invoice is saved: the price went up → the dishes it changes are shown.
+ await page.locator('#invTabs [data-inv-tab="list"]').click();
+ await page.evaluate(()=>window.MarinaraDishCost.forget());
+ await page.evaluate(()=>window.MarinaraDishCost.prefetch());
+ await page.evaluate(()=>{window.__bumpCheese=true;});
+ await page.evaluate(()=>window.MarinaraDishCost.afterInvoiceSave({supplier:'Test Dairy',number:'TD-9'}));
+ const alertBox=page.locator('#dcAlert');
+ await alertBox.waitFor({state:'visible'});
+ const at=await alertBox.innerText();
+ assert.match(at,/Dishes got dearer with Test Dairy #TD-9/);
+ assert.match(at,/Test Cheese\s+\$10\.00 → \$12\.00\/kg \(\+20%\)/);
+ assert.match(at,/Test Pizza\s+\+\$0\.30 · 8\.6% → 10\.0%/,'150 g × $2 more');
+ assert.doesNotMatch(at,/Test Oysters/,'dishes without cheese are not listed');
+ await page.screenshot({path:`tmp/qa/${size}-dish-cost-alert.png`});
+ await alertBox.locator('[data-dc-alert-close]').click();
+ assert.equal(await alertBox.isVisible(),false);
+ // Nothing changed: no box.
+ await page.evaluate(()=>window.MarinaraDishCost.afterInvoiceSave({supplier:'Test Dairy',number:'TD-10'}));
+ assert.equal(await alertBox.isVisible(),false);
+ await page.locator('#invTabs [data-inv-tab="costs"]').click();
  // The ingredient price list is still there.
  await page.locator('#dcSwitch [data-dc-mode="ingredients"]').click();
  await page.locator('#dcIngredients').waitFor({state:'visible'});

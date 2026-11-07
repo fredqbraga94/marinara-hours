@@ -98,6 +98,88 @@ function engine(data) {
 }
 window.MarinaraDishCost = { engine, view, toBase, productPrice };
 
+/* ---------- after an invoice is saved: what changed in the dishes ---------- */
+// Prices before the invoice (taken while it is being checked) and after it.
+let before = null;
+function prefetch() {
+  if (!before) before = managerApi('manager_dish_costs').catch(() => null);
+  return before;
+}
+function forget() { before = null; }
+const PREP_CATS = ['Sauce', 'Dressing', 'Prep'];
+// Per ingredient / product: the price per kg, litre or each.
+function unitPrices(data) {
+  const e = engine(data), out = new Map();
+  for (const i of data.ingredients || []) { const p = e.priceOf('ingredient', i.id); if (p) out.set(`i|${i.id}`, { name: i.name, ...p }); }
+  for (const r of data.recipes || []) for (const s of r.sizes || []) for (const p of s.portions || []) {
+    const pp = productPrice(p.product);
+    if (pp) out.set(`p|${p.product.supplier}|${p.product.product_key}|${p.product.pack_count}|${p.product.pack_size}|${p.product.pack_unit}`,
+      { name: (r.lines.find(l => l.ref_id === p.ref_id) || {}).name || p.product.label, ...pp });
+  }
+  return out;
+}
+function dishCosts(data) {
+  const e = engine(data), out = new Map();
+  for (const r of data.recipes || []) {
+    if (PREP_CATS.includes(r.category)) continue;
+    for (const s of r.sizes || []) {
+      const d = e.dish(view(r, s.size));
+      if (d.counted && d.complete) out.set(`${r.id}|${s.size}`, { name: r.name + ((r.sizes || []).length > 1 ? ` (${s.size || 'Regular'})` : ''), cost: d.cost, pct: d.pct });
+    }
+  }
+  return out;
+}
+function compare(a, b) {
+  const pa = unitPrices(a), pb = unitPrices(b), da = dishCosts(a), db = dishCosts(b);
+  const prices = [];
+  const seen = new Set();
+  for (const [k, n] of pb) {
+    const o = pa.get(k);
+    if (!o || o.unit !== n.unit || !(o.price > 0)) continue;
+    const ch = (n.price - o.price) / o.price;
+    if (Math.abs(ch) < 0.005 || seen.has(n.name)) continue;
+    seen.add(n.name);
+    prices.push({ name: n.name, from: o.price, to: n.price, unit: n.unit, ch });
+  }
+  const dishes = [];
+  for (const [k, n] of db) {
+    const o = da.get(k);
+    if (!o || Math.abs(n.cost - o.cost) < 0.01) continue;
+    dishes.push({ name: n.name, from: o.cost, to: n.cost, pctFrom: o.pct, pctTo: n.pct, diff: n.cost - o.cost });
+  }
+  prices.sort((x, y) => Math.abs(y.ch) - Math.abs(x.ch));
+  dishes.sort((x, y) => Math.abs(y.diff) - Math.abs(x.diff));
+  return { prices, dishes };
+}
+const pctTxt = v => v == null ? '' : `${v.toFixed(1)}%`;
+function showAlert(inv, res) {
+  const box = $('dcAlert');
+  if (!box) return;
+  if (!res.prices.length && !res.dishes.length) { box.hidden = true; box.innerHTML = ''; return; }
+  const up = res.dishes.length ? res.dishes.filter(d => d.diff > 0).length >= res.dishes.length / 2 : res.prices.some(p => p.ch > 0);
+  const sign = v => (v > 0 ? '+' : '−');
+  const MAX = 8;
+  box.className = `dc-alert${up ? '' : ' down'}`;
+  box.innerHTML = `<h3>${up ? 'Dishes got dearer' : 'Dishes got cheaper'} with ${t(inv.supplier)} #${t(inv.number)}</h3>
+    ${res.prices.length ? `<ul>${res.prices.slice(0, MAX).map(p => `<li><span>${t(p.name)}</span><span class="${p.ch > 0 ? 'up' : 'dn'}">${money(p.from)} → ${money(p.to)}/${t(p.unit)} (${sign(p.ch)}${Math.abs(p.ch * 100).toFixed(0)}%)</span></li>`).join('')}</ul>` : ''}
+    ${res.dishes.length ? `<small>Dishes this changes (food cost per plate):</small>
+      <ul>${res.dishes.slice(0, MAX).map(d => `<li><span>${t(d.name)}</span><span class="${d.diff > 0 ? 'up' : 'dn'}">${sign(d.diff)}${money(Math.abs(d.diff))} · ${pctTxt(d.pctFrom)} → ${pctTxt(d.pctTo)}</span></li>`).join('')}</ul>
+      ${res.dishes.length > MAX ? `<small>and ${res.dishes.length - MAX} more dishes. See them in Costs → Dishes.</small>` : ''}` : '<small>No dish on the menu uses these yet.</small>'}
+    <div class="inv-cost-actions"><button type="button" data-dc-alert-close>OK</button></div>`;
+  box.hidden = false;
+  box.querySelector('[data-dc-alert-close]').onclick = () => { box.hidden = true; };
+}
+async function afterInvoiceSave(inv) {
+  try {
+    const a = await (before || Promise.resolve(null));
+    const b = await managerApi('manager_dish_costs');
+    before = Promise.resolve(b);           // the next invoice compares with this one
+    if (state.data) { state.data = b; state.eng = engine(b); }
+    if (a) showAlert(inv, compare(a, b));
+  } catch (_) { /* the invoice is saved; the comparison is only extra */ }
+}
+Object.assign(window.MarinaraDishCost, { prefetch, afterInvoiceSave, compare, forget });
+
 /* ---------- screen ---------- */
 const state = { mode: 'dishes', data: null, eng: null, filter: 'dishes', q: '', open: null, size: null, draft: null, priceFor: null, pick: null, addSize: false, removeArm: false, busy: false };
 let built = false;
@@ -434,6 +516,7 @@ async function onClick(e) {
     state.busy = true; ps.disabled = true;
     try {
       await managerApi('manager_cost_price_save', { kind, ref_id, price });
+      forget();
       state.priceFor = null;
       await reloadKeepingDraft();
       msg(price ? 'Price saved.' : 'Price removed.', true);
@@ -452,6 +535,7 @@ async function onClick(e) {
     state.busy = true; sv.disabled = true;
     try {
       await managerApi('manager_dish_cost_save', { recipe_id: r.id, dish });
+      forget();
       state.draft = null; state.size = dr.size;
       await load();
       msg(`Saved: ${r.name}${dr.size ? ` (${dr.size})` : ''}.`, true);
@@ -468,5 +552,5 @@ if (typeof invShowTab === 'function') {
     if (tab === 'costs') { build(); setMode(state.mode); }
   };
 }
-window.addEventListener('marinara:session-reset', () => { Object.assign(state, { data: null, eng: null, open: null, size: null, draft: null, priceFor: null, pick: null, addSize: false }); });
+window.addEventListener('marinara:session-reset', () => { forget(); const a = $('dcAlert'); if (a) { a.hidden = true; a.innerHTML = ''; } Object.assign(state, { data: null, eng: null, open: null, size: null, draft: null, priceFor: null, pick: null, addSize: false }); });
 })();
