@@ -55,7 +55,7 @@ function withYear(book,top){
  return out;
 }
 // Forget the cached list (after an invoice is saved or removed).
-window.mhPricesReset=(all)=>{state.at=0;if(all){state.gen=(state.gen||0)+1;state.products=[];state.open=null;window.mhPriceUps=[];}};
+window.mhPricesReset=(all)=>{state.at=0;window.MarinaraCompare?.reset();if(all){state.gen=(state.gen||0)+1;state.products=[];state.open=null;window.mhPriceUps=[];}};
 
 /* ---------- Prices tab ---------- */
 let built=false;
@@ -67,12 +67,15 @@ function build(){
  <div class="card pb-card"><div id="pbList" class="empty-state">Loading…</div></div>`;
  $('pbChips').addEventListener('click',e=>{const b=e.target.closest('[data-pb-filter]');if(!b)return;state.filter=b.dataset.pbFilter;state.open=null;render();});
  $('pbSearch').addEventListener('input',()=>{state.open=null;render();});
- $('pbList').addEventListener('click',e=>{const b=e.target.closest('[data-pb]');if(!b)return;state.open=state.open===b.dataset.pb?null:b.dataset.pb;render();});
+ $('pbList').addEventListener('click',e=>{if(state.filter==='compare')return;const b=e.target.closest('[data-pb]');if(!b)return;state.open=state.open===b.dataset.pb?null:b.dataset.pb;render();});
 }
-const FILTERS=[['all','All',()=>true],['up','Went up',up],['down','Went down',down],['often','Bought often',p=>p.times>=OFTEN]];
+const FILTERS=[['all','All',()=>true],['up','Went up',up],['down','Went down',down],['often','Bought often',p=>p.times>=OFTEN],['compare','Compare suppliers',null]];
 function render(){
  const list=state.products;
- $('pbChips').innerHTML=FILTERS.map(([k,l,f])=>`<button type="button" data-pb-filter="${k}" aria-pressed="${state.filter===k}">${l} <span>${list.filter(f).length}</span></button>`).join('');
+ $('pbChips').innerHTML=FILTERS.map(([k,l,f])=>`<button type="button" data-pb-filter="${k}" aria-pressed="${state.filter===k}">${l}${f?` <span>${list.filter(f).length}</span>`:''}</button>`).join('');
+ // Compare suppliers: its own view (manager-compare-ui.js).
+ $('pbSearch').hidden=state.filter==='compare';
+ if(state.filter==='compare'){const box=$('pbList');if(!list.length){box.className='empty-state';box.textContent='No prices yet. They appear here as soon as you save supplier invoices.';return;}window.MarinaraCompare?.render(box,list);return;}
  const q=$('pbSearch').value.trim().toLowerCase();
  const f=FILTERS.find(x=>x[0]===state.filter)[2];
  let rows=list.filter(p=>f(p)&&(!q||`${p.description} ${p.supplier} ${p.code||''}`.toLowerCase().includes(q)));
