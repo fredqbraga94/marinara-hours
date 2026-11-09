@@ -64,6 +64,7 @@ jobs:
       - run: npm run test:dish-costs
       - run: npm run test:suppliers
       - run: npm run test:notes
+      - run: npm run test:ingredient-edit
       - run: npm run test:temp-reminder
       - run: npm run test:unit-switch
       - run: npm run test:maintenance
@@ -99,6 +100,7 @@ jobs:
       - run: npm run test:e2e:dish-costs
       - run: npm run test:e2e:suppliers
       - run: npm run test:e2e:notes
+      - run: npm run test:e2e:ingredient-edit
       - run: npm run test:e2e:prices-year
       - run: npm run test:e2e:maintenance
   browser-webkit:
@@ -132,6 +134,7 @@ jobs:
       - run: npm run test:e2e:dish-costs:webkit
       - run: npm run test:e2e:suppliers:webkit
       - run: npm run test:e2e:notes:webkit
+      - run: npm run test:e2e:ingredient-edit:webkit
       - run: npm run test:e2e:prices-year:webkit
       - run: npm run test:e2e:maintenance:webkit
   hardening:

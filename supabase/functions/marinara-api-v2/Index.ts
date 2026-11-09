@@ -364,6 +364,7 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   LINE_NOT_FOUND: [404, "That ingredient is no longer in the recipe. Refresh and try again."],
   PRODUCT_NOT_FOUND: [404, "That product is not in your saved invoices any more. Choose another one."],
   NAME_IS_A_DISH: [409, "There is already a dish with this name. Rename the ingredient first."],
+  INGREDIENT_EXISTS: [409, "There is already an ingredient with this name."],
   ITEM_NOT_FOUND: [404, "Item not found"],
   SUPPLIER_EXISTS: [409, "This supplier is already on the list."],
   ACTION_REQUIRED: [400, "The temperature is outside the safe range. Write what you did about it."],
@@ -1532,6 +1533,7 @@ Deno.serve(async (req) => {
         "manager_dish_costs",
         "manager_dish_cost_save",
         "manager_cost_price_save",
+        "manager_ingredient_rename",
         "manager_recipe_save",
         "manager_recipe_remove",
         "manager_recipe_ingredient_save",
@@ -3793,7 +3795,7 @@ Deno.serve(async (req) => {
       // SUPPLIER INVOICES and INGREDIENT COSTS (Administrator, Kitchen Manager)
       // =========================
       if (action.startsWith("manager_invoice_") || action.startsWith("manager_ingredient_cost") || action === "manager_ingredient_make_recipe" ||
-          action === "manager_dish_costs" || action === "manager_dish_cost_save" || action === "manager_cost_price_save") {
+          action === "manager_ingredient_rename" || action === "manager_dish_costs" || action === "manager_dish_cost_save" || action === "manager_cost_price_save") {
         const isUuid = (v: string) =>
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
         const isDate = (v: any) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
@@ -3946,6 +3948,23 @@ Deno.serve(async (req) => {
           });
           if (error) return managerDbError(error, "Unable to save the price");
           return json({ success: true, action, data });
+        }
+
+        if (action === "manager_ingredient_rename") {
+          const id = typeof body.ingredient_id === "string" ? body.ingredient_id : "";
+          if (!isUuid(id)) return json({ error: "Ingredient not found", code: "INGREDIENT_NOT_FOUND" }, 404);
+          const name = text(body.name, 80).replace(/\s+/g, " ");
+          if (!name) return json({ error: "Write the new name.", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_ingredient_rename", {
+            p_manager_id: managerStatus.id, p_location: location, p_ingredient_id: id, p_name: name,
+          });
+          if (error) {
+            if (dbErrorCode(error) === "NAME_IS_A_DISH") {
+              return json({ error: "This name belongs to something made in the kitchen (a sauce or prep). Choose another name.", code: "NAME_IS_A_DISH" }, 409);
+            }
+            return managerDbError(error, "Unable to rename the ingredient");
+          }
+          return json({ success: true, action, data: { ingredient: data } });
         }
 
         if (action === "manager_ingredient_make_recipe") {
