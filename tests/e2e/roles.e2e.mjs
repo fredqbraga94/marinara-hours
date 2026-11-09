@@ -270,6 +270,10 @@ try {
     // The app itself still keeps both times (for hours and the visa check).
     const saved = await db.admin.query(`select start_time::text, end_time::text from public.roster_entries where staff_id = '${id}' and work_date = '${d}'`).then((r) => r.rows[0]);
     await gm.page.click('[data-roster-dept="Kitchen"]');
+    await gm.page.evaluate(async (w) => loadRoster(w), week);
+    const kitchen = await gm.page.evaluate(() => rosterPdfReport());
+    assert.equal(kitchen.noHours, true, "no Hours column on the Kitchen PDF either");
+    assert.ok(!/planned hours/i.test(kitchen.legend), kitchen.legend);
     assert.equal(cell, "5pm");
     assert.equal(rep.noHours, true);
     assert.ok(!/\d(am|pm)-\d/.test(rep.legend), rep.legend);

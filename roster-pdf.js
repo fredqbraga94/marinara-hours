@@ -47,7 +47,7 @@
   }
 
   // report: {place, week, legend, logo, days:[{label, holiday}], groups:[{name, rows:[{name, cells:[7], hours}]}], noHours?}
-  // noHours: leave out the Hours column (Floor: no finish times on the PDF).
+  // noHours: leave out the Hours column (the app sends it for every roster now).
   function generate(report) {
     const doc = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
     const head = [[
