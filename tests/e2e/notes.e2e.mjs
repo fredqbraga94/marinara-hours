@@ -39,6 +39,8 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.evaluate(()=>{try{localStorage.setItem('mh-notes-dept','Floor');}catch(_){}});
  await page.evaluate(stub,'kitchen_manager');
  assert.equal(await page.locator('#rmModules [data-rm-go="rmOpenNotes"]').count(),1,'card on Home');
+ assert.deepEqual((await page.locator('#rmModules > [data-rm-go]').evaluateAll(es=>es.map(e=>e.dataset.rmGo))).slice(-2),['rmOpenNotes','rmOpenFoodSafety'],'Food Safety next to Notes on Home');
+ await page.locator('#rmModules [data-rm-go="rmOpenFoodSafety"]').click();await page.locator('#foodSafetyScreen').waitFor({state:'visible'});await page.locator('[data-manager-nav="home"]').click();
  await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen').waitFor({state:'visible'});
  await page.locator('#operationsScreen [data-rm-go="rmOpenNotes"]').click();await page.locator('#notesScreen').waitFor({state:'visible'});
  await page.locator('#noteList').filter({hasText:'No Kitchen notes yet.'}).waitFor();

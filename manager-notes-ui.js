@@ -34,6 +34,9 @@ for(const menu of [document.querySelector('#operationsScreen .rm-menu'),document
  const after=menu?.querySelector('[data-rm-go="rmOpenMaintenance"]');if(after)after.insertAdjacentHTML('afterend',row);else menu?.insertAdjacentHTML('beforeend',row);
 }
 if($('rmModules'))$('rmModules').insertAdjacentHTML('beforeend',`<button type="button" class="rm-module" data-rm-go="rmOpenNotes">${ICON}<span><strong>Notes</strong><small>Kitchen and Floor notes</small></span><i>›</i></button>`);
+// Food Safety next to Notes on Home, so the cards stay in pairs.
+const SHIELD='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>';
+if($('rmModules')&&$('rmOpenFoodSafety')&&!$('rmModules').querySelector('[data-rm-go="rmOpenFoodSafety"]'))$('rmModules').insertAdjacentHTML('beforeend',`<button type="button" class="rm-module" data-rm-go="rmOpenFoodSafety">${SHIELD}<span><strong>Food Safety</strong><small>Temperatures, deliveries, cleaning</small></span><i>›</i></button>`);
 
 const msg=(x,ok)=>{const m=$('noteMsg');m.textContent=x||'';m.style.color=ok?'#07613b':x?'#b3261e':'';};
 
