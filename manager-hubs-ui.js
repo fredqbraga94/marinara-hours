@@ -1,6 +1,7 @@
 /* Operations and More in groups, like Food Safety: one row per group, and a
    screen with the group's rows. Team & Hours: Roster, Approvals, Staff Hours,
-   Time Off, Timesheets, My Time Clock. Stock & Orders: Stock, Orders, Shopping.
+   Time Off, Timesheets, My Time Clock. Stock & Orders: Stock, Orders, Suppliers,
+   Shopping.
    The rows keep working as before (same buttons, same permissions). */
 (() => {
 const $=id=>document.getElementById(id);
@@ -11,7 +12,7 @@ const GROUPS=[
   rows:['rosterCard','approvalsCard','staffHoursCard','timeOffCard','timesheetsCard','moreMyClockBtn']},
  {id:'hubStock',title:'Stock & Orders',sub:'Stock count, orders to suppliers, shopping',
   icon:svg('<path d="m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10"/>'),
-  rows:['stockCard','rmOpenOrders','rmOpenShopping']},
+  rows:['stockCard','rmOpenOrders','rmOpenSuppliers','rmOpenShopping']},
 ];
 const ops=document.querySelector('#operationsScreen .rm-menu');
 const more=document.querySelector('#managerMoreScreen .rm-menu');
@@ -40,7 +41,7 @@ function syncHubs(){
   document.querySelectorAll(`[data-rm-hub="${g.id}"]`).forEach(r=>r.classList.toggle('rm-hub-empty',none));}
 }
 // Back: from a group (or Food Safety) to the menu it was opened from; from
-// Orders back to Stock & Orders.
+// Orders and Suppliers back to Stock & Orders.
 const HUB_OPENERS=new Set(['rmOpenHubTeam','rmOpenHubStock','rmOpenFoodSafety']);
 let fromMenu='operations';
 document.addEventListener('click',e=>{const b=e.target.closest('[data-rm-go]');if(b&&HUB_OPENERS.has(b.dataset.rmGo))fromMenu=b.closest('#managerMoreScreen')?'more':'operations';},true);
@@ -49,6 +50,7 @@ function addBack(screenId,onBack){const top=$(screenId)?.querySelector('.manager
 const toMenu=()=>document.querySelector(`[data-manager-nav="${fromMenu}"]`)?.click();
 for(const id of ['hubTeamScreen','hubStockScreen','foodSafetyScreen'])addBack(id,toMenu);
 addBack('orderScreen',()=>$('rmOpenHubStock')?.click());
+addBack('supplierScreen',()=>$('rmOpenHubStock')?.click());
 window.addEventListener('marinara:dashboard',()=>setTimeout(syncHubs,0));
 window.addEventListener('marinara:session-reset',()=>setTimeout(syncHubs,0));
 })();
