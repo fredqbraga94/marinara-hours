@@ -1587,6 +1587,9 @@ Deno.serve(async (req) => {
         "manager_supplier_list",
         "manager_supplier_save",
         "manager_supplier_remove",
+        "manager_note_list",
+        "manager_note_save",
+        "manager_note_remove",
       ]);
 
     if (!managerActions.has(action)) {
@@ -3751,6 +3754,37 @@ Deno.serve(async (req) => {
           if (!isUuid(body.id)) return json({ error: "Supplier not found", code: "ITEM_NOT_FOUND" }, 404);
           const { data, error } = await supabase.rpc("manager_supplier_remove", { p_manager_id: managerStatus.id, p_id: body.id });
           if (error) return managerDbError(error, "Unable to remove the supplier");
+          return json({ success: true, action, data });
+        }
+      }
+
+      // =========================
+      // NOTES: Kitchen and Floor lists (Kitchen/Floor Manager: their own; Administrator: both)
+      // =========================
+      if (action.startsWith("manager_note_")) {
+        const isUuid = (v: any) => typeof v === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const dep = (v: any) => (v === "Kitchen" || v === "Floor" ? v : null);
+        if (action === "manager_note_list") {
+          const { data, error } = await supabase.rpc("manager_note_list", { p_manager_id: managerStatus.id, p_department: dep(body.department) });
+          if (error) return managerDbError(error, "Unable to load notes", 500);
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_note_save") {
+          const n = body.note && typeof body.note === "object" ? body.note : {};
+          if (n.id != null && !isUuid(n.id)) return json({ error: "Note not found", code: "ITEM_NOT_FOUND" }, 404);
+          const note: any = { department: dep(n.department), body: typeof n.body === "string" ? n.body.trim().slice(0, 2000) : "" };
+          if (typeof n.pinned === "boolean") note.pinned = n.pinned;
+          if (n.id) note.id = n.id;
+          if (!note.body) return json({ error: "Write the note first.", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_note_save", { p_manager_id: managerStatus.id, p_note: note });
+          if (error) return managerDbError(error, "Unable to save the note");
+          return json({ success: true, action, data: { note: data } });
+        }
+        if (action === "manager_note_remove") {
+          if (!isUuid(body.id)) return json({ error: "Note not found", code: "ITEM_NOT_FOUND" }, 404);
+          const { data, error } = await supabase.rpc("manager_note_remove", { p_manager_id: managerStatus.id, p_id: body.id });
+          if (error) return managerDbError(error, "Unable to remove the note");
           return json({ success: true, action, data });
         }
       }
