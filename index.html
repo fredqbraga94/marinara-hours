@@ -6920,9 +6920,11 @@ function rosterPdfReport() {
     unit: data.location || "Hawthorne",
     week: `${fmtDay(days[0])} - ${fmtDay(days[6])}`,
     fileName: `${dept}-${week}`,
-    legend: (legendParts.length ? `L = lunch, D = dinner, L/D = both. ${legendParts.join(" · ")}. ` : "") +
-      (startOnly ? "Times are start times." : "Hours are planned hours."),
-    noHours: startOnly,
+    legend: ((legendParts.length ? `L = lunch, D = dinner, L/D = both. ${legendParts.join(" · ")}. ` : "") +
+      (startOnly ? "Times are start times." : "")).trim(),
+    // No Hours column on the printed roster (Kitchen and Floor): the hours
+    // stay in the app, the PDF is only who works when.
+    noHours: true,
     logo: document.querySelector(".login-original-logo")?.src,
     days: days.map(d => ({ label: fmtDay(d), holiday: holidays[d] || "" })),
     groups,
