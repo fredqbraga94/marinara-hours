@@ -50,7 +50,30 @@ async function load(){
  const pref=readDep();
  if(!ask.department&&d.can_choose_department&&pref&&pref!==d.department){d=await managerApi('manager_note_list',{department:pref});if(gen!==state.gen)return;}
  state.data=d;state.dept=d.department;render();
+ refreshPinned().catch(()=>{});
 }
+/* Pinned notes go to Needs attention on Home (one row each). A Kitchen or
+   Floor Manager gets their own pinned notes; the Administrator both lists. */
+const pinned={at:0,gen:0};
+window.mhNotes={pinned:[]};
+function publish(list){window.mhNotes={pinned:list};window.dispatchEvent(new CustomEvent('marinara:notes'));}
+async function refreshPinned(){
+ const gen=++pinned.gen;
+ const first=await managerApi('manager_note_list',{});
+ let lists=[first];
+ if(first.can_choose_department){const other=first.department==='Kitchen'?'Floor':'Kitchen';lists.push(await managerApi('manager_note_list',{department:other}));}
+ if(gen!==pinned.gen)return;
+ pinned.at=Date.now();
+ const order={Kitchen:0,Floor:1};
+ publish(lists.sort((a,b)=>order[a.department]-order[b.department]).flatMap(l=>(l.notes||[]).filter(n=>n.pinned).map(n=>({id:n.id,body:n.body,department:l.department}))));
+}
+// From a Needs attention row: open the note's own list.
+for(const dep of ['Kitchen','Floor']){
+ const b=document.createElement('button');b.type='button';b.id=`rmOpenNotes${dep}`;b.hidden=true;
+ b.onclick=()=>{if(state.data?.can_choose_department!==false){state.dept=dep;try{localStorage.setItem(DEP_KEY,dep);}catch(_){}}state.data=state.data?{...state.data,department:dep,notes:null}:null;resetForm();msg('');opener.click();};
+ document.body.append(b);
+}
+window.addEventListener('marinara:dashboard',()=>{if(Date.now()-pinned.at>60e3)refreshPinned().catch(()=>{});});
 function line(n){
  const removing=state.removing===n.id;
  const by=n.updated_at?`Edited by ${t(n.updated_by||'')} · ${t(when(n.updated_at))}`:`${t(n.created_by||'')} · ${t(when(n.created_at))}`;
@@ -100,5 +123,5 @@ screen.addEventListener('click',e=>{
   else{state.removing=d.noteRemove;render();}
  }
 });
-window.addEventListener('marinara:session-reset',()=>{state.gen++;state.data=null;state.dept=readDep();state.removing=null;resetForm();msg('');render();});
+window.addEventListener('marinara:session-reset',()=>{state.gen++;pinned.gen++;pinned.at=0;publish([]);state.data=null;state.dept=readDep();state.removing=null;resetForm();msg('');render();});
 })();

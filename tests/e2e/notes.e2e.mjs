@@ -68,6 +68,20 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('.note-item').filter({hasText:'QA clean the fryer Friday'}).filter({hasText:'Edited by QA'}).waitFor();
  assert.equal(await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_note_save').every(c=>c[1].note.department==='Kitchen')),true);
  await page.screenshot({path:`tmp/qa/${size}-notes.png`,fullPage:true});
+ // Home: the pinned note is in Needs attention; tapping it opens Notes.
+ await page.evaluate(()=>window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{id:'qa-km',name:'QA'},counts:{unapproved_shifts:0},working:[],permissions:{}}})));
+ await page.locator('[data-manager-nav="home"]').click();await page.locator('#managerScreen').waitFor({state:'visible'});
+ const att=page.locator('#rmAttention [data-rm-go="rmOpenNotesKitchen"]');
+ await att.waitFor();
+ assert.match(await att.innerText(),/QA clean the fryer Friday[\s\S]*Pinned note · Kitchen/);
+ assert.equal(await page.locator('#rmAttention').filter({hasText:'QA order gas'}).count(),0,'only pinned notes');
+ await page.locator('#rmAttention').screenshot({path:`tmp/qa/${size}-home-notes.png`});
+ await att.click();await page.locator('#notesScreen').waitFor({state:'visible'});
+ await page.locator('.note-item').filter({hasText:'QA order gas'}).waitFor();
+ // Unpin: it leaves Needs attention.
+ await page.locator('.note-item').filter({hasText:'QA clean the fryer Friday'}).locator('[data-note-pin]').click();
+ await page.waitForFunction(()=>(window.mhNotes?.pinned||[]).length===0);
+ assert.equal(await page.locator('#rmAttention [data-rm-go^="rmOpenNotes"]').count(),0,'gone from Home once unpinned');
  // Remove (two taps).
  const gas=page.locator('.note-item').filter({hasText:'QA order gas'});
  await gas.locator('[data-note-remove]').click();assert.match(await gas.locator('[data-note-remove]').innerText(),/Tap again/);
@@ -88,13 +102,22 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('.note-item').filter({hasText:'QA kitchen from admin'}).waitFor();
  await page.locator('#noteDept [data-note-dept="Floor"]').click();
  await page.locator('#noteList').filter({hasText:'No Floor notes yet.'}).waitFor();
- await page.locator('#noteBody').fill('QA table 4');await page.locator('#noteSave').click();
+ await page.locator('#noteBody').fill('QA table 4');await page.locator('#notePinned').check();await page.locator('#noteSave').click();
  await page.locator('.note-item').filter({hasText:'QA table 4'}).waitFor();
  assert.equal(await page.locator('.note-item').count(),1,'Floor list only');
  assert.equal(await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_note_save').at(-1)[1].note.department),'Floor');
  assert.equal(await page.evaluate(()=>localStorage.getItem('mh-notes-dept')),'Floor');
+ // The Administrator's Needs attention has the pinned notes of both lists.
+ await page.locator('#noteDept [data-note-dept="Kitchen"]').click();await page.locator('.note-item').filter({hasText:'QA kitchen from admin'}).locator('[data-note-pin]').click();
+ await page.waitForFunction(()=>(window.mhNotes?.pinned||[]).length===2);
+ assert.deepEqual(await page.evaluate(()=>window.mhNotes.pinned.map(n=>n.department+': '+n.body)),['Kitchen: QA kitchen from admin','Floor: QA table 4']);
+ await page.evaluate(()=>window.dispatchEvent(new CustomEvent('marinara:dashboard',{detail:{location:'Hawthorne',manager:{id:'qa-admin',name:'QA'},counts:{unapproved_shifts:0},working:[],permissions:{}}})));
+ await page.locator('[data-manager-nav="home"]').click();
+ await page.locator('#rmAttention [data-rm-go="rmOpenNotesFloor"]').click();await page.locator('#notesScreen').waitFor({state:'visible'});
+ await page.locator('#noteList').filter({hasText:'QA table 4'}).waitFor();
+ assert.equal(await page.locator('#noteDept [data-note-dept="Floor"]').evaluate(b=>b.classList.contains('selected')),true,'opens the Floor list');
  assert.deepEqual(errors,[]);
  await context.close();
 }
-console.log(`PASS (${ENGINE}): notes: Home card and Operations row, Kitchen Manager only Kitchen (no switch, never asks for Floor), add with line breaks, pin to top, edit, remove (two taps), Administrator switches Kitchen/Floor and the phone remembers it, no overflow, sign-out, no JavaScript errors.`);
+console.log(`PASS (${ENGINE}): notes: Home card and Operations row, Kitchen Manager only Kitchen (no switch, never asks for Floor), add with line breaks, pin to top, pinned note in Needs attention (opens Notes; leaves when unpinned), edit, remove (two taps), Administrator switches Kitchen/Floor and the phone remembers it, no overflow, sign-out, no JavaScript errors.`);
 }finally{await browser.close();server.close();}
