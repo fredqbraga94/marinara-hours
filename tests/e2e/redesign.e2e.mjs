@@ -17,7 +17,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.deepEqual(await page.locator('#managerBottomNav > [data-manager-nav]').evaluateAll(es=>es.map(e=>e.dataset.managerNav)),['home','finance','operations','team','more']);
  assert.equal(await page.locator('#managerBottomNav > button:visible').count(),5,'exactly five visible navigation buttons');
  await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen').waitFor({state:'visible'});
- assert.deepEqual(await page.locator('#operationsScreen .rm-menu > [data-rm-go]').evaluateAll(es=>es.map(e=>e.dataset.rmGo)),['rmOpenHubTeam','rmOpenHubStock','rmOpenFoodSafety','recipesCard','rmOpenMaintenance'],'Operations in groups');
+ assert.deepEqual(await page.locator('#operationsScreen .rm-menu > [data-rm-go]').evaluateAll(es=>es.map(e=>e.dataset.rmGo)),['rmOpenHubTeam','rmOpenHubStock','rmOpenFoodSafety','recipesCard','rmOpenMaintenance','rmOpenNotes'],'Operations in groups');
  await page.locator('#operationsScreen [data-rm-go="rmOpenHubTeam"]').click();await page.locator('#hubTeamScreen').waitFor({state:'visible'});
  await page.getByRole('button',{name:'Roster Plan and manage shifts'}).click();await page.locator('#rosterScreen').waitFor({state:'visible'});
  await page.locator('[data-manager-nav="more"]').click();await page.locator('#managerMoreScreen').waitFor({state:'visible'});

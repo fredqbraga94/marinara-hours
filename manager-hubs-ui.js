@@ -33,8 +33,8 @@ for(const g of GROUPS){
   if(first)first.insertAdjacentHTML('beforebegin',row);else more.insertAdjacentHTML('beforeend',row);
   for(const go of g.rows)more.querySelector(`[data-rm-go="${go}"]`)?.remove();}
 }
-// Operations order: the groups first, then Food Safety, Kitchen, Maintenance.
-if(ops)for(const go of ['rmOpenHubTeam','rmOpenHubStock','rmOpenFoodSafety','recipesCard','rmOpenMaintenance']){const r=ops.querySelector(`[data-rm-go="${go}"]`);if(r)ops.append(r);}
+// Operations order: the groups first, then Food Safety, Kitchen, Maintenance, Notes.
+if(ops)for(const go of ['rmOpenHubTeam','rmOpenHubStock','rmOpenFoodSafety','recipesCard','rmOpenMaintenance','rmOpenNotes']){const r=ops.querySelector(`[data-rm-go="${go}"]`);if(r)ops.append(r);}
 // A group row is hidden when the person can open none of its rows.
 function syncHubs(){
  for(const g of GROUPS){const kids=[...document.querySelectorAll(`#${g.id}Menu [data-rm-go]`)];const none=kids.length&&kids.every(k=>k.classList.contains('rm-no-access'));
