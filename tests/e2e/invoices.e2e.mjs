@@ -247,9 +247,9 @@ try {
     await gm.page.click('[data-inv-tab="costs"]');
     await gm.page.waitForSelector("#invCosts .inv-cost");
     const sum = (await gm.page.innerText("#invCostsSummary")).replace(/\s+/g, " ");
-    assert.match(sum, /0 Linked/i); assert.match(sum, /0 Made here/i); assert.match(sum, /2 products in your invoices/i);
+    assert.match(sum, /0 With a price/i); assert.match(sum, /0 Made here/i); assert.match(sum, /2 products in your invoices/i);
     await gm.page.fill("#invCostsSearch", "tomato");
-    const head = gm.page.locator(".inv-cost-head", { hasText: /^Tomato\s*Link/ });
+    const head = gm.page.locator(".inv-cost-head", { hasText: /^Tomato\s*Add price/ });
     await head.first().click();
     await gm.page.waitForSelector(".inv-cost-edit .inv-prod");
     const sugg = await gm.page.locator(".inv-cost-edit .inv-prod").allInnerTexts();
