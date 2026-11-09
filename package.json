@@ -65,6 +65,8 @@
     "test:e2e:notes:webkit": "E2E_BROWSER=webkit node tests/e2e/notes.e2e.mjs",
     "test:e2e:ingredient-edit": "node tests/e2e/ingredient-edit.e2e.mjs",
     "test:e2e:ingredient-edit:webkit": "E2E_BROWSER=webkit node tests/e2e/ingredient-edit.e2e.mjs",
+    "test:e2e:typed-invoice": "node tests/e2e/typed-invoice.e2e.mjs",
+    "test:e2e:typed-invoice:webkit": "E2E_BROWSER=webkit node tests/e2e/typed-invoice.e2e.mjs",
     "test:e2e:dish-costs": "node tests/e2e/dish-costs.e2e.mjs",
     "test:e2e:dish-costs:webkit": "E2E_BROWSER=webkit node tests/e2e/dish-costs.e2e.mjs",
     "test:e2e:top-products": "node tests/e2e/top-products.e2e.mjs",

@@ -1401,6 +1401,18 @@ body.mgr-mode #recipesTabs button.selected { color: var(--ink, #000); }
 .inv-use .facts span { background: #f7f5f0; border-radius: 8px; padding: 3px 8px; font-size: 11px; font-weight: 700; color: #4b4b4b; }
 .inv-price .chg .chg-amt { display: block; font-size: 13px; font-weight: 800; text-align: right; margin-top: 2px; }
 .inv-add { display: block; text-align: center; cursor: pointer; margin-bottom: 6px; }
+.inv-type-open { display: block; width: 100%; margin: 0 0 10px; }
+.inv-typed-card { padding: 14px; margin-bottom: 12px; }
+.inv-typed-card h3 { margin: 0 0 4px; font-size: 18px; }
+.inv-typed-card label { display: block; font-size: 13px; font-weight: 700; color: var(--muted); margin-top: 8px; }
+.inv-typed-card label input { display: block; width: 100%; box-sizing: border-box; margin-top: 4px; font: inherit; font-size: 16px; padding: 9px 10px; border: 1.5px solid var(--border); border-radius: 10px; color: var(--text); }
+.inv-tl { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr) 1.8em; grid-template-areas: "d d d x" "q u m ."; gap: 5px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); align-items: center; }
+.inv-tl .d { grid-area: d; } .inv-tl .q { grid-area: q; } .inv-tl .u { grid-area: u; } .inv-tl .m { grid-area: m; } .inv-tl .x { grid-area: x; }
+@media (min-width: 700px) { .inv-tl { grid-template-columns: 4em 5em minmax(0, 1fr) 6em 1.8em; grid-template-areas: "q u d m x"; border-top: 0; padding-top: 0; } }
+.inv-tl input { min-width: 0; width: 100%; box-sizing: border-box; font: inherit; font-size: 16px; padding: 8px 6px; border: 1.5px solid var(--border); border-radius: 8px; }
+.inv-tl .m { text-align: right; }
+.inv-tl .x { border: 0; background: transparent; font-size: 20px; color: var(--muted); padding: 0; }
+.inv-tl-add { margin-top: 8px; border: 1.5px dashed var(--border); background: transparent; border-radius: 10px; padding: 8px; width: 100%; font-weight: 800; color: var(--green); }
 .inv-hint { color: var(--muted); font-size: 12px; margin: 4px 4px 12px; line-height: 1.4; }
 .inv-review { border: 1px solid #e7e2d8; border-radius: 16px; background: #fff; padding: 12px 14px; margin-bottom: 10px; }
 .inv-review.bad { border-color: #f0c9c4; background: #fff8f7; }
@@ -10099,7 +10111,7 @@ checkDeviceStatus();
 // anything changed, offer a one-tap update (never reload on its own: someone may
 // be typing a PIN or clocking in). The session survives the reload.
 (() => {
-  const FILES = [location.pathname, "./manager-ui.js", "./manager-team-ui.js", "./manager-prices-ui.js", "./manager-top-ui.js", "./own-pin-ui.js", "./manager-photo-ui.js", "./manager-shopping-ui.js", "./manager-maintenance-ui.js", "./manager-temp-ui.js", "./manager-food-ui.js", "./manager-activity-ui.js", "./manager-orders-ui.js", "./manager-suppliers-ui.js", "./manager-notes-ui.js", "./manager-hubs-ui.js", "./manager-dishcost-ui.js", "./temp-pdf.js", "./manager-redesign-test.css", "./invoice-reader.js"];
+  const FILES = [location.pathname, "./manager-ui.js", "./manager-team-ui.js", "./manager-prices-ui.js", "./manager-top-ui.js", "./own-pin-ui.js", "./manager-photo-ui.js", "./manager-shopping-ui.js", "./manager-maintenance-ui.js", "./manager-temp-ui.js", "./manager-food-ui.js", "./manager-activity-ui.js", "./manager-orders-ui.js", "./manager-suppliers-ui.js", "./manager-notes-ui.js", "./manager-hubs-ui.js", "./manager-dishcost-ui.js", "./manager-invoice-typed-ui.js", "./temp-pdf.js", "./manager-redesign-test.css", "./invoice-reader.js"];
   let checking = false, lastCheck = 0;
   const text = (url, cache) => fetch(url, { cache }).then(r => (r.ok ? r.text() : null)).catch(() => null);
   async function changed(url) {
@@ -10144,5 +10156,6 @@ checkDeviceStatus();
 <script src="./manager-notes-ui.js"></script>
 <script src="./manager-hubs-ui.js"></script>
 <script src="./manager-dishcost-ui.js"></script>
+<script src="./manager-invoice-typed-ui.js"></script>
 </body>
 </html>
