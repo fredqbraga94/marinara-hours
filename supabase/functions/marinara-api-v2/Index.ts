@@ -365,6 +365,7 @@ const MANAGER_MESSAGES: Record<string, [number, string]> = {
   PRODUCT_NOT_FOUND: [404, "That product is not in your saved invoices any more. Choose another one."],
   NAME_IS_A_DISH: [409, "There is already a dish with this name. Rename the ingredient first."],
   ITEM_NOT_FOUND: [404, "Item not found"],
+  SUPPLIER_EXISTS: [409, "This supplier is already on the list."],
   ACTION_REQUIRED: [400, "The temperature is outside the safe range. Write what you did about it."],
   ALREADY_DONE: [409, "This cooling already has its 6-hour reading."],
 };
@@ -1583,6 +1584,9 @@ Deno.serve(async (req) => {
         "manager_contact_list",
         "manager_contact_save",
         "manager_contact_remove",
+        "manager_supplier_list",
+        "manager_supplier_save",
+        "manager_supplier_remove",
       ]);
 
     if (!managerActions.has(action)) {
@@ -3708,6 +3712,45 @@ Deno.serve(async (req) => {
           if (!isUuid(body.id)) return json({ error: "Contact not found", code: "ITEM_NOT_FOUND" }, 404);
           const { data, error } = await supabase.rpc("manager_contact_remove", { p_manager_id: managerStatus.id, p_id: body.id });
           if (error) return managerDbError(error, "Unable to remove the contact");
+          return json({ success: true, action, data });
+        }
+      }
+
+      // =========================
+      // SUPPLIERS: name, contact person, phone, email (every manager)
+      // =========================
+      if (action.startsWith("manager_supplier_")) {
+        const isUuid = (v: any) => typeof v === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+        const text = (v: any, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+        if (action === "manager_supplier_list") {
+          const { data, error } = await supabase.rpc("manager_supplier_list", { p_manager_id: managerStatus.id });
+          if (error) return managerDbError(error, "Unable to load suppliers", 500);
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_supplier_save") {
+          const s = body.supplier && typeof body.supplier === "object" ? body.supplier : {};
+          if (s.id != null && !isUuid(s.id)) return json({ error: "Supplier not found", code: "ITEM_NOT_FOUND" }, 404);
+          const supplier: any = {
+            name: text(s.name, 60), contact: text(s.contact, 80), phone: text(s.phone, 30),
+            email: text(s.email, 120).toLowerCase(), note: text(s.note, 300),
+          };
+          if (s.id) supplier.id = s.id;
+          if (!supplier.name) return json({ error: "Write the supplier's name.", code: "INVALID_INPUT" }, 400);
+          if (supplier.phone && (supplier.phone.length < 3 || !/^[0-9+() .-]+$/.test(supplier.phone))) {
+            return json({ error: "Write the phone with numbers only.", code: "INVALID_INPUT" }, 400);
+          }
+          if (supplier.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(supplier.email)) {
+            return json({ error: "This email does not look right.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await supabase.rpc("manager_supplier_save", { p_manager_id: managerStatus.id, p_supplier: supplier });
+          if (error) return managerDbError(error, "Unable to save the supplier");
+          return json({ success: true, action, data: { supplier: data } });
+        }
+        if (action === "manager_supplier_remove") {
+          if (!isUuid(body.id)) return json({ error: "Supplier not found", code: "ITEM_NOT_FOUND" }, 404);
+          const { data, error } = await supabase.rpc("manager_supplier_remove", { p_manager_id: managerStatus.id, p_id: body.id });
+          if (error) return managerDbError(error, "Unable to remove the supplier");
           return json({ success: true, action, data });
         }
       }

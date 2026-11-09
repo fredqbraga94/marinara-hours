@@ -294,6 +294,12 @@ body.rm-mode #managerHolidayNotice{display:none!important}
 .mnt-call{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;margin-top:6px;padding:7px 11px;border-radius:9px;background:var(--green);color:#fff!important;font-size:13px;font-weight:700;text-decoration:none}
 .mnt-call svg{width:15px;height:15px}
 .mnt-call.big{margin:0;padding:9px 14px;font-size:14px}
+.sup-add{display:block;width:100%;margin:0 0 12px}
+.sup-item .sup-note{font-style:italic}
+/* Suppliers: buttons in one row under the text */
+.sup-item{flex-wrap:wrap}
+.sup-item .shop-main{flex:1 1 0}
+.sup-item .shop-actions{flex-direction:row;flex-wrap:wrap;align-items:center;width:100%;padding-left:42px;box-sizing:border-box}
 /* Maintenance problems: buttons in one row under the text (less tall on phones) */
 .mnt-item{flex-wrap:wrap}
 .mnt-item .shop-main{flex:1 1 0}
