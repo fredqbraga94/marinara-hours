@@ -386,15 +386,15 @@ try {
     return `4 numbers, 4 areas (2 x 2), attention + today; side menu ${nav.width}px with 4 areas`;
   });
   await desk.close();
-  await check("Laptop/desktop: Floor Manager sees Allergens and no Invoices & Costs", async () => {
+  await check("Laptop/desktop: Floor Manager sees Allergens and Invoices & Costs (the Floor invoices)", async () => {
     const fd = await phone({ viewport: { width: 1440, height: 900 } });
     await fd.login(PIN[ID(3)]);
     await fd.page.waitForSelector("#deskAreas .desk-area-card");
     const areas = (await fd.page.locator("[data-desk-area]").allInnerTexts()).map((t) => t.replace(/[›\d]/g, "").trim());
     const cards = await fd.page.locator("#deskAreas h3").allInnerTexts();
-    assert.deepEqual(areas, ["Team & Hours", "Stock & Orders", "Allergens"]);
-    assert.ok(cards.includes("Allergens") && !cards.includes("Invoices & Costs"), cards.join(","));
-    assert.match(await fd.page.innerText("#deskStats"), /Time off requests/);
+    assert.deepEqual(areas, ["Team & Hours", "Stock & Orders", "Allergens", "Invoices & Costs"]);
+    assert.ok(cards.includes("Allergens") && cards.includes("Invoices & Costs"), cards.join(","));
+    assert.match(await fd.page.innerText("#deskStats"), /Spend this week/); // like the Kitchen Manager (their own list)
     assert.match(await fd.page.innerText(".desk-foot"), /Floor Manager/);
     await fd.page.click('[data-desk-area="kitchen"]');
     await fd.page.click('[data-desk-key="moreRecipesBtn"]');

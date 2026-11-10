@@ -233,10 +233,10 @@ try {
 
   await check("time off: staff asks, the right manager approves, roster refuses that day", async () => {
     const st = await login(vNew, 7);
-    let r = await api(vNew, 7, st, { action: "session_leave_request", kind: "HOLIDAY", start_date: "2026-11-09", end_date: "2026-11-11", note: "trip" });
+    let r = await api(vNew, 7, st, { action: "session_leave_request", kind: "HOLIDAY", start_date: "2037-11-09", end_date: "2037-11-11", note: "trip" });
     assert.equal(r.status, 200, JSON.stringify(r.body));
     const id = r.body.data.request.id;
-    r = await api(vNew, 7, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2026-11-10" });
+    r = await api(vNew, 7, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2037-11-10" });
     assert.equal(r.status, 409);
     const kl = await api(vNew, 2, km, { action: "manager_leave_list" });
     assert.equal(kl.body.data.pending.length, 0);
@@ -244,9 +244,9 @@ try {
     assert.equal(r.status, 403);
     r = await api(vNew, 3, fm, { action: "manager_leave_decide", leave_id: id, decision: "APPROVE" });
     assert.equal(r.status, 200, JSON.stringify(r.body));
-    r = await api(vNew, 3, fm, { action: "manager_roster_set", staff_id: ID(7), work_date: "2026-11-10", code: "SHIFT", start_time: "17:00", end_time: "21:00" });
+    r = await api(vNew, 3, fm, { action: "manager_roster_set", staff_id: ID(7), work_date: "2037-11-10", code: "SHIFT", start_time: "17:00", end_time: "21:00" });
     assert.equal(r.status, 409); assert.equal(r.body.code, "ON_LEAVE");
-    r = await api(vNew, 3, fm, { action: "manager_roster_week", week_start: "2026-11-09" });
+    r = await api(vNew, 3, fm, { action: "manager_roster_week", week_start: "2037-11-09" });
     assert.equal(r.body.data.leave.length, 1);
     const mine = await api(vNew, 7, st, { action: "session_leave_list" });
     assert.equal(mine.body.data.requests[0].status, "APPROVED");

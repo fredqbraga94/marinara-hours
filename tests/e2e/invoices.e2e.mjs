@@ -121,13 +121,13 @@ const waitList = (p) => p.page.waitForFunction(() => !/Loading/.test(document.ge
 try {
   log(`\nBrowser: ${ENGINE} with iPhone 13 profile`);
 
-  await check("Kitchen Manager sees Invoices; Floor Manager doesn't (home tile and More)", async () => {
+  await check("Kitchen Manager and Floor Manager both see Invoices (each their own list; checked in invoice-departments)", async () => {
     const fm = await phone();
     await fm.login(PIN[ID(3)]);
-    assert.equal(await fm.page.locator("#invoicesCard").isVisible(), false);
+    await fm.page.waitForSelector("#invoicesCard:not(.hidden)", { state: "attached" });
     await fm.page.click('[data-manager-nav="more"]');
     await fm.page.waitForSelector("#managerMoreScreen:not(.hidden)");
-    assert.equal(await fm.page.locator("#moreInvoicesBtn").isVisible(), false);
+    assert.equal(await fm.page.locator("#moreInvoicesBtn").isVisible(), true);
     await fm.close();
     const km = await phone();
     await km.login(PIN[ID(2)]);
@@ -224,7 +224,7 @@ try {
   });
 
   await check("weekly use: most bought products, per week, busiest week, filter and search", async () => {
-    await gm.page.click('[data-inv-tab="usage"]');
+    await gm.page.evaluate(() => invShowTab("usage")); // no tab of its own now (Products shows the weekly use)
     await gm.page.waitForSelector("#invUsage .inv-use");
     const sum = (await gm.page.innerText("#invUsageSummary")).replace(/\s+/g, " ");
     assert.match(sum, /1 Week of invoices/i); assert.match(sum, /2 Products/i); assert.match(sum, /\$84\.75/);

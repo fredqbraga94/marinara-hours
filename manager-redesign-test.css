@@ -381,7 +381,8 @@ body.rm-mode .rm-header-tools button{color:var(--text);border-color:var(--border
 .tp-row{cursor:default;gap:10px}.tp-rank{flex:0 0 26px;font-size:12px;font-weight:700;color:var(--muted);text-align:right;align-self:flex-start;padding-top:2px;font-variant-numeric:tabular-nums}
 .tp-row .pb-main{flex:1}.tp-row .pb-main small .pb-chg{margin-left:4px}
 .tp-more{width:100%;margin-top:10px}
-#invTabs[style]{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+#invTabs{grid-template-columns:repeat(3,minmax(0,1fr))!important}#invTabs:has([data-inv-tab="costs"][hidden]){grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.pb-wk{color:var(--green);font-weight:700}
 .pb-chg span{font-weight:500;opacity:.8}
 /* Temperatures */
 .tmp-week-nav{display:flex;align-items:center;gap:8px;margin:4px 0 8px}.tmp-week-nav strong{flex:1;text-align:center;font-size:14px}.tmp-week-nav button{margin:0;min-width:44px;min-height:40px}.tmp-week-nav button:disabled{opacity:.35}
@@ -511,3 +512,9 @@ button.cl-box:not(.on){box-shadow:inset 0 0 0 1.5px #e2b98f}
 .inv-read-lines b{white-space:nowrap;font-variant-numeric:tabular-nums}.inv-read-tot{font-weight:600}
 .shop-move{display:flex;flex-direction:column;gap:4px;flex:0 0 auto}.shop-move button{width:34px;height:30px;margin:0;padding:0;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--green);font-size:12px;line-height:1}.shop-move button:disabled{opacity:.25}
 #ordSend .ord-msg-btn{width:100%;flex:none}
+
+/* Finance → Prices: one supplier */
+#invPricesView .pb-sup{margin-bottom:8px}
+.pb-supbar{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:0 0 10px}.pb-supbar.hidden{display:none}.pb-supbar .inv-hint{margin:0}
+.shop-small.on{background:var(--green);color:#fff}
+.sup-dept-pick{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px}.sup-dept-pick.hidden{display:none}.sup-dept-pick select{flex:1;font:inherit;font-size:16px;padding:8px;border:1.5px solid var(--border);border-radius:10px;background:#fff}

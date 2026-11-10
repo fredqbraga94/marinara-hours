@@ -23,13 +23,21 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
   const list=[];let n=0;const id=()=>`00000000-0000-4000-8000-${String(++n).padStart(12,'0')}`;
   window.__calls=[];const orig=managerApi;
   managerApi=async(action,extra={})=>{window.__calls.push([action,JSON.parse(JSON.stringify(extra))]);
-   if(action==='manager_supplier_list'){const names=list.map(s=>s.name.toLowerCase());
-    return{location:'Hawthorne',suppliers:list.slice().sort((a,b)=>a.name.localeCompare(b.name)),known:['QA Veg Co','QA Dairy'].filter(k=>!names.includes(k.toLowerCase()))};}
+   if(action==='manager_supplier_list'){const dep=extra.department||'Floor';const here=list.filter(s=>s.department===dep);const names=here.map(s=>s.name.toLowerCase());
+    return{location:'Hawthorne',department:dep,can_choose_department:true,suppliers:here.slice().sort((a,b)=>a.name.localeCompare(b.name)),known:['QA Veg Co','QA Dairy'].filter(k=>!names.includes(k.toLowerCase()))};}
    if(action==='manager_supplier_save'){const s=extra.supplier;const clean=v=>v||null;
-    const row={name:s.name,contact:clean(s.contact),phone:clean(s.phone),email:clean(s.email),note:clean(s.note)};
+    const row={name:s.name,contact:clean(s.contact),phone:clean(s.phone),email:clean(s.email),note:clean(s.note),department:s.department};
     if(s.id){Object.assign(list.find(x=>x.id===s.id),row);return{supplier:list.find(x=>x.id===s.id)};}
     const x={id:id(),...row};list.push(x);return{supplier:x};}
    if(action==='manager_supplier_remove'){list.splice(list.findIndex(x=>x.id===extra.id),1);return{removed:true};}
+   if(action==='manager_invoice_price_book')return{products:[
+    {supplier:'QA Veg Co Pty',product_key:'qa mushrooms',description:'QA Swiss brown mushrooms',unit:'box',pack:null,times:4,last_price:48,last_date:'2026-10-01',change_pct:4.3},
+    {supplier:'QA Veg Co Pty',product_key:'qa basil',description:'QA Basil',unit:'bunch',pack:null,times:2,last_price:4,last_date:'2026-09-09',change_pct:null},
+    {supplier:'QA Wholesale',product_key:'b1',description:'QA Bacon 2.5kg',unit:'Ctn [6]',pack:6,times:1,last_price:23.5,last_date:'2026-10-08',change_pct:null}]};
+   if(action==='manager_invoice_usage')return{items:[
+    {supplier:'QA Veg Co Pty',code:null,description:'QA Swiss brown mushrooms',unit:'box',avg_per_week:1.75,spend_per_week:84,max_week:3},
+    {supplier:'QA Wholesale',code:'b1',description:'QA Bacon 2.5kg',unit:'Ctn [6]',avg_per_week:9,spend_per_week:30,max_week:12}]};
+   if(action==='manager_invoice_list')return{invoices:[],by_supplier:[],totals:[]};
    if(action==='manager_roster_week')return{team:[],entries:[],services:[],leave:[]};
    return orig(action,extra);};
  });
@@ -38,7 +46,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.deepEqual(await page.locator('#hubStockMenu [data-rm-go]').evaluateAll(es=>es.map(e=>e.dataset.rmGo)),['stockCard','rmOpenOrders','rmOpenSuppliers','rmOpenShopping']);
  assert.equal(await page.locator('#managerMoreScreen [data-rm-go="rmOpenSuppliers"]').count(),0,'More shows the group, not the row');
  await page.locator('#hubStockMenu [data-rm-go="rmOpenSuppliers"]').click();await page.locator('#supplierScreen').waitFor({state:'visible'});
- await page.locator('#supList').filter({hasText:'No suppliers yet'}).waitFor();
+ await page.locator('#supList').filter({hasText:'No Floor suppliers yet'}).waitFor();
  assert.equal(await page.locator('#supForm').isVisible(),false);
  // Add: the names already used are offered.
  await page.locator('#supAdd').click();
@@ -52,7 +60,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#supSave').click();
  await page.locator('#supMsg').filter({hasText:'Supplier added: QA Veg Co'}).waitFor();
  const saved=await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_supplier_save').at(-1)[1].supplier);
- assert.deepEqual(saved,{name:'QA Veg Co',contact:'QA Person',phone:'0400 000 000',email:'orders@qa-veg.example',note:'Order by 2pm'});
+ assert.deepEqual(saved,{name:'QA Veg Co',contact:'QA Person',phone:'0400 000 000',email:'orders@qa-veg.example',note:'Order by 2pm',department:'Floor'});
  assert.equal(await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_supplier_save').length),1,'bad phone/email never sent');
  const row=page.locator('.sup-item').filter({hasText:'QA Veg Co'});
  await row.waitFor();
@@ -78,6 +86,44 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#supEmail').fill('');await page.locator('#supSave').click();
  await page.locator('#supMsg').filter({hasText:'Supplier saved.'}).waitFor();
  await page.waitForFunction(()=>![...document.querySelectorAll('.sup-item a')].some(a=>a.href.startsWith('mailto:')));
+ // Products and prices are only in Finance → Prices (one place to control who sees them);
+ // pick the supplier there ("QA Veg Co" matches "QA Veg Co Pty").
+ assert.equal(await page.locator('#supplierScreen [data-sup-products], #supplierScreen [data-sup-prices]').count(),0);
+ assert.doesNotMatch(await row.innerText(),/Prices|Products/);
+ await page.evaluate(async()=>{await openInvoicesScreen();invShowTab('prices');});
+ await page.locator('#invPricesView').waitFor({state:'visible'});
+ // The suppliers saved in the same list (Floor here) are offered even with no invoice yet.
+ await page.locator('#invDept [data-inv-dept="Floor"]').click();
+ await page.waitForFunction(()=>document.querySelectorAll('#pbSup option').length===4);
+ await page.locator('#pbSup').selectOption('QA Veg Co');
+ await page.waitForFunction(()=>document.querySelectorAll('#pbList .pb-row').length===2);
+ assert.deepEqual(await page.locator('#pbList .pb-main strong').allInnerTexts(),['QA Swiss brown mushrooms','QA Basil'],'most bought first, only this supplier');
+ assert.match(await page.locator('#pbList .pb-row').first().innerText(),/\$48\.00[\s\S]*\/box[\s\S]*4\.3%/);
+ // How much a week (the old Weekly tab), cartons for a supplier that counts units.
+ assert.match(await page.locator('#pbList .pb-row').first().innerText(),/1\.8 box a week/);
+ assert.match(await page.locator('#pbList .pb-row').nth(1).innerText(),/2× · last 9 Sept/,'no weekly use: times bought');
+ assert.deepEqual(await page.locator('#invTabs button:visible').allInnerTexts(),['Invoices','Products'],'Floor: two tabs');
+ await page.locator('#pbList .pb-row').first().click();
+ await page.locator('.pb-hist').filter({hasText:'About 1.8 box a week over the last weeks · busiest week 3 · about $84.00 a week.'}).waitFor();
+ await page.locator('#pbList .pb-row').first().click();
+ await page.locator('#pbSup').selectOption('QA Wholesale');
+ await page.locator('#pbList .pb-row').filter({hasText:'1.5 ctn a week'}).waitFor();
+ await page.locator('#pbSup').selectOption('QA Veg Co');
+ assert.deepEqual(await page.locator('#pbSup option').allInnerTexts(),['All suppliers (3)','QA Veg Co (2)','QA Wholesale (1)','QA Dairy (0)']);
+ await page.screenshot({path:`tmp/qa/${size}-supplier-products.png`,fullPage:true});
+ await page.locator('#pbSup').selectOption('');
+ await page.waitForFunction(()=>document.querySelectorAll('#pbList .pb-row').length===3);
+ assert.equal(await page.locator('#pbSupBar').isVisible(),false);
+ // A supplier with no invoices: type one of their invoices, the form opens with its name.
+ await page.locator('#pbSup').selectOption('QA Dairy');
+ await page.locator('#pbSupBar').filter({hasText:'No products from QA Dairy yet'}).waitFor();
+ await page.locator('#pbSupBar [data-pb-type]').click();
+ await page.locator('#invTyped').waitFor({state:'visible'});
+ assert.equal(await page.locator('#invTypedSupplier').inputValue(),'QA Dairy');
+ await page.locator('#invTypedCancel').click();
+ await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen [data-rm-go="rmOpenHubStock"]').click();
+ await page.locator('#hubStockMenu [data-rm-go="rmOpenSuppliers"]').click();await page.locator('#supplierScreen').waitFor({state:'visible'});
+ await page.locator('.sup-item').filter({hasText:'QA Dairy'}).waitFor();
  // Remove (two taps).
  await dairy.locator('[data-sup-remove]').click();
  assert.match(await dairy.locator('[data-sup-remove]').innerText(),/Tap again/);
@@ -89,8 +135,22 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#supplierScreen [data-hub-back]').click();await page.locator('#hubStockScreen').waitFor({state:'visible'});
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('marinara:session-reset')));
  assert.equal(await page.locator('.sup-item').count(),0,'sign-out forgets it');
+ // Kitchen and Floor lists (Administrator): switch, move a supplier.
+ await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen [data-rm-go="rmOpenHubStock"]').click();
+ await page.locator('#hubStockMenu [data-rm-go="rmOpenSuppliers"]').click();
+ await page.locator('.sup-item').filter({hasText:'QA Veg Co'}).waitFor();
+ assert.equal(await page.locator('#supDept').isVisible(),true);
+ assert.match(await page.locator('#supSub').innerText(),/Floor suppliers/);
+ await page.locator('.sup-item').filter({hasText:'QA Veg Co'}).locator('[data-sup-edit]').click();
+ assert.equal(await page.locator('#supDeptSel').inputValue(),'Floor');
+ await page.locator('#supDeptSel').selectOption('Kitchen');await page.locator('#supSave').click();
+ await page.locator('#supMsg').filter({hasText:'QA Veg Co is now in the Kitchen list.'}).waitFor();
+ await page.locator('#supList').filter({hasText:'No Floor suppliers yet'}).waitFor();
+ await page.locator('#supDept [data-sup-dept="Kitchen"]').click();
+ await page.locator('.sup-item').filter({hasText:'QA Veg Co'}).waitFor();
+ assert.equal(await page.evaluate(()=>localStorage.getItem('mh-suppliers-dept')),'Kitchen','remembered on this phone');
  assert.deepEqual(errors,[]);
  await context.close();
 }
-console.log(`PASS (${ENGINE}): suppliers: in Stock & Orders, add with suggested names, phone/email checks, call and email buttons, same name refused, edit, remove (two taps), back, no overflow, sign-out, no JavaScript errors.`);
+console.log(`PASS (${ENGINE}): suppliers: in Stock & Orders, add with suggested names, phone/email checks, call and email buttons, no prices in Suppliers (Finance → Prices by supplier), type an invoice for a supplier with none, same name refused, Kitchen/Floor lists (switch, move), edit, remove (two taps), back, no overflow, sign-out, no JavaScript errors.`);
 }finally{await browser.close();server.close();}

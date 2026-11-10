@@ -94,7 +94,7 @@
     document.body.classList.toggle('rm-mode',signedIn);document.body.classList.toggle('rm-clock',signedIn&&clock);
     const active=visible==='managerScreen'?(clock?'more':'home'):['teamScreen','employeeDetailsScreen'].includes(visible)?'team':visible==='invoicesScreen'?'finance':['managerMoreScreen','devicesScreen','restaurantSettingsScreen','activityScreen'].includes(visible)?'more':'operations';
     nav.querySelectorAll('[data-manager-nav]').forEach(b=>{b.classList.toggle('active',b.dataset.managerNav===active);if(b.dataset.managerNav===active)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
-    const canInvoice=['manager','kitchen_manager'].includes(currentManagerRole);nav.querySelector('[data-manager-nav="finance"]').disabled=!canInvoice;document.querySelectorAll('[data-rm-go="invoicesCard"], [data-rm-go="rmScanInvoice"], #rmScanInvoice').forEach(b=>{b.disabled=!canInvoice;b.hidden=!canInvoice&&b.id==='rmScanInvoice';b.title=canInvoice?'':'Finance is restricted to authorised managers';});
+    const canInvoice=['manager','kitchen_manager','floor_manager'].includes(currentManagerRole);nav.querySelector('[data-manager-nav="finance"]').disabled=!canInvoice;document.querySelectorAll('[data-rm-go="invoicesCard"], [data-rm-go="rmScanInvoice"], #rmScanInvoice').forEach(b=>{b.disabled=!canInvoice;b.hidden=!canInvoice&&b.id==='rmScanInvoice';b.title=canInvoice?'':'Finance is restricted to authorised managers';});
     $('rmLocation').textContent=($('managerLocation').textContent||'Current unit')+' ⌄';
     // Areas the Administrator switched off for this manager disappear (the server refuses them anyway).
     document.querySelectorAll('[data-rm-go]').forEach(b=>b.classList.toggle('rm-no-access',blocked(b.dataset.rmGo)));
@@ -169,7 +169,7 @@
     if(n)rows.push(row(`${n} shift${n===1?'':'s'} awaiting approval`,'Review completed shifts','approvalsCard','check'));
     if(off)rows.push(row(`${off} time off request${off===1?'':'s'}`,'Someone is waiting for an answer','timeOffCard','leave'));
     const ups=(typeof window.mhPriceUps==='object'&&window.mhPriceUps)||[];
-    if(ups.length&&can('invoices')&&['manager','kitchen_manager'].includes(currentManagerRole)){const names=ups.slice().sort((a,b)=>Number(b.change_pct)-Number(a.change_pct)).slice(0,2).map(p=>`${p.description} +${Number(p.change_pct).toLocaleString('en-AU',{maximumFractionDigits:1})}%`);rows.push(row(`${ups.length} price${ups.length===1?'':'s'} went up`,escapeHtml(names.join(', ')+(ups.length>2?` and ${ups.length-2} more`:'')),'rmOpenPriceUps','finance'));}
+    if(ups.length&&can('invoices')&&['manager','kitchen_manager','floor_manager'].includes(currentManagerRole)){const names=ups.slice().sort((a,b)=>Number(b.change_pct)-Number(a.change_pct)).slice(0,2).map(p=>`${p.description} +${Number(p.change_pct).toLocaleString('en-AU',{maximumFractionDigits:1})}%`);rows.push(row(`${ups.length} price${ups.length===1?'':'s'} went up`,escapeHtml(names.join(', ')+(ups.length>2?` and ${ups.length-2} more`:'')),'rmOpenPriceUps','finance'));}
     const shop=window.mhShopping||{};
     // Urgent things to buy go to the top, in red.
     if(shop.urgent){const u=shop.urgentNames||[];const rest=shop.open-shop.urgent;

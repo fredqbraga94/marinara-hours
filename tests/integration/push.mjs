@@ -80,7 +80,7 @@ try {
   const fpBefore = await db.fingerprints();
   await check("the new server works BEFORE the migration (leave request does not fail)", async () => {
     const st = await login(vNew, 7);
-    const r = await api(vNew, 7, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2026-12-01" });
+    const r = await api(vNew, 7, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2037-12-01" });
     assert.equal(r.status, 200, JSON.stringify(r.body));
     await settle();
     assert.equal(sent.length, 0);
@@ -104,7 +104,7 @@ try {
       assert.equal((await api(vProd, 1, m, { action })).status, 200, action);
     }
     const st = await login(vProd, 6);
-    const r = await api(vProd, 6, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2026-12-02" });
+    const r = await api(vProd, 6, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2037-12-02" });
     assert.equal(r.status, 200);
     return "manager screens and a leave request 200";
   });
@@ -140,7 +140,7 @@ try {
   await check("a Floor request goes to the Administrator and the Floor manager, not Kitchen", async () => {
     sent.length = 0;
     const st = await login(vNew, 6);
-    const r = await api(vNew, 6, st, { action: "session_leave_request", kind: "HOLIDAY", start_date: "2026-11-09", end_date: "2026-11-11" });
+    const r = await api(vNew, 6, st, { action: "session_leave_request", kind: "HOLIDAY", start_date: "2037-11-09", end_date: "2037-11-11" });
     assert.equal(r.status, 200, JSON.stringify(r.body));
     await settle();
     const to = sent.map((x) => x.endpoint).sort();
@@ -154,7 +154,7 @@ try {
   await check("a Kitchen request goes to the Administrator and the Kitchen manager", async () => {
     sent.length = 0;
     const st = await login(vNew, 4);
-    await api(vNew, 4, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2026-11-20" });
+    await api(vNew, 4, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2037-11-20" });
     await settle();
     assert.deepEqual(sent.map((x) => x.endpoint).sort(), [sub(1).endpoint, sub(2, "fcm.googleapis.com").endpoint].sort());
     assert.match(sent[0].message.body, /asked for a day off · 20 Nov/);
@@ -165,7 +165,7 @@ try {
     sent.length = 0;
     reply = (s) => (s.endpoint === sub(3).endpoint ? { ok: false, gone: true, status: 410 } : { ok: true, gone: false, status: 201 });
     const st = await login(vNew, 6);
-    await api(vNew, 6, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2026-11-25" });
+    await api(vNew, 6, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2037-11-25" });
     await settle();
     reply = () => ({ ok: true, gone: false, status: 201 });
     assert.equal(await one(db, `select active from public.push_subscriptions where endpoint = '${sub(3).endpoint}'`), "f");
@@ -195,7 +195,7 @@ try {
     await api(vNew, 1, gm, { action: "manager_push_subscribe", ...sub(9) });
     globalThis.__MH_PUSH_SEND = async () => { throw new Error("network down"); };
     const st = await login(vNew, 6);
-    const r = await api(vNew, 6, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2026-11-27" });
+    const r = await api(vNew, 6, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2037-11-27" });
     await settle();
     assert.equal(r.status, 200);
     assert.match(await one(db, `select last_error from public.push_subscriptions where endpoint = '${sub(9).endpoint}'`), /network down/);
@@ -208,7 +208,7 @@ try {
     const fp = await db.fingerprints();
     assert.deepEqual(Object.keys(fp).sort(), Object.keys(fpBefore).sort());
     const st = await login(vNew, 7);
-    const a = await api(vNew, 7, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2026-12-10" });
+    const a = await api(vNew, 7, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2037-12-10" });
     await settle();
     const m = await login(vProd, 1);
     const b = await api(vProd, 1, m, { action: "manager_dashboard" });

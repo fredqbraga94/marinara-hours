@@ -26,7 +26,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  });
  await page.evaluate(()=>{document.getElementById('invoicesCard')?.click();});
  await page.locator('#invoicesScreen').waitFor({state:'visible'});
- await page.locator('#invTabs [data-inv-tab="top"]').click();
+ await page.evaluate(()=>invShowTab('top'));
  await page.locator('#tpList .tp-row').first().waitFor();
  assert.equal(await page.locator('#tpList .tp-row').count(),40,'top 40 first');
  assert.match(await page.locator('#tpHint').innerText(),/45 products .* since 28 Oct 25.*QA Wholesale history/s);
@@ -41,7 +41,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#tpSearch').fill('nothing like this');assert.match(await page.locator('#tpList').innerText(),/Nothing matches/);
  // Cached: going back to the tab does not ask the server again.
  await page.locator('#tpSearch').fill('');
- await page.locator('#invTabs [data-inv-tab="list"]').click();await page.locator('#invTabs [data-inv-tab="top"]').click();
+ await page.evaluate(()=>{invShowTab('list');invShowTab('top');});
  assert.equal(await page.evaluate(()=>window.__calls),1,'loaded once');
  assert.equal(await page.locator('#invPricesView').isVisible(),false,'only the Top view shows');
  // Another person signs in: the list is forgotten.
