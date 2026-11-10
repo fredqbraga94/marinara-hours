@@ -63,9 +63,11 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  // cursor in Current PIN), so typing is not wiped by it (was a timing failure on CI).
  await page.waitForFunction(()=>document.getElementById('opTitle').textContent==='Change my PIN'&&document.activeElement?.id==='opOld');
  await page.evaluate(()=>window.__rule='wrong');
- await page.locator('#opOld').fill('111111');await page.locator('#opNew').fill('482913');await page.locator('#opNew2').fill('482913');await page.locator('#opSave').click();
+ // Type each field and make sure it holds what was typed (WebKit on CI sometimes lost one).
+ for(const [id,v] of [['opOld','111111'],['opNew','482913'],['opNew2','482913']]){for(let k=0;k<5&&await page.locator('#'+id).inputValue()!==v;k++){await page.locator('#'+id).fill(v);}assert.equal(await page.locator('#'+id).inputValue(),v,id);}
+ await page.locator('#opSave').click();
  try{await page.waitForFunction(()=>/current PIN is not right/.test(document.getElementById('opMsg').textContent),null,{timeout:10000});}
- catch(e){const st=await page.evaluate(()=>({msg:document.getElementById('opMsg').textContent,open:document.getElementById('ownPinDialog').open,token:currentSessionToken,sent:window.__sent.slice(-4)}));throw new Error('wrong current PIN message missing: '+JSON.stringify(st));}
+ catch(e){const st=await page.evaluate(()=>({vals:['opOld','opNew','opNew2'].map(i=>document.getElementById(i).value),msg:document.getElementById('opMsg').textContent,open:document.getElementById('ownPinDialog').open,token:currentSessionToken,sent:window.__sent.slice(-4)}));throw new Error('wrong current PIN message missing: '+JSON.stringify(st));}
  assert.equal(await dlg.isVisible(),true,'stays open on a wrong current PIN');
  await page.evaluate(()=>window.__rule='ok');
  await page.screenshot({path:`tmp/qa/${size}-own-pin-change.png`});
