@@ -74,7 +74,7 @@ try {
     assert.equal((await api(vNew, 1, gm, { action: "manager_push_subscribe", ...sub(1) })).status, 200);
     sent.length = 0;
     const st = await login(vNew, 6);
-    assert.equal((await api(vNew, 6, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2026-12-01" })).status, 200);
+    assert.equal((await api(vNew, 6, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2037-12-01" })).status, 200);
     await settle();
     assert.equal(sent.length, 1);
     assert.equal(sent[0].message.badge, undefined);
@@ -107,11 +107,11 @@ try {
   await check("each phone gets its own number: Administrator all, managers their department", async () => {
     // Waiting now: 1 Floor (from A). Add 1 Kitchen, then 1 more Floor.
     const k = await login(vNew, 4);
-    await api(vNew, 4, k, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2026-12-03" });
+    await api(vNew, 4, k, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2037-12-03" });
     await settle();
     sent.length = 0;
     const f = await login(vNew, 7);
-    await api(vNew, 7, f, { action: "session_leave_request", kind: "HOLIDAY", start_date: "2026-12-08", end_date: "2026-12-09" });
+    await api(vNew, 7, f, { action: "session_leave_request", kind: "HOLIDAY", start_date: "2037-12-08", end_date: "2037-12-09" });
     await settle();
     const by = Object.fromEntries(sent.map((x) => [x.endpoint, x.message.badge]));
     assert.deepEqual(by, { [sub(1).endpoint]: 3, [sub(3).endpoint]: 2 });
@@ -143,7 +143,7 @@ try {
     assert.deepEqual(Object.keys(await db.fingerprints()).sort(), Object.keys(fpBefore).sort());
     sent.length = 0;
     const st = await login(vNew, 6);
-    await api(vNew, 6, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2026-12-15" });
+    await api(vNew, 6, st, { action: "session_leave_request", kind: "DAY_OFF", start_date: "2037-12-15" });
     await settle();
     assert.equal(sent.length, 2);
     assert.ok(sent.every((x) => x.message.badge === undefined));
