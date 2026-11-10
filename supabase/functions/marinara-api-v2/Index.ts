@@ -1534,6 +1534,8 @@ Deno.serve(async (req) => {
         "manager_dish_cost_save",
         "manager_cost_price_save",
         "manager_ingredient_rename",
+        "manager_supplier_compare",
+        "manager_supplier_compare_save",
         "manager_recipe_save",
         "manager_recipe_remove",
         "manager_recipe_ingredient_save",
@@ -3795,7 +3797,8 @@ Deno.serve(async (req) => {
       // SUPPLIER INVOICES and INGREDIENT COSTS (Administrator, Kitchen Manager)
       // =========================
       if (action.startsWith("manager_invoice_") || action.startsWith("manager_ingredient_cost") || action === "manager_ingredient_make_recipe" ||
-          action === "manager_ingredient_rename" || action === "manager_dish_costs" || action === "manager_dish_cost_save" || action === "manager_cost_price_save") {
+          action === "manager_ingredient_rename" || action === "manager_dish_costs" ||
+          action === "manager_supplier_compare" || action === "manager_supplier_compare_save" || action === "manager_dish_cost_save" || action === "manager_cost_price_save") {
         const isUuid = (v: string) =>
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
         const isDate = (v: any) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v));
@@ -3950,6 +3953,32 @@ Deno.serve(async (req) => {
           return json({ success: true, action, data });
         }
 
+        if (action === "manager_supplier_compare") {
+          const { data, error } = await supabase.rpc("manager_supplier_compare", { p_manager_id: managerStatus.id, p_location: location });
+          if (error) return managerDbError(error, "Unable to load the supplier comparison", 500);
+          return json({ success: true, action, data });
+        }
+        if (action === "manager_supplier_compare_save") {
+          const d = body.data && typeof body.data === "object" ? body.data : {};
+          const p: any = { supplier: text(d.supplier, 80), product_key: text(d.product_key, 300) };
+          if (!p.supplier || !p.product_key) return json({ error: "Choose a product.", code: "INVALID_INPUT" }, 400);
+          if ("pack" in d) {
+            if (d.pack === null) p.pack = null;
+            else {
+              const c = Number(d.pack?.count), z = Number(d.pack?.size), u = String(d.pack?.unit || "");
+              if (!(c > 0 && c <= 10000) || !(z > 0 && z <= 100000) || !["kg", "g", "l", "ml", "each"].includes(u)) {
+                return json({ error: "Write how many and how big, e.g. 6 × 2.5 kg.", code: "INVALID_INPUT" }, 400);
+              }
+              p.pack = { count: c, size: z, unit: u };
+            }
+          }
+          if (d.group_with && typeof d.group_with === "object") {
+            p.group_with = { supplier: text(d.group_with.supplier, 80), product_key: text(d.group_with.product_key, 300) };
+          } else if (d.ungroup === true) p.ungroup = true;
+          const { data, error } = await supabase.rpc("manager_supplier_compare_save", { p_manager_id: managerStatus.id, p_location: location, p_data: p });
+          if (error) return managerDbError(error, "Unable to save");
+          return json({ success: true, action, data: { product: data } });
+        }
         if (action === "manager_ingredient_rename") {
           const id = typeof body.ingredient_id === "string" ? body.ingredient_id : "";
           if (!isUuid(id)) return json({ error: "Ingredient not found", code: "INGREDIENT_NOT_FOUND" }, 404);
