@@ -63,7 +63,5 @@ screen.addEventListener('click',async e=>{
  try{await managerApi('manager_invoice_move',{id:b.dataset.invMove,department:to});resetCaches();invMsg(`Invoice moved to the ${to} list.`,true);loadInvoices();}
  catch(err){b.disabled=false;invMsg(err.message||'Unable to move the invoice.',false);}
 });
-// Open a list from elsewhere (Suppliers → Prices) on the Administrator's phone.
-window.mhSetInvDept=dep=>{if(!isAdmin()||(dep!=='Kitchen'&&dep!=='Floor')||dep===current())return;state.dept=dep;try{localStorage.setItem(DEP_KEY,dep);}catch(_){}resetCaches();paint();};
 window.addEventListener('marinara:session-reset',()=>{state.dept=null;});
 })();

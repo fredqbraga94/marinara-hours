@@ -1,6 +1,6 @@
 /* Price book: every product on the saved supplier invoices, the price paid each
    time, and whether it went up or down, for the whole list or one supplier
-   (Finance → Prices; Suppliers → Prices opens it on that supplier). Read-only;
+   (Finance → Prices only, so who sees prices follows who may open Invoices). Read-only;
    Administrator, Kitchen and Floor Managers, each on their invoice list. */
 (() => {
 const $=id=>document.getElementById(id);
@@ -132,8 +132,6 @@ loadInvoicePrices=async function(){
 };
 // Home → "N prices went up" opens Prices filtered to the rises.
 window.mhOpenPriceUps=()=>{state.filter='up';state.open=null;const b=$('invoicesCard');if(b&&!b.disabled){b.click();invShowTab('prices');}};
-// Suppliers → Prices: Finance → Prices on that supplier (and that list).
-window.mhOpenSupplierPrices=async(name,dep)=>{if(dep)window.mhSetInvDept?.(dep);await openInvoicesScreen();state.sup=name||'';state.filter='all';state.open=null;const q=$('pbSearch');if(q)q.value='';invShowTab('prices');};
 const opener=document.createElement('button');opener.type='button';opener.id='rmOpenPriceUps';opener.hidden=true;opener.onclick=()=>window.mhOpenPriceUps();document.body.append(opener);
 // Keep the Home alert current; a new invoice saved refreshes it.
 window.addEventListener('marinara:dashboard',()=>{if(canSee())load(false).catch(()=>{});else{window.mhPricesReset(true);}});

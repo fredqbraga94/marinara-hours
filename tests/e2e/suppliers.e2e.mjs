@@ -83,15 +83,17 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#supEmail').fill('');await page.locator('#supSave').click();
  await page.locator('#supMsg').filter({hasText:'Supplier saved.'}).waitFor();
  await page.waitForFunction(()=>![...document.querySelectorAll('.sup-item a')].some(a=>a.href.startsWith('mailto:')));
- // Prices: the button opens Finance → Prices on that supplier and its list
- // ("QA Veg Co" matches "QA Veg Co Pty"); products and prices are no longer here.
- assert.equal(await page.locator('[data-sup-products]').count(),0);
- await row.locator('[data-sup-prices]').click();
- await page.locator('#invoicesScreen').waitFor({state:'visible'});
+ // Products and prices are only in Finance → Prices (one place to control who sees them);
+ // pick the supplier there ("QA Veg Co" matches "QA Veg Co Pty").
+ assert.equal(await page.locator('#supplierScreen [data-sup-products], #supplierScreen [data-sup-prices]').count(),0);
+ assert.doesNotMatch(await row.innerText(),/Prices|Products/);
+ await page.evaluate(async()=>{await openInvoicesScreen();invShowTab('prices');});
  await page.locator('#invPricesView').waitFor({state:'visible'});
+ // The suppliers saved in the same list (Floor here) are offered even with no invoice yet.
+ await page.locator('#invDept [data-inv-dept="Floor"]').click();
+ await page.waitForFunction(()=>document.querySelectorAll('#pbSup option').length===4);
+ await page.locator('#pbSup').selectOption('QA Veg Co');
  await page.waitForFunction(()=>document.querySelectorAll('#pbList .pb-row').length===2);
- assert.equal(await page.locator('#pbSup').inputValue(),'QA Veg Co');
- assert.equal(await page.evaluate(()=>window.mhInvDept()),'Floor','the same list as the supplier');
  assert.deepEqual(await page.locator('#pbList .pb-main strong').allInnerTexts(),['QA Swiss brown mushrooms','QA Basil'],'most bought first, only this supplier');
  assert.match(await page.locator('#pbList .pb-row').first().innerText(),/\$48\.00[\s\S]*\/box[\s\S]*4\.3%/);
  assert.deepEqual(await page.locator('#pbSup option').allInnerTexts(),['All suppliers (3)','QA Veg Co (2)','QA Wholesale (1)','QA Dairy (0)']);
@@ -137,5 +139,5 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.deepEqual(errors,[]);
  await context.close();
 }
-console.log(`PASS (${ENGINE}): suppliers: in Stock & Orders, add with suggested names, phone/email checks, call and email buttons, Prices opens Finance → Prices on that supplier, type an invoice for a supplier with none, same name refused, Kitchen/Floor lists (switch, move), edit, remove (two taps), back, no overflow, sign-out, no JavaScript errors.`);
+console.log(`PASS (${ENGINE}): suppliers: in Stock & Orders, add with suggested names, phone/email checks, call and email buttons, no prices in Suppliers (Finance → Prices by supplier), type an invoice for a supplier with none, same name refused, Kitchen/Floor lists (switch, move), edit, remove (two taps), back, no overflow, sign-out, no JavaScript errors.`);
 }finally{await browser.close();server.close();}

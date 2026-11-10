@@ -16,9 +16,8 @@ const EMAIL_OK=/^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const DEP_KEY='mh-suppliers-dept';
 const readDep=()=>{try{const v=localStorage.getItem(DEP_KEY);return v==='Floor'||v==='Kitchen'?v:null;}catch(_){return null;}};
 const state={list:[],known:[],at:0,gen:0,editing:null,removing:null,dept:null,canChoose:false};
-// Products and prices of each supplier are in Finance → Prices (the "Prices" button opens it on that supplier).
-const canSeePrices=()=>['manager','kitchen_manager','floor_manager'].includes(typeof currentManagerRole==='undefined'?'':currentManagerRole)&&(!window.mhCan||window.mhCan('invoices'));
-
+// Products and prices of each supplier are only in Finance → Prices, so who sees
+// prices is decided in one place (who may open Invoices).
 const screen=document.createElement('section');screen.id='supplierScreen';screen.className='hidden';
 screen.innerHTML=`<div class="manager-top"><div><h2>Suppliers</h2><p id="supSub">Contacts, phones and emails</p></div></div>
 <div id="supDept" class="stock-dept hidden"><button type="button" data-sup-dept="Kitchen">Kitchen</button><button type="button" data-sup-dept="Floor">Floor</button></div>
@@ -68,7 +67,7 @@ function line(s){
  const details=[s.contact,s.phone,s.email].filter(Boolean).map(t).join(' · ');
  return `<div class="shop-item sup-item" data-sup="${t(s.id)}"><span class="mnt-icon" aria-hidden="true">${ICON}</span>
   <span class="shop-main"><strong>${t(s.name)}</strong>${details?`<small>${details}</small>`:''}${s.note?`<small class="sup-note">${t(s.note)}</small>`:''}</span>
-  <span class="shop-actions">${calls}${canSeePrices()?`<button type="button" class="shop-small" data-sup-prices="${t(s.id)}">Prices</button>`:''}<button type="button" class="shop-small" data-sup-edit="${t(s.id)}">Edit</button><button type="button" class="shop-small${removing?' danger':''}" data-sup-remove="${t(s.id)}">${removing?'Tap again to remove':'Remove'}</button></span></div>`;
+  <span class="shop-actions">${calls}<button type="button" class="shop-small" data-sup-edit="${t(s.id)}">Edit</button><button type="button" class="shop-small${removing?' danger':''}" data-sup-remove="${t(s.id)}">${removing?'Tap again to remove':'Remove'}</button></span></div>`;
 }
 function render(){
  const box=$('supList');
@@ -109,11 +108,10 @@ $('supForm').addEventListener('submit',async e=>{
  finally{btn.disabled=false;}
 });
 screen.addEventListener('click',e=>{
- const b=e.target.closest('[data-sup-edit],[data-sup-remove],[data-sup-prices],[data-sup-dept]');if(!b)return;
+ const b=e.target.closest('[data-sup-edit],[data-sup-remove],[data-sup-dept]');if(!b)return;
  const d=b.dataset;
  if(d.supDept){if(d.supDept===state.dept)return;state.dept=d.supDept;try{localStorage.setItem(DEP_KEY,state.dept);}catch(_){}
   state.removing=null;closeForm();msg('');state.list=[];state.at=0;render();load().catch(err=>msg(err.message||'Unable to load the suppliers.'));return;}
- if(d.supPrices){const x=state.list.find(y=>y.id===d.supPrices);if(x)window.mhOpenSupplierPrices?.(x.name,state.canChoose?state.dept:null);return;}
  if(d.supEdit){const s=state.list.find(x=>x.id===d.supEdit);if(s)openForm(s);return;}
  if(d.supRemove){
   if(state.removing===d.supRemove){
