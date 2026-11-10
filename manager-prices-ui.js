@@ -1,10 +1,25 @@
 /* Price book: every product on the saved supplier invoices, the price paid each
-   time, and whether it went up or down. Read-only; Administrator and Kitchen
-   Manager only (the server refuses everyone else). */
+   time, and whether it went up or down, for the whole list or one supplier
+   (Finance → Prices; Suppliers → Prices opens it on that supplier). Read-only;
+   Administrator, Kitchen and Floor Managers, each on their invoice list. */
 (() => {
 const $=id=>document.getElementById(id);
 const RECENT_DAYS=14;
-const state={products:[],at:0,loading:null,filter:'all',open:null};
+const state={products:[],at:0,loading:null,filter:'all',open:null,sup:'',saved:[]};
+const norm=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+// "Moco" matches "MOCO Food Services"; "Global Food and Wine (Gulli)" matches itself.
+const sameSupplier=(saved,inv)=>{const a=norm(saved),b=norm(inv);if(!a||!b)return false;if(a===b)return true;
+ const word=w=>w.length>=3&&!['food','foods','fresh','services','the','and','wine','pty','ltd','produce'].includes(w);
+ const aw=a.split(' ').filter(word),bw=b.split(' ').filter(word);return aw.length>0&&aw.every(w=>bw.includes(w));};
+// The suppliers saved in Stock & Orders → Suppliers (same list, Kitchen or Floor), so
+// one with no invoice yet can still be picked.
+async function loadSaved(){
+ const admin=(typeof currentManagerRole==='undefined'?'':currentManagerRole)==='manager';const dep=window.mhInvDept?.();
+ try{const d=await managerApi('manager_supplier_list',admin&&dep?{department:dep}:{});state.saved=(d.suppliers||[]).map(x=>x.name);}catch(_){state.saved=[];}
+}
+const groupOf=p=>state.saved.find(n=>sameSupplier(n,p.supplier))||p.supplier;
+function groups(){const m=new Map(state.saved.map(n=>[n,0]));for(const p of state.products){const g=groupOf(p);m.set(g,(m.get(g)||0)+1);}
+ return [...m].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));}
 const canSee=()=>['manager','kitchen_manager','floor_manager'].includes(typeof currentManagerRole==='undefined'?'':currentManagerRole)&&(!window.mhCan||window.mhCan('invoices'));
 const money=n=>typeof invMoney==='function'?invMoney(n):'$'+Number(n).toFixed(2);
 const day=d=>d?new Intl.DateTimeFormat('en-AU',{timeZone:'UTC',day:'numeric',month:'short'}).format(new Date(`${d}T00:00:00Z`)):'';
@@ -55,23 +70,31 @@ function withYear(book,top){
  return out;
 }
 // Forget the cached list (after an invoice is saved or removed).
-window.mhPricesReset=(all)=>{state.at=0;if(all){state.gen=(state.gen||0)+1;state.products=[];state.open=null;window.mhPriceUps=[];}};
+window.mhPricesReset=(all)=>{state.at=0;if(all){state.gen=(state.gen||0)+1;state.products=[];state.open=null;state.sup='';state.saved=[];window.mhPriceUps=[];}};
 
 /* ---------- Prices tab ---------- */
 let built=false;
 function build(){
  if(built)return;built=true;
  $('invPricesView').innerHTML=`<p class="inv-hint">Every product on your saved invoices and the supplier history, and the price you paid. Tap one to see its history.</p>
+ <select id="pbSup" class="inv-search pb-sup" aria-label="Supplier"></select>
+ <div id="pbSupBar" class="pb-supbar hidden"></div>
  <div class="rm-chips" id="pbChips"></div>
  <input id="pbSearch" class="inv-search" type="search" placeholder="Search a product or supplier" autocomplete="off">
  <div class="card pb-card"><div id="pbList" class="empty-state">Loading…</div></div>`;
+ $('pbSup').addEventListener('change',()=>{state.sup=$('pbSup').value;state.open=null;render();});
+ $('pbSupBar').addEventListener('click',e=>{if(e.target.closest('[data-pb-type]')&&state.sup)window.MarinaraTypedInvoice?.open(state.sup);});
  $('pbChips').addEventListener('click',e=>{const b=e.target.closest('[data-pb-filter]');if(!b)return;state.filter=b.dataset.pbFilter;state.open=null;render();});
  $('pbSearch').addEventListener('input',()=>{state.open=null;render();});
  $('pbList').addEventListener('click',e=>{const b=e.target.closest('[data-pb]');if(!b)return;state.open=state.open===b.dataset.pb?null:b.dataset.pb;render();});
 }
 const FILTERS=[['all','All',()=>true],['up','Went up',up],['down','Went down',down],['often','Bought often',p=>p.times>=OFTEN]];
 function render(){
- const list=state.products;
+ const gs=groups();if(state.sup&&!gs.some(g=>g[0]===state.sup))gs.push([state.sup,0]);
+ $('pbSup').innerHTML=`<option value="">All suppliers (${state.products.length})</option>`+gs.map(([n,c])=>`<option value="${t(n)}"${n===state.sup?' selected':''}>${t(n)} (${c})</option>`).join('');
+ const list=state.sup?state.products.filter(p=>groupOf(p)===state.sup):state.products;
+ const bar=$('pbSupBar');bar.classList.toggle('hidden',!state.sup);
+ bar.innerHTML=state.sup?`${list.length?'':`<p class="inv-hint">No products from ${t(state.sup)} yet. They show here from their invoices: if ${t(state.sup)} sends no PDF, type one of their invoices.</p>`}<button type="button" class="shop-small" data-pb-type>+ Type one of their invoices</button>`:'';
  $('pbChips').innerHTML=FILTERS.map(([k,l,f])=>`<button type="button" data-pb-filter="${k}" aria-pressed="${state.filter===k}">${l} <span>${list.filter(f).length}</span></button>`).join('');
  const q=$('pbSearch').value.trim().toLowerCase();
  const f=FILTERS.find(x=>x[0]===state.filter)[2];
@@ -80,7 +103,7 @@ function render(){
    :state.filter==='down'?(a,b)=>(!!a.year-!!b.year)||Number(a.change_pct)-Number(b.change_pct)
    :(a,b)=>b.times-a.times||String(a.description).localeCompare(String(b.description)));
  const box=$('pbList');
- if(!list.length){box.className='empty-state';box.textContent='No prices yet. They appear here as soon as you save supplier invoices.';return;}
+ if(!list.length){box.className='empty-state';box.textContent=state.sup?'No prices yet.':'No prices yet. They appear here as soon as you save supplier invoices.';return;}
  if(!rows.length){box.className='empty-state';box.textContent=state.filter==='up'?'No price went up. Good news.':'Nothing matches.';return;}
  box.className='';
  box.innerHTML=rows.map(p=>{
@@ -104,11 +127,13 @@ function render(){
 // The Prices tab now shows the price book (the old "changes only" list is kept on the server).
 loadInvoicePrices=async function(){
  build();render();
- try{await load(true);render();}
+ try{await Promise.all([load(true),loadSaved()]);render();}
  catch(error){const box=$('pbList');box.className='empty-state';box.textContent=error.message||'Unable to load prices.';}
 };
 // Home → "N prices went up" opens Prices filtered to the rises.
 window.mhOpenPriceUps=()=>{state.filter='up';state.open=null;const b=$('invoicesCard');if(b&&!b.disabled){b.click();invShowTab('prices');}};
+// Suppliers → Prices: Finance → Prices on that supplier (and that list).
+window.mhOpenSupplierPrices=async(name,dep)=>{if(dep)window.mhSetInvDept?.(dep);await openInvoicesScreen();state.sup=name||'';state.filter='all';state.open=null;const q=$('pbSearch');if(q)q.value='';invShowTab('prices');};
 const opener=document.createElement('button');opener.type='button';opener.id='rmOpenPriceUps';opener.hidden=true;opener.onclick=()=>window.mhOpenPriceUps();document.body.append(opener);
 // Keep the Home alert current; a new invoice saved refreshes it.
 window.addEventListener('marinara:dashboard',()=>{if(canSee())load(false).catch(()=>{});else{window.mhPricesReset(true);}});

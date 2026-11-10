@@ -83,20 +83,26 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#supEmail').fill('');await page.locator('#supSave').click();
  await page.locator('#supMsg').filter({hasText:'Supplier saved.'}).waitFor();
  await page.waitForFunction(()=>![...document.querySelectorAll('.sup-item a')].some(a=>a.href.startsWith('mailto:')));
- // Products: from the invoices of that supplier ("QA Veg Co" matches "QA Veg Co Pty").
- await row.locator('[data-sup-products]').click();
- const prods=row.locator('.sup-products');await prods.locator('.sup-prod').first().waitFor();
- assert.deepEqual(await prods.locator('.sup-prod strong').allInnerTexts(),['QA Swiss brown mushrooms','QA Basil'],'most bought first, only this supplier');
- assert.match(await prods.locator('.sup-prod').first().innerText(),/\$48\.00[\s\S]*\/box[\s\S]*4\.3%/);
- assert.match(await prods.innerText(),/2 products from the invoices of QA Veg Co Pty/);
- await page.screenshot({path:`tmp/qa/${size}-supplier-products.png`,fullPage:true});
- await row.locator('[data-sup-products]').click();
- assert.equal(await row.locator('.sup-products').count(),0,'closes');
- // A supplier with no invoices: type one of their invoices, the form opens with its name.
- await dairy.locator('[data-sup-products]').click();
- await dairy.locator('.sup-products').filter({hasText:'No products yet'}).waitFor();
- await dairy.locator('[data-sup-type]').click();
+ // Prices: the button opens Finance → Prices on that supplier and its list
+ // ("QA Veg Co" matches "QA Veg Co Pty"); products and prices are no longer here.
+ assert.equal(await page.locator('[data-sup-products]').count(),0);
+ await row.locator('[data-sup-prices]').click();
  await page.locator('#invoicesScreen').waitFor({state:'visible'});
+ await page.locator('#invPricesView').waitFor({state:'visible'});
+ await page.waitForFunction(()=>document.querySelectorAll('#pbList .pb-row').length===2);
+ assert.equal(await page.locator('#pbSup').inputValue(),'QA Veg Co');
+ assert.equal(await page.evaluate(()=>window.mhInvDept()),'Floor','the same list as the supplier');
+ assert.deepEqual(await page.locator('#pbList .pb-main strong').allInnerTexts(),['QA Swiss brown mushrooms','QA Basil'],'most bought first, only this supplier');
+ assert.match(await page.locator('#pbList .pb-row').first().innerText(),/\$48\.00[\s\S]*\/box[\s\S]*4\.3%/);
+ assert.deepEqual(await page.locator('#pbSup option').allInnerTexts(),['All suppliers (3)','QA Veg Co (2)','QA Wholesale (1)','QA Dairy (0)']);
+ await page.screenshot({path:`tmp/qa/${size}-supplier-products.png`,fullPage:true});
+ await page.locator('#pbSup').selectOption('');
+ await page.waitForFunction(()=>document.querySelectorAll('#pbList .pb-row').length===3);
+ assert.equal(await page.locator('#pbSupBar').isVisible(),false);
+ // A supplier with no invoices: type one of their invoices, the form opens with its name.
+ await page.locator('#pbSup').selectOption('QA Dairy');
+ await page.locator('#pbSupBar').filter({hasText:'No products from QA Dairy yet'}).waitFor();
+ await page.locator('#pbSupBar [data-pb-type]').click();
  await page.locator('#invTyped').waitFor({state:'visible'});
  assert.equal(await page.locator('#invTypedSupplier').inputValue(),'QA Dairy');
  await page.locator('#invTypedCancel').click();
@@ -131,5 +137,5 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.deepEqual(errors,[]);
  await context.close();
 }
-console.log(`PASS (${ENGINE}): suppliers: in Stock & Orders, add with suggested names, phone/email checks, call and email buttons, products and last prices from the invoices, type an invoice for a supplier with none, same name refused, Kitchen/Floor lists (switch, move), edit, remove (two taps), back, no overflow, sign-out, no JavaScript errors.`);
+console.log(`PASS (${ENGINE}): suppliers: in Stock & Orders, add with suggested names, phone/email checks, call and email buttons, Prices opens Finance → Prices on that supplier, type an invoice for a supplier with none, same name refused, Kitchen/Floor lists (switch, move), edit, remove (two taps), back, no overflow, sign-out, no JavaScript errors.`);
 }finally{await browser.close();server.close();}
