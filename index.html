@@ -3815,7 +3815,7 @@ async function loadManagerDashboard() {
     const rcpTileSub = document.getElementById("recipesCardSub");
     if (rcpTileLabel) rcpTileLabel.textContent = rcpFloorHome ? "Allergens" : "Recipes";
     if (rcpTileSub) rcpTileSub.textContent = rcpFloorHome ? "What dishes contain" : "Allergens too";
-    document.getElementById("invoicesCard")?.classList.toggle("hidden", !["manager", "kitchen_manager"].includes(currentManagerRole));
+    document.getElementById("invoicesCard")?.classList.toggle("hidden", !["manager", "kitchen_manager", "floor_manager"].includes(currentManagerRole));
     const holidayNotice = document.getElementById("managerHolidayNotice");
     if (holidayNotice) {
       const upcoming = dashboard.upcoming_holidays || [];
@@ -6597,7 +6597,7 @@ function openManagerMore() {
   moreManagersBtn?.classList.toggle("hidden", currentManagerRole !== "manager");
   // Devices: Administrator only (the server refuses everyone else too).
   document.getElementById("moreDevicesBtn")?.classList.toggle("hidden", currentManagerRole !== "manager");
-  document.getElementById("moreInvoicesBtn")?.classList.toggle("hidden", !["manager", "kitchen_manager"].includes(currentManagerRole));
+  document.getElementById("moreInvoicesBtn")?.classList.toggle("hidden", !["manager", "kitchen_manager", "floor_manager"].includes(currentManagerRole));
   // Recipes: full for Administrator and Kitchen Manager; Floor Manager sees allergens only.
   const rcpFloor = currentManagerRole === "floor_manager";
   const rcpLabel = document.getElementById("moreRecipesLabel");
@@ -8170,7 +8170,7 @@ const DESK_AREAS = [
     { go: "moreRecipesBtn", label: "Recipe book", floorLabel: "Allergens", after: "recipes", noFloor: false },
     { go: "moreRecipesBtn", label: "Allergens", key: "moreRecipesBtn:allergens", after: "allergens", hideFloor: true },
   ] },
-  { id: "invoices", label: "Invoices & Costs", icon: "receipt", roles: ["manager", "kitchen_manager"], items: [
+  { id: "invoices", label: "Invoices & Costs", icon: "receipt", roles: ["manager", "kitchen_manager", "floor_manager"], items: [
     { go: "moreInvoicesBtn", label: "Invoices", tab: "list" },
     { go: "moreInvoicesBtn", label: "Weekly use", tab: "usage" },
     { go: "moreInvoicesBtn", label: "Price changes", tab: "prices" },
@@ -8276,12 +8276,16 @@ async function deskLoadExtra() {
       toOrder += lines.filter(l => l.counted && Number(l.order_qty) > 0).length;
     }
     deskExtra.toOrder = counted ? toOrder : null;
-    if (["manager", "kitchen_manager"].includes(role)) {
+    if (["manager", "kitchen_manager", "floor_manager"].includes(role)) {
       const today = brisbaneTodayInput();
       const d = new Date(`${today}T00:00:00Z`);
       const mon = new Date(d - ((d.getUTCDay() + 6) % 7) * 86400000).toISOString().slice(0, 10);
-      const inv = await managerApi("manager_invoice_list", { from: mon, to: today }).catch(() => null);
-      deskExtra.spend = inv ? { total: Number(inv.total) || 0, count: (inv.invoices || []).length, suppliers: (inv.by_supplier || []).length } : null;
+      // The Administrator: Kitchen and Floor together; a manager: their own list.
+      const lists = role === "manager" ? await Promise.all(["Kitchen", "Floor"].map(department => managerApi("manager_invoice_list", { from: mon, to: today, department }).catch(() => null)))
+        : [await managerApi("manager_invoice_list", { from: mon, to: today }).catch(() => null)];
+      const ok = lists.filter(Boolean);
+      deskExtra.spend = ok.length ? { total: ok.reduce((a, x) => a + (Number(x.total) || 0), 0), count: ok.reduce((a, x) => a + (x.invoices || []).length, 0),
+        suppliers: new Set(ok.flatMap(x => (x.by_supplier || []).map(s => s.supplier))).size } : null;
     } else deskExtra.spend = null;
     deskExtra.at = Date.now();
   } finally {
@@ -8292,7 +8296,7 @@ async function deskLoadExtra() {
 function renderDeskHome(fromExtra) {
   const role = currentManagerRole;
   const floor = role === "floor_manager";
-  const canInv = ["manager", "kitchen_manager"].includes(role);
+  const canInv = ["manager", "kitchen_manager", "floor_manager"].includes(role);
   const place = document.getElementById("managerLocation")?.textContent || "Hawthorne";
   const loc = document.getElementById("deskLocName"); if (loc) loc.textContent = place;
   const sub = document.getElementById("deskSubtitle"); if (sub) sub.textContent = `Everything you need to run ${place}.`;
@@ -8660,7 +8664,7 @@ async function loadInvoices() {
         </button>
         ${open ? `<div class="inv-lines">${lines ? lines.map(l => `<div class="inv-line"><span>${escapeHtml(l.description)}</span><strong>${escapeHtml(invMoney(l.line_total))}</strong>
             <small>${l.code ? escapeHtml(l.code) + " · " : ""}${invPack(l.unit) ? escapeHtml(invQtyText(l.qty, l.unit)) + " · " + escapeHtml(invPriceText(l.unit_price, l.unit)) : `${l.qty ?? ""} ${escapeHtml(l.unit || "")}${l.unit_price != null ? " × " + escapeHtml(invMoney(l.unit_price)) : ""}`}${Number(l.gst) ? " · GST " + escapeHtml(invMoney(l.gst)) : ""}</small></div>`).join("") : "Loading…"}</div>
-          <button type="button" class="inv-remove" data-inv-remove="${escapeHtml(inv.id)}">Remove this invoice</button>` : ""}
+          <button type="button" class="inv-remove" data-inv-remove="${escapeHtml(inv.id)}">Remove this invoice</button>${currentManagerRole === "manager" ? `<button type="button" class="inv-remove inv-move" data-inv-move="${escapeHtml(inv.id)}" data-inv-to="${inv.department === "Floor" ? "Kitchen" : "Floor"}">Move to the ${inv.department === "Floor" ? "Kitchen" : "Floor"} list</button>` : ""}` : ""}
       </div>`;
     }).join("") : "";
   } catch (error) {
@@ -10111,7 +10115,7 @@ checkDeviceStatus();
 // anything changed, offer a one-tap update (never reload on its own: someone may
 // be typing a PIN or clocking in). The session survives the reload.
 (() => {
-  const FILES = [location.pathname, "./manager-ui.js", "./manager-team-ui.js", "./manager-prices-ui.js", "./manager-top-ui.js", "./own-pin-ui.js", "./manager-photo-ui.js", "./manager-shopping-ui.js", "./manager-maintenance-ui.js", "./manager-temp-ui.js", "./manager-food-ui.js", "./manager-activity-ui.js", "./manager-orders-ui.js", "./manager-suppliers-ui.js", "./manager-notes-ui.js", "./manager-hubs-ui.js", "./manager-dishcost-ui.js", "./manager-invoice-typed-ui.js", "./temp-pdf.js", "./manager-redesign-test.css", "./invoice-reader.js"];
+  const FILES = [location.pathname, "./manager-ui.js", "./manager-team-ui.js", "./manager-prices-ui.js", "./manager-top-ui.js", "./own-pin-ui.js", "./manager-photo-ui.js", "./manager-shopping-ui.js", "./manager-maintenance-ui.js", "./manager-temp-ui.js", "./manager-food-ui.js", "./manager-activity-ui.js", "./manager-orders-ui.js", "./manager-suppliers-ui.js", "./manager-notes-ui.js", "./manager-hubs-ui.js", "./manager-dishcost-ui.js", "./manager-invoice-typed-ui.js", "./manager-invoice-dept-ui.js", "./temp-pdf.js", "./manager-redesign-test.css", "./invoice-reader.js"];
   let checking = false, lastCheck = 0;
   const text = (url, cache) => fetch(url, { cache }).then(r => (r.ok ? r.text() : null)).catch(() => null);
   async function changed(url) {
@@ -10157,5 +10161,6 @@ checkDeviceStatus();
 <script src="./manager-hubs-ui.js"></script>
 <script src="./manager-dishcost-ui.js"></script>
 <script src="./manager-invoice-typed-ui.js"></script>
+<script src="./manager-invoice-dept-ui.js"></script>
 </body>
 </html>

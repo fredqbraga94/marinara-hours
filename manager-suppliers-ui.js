@@ -16,8 +16,8 @@ const EMAIL_OK=/^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const DEP_KEY='mh-suppliers-dept';
 const readDep=()=>{try{const v=localStorage.getItem(DEP_KEY);return v==='Floor'||v==='Kitchen'?v:null;}catch(_){return null;}};
 const state={list:[],known:[],at:0,gen:0,editing:null,removing:null,open:null,book:null,bookAt:0,dept:null,canChoose:false};
-// Products and last prices come from the saved invoices (Administrator and Kitchen Manager).
-const canSeeProducts=()=>['manager','kitchen_manager'].includes(typeof currentManagerRole==='undefined'?'':currentManagerRole)&&(!window.mhCan||window.mhCan('invoices'));
+// Products and last prices come from the saved invoices of the same list (Kitchen or Floor).
+const canSeeProducts=()=>['manager','kitchen_manager','floor_manager'].includes(typeof currentManagerRole==='undefined'?'':currentManagerRole)&&(!window.mhCan||window.mhCan('invoices'));
 const norm=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 // "Moco" matches "MOCO Food Services"; "Global Food and Wine (Gulli)" matches itself.
 const sameSupplier=(saved,inv)=>{const a=norm(saved),b=norm(inv);if(!a||!b)return false;if(a===b)return true;
@@ -26,12 +26,12 @@ const sameSupplier=(saved,inv)=>{const a=norm(saved),b=norm(inv);if(!a||!b)retur
 const pday=d=>d?new Intl.DateTimeFormat('en-AU',{timeZone:'UTC',day:'numeric',month:'short'}).format(new Date(`${d}T00:00:00Z`)):'';
 const pmoney=n=>typeof invMoney==='function'?invMoney(n):'$'+Number(n).toFixed(2);
 async function loadBook(){
- if(state.book&&Date.now()-state.bookAt<5*60e3)return state.book;
- const gen=state.gen;const d=await managerApi('manager_invoice_price_book');
- if(gen!==state.gen)return null;state.book=d.products||[];state.bookAt=Date.now();return state.book;
+ if(state.book&&state.bookDep===state.dept&&Date.now()-state.bookAt<5*60e3)return state.book;
+ const gen=state.gen,dep=state.dept;const d=await managerApi('manager_invoice_price_book',state.canChoose&&dep?{department:dep}:{});
+ if(gen!==state.gen)return null;state.book=d.products||[];state.bookDep=dep;state.bookAt=Date.now();return state.book;
 }
 function productsHtml(s){
- if(!state.book)return `<div class="sup-products"><p class="sup-pnote">Loading…</p></div>`;
+ if(!state.book||state.bookDep!==state.dept)return `<div class="sup-products"><p class="sup-pnote">Loading…</p></div>`;
  const list=state.book.filter(p=>sameSupplier(s.name,p.supplier)).sort((a,b)=>(b.times||0)-(a.times||0)||String(a.description).localeCompare(String(b.description)));
  const typeBtn=`<button type="button" class="shop-small" data-sup-type="${t(s.id)}">+ Type one of their invoices</button>`;
  if(!list.length)return `<div class="sup-products"><p class="sup-pnote">No products yet. They show here from the invoices: if ${t(s.name)} sends no PDF, type one of their invoices and its products and prices appear here.</p>${typeBtn}</div>`;
@@ -137,7 +137,7 @@ screen.addEventListener('click',e=>{
  if(d.supDept){if(d.supDept===state.dept)return;state.dept=d.supDept;try{localStorage.setItem(DEP_KEY,state.dept);}catch(_){}
   state.open=null;state.removing=null;closeForm();msg('');state.list=[];state.at=0;render();load().catch(err=>msg(err.message||'Unable to load the suppliers.'));return;}
  if(d.supProducts){state.open=state.open===d.supProducts?null:d.supProducts;render();
-  if(state.open&&!state.book)loadBook().then(()=>render()).catch(err=>{state.open=null;render();msg(err.message||'Unable to load the products.');});return;}
+  if(state.open&&(!state.book||state.bookDep!==state.dept))loadBook().then(()=>render()).catch(err=>{state.open=null;render();msg(err.message||'Unable to load the products.');});return;}
  if(d.supType){const s=state.list.find(x=>x.id===d.supType);if(s)window.MarinaraTypedInvoice?.open(s.name);return;}
  if(d.supEdit){const s=state.list.find(x=>x.id===d.supEdit);if(s)openForm(s);return;}
  if(d.supRemove){

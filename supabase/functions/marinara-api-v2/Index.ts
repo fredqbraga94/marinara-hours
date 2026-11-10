@@ -1520,6 +1520,7 @@ Deno.serve(async (req) => {
         "manager_invoice_save",
         "manager_invoice_list",
         "manager_invoice_get",
+        "manager_invoice_move",
         "manager_invoice_remove",
         "manager_invoice_prices",
         "manager_invoice_usage",
@@ -3806,6 +3807,25 @@ Deno.serve(async (req) => {
           return Number.isFinite(n) && Math.abs(n) < max ? Math.round(n * 10000) / 10000 : null;
         };
         const text = (v: any, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+        // Invoices in two lists (Kitchen, Floor): the database checks who may use which.
+        const invDep = body.department === "Kitchen" || body.department === "Floor" ? body.department : null;
+        // Before the migration manager_invoice_call does not exist: the old
+        // functions answer, with the one (Kitchen) list.
+        const invCall = async (act: string, args: any = {}) => {
+          const r = await supabase.rpc("manager_invoice_call", {
+            p_manager_id: managerStatus.id, p_location: location, p_department: invDep, p_action: act, p_args: args,
+          });
+          if (!r.error || !["PGRST202", "42883"].includes(String((r.error as any).code))) return r;
+          const base = { p_manager_id: managerStatus.id, p_location: location };
+          if (act === "save") return supabase.rpc("manager_invoice_save", { ...base, p_invoice: args.invoice });
+          if (act === "list") return supabase.rpc("manager_invoice_list", { ...base, p_from: args.from, p_to: args.to });
+          if (act === "get" || act === "remove") return supabase.rpc(`manager_invoice_${act}`, { ...base, p_id: args.id });
+          if (act === "price_changes") return supabase.rpc("manager_invoice_price_changes", base);
+          if (act === "price_book") return supabase.rpc("manager_invoice_price_book", base);
+          if (act === "top_products") return supabase.rpc("manager_invoice_top_products", base);
+          if (act === "usage") return supabase.rpc("manager_invoice_usage", { ...base, p_weeks: args.weeks });
+          return r;
+        };
 
         if (action === "manager_invoice_save") {
           const inv = body.invoice && typeof body.invoice === "object" ? body.invoice : {};
@@ -3823,11 +3843,8 @@ Deno.serve(async (req) => {
               !clean.length || clean.length > 300 || clean.some((l: any) => l.line_total === null || !l.description)) {
             return json({ error: "This invoice could not be read completely. Check it and try again.", code: "INVALID_INPUT" }, 400);
           }
-          const { data, error } = await supabase.rpc("manager_invoice_save", {
-            p_manager_id: managerStatus.id, p_location: location,
-            p_invoice: { supplier, number, kind, date: inv.date, subtotal, gst, total,
-              checks_ok: inv.checks_ok === true, file_name: text(inv.file_name, 200), lines: clean },
-          });
+          const { data, error } = await invCall("save", { invoice: { supplier, number, kind, date: inv.date, subtotal, gst, total,
+              checks_ok: inv.checks_ok === true, file_name: text(inv.file_name, 200), lines: clean } });
           if (error) return managerDbError(error, "Unable to save the invoice");
           return json({ success: true, action, data: { invoice: data } });
         }
@@ -3836,33 +3853,25 @@ Deno.serve(async (req) => {
           const today = new Date(Date.now() + BRISBANE_OFFSET_MS).toISOString().slice(0, 10);
           const from = isDate(body.from) ? body.from : today.slice(0, 8) + "01";
           const to = isDate(body.to) ? body.to : today;
-          const { data, error } = await supabase.rpc("manager_invoice_list", {
-            p_manager_id: managerStatus.id, p_location: location, p_from: from, p_to: to,
-          });
+          const { data, error } = await invCall("list", { from, to });
           if (error) return managerDbError(error, "Unable to load invoices", 500);
           return json({ success: true, action, data });
         }
 
         if (action === "manager_invoice_prices") {
-          const { data, error } = await supabase.rpc("manager_invoice_price_changes", {
-            p_manager_id: managerStatus.id, p_location: location,
-          });
+          const { data, error } = await invCall("price_changes");
           if (error) return managerDbError(error, "Unable to load price changes", 500);
           return json({ success: true, action, data: { changes: data || [] } });
         }
 
         if (action === "manager_invoice_price_book") {
-          const { data, error } = await supabase.rpc("manager_invoice_price_book", {
-            p_manager_id: managerStatus.id, p_location: location,
-          });
+          const { data, error } = await invCall("price_book");
           if (error) return managerDbError(error, "Unable to load prices", 500);
-          return json({ success: true, action, data: { products: data?.products || [] } });
+          return json({ success: true, action, data: { products: data?.products || [], department: data?.department } });
         }
 
         if (action === "manager_invoice_top_products") {
-          const { data, error } = await supabase.rpc("manager_invoice_top_products", {
-            p_manager_id: managerStatus.id, p_location: location,
-          });
+          const { data, error } = await invCall("top_products");
           if (error) return managerDbError(error, "Unable to load the most bought products", 500);
           return json({ success: true, action, data: data || { products: [] } });
         }
@@ -4002,17 +4011,25 @@ Deno.serve(async (req) => {
 
         if (action === "manager_invoice_usage") {
           const weeks = [4, 8, 12, 26].includes(Number(body.weeks)) ? Number(body.weeks) : 8;
-          const { data, error } = await supabase.rpc("manager_invoice_usage", {
-            p_manager_id: managerStatus.id, p_location: location, p_weeks: weeks,
-          });
+          const { data, error } = await invCall("usage", { weeks });
           if (error) return managerDbError(error, "Unable to load weekly use", 500);
           return json({ success: true, action, data });
         }
 
         const id = typeof body.id === "string" ? body.id.trim() : "";
         if (!isUuid(id)) return json({ error: "Invoice not found", code: "INVOICE_NOT_FOUND" }, 404);
-        const fn = action === "manager_invoice_get" ? "manager_invoice_get" : "manager_invoice_remove";
-        const { data, error } = await supabase.rpc(fn, { p_manager_id: managerStatus.id, p_location: location, p_id: id });
+        if (action === "manager_invoice_move") {
+          if (invDep === null) return json({ error: "Choose Kitchen or Floor.", code: "INVALID_INPUT" }, 400);
+          const { data, error } = await supabase.rpc("manager_invoice_move", {
+            p_manager_id: managerStatus.id, p_location: location, p_id: id, p_department: invDep,
+          });
+          if (error) {
+            if (dbErrorCode(error) === "GM_REQUIRED") return json({ error: "Only the Administrator can move an invoice.", code: "GM_REQUIRED" }, 403);
+            return managerDbError(error, "Unable to move the invoice");
+          }
+          return json({ success: true, action, data: { invoice: data } });
+        }
+        const { data, error } = await invCall(action === "manager_invoice_get" ? "get" : "remove", { id });
         if (error) return managerDbError(error, "Unable to open the invoice");
         return json({ success: true, action, data: action === "manager_invoice_get" ? { invoice: data } : data });
       }
