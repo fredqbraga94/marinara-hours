@@ -8563,7 +8563,10 @@ function invRenderReview() {
     const flag = r.saved ? `<div class="inv-flag ok">Saved</div>`
       : r.duplicate ? `<div class="inv-flag dup">Already saved. Nothing to do.</div>`
       : inv.ok ? `<div class="inv-flag ok">Adds up: ${inv.lines.length} lines match the total</div>`
+      : inv.odd_lines ? `<div class="inv-flag warn">Check: ${inv.odd_lines === 1 ? "1 line looks" : `${inv.odd_lines} lines look`} wrong (in red). Compare the quantity and price with the PDF before saving.</div>`
       : `<div class="inv-flag warn">Check: the lines don't add up to the total. Compare with the PDF before saving.</div>`;
+    // Lines open by themselves when something needs checking.
+    const showLines = r.showLines ?? (!r.saved && !r.duplicate && (inv.generic || !inv.ok));
     return `<div class="inv-review${inv.ok ? "" : " bad"}">
       <div class="inv-review-top">
         <div><strong>${escapeHtml(inv.supplier)}</strong>
@@ -8572,16 +8575,16 @@ function invRenderReview() {
       </div>
       ${flag}
       ${inv.generic && !r.saved && !r.duplicate ? `<div class="inv-generic">
-        <div class="inv-flag new">New supplier layout, read automatically. Check the name, number and date.</div>
+        <div class="inv-flag new">First invoices in this layout: the app is not sure it read the columns right. Check the name, number, date and each line's quantity and price against the PDF.</div>
         <label>Supplier <input data-inv-f="supplier" data-inv-i="${i}" maxlength="80" value="${escapeHtml(inv.supplier || "")}" placeholder="Supplier name"></label>
         <div class="inv-gen-row"><label>Invoice no. <input data-inv-f="number" data-inv-i="${i}" maxlength="60" value="${escapeHtml(inv.number || "")}"></label>
         <label>Date <input type="date" data-inv-f="date" data-inv-i="${i}" value="${escapeHtml(inv.date || "")}"></label></div></div>` : ""}
-      <div class="inv-check-row">${r.url ? `<a class="inv-open-pdf" href="${r.url}" target="_blank" rel="noopener">Open PDF</a>` : ""}<button type="button" class="inv-see-lines" data-inv-lines="${i}" aria-expanded="${!!r.showLines}">${r.showLines ? "Hide lines" : "See the lines read"}</button></div>
-      ${r.showLines ? `<div class="inv-read-lines">${inv.lines.map(l => `<div><span>${escapeHtml(l.description || l.code || "")}<small>${escapeHtml([l.code, `${l.qty ?? ""} ${l.unit || ""}`.trim(), l.unit_price != null ? `× ${invMoney(l.unit_price)}` : ""].filter(Boolean).join(" · "))}</small></span><b>${escapeHtml(invMoney(l.line_total))}</b></div>`).join("")}
+      <div class="inv-check-row">${r.url ? `<a class="inv-open-pdf" href="${r.url}" target="_blank" rel="noopener">Open PDF</a>` : ""}<button type="button" class="inv-see-lines" data-inv-lines="${i}" aria-expanded="${showLines}">${showLines ? "Hide lines" : "See the lines read"}</button></div>
+      ${showLines ? `<div class="inv-read-lines">${inv.lines.map(l => `<div${l.check ? ' class="odd"' : ""}><span>${escapeHtml(l.description || l.code || "")}${l.check ? `<em>${escapeHtml(l.check)}</em>` : ""}<small>${escapeHtml([l.code, `${l.qty ?? ""} ${l.unit || ""}`.trim(), l.unit_price != null ? `× ${invMoney(l.unit_price)}` : ""].filter(Boolean).join(" · "))}</small></span><b>${escapeHtml(invMoney(l.line_total))}</b></div>`).join("")}
         <div class="inv-read-tot"><span>Subtotal ${escapeHtml(invMoney(inv.subtotal))} · GST ${escapeHtml(invMoney(inv.gst))}</span><b>${escapeHtml(invMoney(inv.total))}</b></div></div>` : ""}
       ${r.saved ? "" : r.duplicate ? `<div class="inv-review-actions"><button type="button" data-inv-dismiss="${i}">Dismiss</button></div>` : `<div class="inv-review-actions">
         <button type="button" data-inv-dismiss="${i}">Don't save</button>
-        <button type="button" class="save" data-inv-save="${i}">Save</button></div>`}
+        <button type="button" class="save" data-inv-save="${i}">${r.confirmed ? "I checked it with the PDF: save" : "Save"}</button></div>`}
     </div>`;
   }).join("");
 }
@@ -9100,7 +9103,7 @@ invoicesScreen?.addEventListener("click", async e => {
   const sup = e.target.closest("[data-inv-usage-supplier]");
   if (sup) { invState.usageSupplier = sup.dataset.invUsageSupplier; invRenderUsage(); return; }
   const lns = e.target.closest("[data-inv-lines]");
-  if (lns) { const r = invState.review[Number(lns.dataset.invLines)]; if (r) r.showLines = !r.showLines; invRenderReview(); return; }
+  if (lns) { const r = invState.review[Number(lns.dataset.invLines)]; if (r) r.showLines = lns.getAttribute("aria-expanded") !== "true"; invRenderReview(); return; }
   const dis = e.target.closest("[data-inv-dismiss]");
   if (dis) { const [gone] = invState.review.splice(Number(dis.dataset.invDismiss), 1); if (gone?.url) setTimeout(() => URL.revokeObjectURL(gone.url), 60000); invRenderReview(); return; }
   const save = e.target.closest("[data-inv-save]");
@@ -9120,6 +9123,13 @@ invoicesScreen?.addEventListener("click", async e => {
     }
     const slot = invState.review[Number(save.dataset.invSave)];
     if (!slot?.invoice) return;
+    // Something to check (a layout the app does not know, or lines that look
+    // wrong): a second tap to say it was checked against the PDF.
+    if ((slot.invoice.generic || !slot.invoice.ok) && !slot.confirmed) {
+      slot.confirmed = true; slot.showLines = true; invRenderReview();
+      invMsg("Compare the lines in red (and the totals) with the PDF, then tap Save again.", false);
+      return;
+    }
     save.disabled = true;
     const inv = slot.invoice;
     if (inv.generic) {

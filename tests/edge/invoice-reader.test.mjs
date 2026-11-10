@@ -279,3 +279,31 @@ test("Rivercity: quantity and price from their own columns, cartons of 24, fuel 
   assert.equal(inv.gst, 20);
   assert.equal(inv.total, 226.75);
 });
+
+test("an unknown layout read with quantity and price swapped is flagged line by line, not 'adds up'", () => {
+  y = 0;
+  const words = [
+    ...row(["Test Drinks Wholesale", 40], ["TAX INVOICE", 400]), ...row(["Invoice No:", 400], ["TD-123", 470]), ...row(["Date:", 400], ["03/11/2026", 470]),
+    ...row(["Description", 71], ["Qty", 300], ["Price", 360], ["Amount", 450]),
+    ...(y += 12, []),
+    ...row(["TEST LAGER 24 PACK", 71], ["50.06", 300], ["4.00", 360], ["200.24", 450]),
+    ...row(["TEST CIDER 24 PACK", 71], ["1.00", 300], ["30.00", 360], ["30.00", 450]),
+    ...row(["Total", 400], ["230.24", 450]),
+  ];
+  const inv = R.parse([R.toRows(words)]);
+  assert.equal(inv.generic, true, JSON.stringify(inv));
+  assert.equal(inv.checks.total_matches, true, JSON.stringify([inv.total, inv.gst, inv.subtotal, inv.lines]));
+  assert.equal(inv.checks.lines_look_right, false, JSON.stringify(inv.lines));
+  assert.equal(inv.ok, false);
+  assert.equal(inv.odd_lines, 1);
+  assert.match(inv.lines[0].check, /Quantity 50.06\?/);
+  assert.equal(inv.lines[1].check, undefined);
+});
+
+test("normal lines are not flagged: whole cartons, half boxes, weighed kg", () => {
+  const inv = R.parse(mocoPages([
+    { code: "90001", desc: "TEST PORK FILLET", pack: "AP9KG", unit: "RW", price: 10, total: 102, weight: 10.2 },
+    { code: "90003", desc: "TEST NAPKINS", pack: "100Q", unit: "CTN", price: 30, total: 30 },
+  ]));
+  assert.equal(inv.checks.lines_look_right, true, JSON.stringify(inv.lines));
+});

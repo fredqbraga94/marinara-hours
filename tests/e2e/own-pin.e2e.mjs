@@ -59,6 +59,9 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.equal(await page.locator('#managerMoreScreen [data-rm-go="rmOpenOwnPin"]').count(),1,'in More');
  await page.evaluate(()=>{window.mhOwnPin.change();});
  await dlg.waitFor({state:'visible'});assert.equal(await page.locator('#opOldWrap').isVisible(),true);
+ // Wait until the dialog has finished opening (it empties the fields, then puts the
+ // cursor in Current PIN), so typing is not wiped by it (was a timing failure on CI).
+ await page.waitForFunction(()=>document.getElementById('opTitle').textContent==='Change my PIN'&&document.activeElement?.id==='opOld');
  await page.evaluate(()=>window.__rule='wrong');
  await page.locator('#opOld').fill('111111');await page.locator('#opNew').fill('482913');await page.locator('#opNew2').fill('482913');await page.locator('#opSave').click();
  try{await page.waitForFunction(()=>/current PIN is not right/.test(document.getElementById('opMsg').textContent),null,{timeout:10000});}

@@ -166,7 +166,9 @@ try {
     const lines = await gm.page.locator('#invReview .inv-read-lines').first().innerText();
     assert.match(lines, /\$44\.00/); assert.equal(await gm.page.locator('#invReview .inv-read-lines > div').count() >= 3, true);
     await gm.page.click('#invReview [data-inv-lines="0"]');
-    assert.equal(await gm.page.locator('#invReview .inv-read-lines').count(), 0, "hidden again");
+    assert.equal(await gm.page.locator('#invReview .inv-review').first().locator('.inv-read-lines').count(), 0, "hidden again");
+    // The card that does not add up shows its lines by itself.
+    assert.equal(await gm.page.locator('#invReview .inv-review').nth(1).locator('.inv-read-lines').count(), 1, "lines open when something needs checking");
     return "3 cards: ok / check / unknown; PDF and lines can be checked";
   });
 
@@ -328,12 +330,17 @@ try {
     await gm.page.setInputFiles("#invFiles", [FILES.generic]);
     await waitRead(gm, n + 1);
     const c = (await cards(gm))[n];
-    assert.match(c, /New supplier layout/); assert.match(c, /Adds up: 4 lines/); assert.match(c, /\$142\.00/);
+    assert.match(c, /First invoices in this layout/); assert.match(c, /Adds up: 4 lines/); assert.match(c, /\$142\.00/);
+    assert.equal(await gm.page.locator('#invReview .inv-review').nth(n).locator('.inv-read-lines').count(), 1, "a new layout shows its lines to check");
     assert.equal(await gm.page.locator(`#invReview [data-inv-f="supplier"][data-inv-i="${n}"]`).inputValue(), "Test Fresh Foods");
     assert.equal(await gm.page.locator(`#invReview [data-inv-f="number"][data-inv-i="${n}"]`).inputValue(), "TF-77");
     assert.equal(await gm.page.locator(`#invReview [data-inv-f="date"][data-inv-i="${n}"]`).inputValue(), today.split("/").reverse().join("-"));
     await gm.shot("invoices_generic");
     // An empty name is refused before sending.
+    // A layout the app does not know: the first Save asks to compare with the PDF.
+    await gm.page.click(`#invReview [data-inv-save="${n}"]`);
+    await gm.page.waitForFunction(() => /Compare the lines/.test(document.getElementById("invMessage").textContent));
+    assert.match(await gm.page.locator(`#invReview [data-inv-save="${n}"]`).innerText(), /I checked it with the PDF: save/);
     await gm.page.fill(`#invReview [data-inv-f="supplier"][data-inv-i="${n}"]`, "");
     await gm.page.click(`#invReview [data-inv-save="${n}"]`);
     await gm.page.waitForFunction(() => /Write the supplier name/.test(document.getElementById("invMessage").textContent));

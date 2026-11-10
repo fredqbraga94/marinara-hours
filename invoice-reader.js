@@ -864,8 +864,32 @@
       has_date: !!inv.date,
       has_lines: inv.lines.length > 0,
     };
+    // Each line on its own: a quantity like "50.06" cartons, or price x quantity
+    // far from the line total, means the columns were probably read wrong.
+    let odd = 0;
+    for (const l of inv.lines) {
+      const why = lineProblem(l, reader === generic);
+      if (why) { l.check = why; odd++; } else delete l.check;
+    }
+    inv.checks.lines_look_right = odd === 0;
+    inv.odd_lines = odd;
     inv.ok = Object.values(inv.checks).every(Boolean);
     return inv;
+  }
+  // Why a line looks wrong, or "" when it looks fine.
+  const WEIGHED = /(^|\s)(kg|kgs|g|gm|gr|l|lt|ltr|litre|ml|rw)(\s|$)/i;
+  function lineProblem(l, generic) {
+    if (/fuel|freight|delivery|levy|surcharge|charge/i.test(l.description || "")) return "";
+    const qty = l.qty == null ? null : Math.abs(Number(l.qty)), price = l.unit_price == null ? null : Math.abs(Number(l.unit_price)), tot = Math.abs(Number(l.line_total) || 0);
+    if (qty == null || !(qty > 0)) return "No quantity read";
+    if (price == null || !(price > 0)) return "No price read";
+    const frac = Math.round((qty % 1) * 100) / 100;
+    if (!WEIGHED.test(l.unit || "") && ![0, 0.25, 0.5, 0.75].includes(frac)) return `Quantity ${qty}? Check the quantity and the price`;
+    if (generic) {
+      const p = qty * price, near = (a, b) => Math.abs(a - b) <= Math.max(0.05, b * 0.02);
+      if (!near(p, tot) && !near(p * 1.1, tot) && !near(p, tot * 1.1)) return `${qty} × ${price.toFixed(2)} is not ${tot.toFixed(2)}. Check the line`;
+    }
+    return "";
   }
 
   async function readPdf(data, base) {
