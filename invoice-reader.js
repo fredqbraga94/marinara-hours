@@ -535,6 +535,55 @@
     },
   };
 
+  // Rivercity Wholesale Liquor (drinks, Floor). Columns: code, description, qty,
+  // base price, discount, net price, total ex GST and WET, WET/GST-free flag.
+  // Each column is read from its heading, so the quantity is never taken for a
+  // price ("4.00 × 50.06", not "50.06 × 4.00"). "(24)" in the name is a carton
+  // of 24; the rest are single bottles or casks. WET and GST are one amount at
+  // the bottom; line totals are ex both. The fuel levy is a line.
+  const rivercity = {
+    supplier: "Rivercity Wholesale Liquor",
+    test: t => /Rivercity Wholesale Liquor/i.test(t) && /TAX INVOICE/i.test(t) && /\bQty\b/.test(t) && /Net\s*Price/i.test(t),
+    read(pages) {
+      const lines = [];
+      let number = null, date = null, subtotal = null, gst = null, total = null;
+      const NUM = /^-?[\d,]*\d\.\d{2}$/;
+      for (const rows of pages) {
+        let head = null;
+        for (const r of rows) {
+          const rt = rowText(r);
+          if (!number) { const m = rt.match(/\b(SI-\d+)\b/); if (m) number = m[1]; }
+          if (!date) { const m = rt.match(/Invoice\s*Date:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i); if (m) date = isoDate(m[1]); }
+          const ws = splitWords(r).flatMap(w => w.s.includes(" ") && !NUM.test(w.s) ? splitItem(w) : [w]);
+          if (!head && /\bCode\b/.test(rt) && /\bDescription\b/.test(rt) && /\bQty\b/.test(rt)) {
+            const at = re => ws.find(w => re.test(w.s))?.x;
+            const net = ws.find((w, k) => /^Net$/i.test(w.s) || /^Net\s*Price$/i.test(w.s));
+            head = { desc: at(/^Description$/i), qty: at(/^Qty$/i), net: net?.x };
+            continue;
+          }
+          if (!head) continue;
+          if (/Sub\s*Total/i.test(rt) && !/Charges/i.test(rt)) { const m = ws.filter(w => NUM.test(w.s)).pop(); if (m) subtotal = money(m.s); head = { ...head, done: true }; continue; }
+          if (/WET\s*&\s*GST/i.test(rt)) { const m = ws.filter(w => NUM.test(w.s)).pop(); if (m) gst = money(m.s); continue; }
+          if (/Invoice\s*Total/i.test(rt)) { const m = ws.filter(w => NUM.test(w.s)).pop(); if (m) total = money(m.s); continue; }
+          if (/^Fuel\s*Levy\b/i.test(rt)) { const m = ws.filter(w => NUM.test(w.s)).pop(); if (m) lines.push({ code: "", description: "Fuel Levy", qty: 1, unit: "", unit_price: money(m.s), line_total: money(m.s), gst: 0 }); continue; }
+          if (head.done) continue;
+          const nums = ws.filter(w => NUM.test(w.s));
+          if (nums.length < 3) continue;
+          const near = x => nums.reduce((b, w) => (Math.abs(w.x - x) < Math.abs(b.x - x) ? w : b));
+          const qtyW = near(head.qty), netW = head.net != null ? near(head.net) : nums[nums.length - 2], totW = nums[nums.length - 1];
+          if (qtyW === totW || netW === totW || qtyW === netW) continue;
+          const words = ws.filter(w => w.x < head.qty - 12);
+          const code = words[0] && words[0].x < head.desc - 5 ? words[0].s : "";
+          const description = words.filter(w => w.x >= head.desc - 5).map(w => w.s).join(" ").replace(/\s+/g, " ").trim();
+          if (!description) continue;
+          lines.push({ code, description, qty: num(qtyW.s), unit: /\(\s*\d+\s*\)/.test(description) ? "ctn" : "ea", unit_price: money(netW.s), line_total: money(totW.s), gst: 0 });
+        }
+      }
+      if (total != null && gst != null) subtotal = r2(total - gst);
+      return { number, date, kind: "invoice", lines, subtotal, gst, total };
+    },
+  };
+
   // Gulli Food Distributors, new layout (from Nov 2026, invoice "CI-484677"):
   // order qty, unit, item code, item name, ship qty, unit, unit price, taxes,
   // line total (with tax). Long codes and names wrap onto the rows just above
@@ -789,7 +838,7 @@
     return { number, date, kind: credit ? "credit" : "invoice", lines, total, gst, subtotal: r2(total - gst), supplierGuess: supplier || "", generic: true };
   }
 
-  const READERS = [moco, pronto, angelos, globalFood, gulliInvoice, gulliCredit, gulliNew, htc];
+  const READERS = [moco, pronto, angelos, globalFood, gulliInvoice, gulliCredit, gulliNew, htc, rivercity];
 
   // pages -> invoice, or { error } when the layout is not one we know.
   function parse(pages) {

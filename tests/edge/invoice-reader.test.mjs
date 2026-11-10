@@ -240,3 +240,42 @@ test("Gulli (Nov 2026), narrower name column: names found from the header, [code
   ]);
   assert.ok(inv.lines.every((l) => l.description), "every line has a name");
 });
+
+// Rivercity Wholesale Liquor. Made-up products and prices at the column
+// positions the real PDFs use; the PDF text comes as pieces ("Base Price",
+// a whole product name), so the quantity must not be read as the price.
+function rivercityPages() {
+  y = 0;
+  const words = [
+    ...row(["Rivercity Wholesale Liquor", 232], ["TAX INVOICE", 507]), ...row(["SI-00009999", 519]),
+    ...row(["Invoice Date:", 459], ["03/11/2026", 537]),
+    ...row(["Total", 502]), ...row(["WET/GST", 540]),
+    ...row(["Code", 18], ["Description", 71], ["Qty", 307], ["Base Price", 341], ["Discount", 398], ["Net Price", 449], ["exGST&", 496]),
+    ...row(["FREE", 555]), ...row(["WET", 502]),
+    ...row(["TESTBEER1", 18], ["TEST LAGER - 330ML BTL (24)", 71], ["3.00", 305], ["40.00", 350], ["0%", 407], ["40.00", 456], ["120.00", 499]),
+    ...row(["TESTVOD1", 18], ["TEST VODKA - 1000ML", 71], ["1.00", 305], ["30.00", 350], ["5%", 402], ["28.50", 456], ["28.50", 501]),
+    ...row(["TESTWINE1", 18], ["TEST MARSALA - 750ML BTL", 71], ["6.00", 305], ["9.04", 353], ["0%", 407], ["9.04", 458], ["54.25", 501], ["WET29%", 542]),
+    ...row(["Sub Total", 427], ["202.75", 499]),
+    ...row(["Charge", 18], ["Price", 504]), ...row(["Fuel Levy", 18], ["4.00", 506]),
+    ...row(["Charges Sub Total", 393], ["4.00", 508]),
+    ...row(["WET & GST", 419], ["20.00", 503]),
+    ...row(["Invoice Total", 415], ["226.75", 492]),
+  ];
+  return [R.toRows(words)];
+}
+
+test("Rivercity: quantity and price from their own columns, cartons of 24, fuel levy, WET & GST", () => {
+  const inv = R.parse(rivercityPages());
+  assert.equal(inv.ok, true, JSON.stringify(inv.checks));
+  assert.equal(inv.supplier, "Rivercity Wholesale Liquor");
+  assert.equal(inv.number, "SI-00009999");
+  assert.equal(inv.date, "2026-11-03");
+  assert.deepEqual(inv.lines.map((l) => [l.code, l.description, l.qty, l.unit, l.unit_price, l.line_total]), [
+    ["TESTBEER1", "TEST LAGER - 330ML BTL (24)", 3, "ctn", 40, 120],
+    ["TESTVOD1", "TEST VODKA - 1000ML", 1, "ea", 28.5, 28.5],
+    ["TESTWINE1", "TEST MARSALA - 750ML BTL", 6, "ea", 9.04, 54.25],
+    ["", "Fuel Levy", 1, "", 4, 4],
+  ]);
+  assert.equal(inv.gst, 20);
+  assert.equal(inv.total, 226.75);
+});
