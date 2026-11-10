@@ -511,3 +511,12 @@ button.cl-box:not(.on){box-shadow:inset 0 0 0 1.5px #e2b98f}
 .inv-read-lines b{white-space:nowrap;font-variant-numeric:tabular-nums}.inv-read-tot{font-weight:600}
 .shop-move{display:flex;flex-direction:column;gap:4px;flex:0 0 auto}.shop-move button{width:34px;height:30px;margin:0;padding:0;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--green);font-size:12px;line-height:1}.shop-move button:disabled{opacity:.25}
 #ordSend .ord-msg-btn{width:100%;flex:none}
+
+/* Suppliers → Products */
+.sup-item .sup-products{flex-basis:100%;margin:8px 0 0 42px;border-top:1px solid var(--border);padding-top:8px;display:flex;flex-direction:column;gap:6px}
+.sup-pnote{margin:0;font-size:12px;color:var(--muted)}
+.sup-prod{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)}
+.sup-prod:last-of-type{border-bottom:0}
+.sup-prod span:first-child{display:flex;flex-direction:column;gap:2px;min-width:0}.sup-prod strong{font-size:13px;overflow-wrap:anywhere}.sup-prod small{font-size:11px;color:var(--muted)}
+.sup-pprice{display:flex;flex-direction:column;align-items:flex-end;flex-shrink:0}.sup-pprice b{font-size:13px}
+.shop-small.on{background:var(--green);color:#fff}

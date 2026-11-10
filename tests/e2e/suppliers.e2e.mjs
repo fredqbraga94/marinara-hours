@@ -30,6 +30,11 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
     if(s.id){Object.assign(list.find(x=>x.id===s.id),row);return{supplier:list.find(x=>x.id===s.id)};}
     const x={id:id(),...row};list.push(x);return{supplier:x};}
    if(action==='manager_supplier_remove'){list.splice(list.findIndex(x=>x.id===extra.id),1);return{removed:true};}
+   if(action==='manager_invoice_price_book')return{products:[
+    {supplier:'QA Veg Co Pty',product_key:'qa mushrooms',description:'QA Swiss brown mushrooms',unit:'box',pack:null,times:4,last_price:48,last_date:'2026-10-01',change_pct:4.3},
+    {supplier:'QA Veg Co Pty',product_key:'qa basil',description:'QA Basil',unit:'bunch',pack:null,times:2,last_price:4,last_date:'2026-09-09',change_pct:null},
+    {supplier:'QA Wholesale',product_key:'b1',description:'QA Bacon 2.5kg',unit:'Ctn [6]',pack:6,times:1,last_price:23.5,last_date:'2026-10-08',change_pct:null}]};
+   if(action==='manager_invoice_list')return{invoices:[],by_supplier:[],totals:[]};
    if(action==='manager_roster_week')return{team:[],entries:[],services:[],leave:[]};
    return orig(action,extra);};
  });
@@ -78,6 +83,26 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#supEmail').fill('');await page.locator('#supSave').click();
  await page.locator('#supMsg').filter({hasText:'Supplier saved.'}).waitFor();
  await page.waitForFunction(()=>![...document.querySelectorAll('.sup-item a')].some(a=>a.href.startsWith('mailto:')));
+ // Products: from the invoices of that supplier ("QA Veg Co" matches "QA Veg Co Pty").
+ await row.locator('[data-sup-products]').click();
+ const prods=row.locator('.sup-products');await prods.locator('.sup-prod').first().waitFor();
+ assert.deepEqual(await prods.locator('.sup-prod strong').allInnerTexts(),['QA Swiss brown mushrooms','QA Basil'],'most bought first, only this supplier');
+ assert.match(await prods.locator('.sup-prod').first().innerText(),/\$48\.00[\s\S]*\/box[\s\S]*4\.3%/);
+ assert.match(await prods.innerText(),/2 products from the invoices of QA Veg Co Pty/);
+ await page.screenshot({path:`tmp/qa/${size}-supplier-products.png`,fullPage:true});
+ await row.locator('[data-sup-products]').click();
+ assert.equal(await row.locator('.sup-products').count(),0,'closes');
+ // A supplier with no invoices: type one of their invoices, the form opens with its name.
+ await dairy.locator('[data-sup-products]').click();
+ await dairy.locator('.sup-products').filter({hasText:'No products yet'}).waitFor();
+ await dairy.locator('[data-sup-type]').click();
+ await page.locator('#invoicesScreen').waitFor({state:'visible'});
+ await page.locator('#invTyped').waitFor({state:'visible'});
+ assert.equal(await page.locator('#invTypedSupplier').inputValue(),'QA Dairy');
+ await page.locator('#invTypedCancel').click();
+ await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen [data-rm-go="rmOpenHubStock"]').click();
+ await page.locator('#hubStockMenu [data-rm-go="rmOpenSuppliers"]').click();await page.locator('#supplierScreen').waitFor({state:'visible'});
+ await page.locator('.sup-item').filter({hasText:'QA Dairy'}).waitFor();
  // Remove (two taps).
  await dairy.locator('[data-sup-remove]').click();
  assert.match(await dairy.locator('[data-sup-remove]').innerText(),/Tap again/);
@@ -92,5 +117,5 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.deepEqual(errors,[]);
  await context.close();
 }
-console.log(`PASS (${ENGINE}): suppliers: in Stock & Orders, add with suggested names, phone/email checks, call and email buttons, same name refused, edit, remove (two taps), back, no overflow, sign-out, no JavaScript errors.`);
+console.log(`PASS (${ENGINE}): suppliers: in Stock & Orders, add with suggested names, phone/email checks, call and email buttons, products and last prices from the invoices, type an invoice for a supplier with none, same name refused, edit, remove (two taps), back, no overflow, sign-out, no JavaScript errors.`);
 }finally{await browser.close();server.close();}

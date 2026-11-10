@@ -12,7 +12,32 @@ const MAIL=svg('<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="m3.5
 const telHref=p=>'tel:'+String(p||'').replace(/[^0-9+]/g,'');
 const PHONE_OK=/^[0-9+() .-]{3,30}$/;
 const EMAIL_OK=/^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-const state={list:[],known:[],at:0,gen:0,editing:null,removing:null};
+const state={list:[],known:[],at:0,gen:0,editing:null,removing:null,open:null,book:null,bookAt:0};
+// Products and last prices come from the saved invoices (Administrator and Kitchen Manager).
+const canSeeProducts=()=>['manager','kitchen_manager'].includes(typeof currentManagerRole==='undefined'?'':currentManagerRole)&&(!window.mhCan||window.mhCan('invoices'));
+const norm=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+// "Moco" matches "MOCO Food Services"; "Global Food and Wine (Gulli)" matches itself.
+const sameSupplier=(saved,inv)=>{const a=norm(saved),b=norm(inv);if(!a||!b)return false;if(a===b)return true;
+ const word=w=>w.length>=3&&!['food','foods','fresh','services','the','and','wine','pty','ltd','produce'].includes(w);
+ const aw=a.split(' ').filter(word),bw=b.split(' ').filter(word);return aw.length>0&&aw.every(w=>bw.includes(w));};
+const pday=d=>d?new Intl.DateTimeFormat('en-AU',{timeZone:'UTC',day:'numeric',month:'short'}).format(new Date(`${d}T00:00:00Z`)):'';
+const pmoney=n=>typeof invMoney==='function'?invMoney(n):'$'+Number(n).toFixed(2);
+async function loadBook(){
+ if(state.book&&Date.now()-state.bookAt<5*60e3)return state.book;
+ const gen=state.gen;const d=await managerApi('manager_invoice_price_book');
+ if(gen!==state.gen)return null;state.book=d.products||[];state.bookAt=Date.now();return state.book;
+}
+function productsHtml(s){
+ if(!state.book)return `<div class="sup-products"><p class="sup-pnote">Loading…</p></div>`;
+ const list=state.book.filter(p=>sameSupplier(s.name,p.supplier)).sort((a,b)=>(b.times||0)-(a.times||0)||String(a.description).localeCompare(String(b.description)));
+ const typeBtn=`<button type="button" class="shop-small" data-sup-type="${t(s.id)}">+ Type one of their invoices</button>`;
+ if(!list.length)return `<div class="sup-products"><p class="sup-pnote">No products yet. They show here from the invoices: if ${t(s.name)} sends no PDF, type one of their invoices and its products and prices appear here.</p>${typeBtn}</div>`;
+ const from=[...new Set(list.map(p=>p.supplier))];
+ return `<div class="sup-products"><p class="sup-pnote">${list.length} ${list.length===1?'product':'products'} from the invoices${from.length===1&&norm(from[0])!==norm(s.name)?` of ${t(from[0])}`:''}. Last price paid:</p>
+  ${list.map(p=>{const pk=Number(p.pack)>1?Number(p.pack):1;const ch=p.change_pct==null?'':`<em class="pb-chg ${Number(p.change_pct)>0?'up':'down'}">${Number(p.change_pct)>0?'▲':'▼'} ${Math.abs(Number(p.change_pct)).toLocaleString('en-AU',{maximumFractionDigits:1})}%</em>`;
+   return `<div class="sup-prod"><span><strong>${t(p.description)}</strong><small>${t(p.times||1)}× · last ${t(pday(p.last_date))}</small></span><span class="sup-pprice"><b>${t(pmoney(Number(p.last_price)*pk))}</b><small>${pk>1?'/ctn':p.unit?'/'+t(String(p.unit).toLowerCase()):''}</small>${ch}</span></div>`;}).join('')}
+  ${typeBtn}</div>`;
+}
 
 const screen=document.createElement('section');screen.id='supplierScreen';screen.className='hidden';
 screen.innerHTML=`<div class="manager-top"><div><h2>Suppliers</h2><p>Contacts, phones and emails</p></div></div>
@@ -57,7 +82,7 @@ function line(s){
  const details=[s.contact,s.phone,s.email].filter(Boolean).map(t).join(' · ');
  return `<div class="shop-item sup-item" data-sup="${t(s.id)}"><span class="mnt-icon" aria-hidden="true">${ICON}</span>
   <span class="shop-main"><strong>${t(s.name)}</strong>${details?`<small>${details}</small>`:''}${s.note?`<small class="sup-note">${t(s.note)}</small>`:''}</span>
-  <span class="shop-actions">${calls}<button type="button" class="shop-small" data-sup-edit="${t(s.id)}">Edit</button><button type="button" class="shop-small${removing?' danger':''}" data-sup-remove="${t(s.id)}">${removing?'Tap again to remove':'Remove'}</button></span></div>`;
+  <span class="shop-actions">${calls}${canSeeProducts()?`<button type="button" class="shop-small${state.open===s.id?' on':''}" data-sup-products="${t(s.id)}" aria-expanded="${state.open===s.id}">Products</button>`:''}<button type="button" class="shop-small" data-sup-edit="${t(s.id)}">Edit</button><button type="button" class="shop-small${removing?' danger':''}" data-sup-remove="${t(s.id)}">${removing?'Tap again to remove':'Remove'}</button></span>${state.open===s.id?productsHtml(s):''}</div>`;
 }
 function render(){
  const box=$('supList');
@@ -92,8 +117,11 @@ $('supForm').addEventListener('submit',async e=>{
  finally{btn.disabled=false;}
 });
 screen.addEventListener('click',e=>{
- const b=e.target.closest('[data-sup-edit],[data-sup-remove]');if(!b)return;
+ const b=e.target.closest('[data-sup-edit],[data-sup-remove],[data-sup-products],[data-sup-type]');if(!b)return;
  const d=b.dataset;
+ if(d.supProducts){state.open=state.open===d.supProducts?null:d.supProducts;render();
+  if(state.open&&!state.book)loadBook().then(()=>render()).catch(err=>{state.open=null;render();msg(err.message||'Unable to load the products.');});return;}
+ if(d.supType){const s=state.list.find(x=>x.id===d.supType);if(s)window.MarinaraTypedInvoice?.open(s.name);return;}
  if(d.supEdit){const s=state.list.find(x=>x.id===d.supEdit);if(s)openForm(s);return;}
  if(d.supRemove){
   if(state.removing===d.supRemove){
@@ -103,5 +131,5 @@ screen.addEventListener('click',e=>{
   }else{state.removing=d.supRemove;render();}
  }
 });
-window.addEventListener('marinara:session-reset',()=>{state.gen++;state.list=[];state.known=[];state.at=0;state.removing=null;closeForm();msg('');render();});
+window.addEventListener('marinara:session-reset',()=>{state.gen++;state.list=[];state.known=[];state.at=0;state.removing=null;state.open=null;state.book=null;state.bookAt=0;closeForm();msg('');render();});
 })();

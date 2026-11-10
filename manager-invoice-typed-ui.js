@@ -72,8 +72,11 @@ function check(){
 }
 function syncHead(){state.supplier=$('invTypedSupplier')?.value;state.number=$('invTypedNumber')?.value;state.date=$('invTypedDate')?.value;state.gst=$('invTypedGst')?.value;state.total=$('invTypedTotal')?.value;}
 
-btn.onclick=async()=>{invClearMsg();state.open=true;state.lines=[blank(),blank(),blank()];state.supplier='';state.number='';state.date=today();state.gst='0';state.total='';render();
- await loadBook();if(state.open){syncHead();render();}$('invTypedSupplier')?.focus();};
+async function openTyped(supplier){invClearMsg();state.open=true;state.lines=[blank(),blank(),blank()];state.supplier=supplier||'';state.number='';state.date=today();state.gst='0';state.total='';render();
+ await loadBook();if(state.open){syncHead();render();}box.scrollIntoView({block:'start'});$(supplier?'invTypedNumber':'invTypedSupplier')?.focus();}
+btn.onclick=()=>openTyped('');
+// From Suppliers → Products: open Invoices with the form for that supplier.
+window.MarinaraTypedInvoice={open:async supplier=>{await openInvoicesScreen();await openTyped(supplier);}};
 box.addEventListener('input',e=>{
  const f=e.target.closest('[data-tl-f]');
  if(f){const i=Number(f.closest('[data-tl]').dataset.tl);state.lines[i][f.dataset.tlF]=f.value;
