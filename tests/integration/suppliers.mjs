@@ -12,6 +12,9 @@ import { ID, PIN, reseed } from "./seed.mjs";
 const NEW = "20261109000000_suppliers.sql";
 const MIG = `supabase/migrations/${NEW}`;
 const DOWN = "supabase/rollback/20261109000000_suppliers.down.sql";
+// The current server needs the Kitchen/Floor lists too (checked in supplier-departments.mjs).
+const DEPS = "supabase/migrations/20261112000000_supplier_departments.sql";
+const DEPS_DOWN = "supabase/rollback/20261112000000_supplier_departments.down.sql";
 const NEW_SERVER = resolve(root, "supabase/functions/marinara-api-v2/Index.ts");
 const PROD_SERVER = resolve(root, "tests/edge/baseline-v64.ts");
 
@@ -56,6 +59,7 @@ try {
   await check("migration applies, runs twice, closed to the public keys; production server keeps working", async () => {
     let r = db.psqlFile(MIG); assert.ok(r.ok, r.stderr);
     r = db.psqlFile(MIG); assert.ok(r.ok, r.stderr);
+    r = db.psqlFile(DEPS); assert.ok(r.ok, r.stderr);
     for (const role of ["anon", "authenticated"]) {
       assert.equal(await one(`select has_table_privilege('${role}', 'public.suppliers', 'select')`), "f");
       assert.equal(await one(`select has_function_privilege('${role}', 'public.manager_supplier_save(uuid,jsonb)', 'execute')`), "f");
@@ -70,11 +74,11 @@ try {
     let l = (await api(vNew, 2, km, { action: "manager_supplier_list" })).body.data;
     assert.deepEqual(l.suppliers, []);
     assert.ok(l.known.includes("Test Veg Co"), JSON.stringify(l.known));
-    const r = await api(vNew, 3, fm, { action: "manager_supplier_save", supplier: {
+    const r = await api(vNew, 2, km, { action: "manager_supplier_save", supplier: {
       name: " Test Veg Co ", contact: "Test Person", phone: "0400 000 000", email: "Orders@Test-Veg.example", note: "Order by 2pm" } });
     assert.equal(r.status, 200, JSON.stringify(r.body));
     veg = r.body.data.supplier;
-    assert.deepEqual({ ...veg, id: undefined }, { id: undefined, name: "Test Veg Co", contact: "Test Person", phone: "0400 000 000", email: "orders@test-veg.example", note: "Order by 2pm" });
+    assert.deepEqual({ ...veg, id: undefined }, { id: undefined, name: "Test Veg Co", contact: "Test Person", phone: "0400 000 000", email: "orders@test-veg.example", note: "Order by 2pm", department: "Kitchen" });
     await api(vNew, 1, gm, { action: "manager_supplier_save", supplier: { name: "Test Bakery" } });
     l = (await api(vNew, 2, km, { action: "manager_supplier_list" })).body.data;
     assert.deepEqual(l.suppliers.map((s) => s.name), ["Test Bakery", "Test Veg Co"]);
@@ -112,7 +116,8 @@ try {
     assert.equal((await api(vNew, 1, gm, { action: "manager_unit_set", location: "Hawthorne" })).status, 200);
   });
   await check("rollback removes it; both servers still work", async () => {
-    const r = db.psqlFile(DOWN); assert.ok(r.ok, r.stderr);
+    let r = db.psqlFile(DEPS_DOWN); assert.ok(r.ok, r.stderr);
+    r = db.psqlFile(DOWN); assert.ok(r.ok, r.stderr);
     assert.equal(await one(`select to_regclass('public.suppliers') is null`), "t");
     assert.equal((await api(vNew, 1, gm, { action: "manager_dashboard" })).status, 200);
     const p = await login(vProd, 2);
