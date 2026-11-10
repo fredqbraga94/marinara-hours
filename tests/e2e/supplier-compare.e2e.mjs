@@ -53,10 +53,21 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  const bacon=page.locator('.cmp-group').filter({hasText:'Bacon'});
  assert.match(await bacon.locator('.cmp-head small').innerText(),/Say what one price buys/);
  assert.equal(await bacon.locator('.cmp-pack').count(),1,'only the carton asks');
- assert.match(await bacon.locator('.cmp-row').filter({hasText:'Test Deli'}).innerText(),/\$9\.40\/kg/);
- await bacon.locator('.cmp-pack [data-cmp-f="count"]').fill('6');
+ assert.match(await bacon.locator('.cmp-row').filter({hasText:'[CVC]'}).innerText(),/\$9\.40\/kg/);
+ assert.equal(await bacon.locator('.cmp-pack [data-cmp-f="count"]').inputValue(),'','no number written in for a carton');
+ assert.match(await bacon.locator('.cmp-pack').innerText(),/How many packs of 2\.5 kg come in one ctn for \$150\.00\?[\s\S]*about 6 packs/);
+ assert.match(await bacon.locator('.cmp-row').filter({hasText:'[CVC]'}).innerText(),/2\.5 kg for \$23\.50 \(6 in a carton = \$141\.00\)/);
+ // Saved as one pack: far too dear next to the other, so it is flagged and not counted.
+ await bacon.locator('.cmp-pack [data-cmp-f="count"]').fill('1');
  await bacon.locator('[data-cmp-savepack]').click();
- await page.locator('.cmp-list .cmp-msg.ok').filter({hasText:'Saved. The price per unit uses it now.'}).waitFor();
+ await page.locator('.cmp-list .cmp-msg.ok').filter({hasText:'Saved.'}).waitFor();
+ const flagged=page.locator('.cmp-group').filter({hasText:'Bacon'});
+ assert.match(await flagged.locator('.cmp-head small').innerText(),/Check how many packs come in a carton/);
+ assert.match(await flagged.locator('.cmp-warn').innerText(),/\$60\.00\/kg looks too dear/);
+ assert.doesNotMatch(await page.locator('.cmp-sum').innerText(),/\$1,/,'not counted in the saving');
+ await flagged.locator('.cmp-pack [data-cmp-f="count"]').fill('6');
+ await flagged.locator('[data-cmp-savepack]').click();
+ await page.waitForFunction(()=>!document.querySelector('.cmp-warn'));
  assert.deepEqual(await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_supplier_compare_save').at(-1)[1].data),{supplier:'Test Wholesale',product_key:'A1',pack:{count:6,size:2.5,unit:'kg'}});
  // 150 / 15 kg = $10/kg vs $9.40/kg; 3 cartons in 90 days = 15 kg a month → $9.00 more a month.
  const bacon2=page.locator('.cmp-group').filter({hasText:'Bacon'});
@@ -91,5 +102,5 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.deepEqual(errors,[]);
  await context.close();
 }
-console.log(`PASS (${ENGINE}): compare suppliers: same product put together by name, price per kg/L, a carton asks what it buys (saved), cheapest and money more a month, 6Q and [6x2lt] read, not the same (two taps), add a product by hand, back to the price book, no overflow, no JavaScript errors.`);
+console.log(`PASS (${ENGINE}): compare suppliers: same product put together by name, price per kg/L, a carton asks how many packs (no number written in, estimate shown, a too-dear price flagged and not counted), saved, cheapest and money more a month, 6Q and [6x2lt] read, not the same (two taps), add a product by hand, back to the price book, no overflow, no JavaScript errors.`);
 }finally{await browser.close();server.close();}

@@ -538,3 +538,4 @@ button.cl-box:not(.on){box-shadow:inset 0 0 0 1.5px #e2b98f}
 .cmp-msg{margin:0;padding:10px 12px;border-radius:10px;font-size:13px;font-weight:700}.cmp-msg.ok{background:#e3f4ea;color:#07613b}.cmp-msg.err{background:#fde3e1;color:#b3261e}
 .pb-card:has(.cmp-list){background:transparent!important;border:0!important;box-shadow:none!important;overflow:visible}
 .cmp-list .cmp-group{margin:0}
+.cmp-pack small{flex-basis:100%;color:#6b4a00}.cmp-warn{flex-basis:100%;color:#b3261e;font-size:12px}

@@ -81,31 +81,44 @@ function describe(members,d){
  const same=units.size===1;
  const known=rows.filter(r=>r.pu!=null);
  const best=same&&known.length>1?known.reduce((a,b)=>b.pu<a.pu?b:a):null;
+ for(const r of rows)r.carton=CARTON.test(String(r.p.unit||'').trim())&&!(Number(r.p.pack)>1);
  let saving=0;
- for(const r of rows){r.diff=best&&r.pu!=null&&r!==best?r.pu-best.pu:null;r.monthly=r.diff!=null&&r.perMonth?r.diff*r.perMonth:null;if(r.monthly>0)saving+=r.monthly;}
+ // Two and a half times the others or more: almost always a carton of several
+ // packs counted as one. Not counted in the saving until it is checked.
+ for(const r of rows){const others=known.filter(x=>x!==r&&x.unit===r.unit);const low=others.length?Math.min(...others.map(x=>x.pu)):null;
+  r.suspect=r.pu!=null&&low!=null&&r.pu>=2.5*low;r.ref=low!=null?others.find(x=>x.pu===low):null;}
+ for(const r of rows){r.diff=best&&r.pu!=null&&r!==best?r.pu-best.pu:null;r.monthly=r.diff!=null&&r.perMonth&&!r.suspect?r.diff*r.perMonth:null;if(r.monthly>0)saving+=r.monthly;}
  rows.sort((a,b)=>(a.pu==null)-(b.pu==null)||(a.pu??0)-(b.pu??0));
  const title=members.map(p=>String(p.description)).sort((a,b)=>a.length-b.length)[0];
- return{title,rows,best,saving,needsPack:rows.some(r=>!r.pk.sure),mixed:units.size>1};
+ return{title,rows,best,saving,needsPack:rows.some(r=>!r.pk.sure||r.suspect),mixed:units.size>1};
 }
 
 /* ----- view ----- */
 const unitWord=u=>u==='each'?'each':u==='l'?'L':u;
 function packForm(r){
  const pk=r.pk,k=keyOf(r.p);
+ // A carton not checked yet: ask how many packs, no number written in for you.
+ const ask=r.carton&&pk.source==='guess'||r.suspect;
+ const size=pk.size||1,unit=pk.unit||'kg';
+ const est=r.ref&&unit!=='each'?Number(r.p.last_price)/(r.ref.pu*size*(unit==='g'||unit==='ml'?0.001:1)):null;
+ const hint=ask&&est&&est>1.4?`<small>For comparison: at ${t(r.ref.p.supplier)}'s price, ${t(money(r.p.last_price))} would buy about ${t(Math.round(est))} packs. Check the box or the invoice before saving.</small>`:'';
  return `<div class="cmp-pack" data-cmp-packform="${t(k)}">
-  <span>One price (${t(money(r.p.last_price))}${r.p.unit?' / '+t(String(r.p.unit).toLowerCase()):''}) buys</span>
-  <input data-cmp-f="count" inputmode="decimal" value="${t(pk.count||1)}" aria-label="How many">
+  <span>${ask?`How many packs of ${t(size)} ${t(unit)} come in one ${t(String(r.p.unit||'carton').toLowerCase())} for ${t(money(r.p.last_price))}?`:`One price (${t(money(r.p.last_price))}${r.p.unit?' / '+t(String(r.p.unit).toLowerCase()):''}) buys`}</span>
+  ${r.suspect?`<b class="cmp-warn">${t(money(r.pu))}/${t(unitWord(base(unit)))} looks too dear next to the others: it is probably a carton of several packs.</b>`:''}
+  <input data-cmp-f="count" inputmode="decimal" value="${ask?'':t(pk.count||1)}" placeholder="?" aria-label="How many">
   <span>×</span>
   <input data-cmp-f="size" inputmode="decimal" value="${t(pk.size||1)}" aria-label="Size">
   <select data-cmp-f="unit" aria-label="Unit">${['kg','g','l','ml','each'].map(u=>`<option${pk.unit===u?' selected':''}>${u}</option>`).join('')}</select>
   <button type="button" data-cmp-savepack="${t(k)}">Save</button>
+  ${hint}
  </div>`;
 }
 function rowHtml(g,r){
- const k=keyOf(r.p),editing=state.editing===k||!r.pk.sure;
- const price=r.pu!=null?`<strong>${t(money(r.pu))}/${t(unitWord(r.unit))}</strong>`:`<strong class="cmp-q">?</strong>`;
- const tag=g.best&&r===g.best?`<em class="pb-chg down">Cheapest</em>`:r.diff!=null&&g.best?`<em class="pb-chg up">+${t((r.diff/g.best.pu*100).toLocaleString('en-AU',{maximumFractionDigits:0}))}%</em>`:'';
- const packTxt=r.pk.sure?`${r.pk.count>1?`${r.pk.count} × `:''}${r.pk.size} ${r.pk.unit} for ${money(r.p.last_price)}`:'';
+ const k=keyOf(r.p),editing=state.editing===k||!r.pk.sure||r.suspect;
+ const price=r.pu!=null&&!r.suspect?`<strong>${t(money(r.pu))}/${t(unitWord(r.unit))}</strong>`:`<strong class="cmp-q">?</strong>`;
+ const tag=r.suspect?'':g.best&&r===g.best?`<em class="pb-chg down">Cheapest</em>`:r.diff!=null&&g.best?`<em class="pb-chg up">+${t((r.diff/g.best.pu*100).toLocaleString('en-AU',{maximumFractionDigits:0}))}%</em>`:'';
+ const ctn=Number(r.p.pack)>1?` (${r.p.pack} in a carton = ${money(Number(r.p.last_price)*Number(r.p.pack))})`:'';
+ const packTxt=r.pk.sure&&!r.suspect?`${r.pk.count>1?`${r.pk.count} × `:''}${r.pk.size} ${r.pk.unit} for ${money(r.p.last_price)}${ctn}${r.carton&&r.pk.count>1?' a carton':''}`:'';
  const month=r.perMonth?`≈ ${(+r.perMonth.toFixed(r.perMonth<10?1:0)).toLocaleString('en-AU')} ${unitWord(r.unit)} a month`:r.bought?'':'Not bought in the last 90 days';
  const more=r.monthly>0.5?` · <b class="up">${t(money(r.monthly))} more a month</b>`:'';
  return `<div class="cmp-row${g.best&&r===g.best?' best':''}">
@@ -116,7 +129,8 @@ function rowHtml(g,r){
  </div>`;
 }
 function groupHtml(g,i,products){
- const head=g.saving>=1?`Save about <b>${t(money(g.saving))} a month</b> buying all from ${t(g.best.p.supplier)}`
+ const head=g.rows.some(r=>r.suspect)?'Check how many packs come in a carton to compare'
+  :g.saving>=1?`Save about <b>${t(money(g.saving))} a month</b> buying all from ${t(g.best.p.supplier)}`
   :g.needsPack?'Say what one price buys to compare'
   :g.mixed?'Sold in different units: say what one price buys'
   :g.best?`${t(g.best.p.supplier)} is the cheapest`:'';
