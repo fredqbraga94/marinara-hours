@@ -23,10 +23,10 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
   const list=[];let n=0;const id=()=>`00000000-0000-4000-8000-${String(++n).padStart(12,'0')}`;
   window.__calls=[];const orig=managerApi;
   managerApi=async(action,extra={})=>{window.__calls.push([action,JSON.parse(JSON.stringify(extra))]);
-   if(action==='manager_supplier_list'){const names=list.map(s=>s.name.toLowerCase());
-    return{location:'Hawthorne',suppliers:list.slice().sort((a,b)=>a.name.localeCompare(b.name)),known:['QA Veg Co','QA Dairy'].filter(k=>!names.includes(k.toLowerCase()))};}
+   if(action==='manager_supplier_list'){const dep=extra.department||'Floor';const here=list.filter(s=>s.department===dep);const names=here.map(s=>s.name.toLowerCase());
+    return{location:'Hawthorne',department:dep,can_choose_department:true,suppliers:here.slice().sort((a,b)=>a.name.localeCompare(b.name)),known:['QA Veg Co','QA Dairy'].filter(k=>!names.includes(k.toLowerCase()))};}
    if(action==='manager_supplier_save'){const s=extra.supplier;const clean=v=>v||null;
-    const row={name:s.name,contact:clean(s.contact),phone:clean(s.phone),email:clean(s.email),note:clean(s.note)};
+    const row={name:s.name,contact:clean(s.contact),phone:clean(s.phone),email:clean(s.email),note:clean(s.note),department:s.department};
     if(s.id){Object.assign(list.find(x=>x.id===s.id),row);return{supplier:list.find(x=>x.id===s.id)};}
     const x={id:id(),...row};list.push(x);return{supplier:x};}
    if(action==='manager_supplier_remove'){list.splice(list.findIndex(x=>x.id===extra.id),1);return{removed:true};}
@@ -43,7 +43,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.deepEqual(await page.locator('#hubStockMenu [data-rm-go]').evaluateAll(es=>es.map(e=>e.dataset.rmGo)),['stockCard','rmOpenOrders','rmOpenSuppliers','rmOpenShopping']);
  assert.equal(await page.locator('#managerMoreScreen [data-rm-go="rmOpenSuppliers"]').count(),0,'More shows the group, not the row');
  await page.locator('#hubStockMenu [data-rm-go="rmOpenSuppliers"]').click();await page.locator('#supplierScreen').waitFor({state:'visible'});
- await page.locator('#supList').filter({hasText:'No suppliers yet'}).waitFor();
+ await page.locator('#supList').filter({hasText:'No Floor suppliers yet'}).waitFor();
  assert.equal(await page.locator('#supForm').isVisible(),false);
  // Add: the names already used are offered.
  await page.locator('#supAdd').click();
@@ -57,7 +57,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#supSave').click();
  await page.locator('#supMsg').filter({hasText:'Supplier added: QA Veg Co'}).waitFor();
  const saved=await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_supplier_save').at(-1)[1].supplier);
- assert.deepEqual(saved,{name:'QA Veg Co',contact:'QA Person',phone:'0400 000 000',email:'orders@qa-veg.example',note:'Order by 2pm'});
+ assert.deepEqual(saved,{name:'QA Veg Co',contact:'QA Person',phone:'0400 000 000',email:'orders@qa-veg.example',note:'Order by 2pm',department:'Floor'});
  assert.equal(await page.evaluate(()=>window.__calls.filter(c=>c[0]==='manager_supplier_save').length),1,'bad phone/email never sent');
  const row=page.locator('.sup-item').filter({hasText:'QA Veg Co'});
  await row.waitFor();
@@ -114,8 +114,22 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#supplierScreen [data-hub-back]').click();await page.locator('#hubStockScreen').waitFor({state:'visible'});
  await page.evaluate(()=>window.dispatchEvent(new CustomEvent('marinara:session-reset')));
  assert.equal(await page.locator('.sup-item').count(),0,'sign-out forgets it');
+ // Kitchen and Floor lists (Administrator): switch, move a supplier.
+ await page.locator('[data-manager-nav="operations"]').click();await page.locator('#operationsScreen [data-rm-go="rmOpenHubStock"]').click();
+ await page.locator('#hubStockMenu [data-rm-go="rmOpenSuppliers"]').click();
+ await page.locator('.sup-item').filter({hasText:'QA Veg Co'}).waitFor();
+ assert.equal(await page.locator('#supDept').isVisible(),true);
+ assert.match(await page.locator('#supSub').innerText(),/Floor suppliers/);
+ await page.locator('.sup-item').filter({hasText:'QA Veg Co'}).locator('[data-sup-edit]').click();
+ assert.equal(await page.locator('#supDeptSel').inputValue(),'Floor');
+ await page.locator('#supDeptSel').selectOption('Kitchen');await page.locator('#supSave').click();
+ await page.locator('#supMsg').filter({hasText:'QA Veg Co is now in the Kitchen list.'}).waitFor();
+ await page.locator('#supList').filter({hasText:'No Floor suppliers yet'}).waitFor();
+ await page.locator('#supDept [data-sup-dept="Kitchen"]').click();
+ await page.locator('.sup-item').filter({hasText:'QA Veg Co'}).waitFor();
+ assert.equal(await page.evaluate(()=>localStorage.getItem('mh-suppliers-dept')),'Kitchen','remembered on this phone');
  assert.deepEqual(errors,[]);
  await context.close();
 }
-console.log(`PASS (${ENGINE}): suppliers: in Stock & Orders, add with suggested names, phone/email checks, call and email buttons, products and last prices from the invoices, type an invoice for a supplier with none, same name refused, edit, remove (two taps), back, no overflow, sign-out, no JavaScript errors.`);
+console.log(`PASS (${ENGINE}): suppliers: in Stock & Orders, add with suggested names, phone/email checks, call and email buttons, products and last prices from the invoices, type an invoice for a supplier with none, same name refused, Kitchen/Floor lists (switch, move), edit, remove (two taps), back, no overflow, sign-out, no JavaScript errors.`);
 }finally{await browser.close();server.close();}

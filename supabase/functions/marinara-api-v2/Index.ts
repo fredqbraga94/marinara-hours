@@ -3729,7 +3729,8 @@ Deno.serve(async (req) => {
           /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
         const text = (v: any, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
         if (action === "manager_supplier_list") {
-          const { data, error } = await supabase.rpc("manager_supplier_list", { p_manager_id: managerStatus.id });
+          const dep = body.department === "Kitchen" || body.department === "Floor" ? body.department : null;
+          const { data, error } = await supabase.rpc("manager_supplier_list", { p_manager_id: managerStatus.id, p_department: dep });
           if (error) return managerDbError(error, "Unable to load suppliers", 500);
           return json({ success: true, action, data });
         }
@@ -3740,6 +3741,7 @@ Deno.serve(async (req) => {
             name: text(s.name, 60), contact: text(s.contact, 80), phone: text(s.phone, 30),
             email: text(s.email, 120).toLowerCase(), note: text(s.note, 300),
           };
+          if (s.department === "Kitchen" || s.department === "Floor") supplier.department = s.department;
           if (s.id) supplier.id = s.id;
           if (!supplier.name) return json({ error: "Write the supplier's name.", code: "INVALID_INPUT" }, 400);
           if (supplier.phone && (supplier.phone.length < 3 || !/^[0-9+() .-]+$/.test(supplier.phone))) {

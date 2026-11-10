@@ -36,6 +36,7 @@
     "test:activity": "node tests/integration/activity-log.mjs",
     "test:orders": "node tests/integration/supplier-orders.mjs",
     "test:suppliers": "node tests/integration/suppliers.mjs",
+    "test:supplier-departments": "node tests/integration/supplier-departments.mjs",
     "test:notes": "node tests/integration/notes.mjs",
     "test:ingredient-edit": "node tests/integration/ingredient-edit.mjs",
     "test:shopping-order": "node tests/integration/shopping-order.mjs",

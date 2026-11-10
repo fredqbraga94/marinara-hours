@@ -1,7 +1,8 @@
 /* Suppliers: who we buy from, with the contact person, phone and email, so a
-   manager can call or email them from here. Every manager can add, edit or
-   remove one. Names already used in Stock, Orders and Invoices are offered
-   while typing, so the same supplier is written the same way. */
+   manager can call or email them from here. Two lists, Kitchen and Floor: the
+   Kitchen Manager sees only Kitchen suppliers, the Floor Manager only Floor,
+   the Administrator both (switch at the top; a supplier can be moved). Names
+   already used in Stock, Orders and Invoices are offered while typing. */
 (() => {
 const $=id=>document.getElementById(id);
 const t=v=>escapeHtml(String(v??''));
@@ -12,7 +13,9 @@ const MAIL=svg('<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="m3.5
 const telHref=p=>'tel:'+String(p||'').replace(/[^0-9+]/g,'');
 const PHONE_OK=/^[0-9+() .-]{3,30}$/;
 const EMAIL_OK=/^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-const state={list:[],known:[],at:0,gen:0,editing:null,removing:null,open:null,book:null,bookAt:0};
+const DEP_KEY='mh-suppliers-dept';
+const readDep=()=>{try{const v=localStorage.getItem(DEP_KEY);return v==='Floor'||v==='Kitchen'?v:null;}catch(_){return null;}};
+const state={list:[],known:[],at:0,gen:0,editing:null,removing:null,open:null,book:null,bookAt:0,dept:null,canChoose:false};
 // Products and last prices come from the saved invoices (Administrator and Kitchen Manager).
 const canSeeProducts=()=>['manager','kitchen_manager'].includes(typeof currentManagerRole==='undefined'?'':currentManagerRole)&&(!window.mhCan||window.mhCan('invoices'));
 const norm=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
@@ -40,7 +43,8 @@ function productsHtml(s){
 }
 
 const screen=document.createElement('section');screen.id='supplierScreen';screen.className='hidden';
-screen.innerHTML=`<div class="manager-top"><div><h2>Suppliers</h2><p>Contacts, phones and emails</p></div></div>
+screen.innerHTML=`<div class="manager-top"><div><h2>Suppliers</h2><p id="supSub">Contacts, phones and emails</p></div></div>
+<div id="supDept" class="stock-dept hidden"><button type="button" data-sup-dept="Kitchen">Kitchen</button><button type="button" data-sup-dept="Floor">Floor</button></div>
 <button type="button" class="shop-primary sup-add" id="supAdd">+ Add supplier</button>
 <form class="card shop-form hidden" id="supForm" autocomplete="off" novalidate>
  <input id="supName" maxlength="60" list="supKnown" placeholder="Supplier e.g. Moco Food Services" aria-label="Supplier name">
@@ -48,6 +52,7 @@ screen.innerHTML=`<div class="manager-top"><div><h2>Suppliers</h2><p>Contacts, p
  <input id="supContact" maxlength="80" placeholder="Contact person (optional)" aria-label="Contact person">
  <input id="supPhone" maxlength="30" type="tel" inputmode="tel" placeholder="Phone (optional) e.g. 0400 123 456" aria-label="Phone">
  <input id="supEmail" maxlength="120" type="email" inputmode="email" autocapitalize="off" placeholder="Email (optional) e.g. orders@supplier.com.au" aria-label="Email">
+ <label class="sup-dept-pick hidden" id="supDeptPick">List <select id="supDeptSel" aria-label="List"><option>Kitchen</option><option>Floor</option></select></label>
  <textarea id="supNote" maxlength="300" rows="2" placeholder="Note (optional) e.g. order by 2pm, account number, delivery days" aria-label="Note"></textarea>
  <div class="shop-form-row"><button type="submit" id="supSave" class="shop-primary">Save supplier</button><button type="button" id="supCancel" class="secondary">Cancel</button></div>
  <p class="rm-data-note" id="supFormMsg" aria-live="polite"></p>
@@ -71,9 +76,13 @@ const msg=(x,ok)=>say('supMsg',x,ok),fmsg=(x,ok)=>say('supFormMsg',x,ok);
 
 async function load(){
  const gen=++state.gen;
- const d=await managerApi('manager_supplier_list');
+ // Ask for the chosen list only when this person can choose (a Kitchen or
+ // Floor Manager always gets their own list, whatever this phone remembers).
+ let d=await managerApi('manager_supplier_list',state.canChoose&&state.dept?{department:state.dept}:{});
  if(gen!==state.gen)return;
- state.list=d.suppliers||[];state.known=d.known||[];state.at=Date.now();render();
+ const pref=readDep();
+ if(!state.canChoose&&d.can_choose_department&&pref&&pref!==d.department){d=await managerApi('manager_supplier_list',{department:pref});if(gen!==state.gen)return;}
+ state.list=d.suppliers||[];state.known=d.known||[];state.dept=d.department||'Kitchen';state.canChoose=!!d.can_choose_department;state.at=Date.now();render();
 }
 function line(s){
  const removing=state.removing===s.id;
@@ -86,10 +95,13 @@ function line(s){
 }
 function render(){
  const box=$('supList');
+ $('supDept').classList.toggle('hidden',!state.canChoose);
+ $('supDept').querySelectorAll('[data-sup-dept]').forEach(b=>b.classList.toggle('selected',b.dataset.supDept===state.dept));
+ $('supSub').textContent=state.at&&state.dept?`${state.dept} suppliers · contacts, phones and emails`:'Contacts, phones and emails';
  $('supKnown').innerHTML=state.known.map(n=>`<option value="${t(n)}">`).join('');
  if(!state.at){box.className='empty-state';box.textContent='Loading…';return;}
  if(state.list.length){box.className='';box.innerHTML=state.list.map(line).join('');}
- else{box.className='empty-state';box.textContent='No suppliers yet. Tap "+ Add supplier" to save the first one.';}
+ else{box.className='empty-state';box.textContent=`No ${state.dept||''} suppliers yet. Tap "+ Add supplier" to save the first one.`.replace('  ',' ');}
 }
 
 function closeForm(){state.editing=null;$('supForm').reset();$('supForm').classList.add('hidden');$('supAdd').hidden=false;fmsg('');}
@@ -97,6 +109,7 @@ function openForm(s){
  state.editing=s?s.id:null;msg('');fmsg('');
  $('supName').value=s?.name||'';$('supContact').value=s?.contact||'';$('supPhone').value=s?.phone||'';$('supEmail').value=s?.email||'';$('supNote').value=s?.note||'';
  $('supSave').textContent=s?'Save changes':'Save supplier';
+ $('supDeptPick').classList.toggle('hidden',!state.canChoose);$('supDeptSel').value=s?.department||state.dept||'Kitchen';
  $('supForm').classList.remove('hidden');$('supAdd').hidden=true;
  $('supForm').scrollIntoView({block:'center'});$('supName').focus();
 }
@@ -108,17 +121,21 @@ $('supForm').addEventListener('submit',async e=>{
  if(!supplier.name){fmsg("Write the supplier's name.");$('supName').focus();return;}
  if(supplier.phone&&!PHONE_OK.test(supplier.phone)){fmsg('Write the phone with numbers only.');$('supPhone').focus();return;}
  if(supplier.email&&!EMAIL_OK.test(supplier.email)){fmsg('This email does not look right.');$('supEmail').focus();return;}
- const same=state.list.find(x=>x.name.toLowerCase()===supplier.name.toLowerCase()&&x.id!==state.editing);
+ supplier.department=state.canChoose?$('supDeptSel').value:state.dept;
+ const same=supplier.department===state.dept&&state.list.find(x=>x.name.toLowerCase()===supplier.name.toLowerCase()&&x.id!==state.editing);
  if(same){fmsg(`${same.name} is already on the list. Tap Edit on it to change it.`);return;}
  if(state.editing)supplier.id=state.editing;
  const btn=$('supSave');btn.disabled=true;fmsg('');
- try{await managerApi('manager_supplier_save',{supplier});closeForm();msg(supplier.id?'Supplier saved.':`Supplier added: ${supplier.name}`,true);await load();}
+ const moved=supplier.department!==state.dept;
+ try{await managerApi('manager_supplier_save',{supplier});closeForm();msg(moved?`${supplier.name} is now in the ${supplier.department} list.`:supplier.id?'Supplier saved.':`Supplier added: ${supplier.name}`,true);await load();}
  catch(err){fmsg(err.message||'Unable to save the supplier.');}
  finally{btn.disabled=false;}
 });
 screen.addEventListener('click',e=>{
- const b=e.target.closest('[data-sup-edit],[data-sup-remove],[data-sup-products],[data-sup-type]');if(!b)return;
+ const b=e.target.closest('[data-sup-edit],[data-sup-remove],[data-sup-products],[data-sup-type],[data-sup-dept]');if(!b)return;
  const d=b.dataset;
+ if(d.supDept){if(d.supDept===state.dept)return;state.dept=d.supDept;try{localStorage.setItem(DEP_KEY,state.dept);}catch(_){}
+  state.open=null;state.removing=null;closeForm();msg('');state.list=[];state.at=0;render();load().catch(err=>msg(err.message||'Unable to load the suppliers.'));return;}
  if(d.supProducts){state.open=state.open===d.supProducts?null:d.supProducts;render();
   if(state.open&&!state.book)loadBook().then(()=>render()).catch(err=>{state.open=null;render();msg(err.message||'Unable to load the products.');});return;}
  if(d.supType){const s=state.list.find(x=>x.id===d.supType);if(s)window.MarinaraTypedInvoice?.open(s.name);return;}
@@ -131,5 +148,5 @@ screen.addEventListener('click',e=>{
   }else{state.removing=d.supRemove;render();}
  }
 });
-window.addEventListener('marinara:session-reset',()=>{state.gen++;state.list=[];state.known=[];state.at=0;state.removing=null;state.open=null;state.book=null;state.bookAt=0;closeForm();msg('');render();});
+window.addEventListener('marinara:session-reset',()=>{state.gen++;state.list=[];state.known=[];state.at=0;state.removing=null;state.open=null;state.book=null;state.bookAt=0;state.dept=null;state.canChoose=false;closeForm();msg('');render();});
 })();

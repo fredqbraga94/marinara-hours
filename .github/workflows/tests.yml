@@ -63,6 +63,7 @@ jobs:
       - run: npm run test:shopping-order
       - run: npm run test:dish-costs
       - run: npm run test:suppliers
+      - run: npm run test:supplier-departments
       - run: npm run test:notes
       - run: npm run test:ingredient-edit
       - run: npm run test:temp-reminder
