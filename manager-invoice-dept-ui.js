@@ -1,8 +1,8 @@
 /* Invoices in two lists, Kitchen and Floor (like Suppliers and Notes): the
    Kitchen Manager sees only Kitchen invoices, the Floor Manager only Floor
    invoices, the Administrator both (switch at the top of Invoices, remembered
-   on the phone; an invoice can be moved to the other list). Invoices, Top,
-   Weekly and Prices show the chosen list; Costs is Kitchen only. The server
+   on the phone; an invoice can be moved to the other list). Invoices and Products
+   show the chosen list; Costs is Kitchen only. The server
    checks who may use which list. */
 (() => {
 const $=id=>document.getElementById(id);
@@ -37,7 +37,7 @@ function paint(){
  note.textContent=ownDep()?`${ownDep()} invoices: only you and the Administrator see them.`:'';
  // Costs (ingredients and dishes) is Kitchen only.
  const costs=document.querySelector('#invTabs [data-inv-tab="costs"]');
- if(costs){costs.hidden=dep!=='Kitchen';const tabs=$('invTabs');if(tabs)tabs.style.gridTemplateColumns=`repeat(${dep==='Kitchen'?5:4},1fr)`;}
+ if(costs){costs.hidden=dep!=='Kitchen';const tabs=$('invTabs');if(tabs)tabs.style.gridTemplateColumns=`repeat(${dep==='Kitchen'?3:2},1fr)`;}
  if(dep!=='Kitchen'&&typeof invState!=='undefined'&&invState.tab==='costs')invShowTab('list');
 }
 function resetCaches(){

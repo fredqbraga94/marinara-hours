@@ -381,7 +381,8 @@ body.rm-mode .rm-header-tools button{color:var(--text);border-color:var(--border
 .tp-row{cursor:default;gap:10px}.tp-rank{flex:0 0 26px;font-size:12px;font-weight:700;color:var(--muted);text-align:right;align-self:flex-start;padding-top:2px;font-variant-numeric:tabular-nums}
 .tp-row .pb-main{flex:1}.tp-row .pb-main small .pb-chg{margin-left:4px}
 .tp-more{width:100%;margin-top:10px}
-#invTabs[style]{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+#invTabs{grid-template-columns:repeat(3,minmax(0,1fr))!important}#invTabs:has([data-inv-tab="costs"][hidden]){grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.pb-wk{color:var(--green);font-weight:700}
 .pb-chg span{font-weight:500;opacity:.8}
 /* Temperatures */
 .tmp-week-nav{display:flex;align-items:center;gap:8px;margin:4px 0 8px}.tmp-week-nav strong{flex:1;text-align:center;font-size:14px}.tmp-week-nav button{margin:0;min-width:44px;min-height:40px}.tmp-week-nav button:disabled{opacity:.35}

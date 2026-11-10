@@ -34,6 +34,9 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
     {supplier:'QA Veg Co Pty',product_key:'qa mushrooms',description:'QA Swiss brown mushrooms',unit:'box',pack:null,times:4,last_price:48,last_date:'2026-10-01',change_pct:4.3},
     {supplier:'QA Veg Co Pty',product_key:'qa basil',description:'QA Basil',unit:'bunch',pack:null,times:2,last_price:4,last_date:'2026-09-09',change_pct:null},
     {supplier:'QA Wholesale',product_key:'b1',description:'QA Bacon 2.5kg',unit:'Ctn [6]',pack:6,times:1,last_price:23.5,last_date:'2026-10-08',change_pct:null}]};
+   if(action==='manager_invoice_usage')return{items:[
+    {supplier:'QA Veg Co Pty',code:null,description:'QA Swiss brown mushrooms',unit:'box',avg_per_week:1.75,spend_per_week:84,max_week:3},
+    {supplier:'QA Wholesale',code:'b1',description:'QA Bacon 2.5kg',unit:'Ctn [6]',avg_per_week:9,spend_per_week:30,max_week:12}]};
    if(action==='manager_invoice_list')return{invoices:[],by_supplier:[],totals:[]};
    if(action==='manager_roster_week')return{team:[],entries:[],services:[],leave:[]};
    return orig(action,extra);};
@@ -96,6 +99,16 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.waitForFunction(()=>document.querySelectorAll('#pbList .pb-row').length===2);
  assert.deepEqual(await page.locator('#pbList .pb-main strong').allInnerTexts(),['QA Swiss brown mushrooms','QA Basil'],'most bought first, only this supplier');
  assert.match(await page.locator('#pbList .pb-row').first().innerText(),/\$48\.00[\s\S]*\/box[\s\S]*4\.3%/);
+ // How much a week (the old Weekly tab), cartons for a supplier that counts units.
+ assert.match(await page.locator('#pbList .pb-row').first().innerText(),/1\.8 box a week/);
+ assert.match(await page.locator('#pbList .pb-row').nth(1).innerText(),/2× · last 9 Sept/,'no weekly use: times bought');
+ assert.deepEqual(await page.locator('#invTabs button:visible').allInnerTexts(),['Invoices','Products'],'Floor: two tabs');
+ await page.locator('#pbList .pb-row').first().click();
+ await page.locator('.pb-hist').filter({hasText:'About 1.8 box a week over the last weeks · busiest week 3 · about $84.00 a week.'}).waitFor();
+ await page.locator('#pbList .pb-row').first().click();
+ await page.locator('#pbSup').selectOption('QA Wholesale');
+ await page.locator('#pbList .pb-row').filter({hasText:'1.5 ctn a week'}).waitFor();
+ await page.locator('#pbSup').selectOption('QA Veg Co');
  assert.deepEqual(await page.locator('#pbSup option').allInnerTexts(),['All suppliers (3)','QA Veg Co (2)','QA Wholesale (1)','QA Dairy (0)']);
  await page.screenshot({path:`tmp/qa/${size}-supplier-products.png`,fullPage:true});
  await page.locator('#pbSup').selectOption('');

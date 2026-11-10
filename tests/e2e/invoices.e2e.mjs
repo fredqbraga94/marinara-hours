@@ -224,7 +224,7 @@ try {
   });
 
   await check("weekly use: most bought products, per week, busiest week, filter and search", async () => {
-    await gm.page.click('[data-inv-tab="usage"]');
+    await gm.page.evaluate(() => invShowTab("usage")); // no tab of its own now (Products shows the weekly use)
     await gm.page.waitForSelector("#invUsage .inv-use");
     const sum = (await gm.page.innerText("#invUsageSummary")).replace(/\s+/g, " ");
     assert.match(sum, /1 Week of invoices/i); assert.match(sum, /2 Products/i); assert.match(sum, /\$84\.75/);

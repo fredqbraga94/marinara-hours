@@ -1,11 +1,19 @@
-/* Price book: every product on the saved supplier invoices, the price paid each
-   time, and whether it went up or down, for the whole list or one supplier
+/* Products (Finance → Invoices → Products): every product on the saved supplier
+   invoices with the price paid each time, whether it went up or down, and how
+   much is bought a week (one list instead of the old Top, Weekly and Prices), for
+   the whole list or one supplier
    (Finance → Prices only, so who sees prices follows who may open Invoices). Read-only;
    Administrator, Kitchen and Floor Managers, each on their invoice list. */
 (() => {
 const $=id=>document.getElementById(id);
 const RECENT_DAYS=14;
-const state={products:[],at:0,loading:null,filter:'all',open:null,sup:'',saved:[]};
+const state={products:[],at:0,loading:null,filter:'all',open:null,sup:'',saved:[],weekly:new Map()};
+const WEEKS=8;
+const keyOf=(supplier,key)=>`${String(supplier||'').toLowerCase()}|${String(key||'').toLowerCase()}`;
+const qty=n=>{const v=Number(n)||0;return v>=10?String(Math.round(v)):v.toLocaleString('en-AU',{maximumFractionDigits:1});};
+// "1.8 ctn a week": cartons when the supplier counts single units ("Ctn [6]").
+function perWeek(w){if(!w||!(Number(w.avg_per_week)>0))return '';const m=String(w.unit||'').match(/^\s*c(?:tn|arton)s?\s*\[(\d+)\]\s*$/i);
+ const n=m?Number(w.avg_per_week)/Number(m[1]):Number(w.avg_per_week);return `${qty(n)} ${m?'ctn':String(w.unit||'').toLowerCase()||'un'} a week`.replace(/\s+/g,' ');}
 const norm=v=>String(v||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 // "Moco" matches "MOCO Food Services"; "Global Food and Wine (Gulli)" matches itself.
 const sameSupplier=(saved,inv)=>{const a=norm(saved),b=norm(inv);if(!a||!b)return false;if(a===b)return true;
@@ -28,7 +36,6 @@ const pct=n=>`${Math.abs(Number(n)).toLocaleString('en-AU',{maximumFractionDigit
 const t=v=>escapeHtml(String(v??''));
 const up=p=>Number(p.change_pct)>0, down=p=>Number(p.change_pct)<0;
 const recentUp=p=>up(p)&&!p.year&&daysSince(p.last_date)<=RECENT_DAYS;
-const OFTEN=3;
 
 async function load(force){
  if(!canSee())return [];
@@ -37,7 +44,9 @@ async function load(force){
  const gen=state.gen||0;
  // The supplier history (Invoices → Top) adds the change over the year for
  // products whose saved invoices do not show a change yet.
- state.loading=Promise.all([managerApi('manager_invoice_price_book'),managerApi('manager_invoice_top_products').catch(()=>null)]).then(([d,top])=>{if(gen!==(state.gen||0))return [];state.products=withYear(d.products||[],top&&top.products||[]);state.at=Date.now();return state.products;}).finally(()=>{state.loading=null;});
+ state.loading=Promise.all([managerApi('manager_invoice_price_book'),managerApi('manager_invoice_top_products').catch(()=>null),managerApi('manager_invoice_usage',{weeks:WEEKS}).catch(()=>null)]).then(([d,top,use])=>{if(gen!==(state.gen||0))return [];
+  state.weekly=new Map((use&&use.items||[]).map(w=>[keyOf(w.supplier,w.code||w.description),w]));
+  state.products=withYear(d.products||[],top&&top.products||[]);state.at=Date.now();return state.products;}).finally(()=>{state.loading=null;});
  const list=await state.loading;
  if(gen!==(state.gen||0))return [];
  window.mhPriceUps=list.filter(recentUp);
@@ -70,13 +79,14 @@ function withYear(book,top){
  return out;
 }
 // Forget the cached list (after an invoice is saved or removed).
-window.mhPricesReset=(all)=>{state.at=0;if(all){state.gen=(state.gen||0)+1;state.products=[];state.open=null;state.sup='';state.saved=[];window.mhPriceUps=[];}};
+window.mhPricesReset=(all)=>{state.at=0;if(all){state.gen=(state.gen||0)+1;state.products=[];state.open=null;state.sup='';state.saved=[];state.weekly=new Map();window.mhPriceUps=[];}};
+const weekOf=p=>state.weekly.get(keyOf(p.supplier,p.code||p.product_key))||state.weekly.get(keyOf(p.supplier,p.description));
 
 /* ---------- Prices tab ---------- */
 let built=false;
 function build(){
  if(built)return;built=true;
- $('invPricesView').innerHTML=`<p class="inv-hint">Every product on your saved invoices and the supplier history, and the price you paid. Tap one to see its history.</p>
+ $('invPricesView').innerHTML=`<p class="inv-hint">What you buy: the last price paid, if it went up or down, and how much a week. Tap a product to see its prices.</p>
  <select id="pbSup" class="inv-search pb-sup" aria-label="Supplier"></select>
  <div id="pbSupBar" class="pb-supbar hidden"></div>
  <div class="rm-chips" id="pbChips"></div>
@@ -88,20 +98,22 @@ function build(){
  $('pbSearch').addEventListener('input',()=>{state.open=null;render();});
  $('pbList').addEventListener('click',e=>{const b=e.target.closest('[data-pb]');if(!b)return;state.open=state.open===b.dataset.pb?null:b.dataset.pb;render();});
 }
-const FILTERS=[['all','All',()=>true],['up','Went up',up],['down','Went down',down],['often','Bought often',p=>p.times>=OFTEN]];
+const FILTERS=[['all','Most bought',()=>true],['up','Went up',up],['down','Went down',down]];
+// Most bought: spend a week (last weeks), then how often it was ordered.
+const spendWk=p=>Number(weekOf(p)?.spend_per_week)||0;
 function render(){
  const gs=groups();if(state.sup&&!gs.some(g=>g[0]===state.sup))gs.push([state.sup,0]);
  $('pbSup').innerHTML=`<option value="">All suppliers (${state.products.length})</option>`+gs.map(([n,c])=>`<option value="${t(n)}"${n===state.sup?' selected':''}>${t(n)} (${c})</option>`).join('');
  const list=state.sup?state.products.filter(p=>groupOf(p)===state.sup):state.products;
  const bar=$('pbSupBar');bar.classList.toggle('hidden',!state.sup);
  bar.innerHTML=state.sup?`${list.length?'':`<p class="inv-hint">No products from ${t(state.sup)} yet. They show here from their invoices: if ${t(state.sup)} sends no PDF, type one of their invoices.</p>`}<button type="button" class="shop-small" data-pb-type>+ Type one of their invoices</button>`:'';
- $('pbChips').innerHTML=FILTERS.map(([k,l,f])=>`<button type="button" data-pb-filter="${k}" aria-pressed="${state.filter===k}">${l} <span>${list.filter(f).length}</span></button>`).join('');
+ $('pbChips').innerHTML=FILTERS.map(([k,l,f])=>`<button type="button" data-pb-filter="${k}" aria-pressed="${state.filter===k}">${l}${k==='all'?'':` <span>${list.filter(f).length}</span>`}</button>`).join('');
  const q=$('pbSearch').value.trim().toLowerCase();
  const f=FILTERS.find(x=>x[0]===state.filter)[2];
  let rows=list.filter(p=>f(p)&&(!q||`${p.description} ${p.supplier} ${p.code||''}`.toLowerCase().includes(q)));
  rows=rows.slice().sort(state.filter==='up'?(a,b)=>(!!a.year-!!b.year)||(a.year?Number(b.change_pct)-Number(a.change_pct):b.last_date.localeCompare(a.last_date)||Number(b.change_pct)-Number(a.change_pct))
    :state.filter==='down'?(a,b)=>(!!a.year-!!b.year)||Number(a.change_pct)-Number(b.change_pct)
-   :(a,b)=>b.times-a.times||String(a.description).localeCompare(String(b.description)));
+   :(a,b)=>spendWk(b)-spendWk(a)||b.times-a.times||String(a.description).localeCompare(String(b.description)));
  const box=$('pbList');
  if(!list.length){box.className='empty-state';box.textContent=state.sup?'No prices yet.':'No prices yet. They appear here as soon as you save supplier invoices.';return;}
  if(!rows.length){box.className='empty-state';box.textContent=state.filter==='up'?'No price went up. Good news.':'Nothing matches.';return;}
@@ -119,9 +131,10 @@ function render(){
    const lines=h.slice().reverse().map((x,i,arr)=>{const prev=arr[i+1];const diff=prev?Number(x.price)-Number(prev.price):0;
      return `<li><span>${t(day(x.date))}</span><strong>${t(cm(x.price))}</strong><span class="${diff>0?'up':diff<0?'down':''}">${!prev?(x.fromHistory?'start of the year':'first time'):diff?`${diff>0?'+':'−'}${t(cm(Math.abs(diff)))}`:'same'}</span></li>`;}).join('');
    const first=h[0];const total=first&&Number(first.price)?(Number(p.last_price)-Number(first.price))/Number(first.price)*100:0;
-   hist=`<div class="pb-hist">${p.from_history&&!p.year?`<p>From the supplier history: ${p.times} orders in the year. Items sold by weight change price with each carton.</p>`:h.length>1?`<p>Since ${t(day(first.date))}: ${t(cm(first.price))} → ${t(cm(p.last_price))}${pack>1?' a ctn':''}${Math.abs(total)>=0.05?` <b class="${total>0?'up':'down'}">(${total>0?'+':'−'}${pct(total)})</b>`:' (no change)'}</p>`:'<p>Bought once so far. The next invoice will show if the price changed.</p>'}<ul>${lines}</ul><small>${p.year?'Prices before October come from the supplier history (first price of the year). ':''}${p.code?`Code ${t(p.code)}`:''}</small></div>`;
+   const w=weekOf(p);const wk=perWeek(w);
+   hist=`<div class="pb-hist">${wk?`<p>About <b>${t(wk)}</b> over the last weeks${Number(w.max_week)>Number(w.avg_per_week)?` · busiest week ${t(qty(w.max_week))}`:''} · about ${t(money(w.spend_per_week))} a week.</p>`:''}${p.from_history&&!p.year?`<p>From the supplier history: ${p.times} orders in the year. Items sold by weight change price with each carton.</p>`:h.length>1?`<p>Since ${t(day(first.date))}: ${t(cm(first.price))} → ${t(cm(p.last_price))}${pack>1?' a ctn':''}${Math.abs(total)>=0.05?` <b class="${total>0?'up':'down'}">(${total>0?'+':'−'}${pct(total)})</b>`:' (no change)'}</p>`:'<p>Bought once so far. The next invoice will show if the price changed.</p>'}<ul>${lines}</ul><small>${p.year?'Prices before October come from the supplier history (first price of the year). ':''}${p.code?`Code ${t(p.code)}`:''}</small></div>`;
   }
-  return `<button type="button" class="pb-row${open?' open':''}" data-pb="${t(key)}" aria-expanded="${open}"><span class="pb-main"><strong>${t(p.description)}</strong><small>${t(p.supplier)} · ${p.times}× · last ${t(day(p.last_date))}</small></span><span class="pb-right"><strong>${t(cm(p.last_price))}</strong>${unit}${chg}</span></button>${hist}`;
+  return `<button type="button" class="pb-row${open?' open':''}" data-pb="${t(key)}" aria-expanded="${open}"><span class="pb-main"><strong>${t(p.description)}</strong><small>${t(p.supplier)} · ${perWeek(weekOf(p))?`<b class="pb-wk">${t(perWeek(weekOf(p)))}</b>`:`${p.times}× · last ${t(day(p.last_date))}`}</small></span><span class="pb-right"><strong>${t(cm(p.last_price))}</strong>${unit}${chg}</span></button>${hist}`;
  }).join('');
 }
 // The Prices tab now shows the price book (the old "changes only" list is kept on the server).
