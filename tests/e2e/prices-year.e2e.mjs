@@ -23,7 +23,10 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
   const today=new Date(Date.now()+10*3600e3).toISOString().slice(0,10);
   const S='QA Wholesale';const orig=managerApi;
   managerApi=async(action,extra)=>{
+   if(action==='manager_invoice_pack_save'){window.__packSaves=(window.__packSaves||[]).concat([extra]);window.__packs=window.__packs||{};window.__packs[extra.product_key]=extra.pack;return{...extra};}
+   const pk=k=>(window.__packs||{})[k];
    if(action==='manager_invoice_price_book')return{products:[
+    {supplier:S,product_key:'QA8',code:'QA8',description:'QA Butter Unsalted 1Kg',unit:'CTN',times:4,last_price:181,last_date:today,previous_price:null,change_pct:null,pack:pk('QA8')??null,pack_saved:pk('QA8')!=null,history:[{date:today,price:181}]},
     {supplier:S,product_key:'QA1',code:'QA1',description:'QA cream',unit:'CTN',times:2,last_price:113,last_date:today,previous_price:null,change_pct:null,history:[{date:today,price:113}]},
     {supplier:S,product_key:'QA4',code:'QA4',description:'QA flour',unit:'CTN',times:3,last_price:17,last_date:today,previous_price:16,previous_date:today,change_pct:6.3,history:[{date:today,price:16},{date:today,price:17}]},
     {supplier:S,product_key:'QA7',code:'QA7',description:'QA Brand · Cheese Bocconcini 1Kg',unit:'EA',times:2,last_price:21.16,last_date:today,previous_price:null,change_pct:null,history:[{date:today,price:21.16}]}]};
@@ -41,7 +44,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#invoicesScreen').waitFor({state:'visible'});
  await page.locator('#invTabs [data-inv-tab="prices"]').click();
  await page.locator('#pbList .pb-row').first().waitFor();
- assert.equal(await page.locator('#pbList .pb-row').count(),6,'scanned products plus the history-only ones');
+ assert.equal(await page.locator('#pbList .pb-row').count(),7,'scanned products plus the history-only ones');
  assert.equal(await page.locator('#pbList .pb-row').filter({hasText:/Bocconcini/}).count(),1,'renumbered product shows once');
  await page.locator('[data-pb-filter="up"]').click();
  const ups=await page.locator('#pbList .pb-row .pb-main strong').allInnerTexts();
@@ -56,6 +59,23 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  assert.deepEqual(await page.locator('#pbList .pb-row .pb-main strong').allInnerTexts(),['QA cocoa'],'weight-priced pork is left out');
  assert.deepEqual(await page.evaluate(()=>window.mhPriceUps.map(p=>p.description)),['QA flour'],'Home alert: recent rises only');
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'no sideways scroll');
+ // Units in a carton: typed on the product, the carton price stays, each one shows.
+ await page.locator('[data-pb-filter="all"]').click();
+ const butter=page.locator('#pbList .pb-row').filter({hasText:'QA Butter Unsalted 1Kg'});
+ assert.doesNotMatch(await butter.innerText(),/each/);
+ await butter.click();
+ const ed=page.locator('#pbList [data-pb-pack]');
+ await ed.locator('input').fill('0');await ed.locator('[data-pb-pack-save]').click();
+ await page.locator('#invMessage').filter({hasText:'1 to 1000'}).waitFor();
+ await ed.locator('input').fill('10');await ed.locator('[data-pb-pack-save]').click();
+ await page.locator('#invMessage.ok').filter({hasText:'Saved: 10 in a ctn.'}).waitFor();
+ await page.locator('#pbList [data-pb-pack]').scrollIntoViewIfNeeded();await page.screenshot({path:`tmp/qa/${size}-carton-size.png`});
+ assert.deepEqual(await page.evaluate(()=>window.__packSaves.at(-1)),{supplier:'QA Wholesale',product_key:'QA8',pack:10});
+ const bt=await page.locator('#pbList .pb-row').filter({hasText:'QA Butter Unsalted 1Kg'}).innerText();
+ assert.match(bt,/\$181\.00[\s\S]*\/ctn[\s\S]*\$18\.10 each · 10 a ctn/);
+ await page.locator('#pbList [data-pb-pack-clear]').click();
+ await page.locator('#invMessage.ok').filter({hasText:'Carton size cleared.'}).waitFor();
+ assert.equal(await page.evaluate(()=>window.__packSaves.at(-1).pack),null);
  assert.deepEqual(errors,[]);
  await context.close();
 }

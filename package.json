@@ -39,6 +39,7 @@
     "test:supplier-departments": "node tests/integration/supplier-departments.mjs",
     "test:invoice-departments": "node tests/integration/invoice-departments.mjs",
     "test:price-lists": "node tests/integration/price-lists.mjs",
+    "test:product-packs": "node tests/integration/product-packs.mjs",
     "test:notes": "node tests/integration/notes.mjs",
     "test:ingredient-edit": "node tests/integration/ingredient-edit.mjs",
     "test:shopping-order": "node tests/integration/shopping-order.mjs",

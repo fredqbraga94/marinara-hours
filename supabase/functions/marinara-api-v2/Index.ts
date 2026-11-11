@@ -1528,6 +1528,7 @@ Deno.serve(async (req) => {
         "manager_invoice_top_products",
         "manager_invoice_price_list_save",
         "manager_invoice_price_lists",
+        "manager_invoice_pack_save",
         "manager_permissions_list",
         "manager_permissions_set",
         "manager_ingredient_costs",
@@ -3895,6 +3896,19 @@ Deno.serve(async (req) => {
           // Before the migration the database does not know this call (answers nothing).
           if (!data) return json({ error: "Price lists are not ready yet.", code: "NOT_READY" }, 503);
           return json({ success: true, action, data: { list: data } });
+        }
+
+        // Units in a carton of one product, typed in Products (null clears it).
+        if (action === "manager_invoice_pack_save") {
+          const supplier = text(body.supplier, 80), productKey = text(body.product_key, 300);
+          const pack = body.pack == null || body.pack === "" ? null : Number(body.pack);
+          if (!supplier || !productKey || (pack !== null && (!Number.isInteger(pack) || pack < 1 || pack > 1000))) {
+            return json({ error: "Write how many come in a carton (1 to 1000).", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await invCall("pack_save", { supplier, product_key: productKey, pack });
+          if (error) return managerDbError(error, "Unable to save the carton size");
+          if (!data) return json({ error: "This is not ready yet.", code: "NOT_READY" }, 503);
+          return json({ success: true, action, data });
         }
 
         if (action === "manager_invoice_price_lists") {
