@@ -87,11 +87,15 @@ let built=false;
 function build(){
  if(built)return;built=true;
  $('invPricesView').innerHTML=`<p class="inv-hint">What you buy: the last price paid, if it went up or down, and how much a week. Tap a product to see its prices.</p>
+ <div class="pb-import"><button type="button" class="shop-small" id="pbImportBtn">Import price list</button><input id="pbImportFile" type="file" accept=".csv,text/csv" hidden></div>
+ <div id="pbImportBox" class="card pb-import-box hidden"></div>
  <select id="pbSup" class="inv-search pb-sup" aria-label="Supplier"></select>
  <div id="pbSupBar" class="pb-supbar hidden"></div>
  <div class="rm-chips" id="pbChips"></div>
  <input id="pbSearch" class="inv-search" type="search" placeholder="Search a product or supplier" autocomplete="off">
  <div class="card pb-card"><div id="pbList" class="empty-state">Loading…</div></div>`;
+ $('pbImportBtn').addEventListener('click',()=>$('pbImportFile').click());
+ $('pbImportFile').addEventListener('change',e=>{const f=e.target.files?.[0];e.target.value='';window.mhPriceListImport?.(f);});
  $('pbSup').addEventListener('change',()=>{state.sup=$('pbSup').value;state.open=null;render();});
  $('pbSupBar').addEventListener('click',e=>{if(e.target.closest('[data-pb-type]')&&state.sup)window.MarinaraTypedInvoice?.open(state.sup);});
  $('pbChips').addEventListener('click',e=>{const b=e.target.closest('[data-pb-filter]');if(!b)return;state.filter=b.dataset.pbFilter;state.open=null;render();});
@@ -129,12 +133,12 @@ function render(){
   if(open){
    const h=p.history||[];
    const lines=h.slice().reverse().map((x,i,arr)=>{const prev=arr[i+1];const diff=prev?Number(x.price)-Number(prev.price):0;
-     return `<li><span>${t(day(x.date))}</span><strong>${t(cm(x.price))}</strong><span class="${diff>0?'up':diff<0?'down':''}">${!prev?(x.fromHistory?'start of the year':'first time'):diff?`${diff>0?'+':'−'}${t(cm(Math.abs(diff)))}`:'same'}</span></li>`;}).join('');
+     return `<li><span>${t(day(x.date))}${x.list?' <em>price list</em>':''}</span><strong>${t(cm(x.price))}</strong><span class="${diff>0?'up':diff<0?'down':''}">${!prev?(x.fromHistory?'start of the year':'first time'):diff?`${diff>0?'+':'−'}${t(cm(Math.abs(diff)))}`:'same'}</span></li>`;}).join('');
    const first=h[0];const total=first&&Number(first.price)?(Number(p.last_price)-Number(first.price))/Number(first.price)*100:0;
    const w=weekOf(p);const wk=perWeek(w);
-   hist=`<div class="pb-hist">${wk?`<p>About <b>${t(wk)}</b> over the last weeks${Number(w.max_week)>Number(w.avg_per_week)?` · busiest week ${t(qty(w.max_week))}`:''} · about ${t(money(w.spend_per_week))} a week.</p>`:''}${p.from_history&&!p.year?`<p>From the supplier history: ${p.times} orders in the year. Items sold by weight change price with each carton.</p>`:h.length>1?`<p>Since ${t(day(first.date))}: ${t(cm(first.price))} → ${t(cm(p.last_price))}${pack>1?' a ctn':''}${Math.abs(total)>=0.05?` <b class="${total>0?'up':'down'}">(${total>0?'+':'−'}${pct(total)})</b>`:' (no change)'}</p>`:'<p>Bought once so far. The next invoice will show if the price changed.</p>'}<ul>${lines}</ul><small>${p.year?'Prices before October come from the supplier history (first price of the year). ':''}${p.code?`Code ${t(p.code)}`:''}</small></div>`;
+   hist=`<div class="pb-hist">${wk?`<p>About <b>${t(wk)}</b> over the last weeks${Number(w.max_week)>Number(w.avg_per_week)?` · busiest week ${t(qty(w.max_week))}`:''} · about ${t(money(w.spend_per_week))} a week.</p>`:''}${p.from_history&&!p.year?`<p>From the supplier history: ${p.times} orders in the year. Items sold by weight change price with each carton.</p>`:h.length>1?`<p>Since ${t(day(first.date))}: ${t(cm(first.price))} → ${t(cm(p.last_price))}${pack>1?' a ctn':''}${Math.abs(total)>=0.05?` <b class="${total>0?'up':'down'}">(${total>0?'+':'−'}${pct(total)})</b>`:' (no change)'}</p>`:p.times?'<p>Bought once so far. The next invoice will show if the price changed.</p>':'<p>From the supplier\'s price list (not bought yet in the saved invoices).</p>'}<ul>${lines}</ul><small>${p.year?'Prices before October come from the supplier history (first price of the year). ':''}${p.code?`Code ${t(p.code)}`:''}</small></div>`;
   }
-  return `<button type="button" class="pb-row${open?' open':''}" data-pb="${t(key)}" aria-expanded="${open}"><span class="pb-main"><strong>${t(p.description)}</strong><small>${t(p.supplier)} · ${perWeek(weekOf(p))?`<b class="pb-wk">${t(perWeek(weekOf(p)))}</b>`:`${p.times}× · last ${t(day(p.last_date))}`}</small></span><span class="pb-right"><strong>${t(cm(p.last_price))}</strong>${unit}${chg}</span></button>${hist}`;
+  return `<button type="button" class="pb-row${open?' open':''}" data-pb="${t(key)}" aria-expanded="${open}"><span class="pb-main"><strong>${t(p.description)}</strong><small>${t(p.supplier)} · ${perWeek(weekOf(p))?`<b class="pb-wk">${t(perWeek(weekOf(p)))}</b>`:p.last_from_list?`price list ${t(day(p.last_date))}`:`${p.times}× · last ${t(day(p.last_date))}`}</small></span><span class="pb-right"><strong>${t(cm(p.last_price))}</strong>${unit}${chg}</span></button>${hist}`;
  }).join('');
 }
 // The Prices tab now shows the price book (the old "changes only" list is kept on the server).
@@ -144,6 +148,7 @@ loadInvoicePrices=async function(){
  catch(error){const box=$('pbList');box.className='empty-state';box.textContent=error.message||'Unable to load prices.';}
 };
 // Home → "N prices went up" opens Prices filtered to the rises.
+window.mhPricesReload=()=>{if(typeof invState!=='undefined'&&invState.tab==='prices')loadInvoicePrices();};
 window.mhOpenPriceUps=()=>{state.filter='up';state.open=null;const b=$('invoicesCard');if(b&&!b.disabled){b.click();invShowTab('prices');}};
 const opener=document.createElement('button');opener.type='button';opener.id='rmOpenPriceUps';opener.hidden=true;opener.onclick=()=>window.mhOpenPriceUps();document.body.append(opener);
 // Keep the Home alert current; a new invoice saved refreshes it.
