@@ -82,16 +82,17 @@ try{
    assert.deepEqual(errors,[]);
    await close();
   });
-  await check(`${size}: Kitchen Manager imports only the Kitchen part (no list named; the server uses theirs)`,async()=>{
-   const {page,calls,errors,close}=await open('kitchen_manager',size);
-   await pick(page);
-   assert.match(await page.locator('#pbImportBox').innerText(),/1 drinks go to the Floor list: only the Floor Manager or the Administrator can import them/);
-   await page.locator('#plSupplier').fill('QA Wholesale');
-   assert.match(await page.locator('[data-pl-save]').innerText(),/Save 3 prices/);
-   await page.locator('[data-pl-save]').click();
-   await page.locator('#invMessage.ok').filter({hasText:'Price list saved: 3 Kitchen prices.'}).waitFor();
-   assert.deepEqual(saves(calls).map(c=>['department' in c,c.list.items.length]),[[false,3]]);
-   assert.deepEqual(errors,[]);
+  await check(`${size}: only the Administrator sees Import price list`,async()=>{
+   for(const role of ['kitchen_manager','floor_manager']){
+    const {page,errors,close}=await open(role,size);
+    await page.locator('#pbList').waitFor();
+    await page.waitForFunction(()=>!/Loading/.test(document.getElementById('pbList').textContent));
+    assert.equal(await page.locator('#pbImportBtn').isVisible(),false,role);
+    assert.deepEqual(errors,[]);
+    await close();
+   }
+   const {page,close}=await open('manager',size);
+   await page.locator('#pbImportBtn').waitFor({state:'visible'});
    await close();
   });
   await check(`${size}: a file that is not a CSV gets a clear message`,async()=>{

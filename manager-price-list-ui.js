@@ -3,8 +3,8 @@
    read on the phone: drinks go to the Floor list, the rest to Kitchen, and milk
    to both (the bar uses it too). A price
    list gives prices, not purchases: Products shows them ("price list"), dish
-   costs use them, spending does not count them. The server checks who may save
-   on which list (the Administrator both; each manager their own). */
+   costs use them, spending does not count them. Only the Administrator imports
+   (the button shows only for them, and the server refuses anyone else). */
 (() => {
 const $=id=>document.getElementById(id);
 const t=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

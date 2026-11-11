@@ -66,7 +66,7 @@ try {
 
   await check("before the migration: a clear 'not ready'; invoices and Products work", async () => {
     assert.equal((await api(vNew, 2, km, { action: "manager_invoice_save", invoice: inv(SUP, "TW-1", daysAgo(20), [L("TB-6", "Test Bacon Diced 2.5kg", 6, "Ctn [6]", 22)]) })).status, 200);
-    const r = await saveList(2, km, kitchenItems);
+    const r = await saveList(1, gm, kitchenItems, "Kitchen");
     assert.equal(r.status, 503, JSON.stringify(r.body)); assert.equal(r.body.code, "NOT_READY");
     assert.equal((await api(vNew, 2, km, { action: "manager_invoice_price_book" })).status, 200);
   });
@@ -83,8 +83,15 @@ try {
       assert.equal((await api(vProd, 2, p, { action })).status, 200, action);
     }
   });
-  await check("Kitchen Manager imports the Kitchen part: Products shows the list price as the latest, up from the invoice", async () => {
-    const r = await saveList(2, km, kitchenItems);
+  await check("only the Administrator imports: the Kitchen and Floor Managers are refused", async () => {
+    for (const [n, tok] of [[2, km], [3, fm]]) {
+      const r = await saveList(n, tok, kitchenItems);
+      assert.equal(r.status, 403, JSON.stringify(r.body)); assert.equal(r.body.code, "GM_REQUIRED");
+    }
+    assert.equal(await one("select count(*) from public.supplier_price_lists"), "0");
+  });
+  await check("Administrator imports the Kitchen part: Products shows the list price as the latest, up from the invoice", async () => {
+    const r = await saveList(1, gm, kitchenItems, "Kitchen");
     assert.equal(r.status, 200, JSON.stringify(r.body));
     assert.deepEqual({ ...r.body.data.list, id: undefined }, { id: undefined, supplier: SUP, date: today, items: 2, department: "Kitchen", replaced: false });
     const b = await book(2, km);
@@ -96,9 +103,8 @@ try {
     assert.deepEqual(bacon.history.map((h) => [Number(h.price), h.list]), [[22, false], [24, true]]);
     assert.equal(cream.times, 0); assert.equal(cream.last_from_list, true);
   });
-  await check("the Floor part: Floor Manager (own list) and Administrator; the Kitchen Manager cannot save on Floor", async () => {
-    assert.equal((await saveList(2, km, floorItems, "Floor")).status, 403);
-    assert.equal((await saveList(3, fm, floorItems)).status, 200);
+  await check("the Floor part (Administrator): the Floor Manager sees it, the Kitchen Manager does not", async () => {
+    assert.equal((await saveList(1, gm, floorItems, "Floor")).status, 200);
     assert.deepEqual((await book(3, fm)).map((p) => p.product_key), ["TW-12"]);
     assert.ok(!(await book(2, km)).some((p) => p.product_key === "TW-12"), "drinks not in the Kitchen list");
     assert.ok((await book(1, gm, "Floor")).some((p) => p.product_key === "TW-12"));
@@ -127,9 +133,9 @@ try {
     const b = await book(2, km);
     assert.equal(Number(b.find((p) => p.product_key === "TB-6").last_price), 25);
     assert.ok(!b.some((p) => p.product_key === "TC-1"), "the old list's products are gone");
-    assert.equal((await saveList(2, km, [])).status, 400);
-    assert.equal((await saveList(2, km, [{ description: "x", unit_price: 0 }])).status, 400);
-    assert.equal((await api(vNew, 2, km, { action: "manager_invoice_price_list_save", list: { supplier: SUP, date: "nope", items: kitchenItems } })).status, 400);
+    assert.equal((await saveList(1, gm, [], "Kitchen")).status, 400);
+    assert.equal((await saveList(1, gm, [{ description: "x", unit_price: 0 }], "Kitchen")).status, 400);
+    assert.equal((await api(vNew, 1, gm, { action: "manager_invoice_price_list_save", department: "Kitchen", list: { supplier: SUP, date: "nope", items: kitchenItems } })).status, 400);
     const st = await login(vNew, 4);
     assert.ok((await saveList(4, st, kitchenItems)).status >= 400, "staff refused");
   });
