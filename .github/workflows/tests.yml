@@ -66,6 +66,7 @@ jobs:
       - run: npm run test:supplier-departments
       - run: npm run test:invoice-departments
       - run: npm run test:price-lists
+      - run: npm run test:product-packs
       - run: npm run test:notes
       - run: npm run test:ingredient-edit
       - run: npm run test:temp-reminder
