@@ -24,6 +24,7 @@ const CSV=['Item #,Item Name,Description,Pack Size,Price,Per Unit Price,Qty,Tota
  'QA-B6,QA Diced Bacon 2.5kg,"QA SKU: 1 | Brand: QA',
  '1 Carton(s) = 6 Unit",1,23.5,23.5,1,23.5',
  '11112222,"QA Flour, Bakers 12.5kg",QA SKU: 2 | Brand: QA,1,15.06,15.06,1,15.06',
+ '55556666,QA Milk Full Cream [6x2lt] CTN,QA SKU: 4,1,21.5,21.5,1,21.5',
  '33334444,QA Shiraz Test Valley 750ml [6],"Valid liquor license required',
  '* GST applicable',
  'QA SKU: 3",1,14.15,14.15,1,14.15',''].join('\n');
@@ -62,7 +63,7 @@ try{
    const {page,calls,errors,close}=await open('manager',size);
    await pick(page);
    const txt=await page.locator('#pbImportBox').innerText();
-   assert.match(txt,/3 products: 2 Kitchen \(food, cleaning\) and 1 Floor \(drinks\)/);
+   assert.match(txt,/4 products: 3 Kitchen \(food, cleaning\) and 2 Floor \(drinks, and 1 milk on both\)/);
    assert.match(txt,/not count as spending/);
    assert.equal(await page.locator('#plSupplier').inputValue(),'','no supplier guessed for an unknown file');
    await page.screenshot({path:`tmp/qa/${size}-price-list.png`,fullPage:true});
@@ -71,11 +72,11 @@ try{
    assert.equal(saves(calls).length,0);
    await page.locator('#plSupplier').fill('QA Wholesale');
    await page.locator('[data-pl-save]').click();
-   await page.locator('#invMessage.ok').filter({hasText:'Price list saved: 2 Kitchen and 1 Floor prices.'}).waitFor();
+   await page.locator('#invMessage.ok').filter({hasText:'Price list saved: 3 Kitchen and 2 Floor prices.'}).waitFor();
    const s=saves(calls);
-   assert.deepEqual(s.map(c=>[c.department,c.list.supplier,c.list.items.length]),[['Kitchen','QA Wholesale',2],['Floor','QA Wholesale',1]]);
-   assert.deepEqual(s[0].list.items.map(i=>[i.code,i.description,i.unit,i.unit_price,i.pack]),[['QA-B6','QA Diced Bacon 2.5kg','Ctn [6]',23.5,6],['11112222','QA Flour, Bakers 12.5kg','Unit',15.06,1]],'one row per product, carton kept, comma in a name');
-   assert.deepEqual(s[1].list.items.map(i=>[i.description,i.unit,i.unit_price]),[['QA Shiraz Test Valley 750ml [6]','Ctn [6]',14.15]]);
+   assert.deepEqual(s.map(c=>[c.department,c.list.supplier,c.list.items.length]),[['Kitchen','QA Wholesale',3],['Floor','QA Wholesale',2]]);
+   assert.deepEqual(s[0].list.items.map(i=>[i.code,i.description,i.unit,i.unit_price,i.pack]),[['QA-B6','QA Diced Bacon 2.5kg','Ctn [6]',23.5,6],['11112222','QA Flour, Bakers 12.5kg','Unit',15.06,1],['55556666','QA Milk Full Cream [6x2lt] CTN','Unit',21.5,1]],'one row per product, carton kept, comma in a name');
+   assert.deepEqual(s[1].list.items.map(i=>[i.description,i.unit,i.unit_price]),[['QA Milk Full Cream [6x2lt] CTN','Unit',21.5],['QA Shiraz Test Valley 750ml [6]','Ctn [6]',14.15]],'milk on both lists');
    assert.equal(await page.locator('#pbImportBox').isVisible(),false);
    await page.locator('#pbList .pb-row').filter({hasText:'QA Flour'}).filter({hasText:/price list/}).waitFor();
    assert.deepEqual(errors,[]);
@@ -86,10 +87,10 @@ try{
    await pick(page);
    assert.match(await page.locator('#pbImportBox').innerText(),/1 drinks go to the Floor list: only the Floor Manager or the Administrator can import them/);
    await page.locator('#plSupplier').fill('QA Wholesale');
-   assert.match(await page.locator('[data-pl-save]').innerText(),/Save 2 prices/);
+   assert.match(await page.locator('[data-pl-save]').innerText(),/Save 3 prices/);
    await page.locator('[data-pl-save]').click();
-   await page.locator('#invMessage.ok').filter({hasText:'Price list saved: 2 Kitchen prices.'}).waitFor();
-   assert.deepEqual(saves(calls).map(c=>['department' in c,c.list.items.length]),[[false,2]]);
+   await page.locator('#invMessage.ok').filter({hasText:'Price list saved: 3 Kitchen prices.'}).waitFor();
+   assert.deepEqual(saves(calls).map(c=>['department' in c,c.list.items.length]),[[false,3]]);
    assert.deepEqual(errors,[]);
    await close();
   });
