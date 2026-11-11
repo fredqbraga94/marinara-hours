@@ -25,12 +25,15 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
   managerApi=async(action,extra)=>{
    if(action==='manager_invoice_price_book')return{products:[
     {supplier:S,product_key:'QA1',code:'QA1',description:'QA cream',unit:'CTN',times:2,last_price:113,last_date:today,previous_price:null,change_pct:null,history:[{date:today,price:113}]},
-    {supplier:S,product_key:'QA4',code:'QA4',description:'QA flour',unit:'CTN',times:3,last_price:17,last_date:today,previous_price:16,previous_date:today,change_pct:6.3,history:[{date:today,price:16},{date:today,price:17}]}]};
+    {supplier:S,product_key:'QA4',code:'QA4',description:'QA flour',unit:'CTN',times:3,last_price:17,last_date:today,previous_price:16,previous_date:today,change_pct:6.3,history:[{date:today,price:16},{date:today,price:17}]},
+    {supplier:S,product_key:'QA7',code:'QA7',description:'QA Brand · Cheese Bocconcini 1Kg',unit:'EA',times:2,last_price:21.16,last_date:today,previous_price:null,change_pct:null,history:[{date:today,price:21.16}]}]};
    if(action==='manager_invoice_top_products')return{products:[
     {supplier:S,code:'QA1',description:'QA cream',orders:130,spend:37000,last_date:today,last_price:113,last_label:'Carton',first_price:107.73,first_date:'2025-10-29',change_pct:4.9,from_history:true},
     {supplier:S,code:'QA2',brand:'QA Brand',description:'QA olive oil',orders:13,spend:1500,last_date:'2026-09-14',last_price:102.5,last_label:'Box',first_price:89.5,first_date:'2026-03-11',change_pct:14.5,from_history:true},
     {supplier:S,code:'QA3',description:'QA pork by weight',orders:117,spend:19000,last_date:'2026-10-12',last_price:156.9,last_label:'Carton',first_price:313.88,first_date:'2025-10-29',change_pct:-50,from_history:true},
-    {supplier:S,code:'QA5',description:'QA cocoa',orders:3,spend:1000,last_date:'2026-09-10',last_price:297,last_label:'Carton',first_price:330,first_date:'2026-02-11',change_pct:-10,from_history:true}]};
+    {supplier:S,code:'QA5',description:'QA cocoa',orders:3,spend:1000,last_date:'2026-09-10',last_price:297,last_label:'Carton',first_price:330,first_date:'2026-02-11',change_pct:-10,from_history:true},
+    // The same product under its old code (the supplier renumbered it): one row, not two.
+    {supplier:S,code:'QA6-OLD',brand:'QA Brand',description:'Bocconcini Cheese 1kg',orders:20,spend:400,last_date:'2026-09-20',last_price:20.15,last_label:'Each',first_price:20.15,first_date:'2025-11-26',change_pct:0,from_history:true}]};
    if(action==='manager_invoice_list')return{invoices:[]};
    return orig(action,extra);};
  });
@@ -38,7 +41,8 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#invoicesScreen').waitFor({state:'visible'});
  await page.locator('#invTabs [data-inv-tab="prices"]').click();
  await page.locator('#pbList .pb-row').first().waitFor();
- assert.equal(await page.locator('#pbList .pb-row').count(),5,'scanned products plus the history-only ones');
+ assert.equal(await page.locator('#pbList .pb-row').count(),6,'scanned products plus the history-only ones');
+ assert.equal(await page.locator('#pbList .pb-row').filter({hasText:/Bocconcini/}).count(),1,'renumbered product shows once');
  await page.locator('[data-pb-filter="up"]').click();
  const ups=await page.locator('#pbList .pb-row .pb-main strong').allInnerTexts();
  assert.deepEqual(ups,['QA flour','QA Brand · QA olive oil','QA cream'],'recent rise first, then the year (biggest first)');
