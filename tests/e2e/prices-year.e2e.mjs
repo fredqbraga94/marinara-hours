@@ -26,6 +26,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
    if(action==='manager_invoice_pack_save'){window.__packSaves=(window.__packSaves||[]).concat([extra]);window.__packs=window.__packs||{};window.__packs[extra.product_key]=extra.pack;return{...extra};}
    const pk=k=>(window.__packs||{})[k];
    if(action==='manager_invoice_price_book')return{products:[
+    {supplier:S,product_key:'QA10',code:'QA10',description:'QA Beer Lager [24x330ml] BTL',unit:'Unit',times:0,last_price:60,last_date:today,last_from_list:true,previous_price:null,change_pct:null,pack:pk('QA10')??null,pack_saved:pk('QA10')!=null,history:[{date:today,price:60,list:true}]},
     {supplier:S,product_key:'QA9',code:'QA9',description:'QA Beef Lasagna 3kg (Ctn)',unit:'x 6',times:1,last_price:328.32,last_date:today,previous_price:null,change_pct:null,pack:pk('QA9')??null,pack_saved:pk('QA9')!=null,history:[{date:today,price:328.32}]},
     {supplier:S,product_key:'QA8',code:'QA8',description:'QA Butter Unsalted 1Kg',unit:'CTN',times:4,last_price:181,last_date:today,previous_price:null,change_pct:null,pack:pk('QA8')??null,pack_saved:pk('QA8')!=null,history:[{date:today,price:181}]},
     {supplier:S,product_key:'QA1',code:'QA1',description:'QA cream',unit:'CTN',times:2,last_price:113,last_date:today,previous_price:null,change_pct:null,history:[{date:today,price:113}]},
@@ -45,7 +46,7 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#invoicesScreen').waitFor({state:'visible'});
  await page.locator('#invTabs [data-inv-tab="prices"]').click();
  await page.locator('#pbList .pb-row').first().waitFor();
- assert.equal(await page.locator('#pbList .pb-row').count(),8,'scanned products plus the history-only ones');
+ assert.equal(await page.locator('#pbList .pb-row').count(),9,'scanned products plus the history-only ones');
  assert.equal(await page.locator('#pbList .pb-row').filter({hasText:/Bocconcini/}).count(),1,'renumbered product shows once');
  await page.locator('[data-pb-filter="up"]').click();
  const ups=await page.locator('#pbList .pb-row .pb-main strong').allInnerTexts();
@@ -81,6 +82,13 @@ for(const [size,options] of [['iphone',devices['iPhone 13']],['desktop',{viewpor
  await page.locator('#invMessage.ok').filter({hasText:'Saved: 6 in a ctn.'}).waitFor();
  const lt=await page.locator('#pbList .pb-row').filter({hasText:'QA Beef Lasagna'}).innerText();
  assert.match(lt,/\$328\.32[\s\S]*\$54\.72 each · 6 a ctn/);assert.doesNotMatch(lt,/1,969/);
+ // A price list's "Unit" that is a whole carton (beer 24x330ml): typing 24 divides too.
+ await page.locator('#pbList .pb-row').filter({hasText:'QA Beer Lager'}).click();
+ const ed3=page.locator('#pbList [data-pb-pack]');
+ await ed3.locator('input').fill('24');await ed3.locator('[data-pb-pack-save]').click();
+ await page.locator('#invMessage.ok').filter({hasText:'Saved: 24 in a ctn.'}).waitFor();
+ const bl=await page.locator('#pbList .pb-row').filter({hasText:'QA Beer Lager'}).innerText();
+ assert.match(bl,/\$60\.00[\s\S]*\$2\.50 each · 24 a ctn/);assert.doesNotMatch(bl,/1,440/);
  await page.locator('#pbList .pb-row').filter({hasText:'QA Butter Unsalted 1Kg'}).click();
  await page.locator('#pbList [data-pb-pack-clear]').click();
  await page.locator('#invMessage.ok').filter({hasText:'Carton size cleared.'}).waitFor();

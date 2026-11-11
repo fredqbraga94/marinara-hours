@@ -158,7 +158,10 @@ function render(){
   // Carton price first when the supplier counts single units ("Ctn [4]").
   // Or the price is already a carton's ("ctn" on the invoice) and a manager typed how
   // many come in it: then each one is the carton price divided by that number.
-  const pack=Number(p.pack)>1?Number(p.pack):1;const perCtn=pack>1&&!PER_UNIT.test(p.unit||'');
+  const pack=Number(p.pack)>1?Number(p.pack):1;// A number typed by a manager always means "the price you see is the carton's"
+  // (a price list's "Unit" can be a whole carton, e.g. beer 24x330ml), unless the
+  // supplier's own "Ctn [6]" says the price is per unit.
+  const perCtn=pack>1&&!/\[\s*\d+\s*\]/.test(p.unit||'')&&(p.pack_saved||!PER_UNIT.test(p.unit||''));
   const cm=v=>money(perCtn?Number(v):Number(v)*pack);
   const each=perCtn?Number(p.last_price)/pack:Number(p.last_price);
   const unitLabel=pack>1?'ctn':String(p.unit||'').toLowerCase();
