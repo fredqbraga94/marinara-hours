@@ -65,11 +65,15 @@ window.mhPriceUps=[];
 const realYear=x=>x.from_history&&x.change_pct!=null&&Number(x.change_pct)!==0&&Math.abs(Number(x.change_pct))<40;
 // One name style: the supplier history's brand and name when the product is in it.
 const histName=x=>x.brand?`${x.brand} · ${x.description}`:x.description;
+// The same product under a new code (the supplier renumbered it): same supplier and
+// the same words in the name, in any order ("Cheese Bocconcini 1Kg" = "Bocconcini Cheese 1kg").
+const nameKey=(supplier,desc)=>`${String(supplier).toLowerCase()}|${String(desc||'').toLowerCase().split('·').pop().replace(/[^a-z0-9.]+/g,' ').trim().split(/\s+/).sort().join(' ')}`;
 function withYear(book,top){
  const out=book.slice();const byKey=new Map(out.map(p=>[`${String(p.supplier).toLowerCase()}|${p.code||p.product_key}`,p]));
+ const byName=new Map();for(const p of out){const k=nameKey(p.supplier,p.description);byName.set(k,byName.has(k)?null:p);}
  for(const x of top){
   if(!x.from_history)continue;
-  const key=`${String(x.supplier).toLowerCase()}|${x.code}`;const have=byKey.get(key);
+  const key=`${String(x.supplier).toLowerCase()}|${x.code}`;const have=byKey.get(key)||byName.get(nameKey(x.supplier,x.description))||null;
   const hist=[{date:x.first_date,price:x.first_price,fromHistory:true},{date:x.last_date,price:x.last_price,fromHistory:true}].filter((h,i,a)=>h.date&&h.price!=null&&(i===0||h.date!==a[0].date));
   if(have){
    have.description=histName(x);
