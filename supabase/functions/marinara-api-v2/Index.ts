@@ -1526,6 +1526,8 @@ Deno.serve(async (req) => {
         "manager_invoice_usage",
         "manager_invoice_price_book",
         "manager_invoice_top_products",
+        "manager_invoice_price_list_save",
+        "manager_invoice_price_lists",
         "manager_permissions_list",
         "manager_permissions_set",
         "manager_ingredient_costs",
@@ -3868,6 +3870,37 @@ Deno.serve(async (req) => {
           const { data, error } = await invCall("price_book");
           if (error) return managerDbError(error, "Unable to load prices", 500);
           return json({ success: true, action, data: { products: data?.products || [], department: data?.department } });
+        }
+
+        // A supplier's price list (e.g. Gulli's list of current prices): prices,
+        // not a purchase. The browser reads the file; the list (Kitchen or Floor)
+        // comes with the call, like invoices.
+        if (action === "manager_invoice_price_list_save") {
+          const list = body.list && typeof body.list === "object" ? body.list : {};
+          const supplier = text(list.supplier, 80);
+          const items = (Array.isArray(list.items) ? list.items : []).slice(0, 1001).map((it: any) => ({
+            code: text(it?.code, 40), description: text(it?.description, 300), unit: text(it?.unit, 40),
+            unit_price: amount(it?.unit_price, 1e6),
+            pack: Number.isInteger(Number(it?.pack)) && Number(it.pack) >= 1 && Number(it.pack) <= 10000 ? Number(it.pack) : null,
+          }));
+          if (!supplier || !isDate(list.date) || !items.length || items.length > 1000 ||
+              items.some((it: any) => !it.description || it.unit_price === null || !(it.unit_price > 0))) {
+            return json({ error: "This price list could not be read completely. Check the file and try again.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await invCall("price_list_save", { list: { supplier, date: list.date, file_name: text(list.file_name, 200), items } });
+          if (error) {
+            if (["PGRST202", "42883"].includes(String((error as any).code))) return json({ error: "Price lists are not ready yet.", code: "NOT_READY" }, 503);
+            return managerDbError(error, "Unable to save the price list");
+          }
+          // Before the migration the database does not know this call (answers nothing).
+          if (!data) return json({ error: "Price lists are not ready yet.", code: "NOT_READY" }, 503);
+          return json({ success: true, action, data: { list: data } });
+        }
+
+        if (action === "manager_invoice_price_lists") {
+          const { data, error } = await invCall("price_lists");
+          if (error) return managerDbError(error, "Unable to load the price lists", 500);
+          return json({ success: true, action, data: data || { lists: [] } });
         }
 
         if (action === "manager_invoice_top_products") {
