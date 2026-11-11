@@ -514,6 +514,8 @@ button.cl-box:not(.on){box-shadow:inset 0 0 0 1.5px #e2b98f}
 .shop-move{display:flex;flex-direction:column;gap:4px;flex:0 0 auto}.shop-move button{width:34px;height:30px;margin:0;padding:0;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--green);font-size:12px;line-height:1}.shop-move button:disabled{opacity:.25}
 #ordSend .ord-msg-btn{width:100%;flex:none}
 
+/* Finance → Products: the supplier stands out on each product */
+.pb-sup-tag{display:inline-block;align-self:flex-start;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--sup);color:#fff;font-weight:800;font-size:12.5px;letter-spacing:.01em;padding:3px 9px;border-radius:999px;margin:0 0 2px}
 /* Finance → Products: import a price list */
 .pb-import{display:flex;justify-content:flex-end;margin:0 0 8px}.pb-import-box{padding:14px;margin:0 0 12px}.pb-import-box.hidden{display:none}.pb-import-box h3{margin:0 0 6px}
 .pl-field{display:block;font-weight:700;font-size:13px;margin:8px 0}.pl-field input{margin:4px 0 0}.pl-sample{list-style:none;padding:0;margin:8px 0;font-size:13px}.pl-sample li{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid #eee}

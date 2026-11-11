@@ -9,6 +9,9 @@ const $=id=>document.getElementById(id);
 const RECENT_DAYS=14;
 const state={products:[],at:0,loading:null,filter:'all',open:null,sup:'',saved:[],weekly:new Map()};
 const WEEKS=8;
+// Each supplier in its own colour, the same every time, so the eye finds it fast.
+const SUP_COLORS=['#1f6f4a','#9a3412','#1d4ed8','#7c2d92','#a16207','#0f766e','#be123c','#4d7c0f'];
+const supColor=name=>{let h=0;for(const c of String(name||'').toLowerCase())h=(h*31+c.charCodeAt(0))>>>0;return SUP_COLORS[h%SUP_COLORS.length];};
 const keyOf=(supplier,key)=>`${String(supplier||'').toLowerCase()}|${String(key||'').toLowerCase()}`;
 const qty=n=>{const v=Number(n)||0;return v>=10?String(Math.round(v)):v.toLocaleString('en-AU',{maximumFractionDigits:1});};
 // "1.8 ctn a week": cartons when the supplier counts single units ("Ctn [6]").
@@ -138,7 +141,7 @@ function render(){
    const w=weekOf(p);const wk=perWeek(w);
    hist=`<div class="pb-hist">${wk?`<p>About <b>${t(wk)}</b> over the last weeks${Number(w.max_week)>Number(w.avg_per_week)?` · busiest week ${t(qty(w.max_week))}`:''} · about ${t(money(w.spend_per_week))} a week.</p>`:''}${p.from_history&&!p.year?`<p>From the supplier history: ${p.times} orders in the year. Items sold by weight change price with each carton.</p>`:h.length>1?`<p>Since ${t(day(first.date))}: ${t(cm(first.price))} → ${t(cm(p.last_price))}${pack>1?' a ctn':''}${Math.abs(total)>=0.05?` <b class="${total>0?'up':'down'}">(${total>0?'+':'−'}${pct(total)})</b>`:' (no change)'}</p>`:p.times?'<p>Bought once so far. The next invoice will show if the price changed.</p>':'<p>From the supplier\'s price list (not bought yet in the saved invoices).</p>'}<ul>${lines}</ul><small>${p.year?'Prices before October come from the supplier history (first price of the year). ':''}${p.code?`Code ${t(p.code)}`:''}</small></div>`;
   }
-  return `<button type="button" class="pb-row${open?' open':''}" data-pb="${t(key)}" aria-expanded="${open}"><span class="pb-main"><strong>${t(p.description)}</strong><small>${t(p.supplier)} · ${perWeek(weekOf(p))?`<b class="pb-wk">${t(perWeek(weekOf(p)))}</b>`:p.last_from_list?`price list ${t(day(p.last_date))}`:`${p.times}× · last ${t(day(p.last_date))}`}</small></span><span class="pb-right"><strong>${t(cm(p.last_price))}</strong>${unit}${chg}</span></button>${hist}`;
+  return `<button type="button" class="pb-row${open?' open':''}" data-pb="${t(key)}" aria-expanded="${open}"><span class="pb-main"><span class="pb-sup-tag" style="--sup:${supColor(p.supplier)}">${t(p.supplier)}</span><strong>${t(p.description)}</strong><small>${perWeek(weekOf(p))?`<b class="pb-wk">${t(perWeek(weekOf(p)))}</b>`:p.last_from_list?`price list ${t(day(p.last_date))}`:`${p.times}× · last ${t(day(p.last_date))}`}</small></span><span class="pb-right"><strong>${t(cm(p.last_price))}</strong>${unit}${chg}</span></button>${hist}`;
  }).join('');
 }
 // The Prices tab now shows the price book (the old "changes only" list is kept on the server).
