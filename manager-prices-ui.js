@@ -116,7 +116,7 @@ let built=false;
 function build(){
  if(built)return;built=true;
  $('invPricesView').innerHTML=`<p class="inv-hint">What you buy: the last price paid, if it went up or down, and how much a week. Tap a product to see its prices.</p>
- <div class="pb-import"><button type="button" class="shop-small" id="pbImportBtn">Import price list</button><input id="pbImportFile" type="file" accept=".csv,text/csv" hidden></div>
+ <div class="pb-import hidden" id="pbImport"><button type="button" class="shop-small" id="pbImportBtn">Import price list</button><input id="pbImportFile" type="file" accept=".csv,text/csv" hidden></div>
  <div id="pbImportBox" class="card pb-import-box hidden"></div>
  <select id="pbSup" class="inv-search pb-sup" aria-label="Supplier"></select>
  <div id="pbSupBar" class="pb-supbar hidden"></div>
@@ -147,6 +147,7 @@ function render(){
  rows=rows.slice().sort(state.filter==='up'?(a,b)=>(!!a.year-!!b.year)||(a.year?Number(b.change_pct)-Number(a.change_pct):b.last_date.localeCompare(a.last_date)||Number(b.change_pct)-Number(a.change_pct))
    :state.filter==='down'?(a,b)=>(!!a.year-!!b.year)||Number(a.change_pct)-Number(b.change_pct)
    :(a,b)=>spendWk(b)-spendWk(a)||b.times-a.times||String(a.description).localeCompare(String(b.description)));
+ $('pbImport')?.classList.toggle('hidden',(typeof currentManagerRole==='undefined'?'':currentManagerRole)!=='manager');
  const box=$('pbList');
  if(!list.length){box.className='empty-state';box.textContent=state.sup?'No prices yet.':'No prices yet. They appear here as soon as you save supplier invoices.';return;}
  if(!rows.length){box.className='empty-state';box.textContent=state.filter==='up'?'No price went up. Good news.':'Nothing matches.';return;}

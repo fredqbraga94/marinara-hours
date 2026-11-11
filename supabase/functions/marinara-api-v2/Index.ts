@@ -3877,6 +3877,8 @@ Deno.serve(async (req) => {
         // not a purchase. The browser reads the file; the list (Kitchen or Floor)
         // comes with the call, like invoices.
         if (action === "manager_invoice_price_list_save") {
+          // Only the Administrator imports price lists.
+          if (!isGeneralManager) return json({ error: "Only the Administrator can import a price list.", code: "GM_REQUIRED" }, 403);
           const list = body.list && typeof body.list === "object" ? body.list : {};
           const supplier = text(list.supplier, 80);
           const items = (Array.isArray(list.items) ? list.items : []).slice(0, 1001).map((it: any) => ({
