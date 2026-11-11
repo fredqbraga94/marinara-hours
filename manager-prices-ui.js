@@ -9,7 +9,10 @@ const $=id=>document.getElementById(id);
 const RECENT_DAYS=14;
 const state={products:[],at:0,loading:null,filter:'all',open:null,sup:'',saved:[],weekly:new Map()};
 const WEEKS=8;
-const PER_CTN=/^\s*(ctn|ctns|carton|cartons|box|case|cs)\s*$/i;
+// The price is for one unit when the unit says so ("EA", "Unit", or a supplier's
+// "Ctn [6]" that counts single units); otherwise ("CTN", "x 6", "Box"...) it is
+// the carton's, and the number typed divides it.
+const PER_UNIT=/^\s*(unit|units|ea|each|btl|bottle|bottles|pk|pack|packet|bag|tin|tub|block|kg|kgs|g|l|lt|ltr|litre|rw)\s*$|\[\s*\d+\s*\]/i;
 // How many packs or units come in a carton: typed once, kept for this product.
 function packEditor(p,key){
  const n=Number(p.pack)>1?Number(p.pack):'';
@@ -154,7 +157,7 @@ function render(){
   // Carton price first when the supplier counts single units ("Ctn [4]").
   // Or the price is already a carton's ("ctn" on the invoice) and a manager typed how
   // many come in it: then each one is the carton price divided by that number.
-  const pack=Number(p.pack)>1?Number(p.pack):1;const perCtn=pack>1&&PER_CTN.test(p.unit||'');
+  const pack=Number(p.pack)>1?Number(p.pack):1;const perCtn=pack>1&&!PER_UNIT.test(p.unit||'');
   const cm=v=>money(perCtn?Number(v):Number(v)*pack);
   const each=perCtn?Number(p.last_price)/pack:Number(p.last_price);
   const unitLabel=pack>1?'ctn':String(p.unit||'').toLowerCase();
