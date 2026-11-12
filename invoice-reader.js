@@ -552,7 +552,8 @@
         let head = null;
         for (const r of rows) {
           const rt = rowText(r);
-          if (!number) { const m = rt.match(/\b(SI-\d+)\b/); if (m) number = m[1]; }
+          // A second delivery on the same order is "SI-00005214/1": keep the "/1".
+          if (!number) { const m = rt.match(/\b(SI-\d+(?:\s*\/\s*\d+)?)/); if (m) number = m[1].replace(/\s+/g, ""); }
           if (!date) { const m = rt.match(/Invoice\s*Date:?\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/i); if (m) date = isoDate(m[1]); }
           const ws = splitWords(r).flatMap(w => w.s.includes(" ") && !NUM.test(w.s) ? splitItem(w) : [w]);
           if (!head && /\bCode\b/.test(rt) && /\bDescription\b/.test(rt) && /\bQty\b/.test(rt)) {

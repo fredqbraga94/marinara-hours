@@ -244,10 +244,10 @@ test("Gulli (Nov 2026), narrower name column: names found from the header, [code
 // Rivercity Wholesale Liquor. Made-up products and prices at the column
 // positions the real PDFs use; the PDF text comes as pieces ("Base Price",
 // a whole product name), so the quantity must not be read as the price.
-function rivercityPages() {
+function rivercityPages(number = "SI-00009999") {
   y = 0;
   const words = [
-    ...row(["Rivercity Wholesale Liquor", 232], ["TAX INVOICE", 507]), ...row(["SI-00009999", 519]),
+    ...row(["Rivercity Wholesale Liquor", 232], ["TAX INVOICE", 507]), ...row([number, 519]),
     ...row(["Invoice Date:", 459], ["03/11/2026", 537]),
     ...row(["Total", 502]), ...row(["WET/GST", 540]),
     ...row(["Code", 18], ["Description", 71], ["Qty", 307], ["Base Price", 341], ["Discount", 398], ["Net Price", 449], ["exGST&", 496]),
@@ -278,6 +278,10 @@ test("Rivercity: quantity and price from their own columns, cartons of 24, fuel 
   ]);
   assert.equal(inv.gst, 20);
   assert.equal(inv.total, 226.75);
+});
+
+test("Rivercity: a second invoice on the same order keeps its '/1' (not taken for the first one)", () => {
+  assert.equal(R.parse(rivercityPages("SI-00009999/1")).number, "SI-00009999/1");
 });
 
 test("an unknown layout read with quantity and price swapped is flagged line by line, not 'adds up'", () => {
