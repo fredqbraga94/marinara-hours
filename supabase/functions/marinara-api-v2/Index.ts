@@ -1529,6 +1529,7 @@ Deno.serve(async (req) => {
         "manager_invoice_price_list_save",
         "manager_invoice_price_lists",
         "manager_invoice_pack_save",
+        "manager_invoice_link_save",
         "manager_permissions_list",
         "manager_permissions_set",
         "manager_ingredient_costs",
@@ -3909,6 +3910,19 @@ Deno.serve(async (req) => {
           }
           const { data, error } = await invCall("pack_save", { supplier, product_key: productKey, pack });
           if (error) return managerDbError(error, "Unable to save the carton size");
+          if (!data) return json({ error: "This is not ready yet.", code: "NOT_READY" }, 503);
+          return json({ success: true, action, data });
+        }
+
+        // The same product under two names: join one to the other (same_as null separates them).
+        if (action === "manager_invoice_link_save") {
+          const supplier = text(body.supplier, 80), productKey = text(body.product_key, 300);
+          const sameAs = body.same_as == null || body.same_as === "" ? null : text(body.same_as, 300);
+          if (!supplier || !productKey || sameAs === "" || sameAs === productKey) {
+            return json({ error: "Choose the other product.", code: "INVALID_INPUT" }, 400);
+          }
+          const { data, error } = await invCall("link_save", { supplier, product_key: productKey, same_as: sameAs });
+          if (error) return managerDbError(error, "Unable to join the products");
           if (!data) return json({ error: "This is not ready yet.", code: "NOT_READY" }, 503);
           return json({ success: true, action, data });
         }

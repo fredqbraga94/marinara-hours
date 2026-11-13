@@ -67,6 +67,7 @@ jobs:
       - run: npm run test:invoice-departments
       - run: npm run test:price-lists
       - run: npm run test:product-packs
+      - run: npm run test:product-links
       - run: npm run test:notes
       - run: npm run test:ingredient-edit
       - run: npm run test:temp-reminder
@@ -109,6 +110,7 @@ jobs:
       - run: npm run test:e2e:invoice-departments
       - run: npm run test:e2e:price-list
       - run: npm run test:e2e:prices-year
+      - run: npm run test:e2e:same-product
       - run: npm run test:e2e:maintenance
   browser-webkit:
     # Safari's engine (what iPhones use) on Linux, with the iPhone 13 profile.
@@ -146,6 +148,7 @@ jobs:
       - run: npm run test:e2e:invoice-departments:webkit
       - run: npm run test:e2e:price-list:webkit
       - run: npm run test:e2e:prices-year:webkit
+      - run: npm run test:e2e:same-product:webkit
       - run: npm run test:e2e:maintenance:webkit
   hardening:
     runs-on: ubuntu-latest
