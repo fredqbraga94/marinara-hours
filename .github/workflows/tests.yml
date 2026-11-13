@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   api:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,12 +21,12 @@ jobs:
       - run: node --test tests/edge/audit-privacy.test.mjs
       - run: npm run test:security:edge
   database:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - run: npm run test:db
   integration:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -36,7 +36,7 @@ jobs:
       - run: npm run test:integration
   features:
     # Student visa, roster, time off, public holidays: migrations, both servers, rollback.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -67,6 +67,7 @@ jobs:
       - run: npm run test:invoice-departments
       - run: npm run test:price-lists
       - run: npm run test:product-packs
+      - run: npm run test:product-links
       - run: npm run test:notes
       - run: npm run test:ingredient-edit
       - run: npm run test:temp-reminder
@@ -74,7 +75,7 @@ jobs:
       - run: npm run test:maintenance
       - run: npm run test:photos-contacts
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -109,10 +110,11 @@ jobs:
       - run: npm run test:e2e:invoice-departments
       - run: npm run test:e2e:price-list
       - run: npm run test:e2e:prices-year
+      - run: npm run test:e2e:same-product
       - run: npm run test:e2e:maintenance
   browser-webkit:
     # Safari's engine (what iPhones use) on Linux, with the iPhone 13 profile.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -146,9 +148,10 @@ jobs:
       - run: npm run test:e2e:invoice-departments:webkit
       - run: npm run test:e2e:price-list:webkit
       - run: npm run test:e2e:prices-year:webkit
+      - run: npm run test:e2e:same-product:webkit
       - run: npm run test:e2e:maintenance:webkit
   hardening:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -158,7 +161,7 @@ jobs:
       - run: npm run test:hardening
 
   security-audit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

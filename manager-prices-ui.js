@@ -27,6 +27,28 @@ async function savePack(box,clear){
   state.at=0;await load(true);render();invMsg(clear?'Carton size cleared.':`Saved: ${v} in a ctn.`,true);}
  catch(e){box.querySelectorAll('button').forEach(b=>b.disabled=false);invMsg(e.message||'Unable to save the carton size.',false);}
 }
+// The same product under two names (the price list and the invoices name it
+// differently, or the supplier renamed it): join the other one to this one.
+const words=d=>new Set(String(d||'').toLowerCase().split('·').pop().replace(/[^a-z0-9.]+/g,' ').trim().split(/\s+/).filter(w=>w.length>1));
+function linkEditor(p,key){
+ const merged=(p.merged||[]).map(m=>`<li><span>Also as: ${t(m.description)}</span><button type="button" class="shop-small" data-pb-unlink="${t(m.product_key)}">Separate</button></li>`).join('');
+ const mine=words(p.description);
+ const others=state.products.filter(x=>x!==p&&!x.from_history&&x.supplier===p.supplier)
+  .map(x=>{let n=0;for(const w of words(x.description))if(mine.has(w))n++;return [n,x];})
+  .sort((a,b)=>b[0]-a[0]||String(a[1].description).localeCompare(String(b[1].description))).map(([,x])=>x);
+ if(p.from_history||(!others.length&&!merged))return '';
+ return `<div class="pb-link" data-pb-link="${t(key)}">${merged?`<ul>${merged}</ul>`:''}${others.length?`<label>Same product as<select><option value="">Choose…</option>${others.map(x=>`<option value="${t(x.product_key)}">${t(x.description)}${x.code?` (${t(x.code)})`:''}</option>`).join('')}</select></label><button type="button" class="shop-small" data-pb-link-save>Join</button>`:''}</div>`;
+}
+async function saveLink(box,btn){
+ const prod=state.products.find(p=>`${p.supplier}|${p.product_key}`===box.dataset.pbLink);if(!prod)return;
+ const unlink=btn.dataset.pbUnlink;const other=unlink?null:box.querySelector('select')?.value;
+ if(!unlink&&!other){invMsg('Choose the other product.',false);return;}
+ const otherName=other&&state.products.find(x=>x.supplier===prod.supplier&&x.product_key===other)?.description;
+ box.querySelectorAll('button,select').forEach(b=>b.disabled=true);
+ try{await managerApi('manager_invoice_link_save',{supplier:prod.supplier,product_key:unlink||other,same_as:unlink?null:prod.product_key});
+  state.at=0;await load(true);render();invMsg(unlink?'Separated: they show as two products again.':`Joined: ${otherName||'the other product'} now shows here.`,true);}
+ catch(e){box.querySelectorAll('button,select').forEach(b=>b.disabled=false);invMsg(e.message||'Unable to join the products.',false);}
+}
 // Each supplier in its own colour, the same every time, so the eye finds it fast.
 // Gulli red, Moco blue (asked for); the others share colours that are neither.
 const SUP_COLORS=['#1f6f4a','#7c2d92','#a16207','#0f766e','#4d7c0f','#57534e'];
@@ -109,7 +131,11 @@ function withYear(book,top){
 }
 // Forget the cached list (after an invoice is saved or removed).
 window.mhPricesReset=(all)=>{state.at=0;if(all){state.gen=(state.gen||0)+1;state.products=[];state.open=null;state.sup='';state.saved=[];state.weekly=new Map();window.mhPriceUps=[];}};
-const weekOf=p=>state.weekly.get(keyOf(p.supplier,p.code||p.product_key))||state.weekly.get(keyOf(p.supplier,p.description));
+const weekOne=(sup,code,key,desc)=>state.weekly.get(keyOf(sup,code||key))||state.weekly.get(keyOf(sup,desc));
+// A product joined to others ("Same product as"): the weeks of all its names together.
+const weekOf=p=>{const ws=[weekOne(p.supplier,p.code,p.product_key,p.description),...(p.merged||[]).map(m=>weekOne(p.supplier,m.code,m.product_key,m.description))].filter(Boolean);
+ if(ws.length<2)return ws[0];
+ return {...ws[0],avg_per_week:ws.reduce((a,w)=>a+(Number(w.avg_per_week)||0),0),spend_per_week:ws.reduce((a,w)=>a+(Number(w.spend_per_week)||0),0),max_week:null};};
 
 /* ---------- Prices tab ---------- */
 let built=false;
@@ -129,7 +155,7 @@ function build(){
  $('pbSupBar').addEventListener('click',e=>{if(e.target.closest('[data-pb-type]')&&state.sup)window.MarinaraTypedInvoice?.open(state.sup);});
  $('pbChips').addEventListener('click',e=>{const b=e.target.closest('[data-pb-filter]');if(!b)return;state.filter=b.dataset.pbFilter;state.open=null;render();});
  $('pbSearch').addEventListener('input',()=>{state.open=null;render();});
- $('pbList').addEventListener('click',e=>{const pk=e.target.closest('[data-pb-pack]');if(pk){if(e.target.closest('[data-pb-pack-save]'))savePack(pk,false);else if(e.target.closest('[data-pb-pack-clear]'))savePack(pk,true);return;}const b=e.target.closest('[data-pb]');if(!b)return;state.open=state.open===b.dataset.pb?null:b.dataset.pb;render();});
+ $('pbList').addEventListener('click',e=>{const pk=e.target.closest('[data-pb-pack]');if(pk){if(e.target.closest('[data-pb-pack-save]'))savePack(pk,false);else if(e.target.closest('[data-pb-pack-clear]'))savePack(pk,true);return;}const lk=e.target.closest('[data-pb-link]');if(lk){const b=e.target.closest('[data-pb-link-save],[data-pb-unlink]');if(b)saveLink(lk,b);return;}const b=e.target.closest('[data-pb]');if(!b)return;state.open=state.open===b.dataset.pb?null:b.dataset.pb;render();});
 }
 const FILTERS=[['all','Most bought',()=>true],['up','Went up',up],['down','Went down',down]];
 // Most bought: spend a week (last weeks), then how often it was ordered.
@@ -173,7 +199,7 @@ function render(){
      return `<li><span>${t(day(x.date))}${x.list?' <em>price list</em>':''}</span><strong>${t(cm(x.price))}</strong><span class="${diff>0?'up':diff<0?'down':''}">${!prev?(x.fromHistory?'start of the year':'first time'):diff?`${diff>0?'+':'−'}${t(cm(Math.abs(diff)))}`:'same'}</span></li>`;}).join('');
    const first=h[0];const total=first&&Number(first.price)?(Number(p.last_price)-Number(first.price))/Number(first.price)*100:0;
    const w=weekOf(p);const wk=perWeek(w);
-   hist=`<div class="pb-hist">${wk?`<p>About <b>${t(wk)}</b> over the last weeks${Number(w.max_week)>Number(w.avg_per_week)?` · busiest week ${t(qty(w.max_week))}`:''} · about ${t(money(w.spend_per_week))} a week.</p>`:''}${p.from_history&&!p.year?`<p>From the supplier history: ${p.times} orders in the year. Items sold by weight change price with each carton.</p>`:h.length>1?`<p>Since ${t(day(first.date))}: ${t(cm(first.price))} → ${t(cm(p.last_price))}${pack>1?' a ctn':''}${Math.abs(total)>=0.05?` <b class="${total>0?'up':'down'}">(${total>0?'+':'−'}${pct(total)})</b>`:' (no change)'}</p>`:p.times?'<p>Bought once so far. The next invoice will show if the price changed.</p>':'<p>From the supplier\'s price list (not bought yet in the saved invoices).</p>'}<ul>${lines}</ul><small>${p.year?'Prices before October come from the supplier history (first price of the year). ':''}${p.code?`Code ${t(p.code)}`:''}</small>${packEditor(p,key)}</div>`;
+   hist=`<div class="pb-hist">${wk?`<p>About <b>${t(wk)}</b> over the last weeks${Number(w.max_week)>Number(w.avg_per_week)?` · busiest week ${t(qty(w.max_week))}`:''} · about ${t(money(w.spend_per_week))} a week.</p>`:''}${p.from_history&&!p.year?`<p>From the supplier history: ${p.times} orders in the year. Items sold by weight change price with each carton.</p>`:h.length>1?`<p>Since ${t(day(first.date))}: ${t(cm(first.price))} → ${t(cm(p.last_price))}${pack>1?' a ctn':''}${Math.abs(total)>=0.05?` <b class="${total>0?'up':'down'}">(${total>0?'+':'−'}${pct(total)})</b>`:' (no change)'}</p>`:p.times?'<p>Bought once so far. The next invoice will show if the price changed.</p>':'<p>From the supplier\'s price list (not bought yet in the saved invoices).</p>'}<ul>${lines}</ul><small>${p.year?'Prices before October come from the supplier history (first price of the year). ':''}${p.code?`Code ${t(p.code)}`:''}</small>${packEditor(p,key)}${linkEditor(p,key)}</div>`;
   }
   return `<button type="button" class="pb-row${open?' open':''}" data-pb="${t(key)}" aria-expanded="${open}"><span class="pb-main"><span class="pb-sup-tag" style="--sup:${supColor(p.supplier)}">${t(p.supplier)}</span><strong>${t(p.description)}</strong><small>${perWeek(weekOf(p))?`<b class="pb-wk">${t(perWeek(weekOf(p)))}</b>`:p.last_from_list?`price list ${t(day(p.last_date))}`:`${p.times}× · last ${t(day(p.last_date))}`}</small></span><span class="pb-right"><strong>${t(cm(p.last_price))}</strong>${unit}${chg}</span></button>${hist}`;
  }).join('');
