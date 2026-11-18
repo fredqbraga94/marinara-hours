@@ -643,6 +643,52 @@
     },
   };
 
+  // Gulli Food Distributors, "Tax Invoice CI-495173" layout (Nov 2026, drinks):
+  // product code, description, quantity ("12.000 Unit"), unit price, taxes
+  // ("10%", "W.E.T., 10%"), amount before taxes. Below: Untaxed Amount, GST,
+  // "Withheld" (the wine tax, WET) and Total. As for Rivercity, the WET is kept
+  // with the GST so the lines add up to the Untaxed Amount.
+  const gulliTax = {
+    supplier: "Global Food and Wine (Gulli)",   // same name as the other Gulli layouts
+    test: t => /Gulli Food Distributors/.test(t) && /PRODUCT CODE/.test(t) && /Untaxed Amount/.test(t),
+    read(pages) {
+      const lines = [];
+      let number = null, date = null, subtotal = null, gst = 0, total = null, sawTax = false;
+      const lastMoney = r => { const m = r.items.map(i => money(i.s)).filter(v => v != null); return m.length ? m[m.length - 1] : null; };
+      for (const rows of pages) {
+        let head = null, done = false, dateCol = null;
+        for (const r of rows) {
+          const rt = rowText(r);
+          if (!number) { const m = rt.match(/\b(CI-\d+)\b/); if (m) number = m[1]; }
+          const dl = r.items.find(i => /^Invoice Date:?$/i.test(i.s));
+          if (dl) { dateCol = dl.x; continue; }
+          if (dateCol != null && !date) { const d = r.items.find(i => Math.abs(i.x - dateCol) < 15 && isoDate(i.s)); if (d) { date = isoDate(d.s); continue; } }
+          if (!head && r.items.some(i => i.s === "PRODUCT CODE")) {
+            const at = name => r.items.find(i => i.s === name)?.x;
+            head = { desc: at("DESCRIPTION"), qty: at("QUANTITY"), price: at("UNIT PRICE"), gst: at("GST"), amount: at("AMOUNT") };
+            continue;
+          }
+          if (!head) continue;
+          if (/^Untaxed Amount/i.test(textIn(r, head.qty - 10, 999))) { subtotal = lastMoney(r); done = true; continue; }
+          if (/^GST\b/i.test(textIn(r, head.qty - 10, 999))) { const v = lastMoney(r); if (v != null) { gst = r2(gst + v); sawTax = true; } continue; }
+          if (/^Withheld\b/i.test(textIn(r, head.qty - 10, 999))) { const v = lastMoney(r); if (v != null) { gst = r2(gst + v); sawTax = true; } continue; }
+          if (/^Total$/i.test(textIn(r, head.qty - 10, head.amount - 20))) { total = lastMoney(r); continue; }
+          if (done) continue;
+          const amount = money(textIn(r, head.amount - 20, 999));
+          const qtyCell = textIn(r, head.qty - 8, head.price - 2);
+          const qm = qtyCell.match(/^(-?[\d,]*\.?\d+)\s*(.*)$/);
+          const price = num(textIn(r, head.price - 2, head.gst + 40).split(/\s+/)[0]);
+          if (amount == null || !qm || price == null) continue;
+          const description = textIn(r, head.desc - 5, head.qty - 8);
+          if (!description) continue;
+          lines.push({ code: textIn(r, 0, head.desc - 5), description, qty: num(qm[1]), unit: qm[2].trim() || "Unit", unit_price: price, line_total: amount, gst: 0 });
+        }
+      }
+      if (!sawTax && total != null && subtotal != null) gst = r2(total - subtotal);
+      return { number, date, kind: "invoice", lines, subtotal, gst, total };
+    },
+  };
+
   /* ---------- any other supplier (no reader written for it) ----------
      Finds the table by its titles (Description / Item ... Total / Amount),
      takes the right-most amount on each row as the line total, the invoice
@@ -839,7 +885,7 @@
     return { number, date, kind: credit ? "credit" : "invoice", lines, total, gst, subtotal: r2(total - gst), supplierGuess: supplier || "", generic: true };
   }
 
-  const READERS = [moco, pronto, angelos, globalFood, gulliInvoice, gulliCredit, gulliNew, htc, rivercity];
+  const READERS = [moco, pronto, angelos, globalFood, gulliInvoice, gulliCredit, gulliNew, gulliTax, htc, rivercity];
 
   // pages -> invoice, or { error } when the layout is not one we know.
   function parse(pages) {
