@@ -41,6 +41,7 @@
     "test:price-lists": "node tests/integration/price-lists.mjs",
     "test:product-packs": "node tests/integration/product-packs.mjs",
     "test:product-links": "node tests/integration/product-links.mjs",
+    "test:price-blips": "node tests/integration/price-blips.mjs",
     "test:notes": "node tests/integration/notes.mjs",
     "test:ingredient-edit": "node tests/integration/ingredient-edit.mjs",
     "test:shopping-order": "node tests/integration/shopping-order.mjs",

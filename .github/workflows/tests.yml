@@ -68,6 +68,7 @@ jobs:
       - run: npm run test:price-lists
       - run: npm run test:product-packs
       - run: npm run test:product-links
+      - run: npm run test:price-blips
       - run: npm run test:notes
       - run: npm run test:ingredient-edit
       - run: npm run test:temp-reminder
