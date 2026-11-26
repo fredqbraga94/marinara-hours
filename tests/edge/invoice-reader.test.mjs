@@ -347,3 +347,48 @@ test("Gulli 'Tax Invoice CI-' layout: quantity and price from their columns, win
   assert.equal(inv.gst, 31.14);
   assert.equal(inv.total, 151.14);
 });
+
+test("MOCO tax adjustment note: a credit, amounts with the minus after them", () => {
+  y = 0;
+  const words = [
+    ...row(["Acct #:", 40], ["TEST", 80]), ...row(["Invoice #:", 400], ["T-10", 450]), ...row(["Date:", 400], ["25/11/2026", 450]),
+    ...row(["** TAX ADJUSTMENT NOTE **", 300]),
+    ...row(["D", 29], ["10001", 50], ["TESTCO", 92], ["TEST COCONUT CREAM", 172], ["400ML 24", 328], ["CTN", 374], ["1-", 403],
+      ["55.00", 433], ["55.00-", 483], [".00", 538], ["55.00-", 575]),
+    ...row(["Total Net:", 450], ["55.00-", 540]), ...row(["Total GST:", 450], [".00", 540]), ...row(["Total Invoice:", 450], ["55.00-", 540]),
+  ];
+  const inv = R.parse([R.toRows(words)]);
+  assert.equal(inv.kind, "credit");
+  assert.equal(inv.ok, true, JSON.stringify(inv.checks));
+  assert.equal(inv.total, -55);
+  assert.deepEqual(inv.lines.map((l) => [l.code, l.qty, l.unit_price, l.line_total]), [["10001", 1, 55, -55]]);
+});
+
+test("Gulli 'Tax Invoice CI-' layout: totals found when the columns sit further right", () => {
+  y = 0;
+  const words = [
+    ...row(["Gulli Food Distributors Pty Ltd", 445]), ...row(["Tax Invoice CI-900002", 29]),
+    ...row(["Invoice Date:", 29]), ...row(["24/11/2026", 29]),
+    ...row(["PRODUCT CODE", 32], ["DESCRIPTION", 161], ["QUANTITY", 367], ["UNIT PRICE", 430], ["GST", 485], ["AMOUNT", 522]),
+    ...row(["TESTPRAWN-UC10", 32], ["Test Prawn Meat x1kg", 161], ["10.000 Unit", 366], ["20.90000", 441], ["0%", 485], ["$ 209.00", 527]),
+    ...row(["DELIVERY_007", 32], ["Standard Delivery", 161], ["1.000 Unit", 371], ["4.50000 10%", 446], ["$ 4.50", 538]),
+    ...row(["Untaxed Amount", 345], ["$ 213.50", 528]),
+    ...row(["GST 0% on $ 209.00", 345], ["$ 0.00", 538]),
+    ...row(["GST 10% on $ 4.50", 345], ["$ 0.45", 538]),
+    ...row(["Total", 345], ["$ 213.95", 528]),
+  ];
+  const inv = R.parse([R.toRows(words)]);
+  assert.equal(inv.ok, true, JSON.stringify(inv.checks));
+  assert.equal(inv.gst, 0.45);
+  assert.equal(inv.total, 213.95);
+});
+
+test("a delivery slip (ordered/delivered, no prices) is not read as an invoice", () => {
+  y = 0;
+  const words = [
+    ...row(["Test Foods Pty Ltd", 30]),
+    ...row(["PRODUCT", 200], ["ORDERED", 420], ["DELIVERED", 520]),
+    ...row(["[T1] Test Olive Oil 4lt", 40], ["1.000 Unit", 420], ["1.000 Unit", 520]),
+  ];
+  assert.deepEqual(R.parse([R.toRows(words)]), { error: "DELIVERY_SLIP" });
+});

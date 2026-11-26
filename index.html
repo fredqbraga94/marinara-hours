@@ -8631,7 +8631,8 @@ async function invReadFiles(files) {
       if (f.size > 20 * 1024 * 1024) throw new Error("This file is too big for an invoice.");
       const inv = await window.MarinaraInvoiceReader.readPdf(new Uint8Array(await f.arrayBuffer()), "./");
       slot.reading = false;
-      if (inv.error) slot.error = "No table of products was found in this PDF (a photo or scan can't be read). Send it to Fred if it's a normal PDF.";
+      if (inv.error === "DELIVERY_SLIP") slot.error = "This is a delivery slip (no prices), not an invoice. Add the invoice when it arrives.";
+      else if (inv.error) slot.error = "No table of products was found in this PDF (a photo or scan can't be read). Send it to Fred if it's a normal PDF.";
       else { slot.invoice = inv; if (inv.generic) await invNameSupplier(inv); slot.duplicate = await invAlreadySaved(inv); window.MarinaraDishCost?.prefetch?.(); }
     } catch (error) {
       slot.reading = false;
