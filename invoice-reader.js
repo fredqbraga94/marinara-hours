@@ -89,6 +89,7 @@
     const t = String(s ?? "").replace(/,/g, "").trim();
     return /^-?\d*\.?\d+$/.test(t) ? Number(t) : null;
   };
+  const moneyAll = money, numAll = num;
   const r2 = n => Math.round(n * 100) / 100;
   const rowText = r => r.items.map(i => i.s).join(" ");
   const inX = (r, a, b) => r.items.filter(i => i.x >= a && i.x < b);
@@ -136,6 +137,14 @@
     test: t => /Acct #:/.test(t) && /Total Invoice:/.test(t) && /Total Net:/.test(t),
     read(pages) {
       const lines = [];
+      // A "TAX ADJUSTMENT NOTE" is a credit: amounts printed with the minus
+      // after them ("55.00-"), quantity "1-". Stored like the other credits:
+      // quantity and price as printed, line amounts and totals negative.
+      const credit = pages.some(rows => rows.some(r => /TAX ADJUSTMENT NOTE|CREDIT NOTE/i.test(rowText(r))));
+      const minusAfter = s => { const t = String(s ?? "").trim(); return /\d-$/.test(t) ? t.slice(0, -1) : t; };
+      const money = s => s == null ? null : moneyAll(minusAfter(s));
+      const num = s => s == null ? null : numAll(minusAfter(s));
+      const neg = v => v == null ? v : -Math.abs(v);
       for (const rows of pages) for (const r of rows) {
         const rt = rowText(r);
         if (/Total Net Weight of/i.test(rt)) {
@@ -175,11 +184,11 @@
       return {
         number: valueAfter(pages, "Invoice #:"),
         date: isoDate(valueAfter(pages, "Date:")),
-        kind: "invoice",
-        lines,
-        subtotal: money(valueAfter(pages, "Total Net:")),
-        gst: money(valueAfter(pages, "Total GST:")),
-        total: money(valueAfter(pages, "Total Invoice:")),
+        kind: credit ? "credit" : "invoice",
+        lines: credit ? lines.map(l => ({ ...l, line_total: neg(l.line_total), gst: neg(l.gst) })) : lines,
+        subtotal: (credit ? neg : v => v)(money(valueAfter(pages, "Total Net:"))),
+        gst: (credit ? neg : v => v)(money(valueAfter(pages, "Total GST:"))),
+        total: (credit ? neg : v => v)(money(valueAfter(pages, "Total Invoice:"))),
       };
     },
   };
@@ -643,6 +652,54 @@
     },
   };
 
+  // Gulli Food Distributors, "Tax Invoice CI-495173" layout (Nov 2026, drinks):
+  // product code, description, quantity ("12.000 Unit"), unit price, taxes
+  // ("10%", "W.E.T., 10%"), amount before taxes. Below: Untaxed Amount, GST,
+  // "Withheld" (the wine tax, WET) and Total. As for Rivercity, the WET is kept
+  // with the GST so the lines add up to the Untaxed Amount.
+  const gulliTax = {
+    supplier: "Global Food and Wine (Gulli)",   // same name as the other Gulli layouts
+    test: t => /Gulli Food Distributors/.test(t) && /PRODUCT CODE/.test(t) && /Untaxed Amount/.test(t),
+    read(pages) {
+      const lines = [];
+      let number = null, date = null, subtotal = null, gst = 0, total = null, sawTax = false;
+      const lastMoney = r => { const m = r.items.map(i => money(i.s)).filter(v => v != null); return m.length ? m[m.length - 1] : null; };
+      // The totals can be on the next page: the columns carry over.
+      let head = null, done = false;
+      for (const rows of pages) {
+        let dateCol = null;
+        for (const r of rows) {
+          const rt = rowText(r);
+          if (!number) { const m = rt.match(/\b(CI-\d+)\b/); if (m) number = m[1]; }
+          const dl = r.items.find(i => /^Invoice Date:?$/i.test(i.s));
+          if (dl) { dateCol = dl.x; continue; }
+          if (dateCol != null && !date) { const d = r.items.find(i => Math.abs(i.x - dateCol) < 15 && isoDate(i.s)); if (d) { date = isoDate(d.s); continue; } }
+          if (r.items.some(i => i.s === "PRODUCT CODE")) {
+            const at = name => r.items.find(i => i.s === name)?.x;
+            head = { desc: at("DESCRIPTION"), qty: at("QUANTITY"), price: at("UNIT PRICE"), gst: at("GST"), amount: at("AMOUNT") };
+            continue;
+          }
+          if (!head) continue;
+          if (/^Untaxed Amount/i.test(textIn(r, (head.desc + head.qty) / 2, 999))) { subtotal = lastMoney(r); done = true; continue; }
+          if (/^GST\b/i.test(textIn(r, (head.desc + head.qty) / 2, 999))) { const v = lastMoney(r); if (v != null) { gst = r2(gst + v); sawTax = true; } continue; }
+          if (/^Withheld\b/i.test(textIn(r, (head.desc + head.qty) / 2, 999))) { const v = lastMoney(r); if (v != null) { gst = r2(gst + v); sawTax = true; } continue; }
+          if (/^Total\b/i.test(textIn(r, (head.desc + head.qty) / 2, 999))) { total = lastMoney(r); continue; }
+          if (done) continue;
+          const amount = money(textIn(r, head.amount - 20, 999));
+          const qtyCell = textIn(r, head.qty - 8, head.price - 2);
+          const qm = qtyCell.match(/^(-?[\d,]*\.?\d+)\s*(.*)$/);
+          const price = num(textIn(r, head.price - 2, head.gst + 40).split(/\s+/)[0]);
+          if (amount == null || !qm || price == null) continue;
+          const description = textIn(r, head.desc - 5, head.qty - 8);
+          if (!description) continue;
+          lines.push({ code: textIn(r, 0, head.desc - 5), description, qty: num(qm[1]), unit: qm[2].trim() || "Unit", unit_price: price, line_total: amount, gst: 0 });
+        }
+      }
+      if (!sawTax && total != null && subtotal != null) gst = r2(total - subtotal);
+      return { number, date, kind: "invoice", lines, subtotal, gst, total };
+    },
+  };
+
   /* ---------- any other supplier (no reader written for it) ----------
      Finds the table by its titles (Description / Item ... Total / Amount),
      takes the right-most amount on each row as the line total, the invoice
@@ -839,11 +896,13 @@
     return { number, date, kind: credit ? "credit" : "invoice", lines, total, gst, subtotal: r2(total - gst), supplierGuess: supplier || "", generic: true };
   }
 
-  const READERS = [moco, pronto, angelos, globalFood, gulliInvoice, gulliCredit, gulliNew, htc, rivercity];
+  const READERS = [moco, pronto, angelos, globalFood, gulliInvoice, gulliCredit, gulliNew, gulliTax, htc, rivercity];
 
   // pages -> invoice, or { error } when the layout is not one we know.
   function parse(pages) {
     const text = allRows(pages).map(rowText).join("\n");
+    // A delivery slip (what was ordered and delivered, no prices) is not an invoice.
+    if (/\bORDERED\b/.test(text) && /\bDELIVERED\b/.test(text) && !/UNIT PRICE|Untaxed|Total Invoice|\bAMOUNT\b|\bPrice\b/i.test(text)) return { error: "DELIVERY_SLIP" };
     const reader = READERS.find(rd => rd.test(text)) || generic;
     const inv = reader.read(pages);
     if (reader === generic && !inv.lines.length) return { error: "UNKNOWN_SUPPLIER" };

@@ -311,3 +311,84 @@ test("normal lines are not flagged: whole cartons, half boxes, weighed kg", () =
   ]));
   assert.equal(inv.checks.lines_look_right, true, JSON.stringify(inv.lines));
 });
+
+// Gulli "Tax Invoice CI-..." layout (drinks): made-up products and amounts.
+function gulliTaxPages() {
+  y = 0;
+  const words = [
+    ...row(["Gulli Food Distributors Pty Ltd", 445]),
+    ...row(["Tax Invoice CI-900001", 29]),
+    ...row(["Invoice Date:", 29], ["Due Date:", 119], ["Source:", 208]),
+    ...row(["03/11/2026", 29], ["03/12/2026", 119], ["S000001", 208]),
+    ...row(["PRODUCT CODE", 32], ["DESCRIPTION", 114], ["QUANTITY", 349], ["UNIT PRICE", 405], ["GST", 461], ["AMOUNT", 522]),
+    ...row(["90000001", 32], ["Test Gin 40% 700ml [6]", 114], ["2.000 Unit", 353], ["30.00000", 416], ["10%", 461], ["$ 60.00", 533]),
+    ...row(["90000002", 32], ["Test White Wine 750ml [12]", 114], ["12.000 Unit", 348], ["5.00000 W.E.T., 10%", 422], ["$ 60.00", 533]),
+    ...row(["Payment terms: 30 Days From Invoice", 29]),
+    ...row(["Untaxed Amount", 345], ["$ 120.00", 528]),
+    ...row(["GST 10% on $ 137.40", 345], ["$ 13.74", 533]),
+    ...row(["Withheld on $ 60.00", 345], ["$ 17.40", 533]),
+    ...row(["Total", 345], ["$ 151.14", 528]),
+    ...row(["Account Balance", 345], ["$ 151.14", 527]),
+  ];
+  return [R.toRows(words)];
+}
+
+test("Gulli 'Tax Invoice CI-' layout: quantity and price from their columns, wine tax kept with GST", () => {
+  const inv = R.parse(gulliTaxPages());
+  assert.equal(inv.ok, true, JSON.stringify(inv.checks));
+  assert.equal(inv.supplier, "Global Food and Wine (Gulli)");
+  assert.equal(inv.number, "CI-900001");
+  assert.equal(inv.date, "2026-11-03");
+  assert.deepEqual(inv.lines.map((l) => [l.code, l.description, l.qty, l.unit, l.unit_price, l.line_total]), [
+    ["90000001", "Test Gin 40% 700ml [6]", 2, "Unit", 30, 60],
+    ["90000002", "Test White Wine 750ml [12]", 12, "Unit", 5, 60],
+  ]);
+  assert.equal(inv.subtotal, 120);
+  assert.equal(inv.gst, 31.14);
+  assert.equal(inv.total, 151.14);
+});
+
+test("MOCO tax adjustment note: a credit, amounts with the minus after them", () => {
+  y = 0;
+  const words = [
+    ...row(["Acct #:", 40], ["TEST", 80]), ...row(["Invoice #:", 400], ["T-10", 450]), ...row(["Date:", 400], ["25/11/2026", 450]),
+    ...row(["** TAX ADJUSTMENT NOTE **", 300]),
+    ...row(["D", 29], ["10001", 50], ["TESTCO", 92], ["TEST COCONUT CREAM", 172], ["400ML 24", 328], ["CTN", 374], ["1-", 403],
+      ["55.00", 433], ["55.00-", 483], [".00", 538], ["55.00-", 575]),
+    ...row(["Total Net:", 450], ["55.00-", 540]), ...row(["Total GST:", 450], [".00", 540]), ...row(["Total Invoice:", 450], ["55.00-", 540]),
+  ];
+  const inv = R.parse([R.toRows(words)]);
+  assert.equal(inv.kind, "credit");
+  assert.equal(inv.ok, true, JSON.stringify(inv.checks));
+  assert.equal(inv.total, -55);
+  assert.deepEqual(inv.lines.map((l) => [l.code, l.qty, l.unit_price, l.line_total]), [["10001", 1, 55, -55]]);
+});
+
+test("Gulli 'Tax Invoice CI-' layout: totals found when the columns sit further right", () => {
+  y = 0;
+  const words = [
+    ...row(["Gulli Food Distributors Pty Ltd", 445]), ...row(["Tax Invoice CI-900002", 29]),
+    ...row(["Invoice Date:", 29]), ...row(["24/11/2026", 29]),
+    ...row(["PRODUCT CODE", 32], ["DESCRIPTION", 161], ["QUANTITY", 367], ["UNIT PRICE", 430], ["GST", 485], ["AMOUNT", 522]),
+    ...row(["TESTPRAWN-UC10", 32], ["Test Prawn Meat x1kg", 161], ["10.000 Unit", 366], ["20.90000", 441], ["0%", 485], ["$ 209.00", 527]),
+    ...row(["DELIVERY_007", 32], ["Standard Delivery", 161], ["1.000 Unit", 371], ["4.50000 10%", 446], ["$ 4.50", 538]),
+    ...row(["Untaxed Amount", 345], ["$ 213.50", 528]),
+    ...row(["GST 0% on $ 209.00", 345], ["$ 0.00", 538]),
+    ...row(["GST 10% on $ 4.50", 345], ["$ 0.45", 538]),
+    ...row(["Total", 345], ["$ 213.95", 528]),
+  ];
+  const inv = R.parse([R.toRows(words)]);
+  assert.equal(inv.ok, true, JSON.stringify(inv.checks));
+  assert.equal(inv.gst, 0.45);
+  assert.equal(inv.total, 213.95);
+});
+
+test("a delivery slip (ordered/delivered, no prices) is not read as an invoice", () => {
+  y = 0;
+  const words = [
+    ...row(["Test Foods Pty Ltd", 30]),
+    ...row(["PRODUCT", 200], ["ORDERED", 420], ["DELIVERED", 520]),
+    ...row(["[T1] Test Olive Oil 4lt", 40], ["1.000 Unit", 420], ["1.000 Unit", 520]),
+  ];
+  assert.deepEqual(R.parse([R.toRows(words)]), { error: "DELIVERY_SLIP" });
+});
